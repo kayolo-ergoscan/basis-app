@@ -14,7 +14,7 @@
 // The tracker server pays the miner fee from its own wallet inputs (and, for token redemptions, the
 // 0.001 ERG that the receiver's token box needs).
 
-import { blake2b256, bytesToHex, concatBytes, equalBytes, hexToBytes, readI64BE, toBytes, u64be, utf8, type Hex } from "./bytes";
+import { blake2b256, bytesToHex, concatBytes, equalBytes, hexToBytes, I64_MAX, readI64BE, toBytes, u64be, utf8, type Hex } from "./bytes";
 import { AvlOperationError, AvlProofError, type AuthenticatedMap, type AvlBackend, getAvlBackend } from "./avl";
 import { EMERGENCY_BLOCKS, MIN_BOX_VALUE_NANOERG, MIN_TOP_UP_NANOERG, MIN_TOP_UP_TOKEN_UNITS, MINER_FEE_NANOERG, REFUND_PERIOD_BLOCKS } from "./clock";
 import { debtKey as makeDebtKey, noteMessage, reserveKey as makeReserveKey, reserveTreeValue, type DenomId } from "./note";
@@ -72,6 +72,7 @@ export type ReserveCheckId =
   | "outputExists"
   | "ownerKey"
   | "reserveTokens"
+  | "refundHeightRead"
   | "uniqueReserveInput"
   | "scriptPreserved"
   | "tokensPreserved"
@@ -272,25 +273,32 @@ export function evaluateReserveSpend(tx: SimTx, inputIndex: number, opts: EvalOp
       return { ok: true, detail: `NFT ${tokenId0.slice(0, 8)}…, token ${tokenId1.slice(0, 8)}…` };
     });
   }
+  // refundHeight = SELF.R7[Long].getOrElse(0L) is used by every branch, so it is evaluated up front.
+  // A register of another type makes getReg throw (InvalidType): such a box can never be spent.
+  let refundHeight = 0n;
+  rec.add("refundHeightRead", "SELF.R7[Long].getOrElse(0L)", "refund height (R7) readable", () => {
+    refundHeight = regOpt(SELF, "R7", "Long")?.value ?? 0n;
+    return { ok: true, detail: refundHeight > 0n ? `R7 = ${refundHeight}: refund pending` : SELF.registers.R7 ? `R7 = ${refundHeight}` : "R7 absent → 0" };
+  });
   const base = { contract, action, actionName: ACTION_NAMES[action] ?? "invalid", outputIndex: index } as const;
   if (okOut === null || okOwner === null || rec.checks.some((c) => c.outcome === "throws")) return finish(base, rec);
-  const refundHeight = (() => {
-    try {
-      return regOpt(SELF, "R7", "Long")?.value ?? 0n;
-    } catch {
-      return 0n;
-    }
-  })();
 
   // ---- common preservation checks (selfPreserved is a lazy && chain: stop at the first false) ----
-  const preservation = () => {
+  const preservation = (r: Recorder = rec) => {
     const chain: Array<[ReserveCheckId, string, string, () => { ok: boolean; detail: string }]> = [
       [
         "uniqueReserveInput",
         "INPUTS.filter(same script && R4 == ownerKey).size == 1",
         "only one reserve of this owner in the transaction",
         () => {
-          const n = tx.inputs.filter((i) => i.script === SELF.script && i.registers.R4?.type === "GroupElement" && i.registers.R4.value === ownerKey).length;
+          let n = 0;
+          for (const i of tx.inputs) {
+            if (i.script !== SELF.script) continue; // propositionBytes differ: && stops here
+            const r4 = i.registers.R4;
+            if (!r4) continue; // in.R4[GroupElement].isDefined == false
+            if (r4.type !== "GroupElement") throw new Thrown(`an input with the reserve script holds ${r4.type} in R4: in.R4[GroupElement] throws`);
+            if (r4.value === ownerKey) n++;
+          }
           return { ok: n === 1, detail: `${n} matching input(s)` };
         },
       ],
@@ -307,14 +315,14 @@ export function evaluateReserveSpend(tx: SimTx, inputIndex: number, opts: EvalOp
     let stopped = false;
     for (const [id, expr, label, fn] of chain) {
       if (stopped) {
-        rec.skip(id, expr, label, "not evaluated: an earlier selfPreserved condition is false (&& short-circuits)", "selfPreserved");
+        r.skip(id, expr, label, "not evaluated: an earlier selfPreserved condition is false (&& short-circuits)", "selfPreserved");
         continue;
       }
-      const r = rec.add(id, expr, label, fn, "selfPreserved");
-      if (r !== true) stopped = true;
+      const ok = r.add(id, expr, label, fn, "selfPreserved");
+      if (ok !== true) stopped = true;
     }
     if (isToken) {
-      rec.add("tokenIdsPreserved", "selfOut.tokens.size == 2 && ids at 0,1 equal && tokens(0) amount equal", "reserve NFT kept, token id kept", () => {
+      r.add("tokenIdsPreserved", "selfOut.tokens.size == 2 && ids at 0,1 equal && tokens(0) amount equal", "reserve NFT kept, token id kept", () => {
         const t = selfOut.tokens;
         const ok = t.length === 2 && t[0].tokenId === tokenId0 && t[0].amount === SELF.tokens[0].amount && t[1].tokenId === tokenId1;
         return { ok, detail: `${t.length} token(s) in output` };
@@ -371,11 +379,19 @@ export function evaluateReserveSpend(tx: SimTx, inputIndex: number, opts: EvalOp
     return finish(base, rec);
   }
   if (action === 3) {
+    // selfPreserved is used by three branches, so it is a ValDef evaluated before `if (action == …)` even here.
+    // Its value is ignored by action 3, but a throw inside it (e.g. OUTPUTS(index) keeps the reserve script and
+    // tokens but has no R4) still invalidates the spend: keep only the throws of a dry run.
+    const probe = recorder();
+    preservation(probe);
+    for (const c of probe.checks) if (c.outcome === "throws") rec.checks.push({ ...c, detail: `${c.detail} (selfPreserved is evaluated before the action branch)` });
     rec.add("refundStarted", "refundHeight > 0L", "refund was initiated", () => ({ ok: refundHeight > 0n, detail: `R7 = ${refundHeight}` }));
-    rec.add("refundPeriodOver", "HEIGHT >= refundHeight + refundPeriod", "43 200 blocks have passed", () => ({
-      ok: BigInt(HEIGHT) >= refundHeight + BigInt(REFUND_PERIOD_BLOCKS),
-      detail: `HEIGHT ${HEIGHT} vs ${refundHeight + BigInt(REFUND_PERIOD_BLOCKS)}`,
-    }));
+    rec.add("refundPeriodOver", "HEIGHT >= refundHeight + refundPeriod", "43 200 blocks have passed", () => {
+      const unlock = refundHeight + BigInt(REFUND_PERIOD_BLOCKS);
+      // Long arithmetic is exact in ErgoScript: R7 + 43200 beyond Long.MaxValue throws instead of wrapping
+      if (refundHeight > 0n && unlock > I64_MAX) throw new Thrown(`refundHeight + refundPeriod overflows Long (R7 = ${refundHeight})`);
+      return { ok: BigInt(HEIGHT) >= unlock, detail: `HEIGHT ${HEIGHT} vs ${unlock}` };
+    });
     rec.add("ownerSignature", "proveDlog(ownerKey)", "owner signs", () => ({ ok: tx.signers.includes(ownerKey), detail: tx.signers.includes(ownerKey) ? "signed by the owner" : "owner signature missing" }));
     return finish(base, rec);
   }
@@ -452,14 +468,15 @@ function evaluateRedeem(
   // reserve tree lookup (#7, optional)
   let storedTimestamp = 0n;
   let redeemedDebt = 0n;
-  const lookupProof = (() => {
-    try {
-      return cvarOpt(vars, 7, "Coll[Byte]");
-    } catch {
-      return undefined;
-    }
-  })();
-  let lookupThrew = false;
+  // getVar[Coll[Byte]](7) of another type throws (InvalidType); it is NOT read as "absent"
+  let lookupProofError: Thrown | null = null;
+  let lookupProof: Extract<ContextVar, { type: "Coll[Byte]" }> | undefined;
+  try {
+    lookupProof = cvarOpt(vars, 7, "Coll[Byte]");
+  } catch (e) {
+    lookupProofError = e instanceof Thrown ? e : new Thrown((e as Error).message);
+  }
+  let lookupThrew = lookupProofError !== null;
   if (varsOk && rKey) {
     const selfTree = (() => {
       try {
@@ -469,6 +486,7 @@ function evaluateRedeem(
       }
     })();
     rec.add("timestampCorrect", "timestamp >= storedTimestamp (from SELF.R5.get(key, #7) when #7 is given)", "note is not older than the last redemption", () => {
+      if (lookupProofError) throw lookupProofError;
       if (lookupProof) {
         if (!selfTree) throw new Thrown("SELF.R5 is empty");
         let value: Uint8Array | null;
@@ -1011,18 +1029,36 @@ export function combineRedemptions(parts: Array<{ tx: SimTx }>, height: number, 
   return { id, inputs, dataInputs, outputs, contextVars, signers: [...signers], height };
 }
 
-export function contextVarsHex(vars: Record<number, ContextVar>): Record<string, { type: string; hex: Hex; value: string }> {
-  const out: Record<string, { type: string; hex: Hex; value: string }> = {};
+/**
+ * Context extension for the X-ray: `hex` is the raw value (Long as 8 bytes big-endian, as longToByteArray
+ * shows it); `wire` is the serialised constant the transaction really carries (type code + value: Byte 02‖b,
+ * Long 05‖VLQ(zigzag), GroupElement 07‖33 B, Coll[Byte] 0e‖VLQ(len)‖bytes; an empty #6 is 0e00).
+ */
+export function contextVarsHex(vars: Record<number, ContextVar>): Record<string, { type: string; hex: Hex; value: string; wire: Hex }> {
+  const out: Record<string, { type: string; hex: Hex; value: string; wire: Hex }> = {};
+  // a tampered value the serialiser cannot encode shows an empty wire form instead of breaking the X-ray
+  const wireOf = (f: () => Hex): Hex => {
+    try {
+      return f();
+    } catch {
+      return "";
+    }
+  };
   for (const [k, v] of Object.entries(vars)) {
     switch (v.type) {
-      case "Byte":
-        out[`#${k}`] = { type: "Byte", hex: (v.value & 0xff).toString(16).padStart(2, "0"), value: String(v.value) };
+      case "Byte": {
+        const b = (v.value & 0xff).toString(16).padStart(2, "0");
+        out[`#${k}`] = { type: "Byte", hex: b, value: String(v.value), wire: `02${b}` };
         break;
+      }
       case "Long":
-        out[`#${k}`] = { type: "Long", hex: bytesToHex(u64be(v.value)), value: v.value.toString() };
+        out[`#${k}`] = { type: "Long", hex: bytesToHex(u64be(v.value)), value: v.value.toString(), wire: wireOf(() => encodeLong(v.value)) };
+        break;
+      case "GroupElement":
+        out[`#${k}`] = { type: v.type, hex: v.value, value: `${v.value.length / 2} bytes`, wire: `07${v.value.toLowerCase()}` };
         break;
       default:
-        out[`#${k}`] = { type: v.type, hex: v.value, value: `${v.value.length / 2} bytes` };
+        out[`#${k}`] = { type: v.type, hex: v.value, value: `${v.value.length / 2} bytes`, wire: wireOf(() => encodeCollByte(v.value)) };
     }
   }
   return out;

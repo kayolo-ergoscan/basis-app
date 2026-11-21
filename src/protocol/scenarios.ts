@@ -331,7 +331,7 @@ const agentSwarm: Scenario = {
     {
       id: "loops",
       title: "Clear the loops",
-      text: "Agents owe each other in circles. Each loop clears in ONE transaction: every reserve on it pays the next agent the same amount, wallets end where they started, debt disappears.",
+      text: "Agents owe each other in circles. Each loop clears in ONE transaction: every reserve on it pays the next agent the same amount. Each agent receives exactly what its own reserve pays out, so nobody's net worth moves — collateral that backed the loop leaves the reserves for the wallets — and the loop's debt disappears.",
       waitBlocks: 10,
       run(eco, ctx) {
         let cleared = 0n;
@@ -817,7 +817,7 @@ const refundRace: Scenario = {
     {
       id: "announce",
       title: "Alice announces her exit",
-      text: "Action 2 writes R7 := HEIGHT into the reserve box. From now on the clock runs: 43,200 blocks until she may empty it.",
+      text: "Action 2 (owner-signed) sets R7 to the current height. The contract only demands R7 ≥ the height of the block that includes it, so a real wallet sets it a few blocks ahead. From now on the clock runs: 43,200 blocks after R7 until she may empty it.",
       focus: ["alice-vault"],
       run(eco, ctx) {
         const r = eco.initiateRefund({ reserve: "alice-vault" });
@@ -979,7 +979,7 @@ const clearingCircle: Scenario = {
   title: "Clearing circle",
   tagline: "Five businesses, one loop, one transaction.",
   description:
-    "A supply chain where everyone owes the next. The loop is found automatically and cleared in a single atomic transaction: five reserves pay five creditors the same amount at once, so every wallet ends where it started and the loop's debt is gone. The contract allows this today (one reserve per owner, up to 10 per transaction); the tracker server has no clearing endpoint yet, so the sandbox composes the legs itself.",
+    "A supply chain where everyone owes the next. The loop is found automatically and cleared in a single atomic transaction: five reserves pay five creditors the same amount at once. Each business receives exactly what its own reserve pays out, so no one's net worth moves: the collateral that backed the loop goes from the reserves to the wallets, and the loop's debt is gone. The contract allows this today (one reserve per owner, up to 10 per transaction); the tracker server has no clearing endpoint yet, so the sandbox composes the legs itself.",
   features: ["clearing", "atomic-tx", "redeem", "commit"],
   cast: ["farm", "mill", "bakery", "cafe", "brewery", "op"],
   setup(eco) {
@@ -1101,7 +1101,7 @@ const censoringTracker: Scenario = {
     {
       id: "detect",
       title: "Bob's wallet notices",
-      text: "The tracker committed after accepting Alice's IOU, yet the committed tree still proves the old total. Bob holds Alice's signature for the new one: omission, provably.",
+      text: "The tracker committed after accepting Alice's IOU, yet the committed tree still proves the old total. Bob holds Alice's signature for the new one, so anyone can check that a newer valid note exists. The real server signs no receipt, though, so the tracker can still claim it never saw it.",
       focus: ["bob"],
       run(eco) {
         const t = eco.t("gate");

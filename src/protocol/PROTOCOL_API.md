@@ -41,7 +41,8 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
 | `sign(msg, key)` | Ergo Schnorr signature: `a(33) ‖ z(32)` with `e = blake2b256(a‖msg‖pk)`. The nonce is deterministic: the signer retries until `e[0] < 0x80` and `z < 2^255`. |
 | `signWithTrace(msg, key)` | The same, plus every rejected nonce attempt. |
 | `verify(pub, msg, sig)` | Returns `{ ok, failure? }`. Failure reasons are in `VERIFY_FAILURE_TEXT`. |
-| `contractSignatureHolds(pub, msg, sig)` | The contract's exact view, using signed `byteArrayToBigInt` and `decodePoint`. It can throw where `verify` would only return false. |
+| `contractSignatureHolds(pub, msg, sig)` | The contract's exact view: `a = decodePoint(sig[0..33])`, `z = byteArrayToBigInt(sig[33..])` (to the end, any length). It can throw where `verify` would only return false. It also accepts signatures the tracker refuses: a sign-extended 66-byte `a ‖ 00 ‖ z`, or a `z` or `e` with the top bit set (read as negative, and `exp` reduces mod n). Only `verify` applies the 65-byte and retry rules. |
+| `contractBigInt(bytes)`, `contractDecodePoint(bytes)` | `byteArrayToBigInt` is `new BigInteger(bytes).to256BitValueExact`: any non-empty length, signed, value in [−2^255, 2^255 − 1]. Outside that range, or when empty, it throws `ContractThrow`. `decodePoint` takes exactly 33 bytes; a 0x00 prefix gives the identity point. |
 | `explain(pub, msg, sig)` | `SignatureXray` for the Learn and X-ray views: every step and check with its bytes. |
 | `encodeGroupElement`, `encodeCollByte`, `encodeLong`, `encodeAvlTree`, `decodeRegister`, `basisAvlRegister(digest)` | Register hex exactly as it appears on chain. |
 | `EMPTY_AVL_DIGEST_HEX` | `4ec61f48…160900`. |
@@ -109,20 +110,25 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
 
 - Each check is `{ id, outcome: "true" | "false" | "throws" | "skipped", expr, detail }`. They follow the contract's lazy `&&` order, so a check after the first false is marked `skipped`.
 - **Check ids.** These are the names to use for UI copy.
-  - Prologue: `actionVar outputExists ownerKey reserveTokens`.
+  - Prologue: `actionVar outputExists ownerKey reserveTokens refundHeightRead`.
   - Self-preservation: `uniqueReserveInput scriptPreserved tokensPreserved tokenIdsPreserved ergPreserved ownerPreserved trackerNftPreserved`.
   - Action 0, redeem: `trackerIdCorrect trackerDebtCorrect timestampCorrect properRedemptionTree properReserveSignature properlyRedeemed trackerSigValid refundPreserved receiverSignature`.
   - Action 1, top up: `treePreserved topUpAmount`.
   - Action 2, initiate refund: `valueNotDecreased refundHeightValid refundNotStarted ownerSignature`.
   - Action 3, complete refund: `refundStarted refundPeriodOver`.
   - Anything else: `invalidAction`.
+- **Contract semantics the evaluator keeps.**
+  - **Eager top-level values.** A `val` the contract uses more than once is computed before the `if (action …)` branches: `selfOut`, `ownerKey`, `refundHeight`, `selfPreserved`, and in the token contract also `tokenIdsPreserved` and `ergPreserved`. A throw in any of them invalidates every action. A complete refund (action 3) does not use `selfPreserved`, but its throws still count; they are reported with the suffix "(selfPreserved is evaluated before the action branch)".
+  - **Wrong types throw.** `getVar` and `getReg` throw `InvalidType` on a value of another type; they never read it as absent. This covers `#7`, `SELF.R7` (`refundHeightRead`, in every action) and R4 of any input with the reserve script in the uniqueness filter (an input without R4 is skipped).
+  - **Exact Long arithmetic.** `refundHeight + 43200` throws on overflow. Initiating a refund accepts any R7 ≥ HEIGHT, and a refund cannot be started twice. With an R7 near Long.MaxValue the refund can therefore never complete, and only redemptions can move the funds; the owner can still use a self-note.
+  - **Not modelled: AvlTree flags, keyLength and valueLength.** On chain, `nextTree == selfOut.R5` compares the whole AvlTreeData. A reserve whose R5 disallows inserts can never be redeemed. A wallet must accept a new reserve only if its R5 is exactly `basisAvlRegister(EMPTY_AVL_DIGEST_HEX)` (insert and update allowed, keyLength 32, no valueLength) and it has no R7. The server's scanner refuses any other root setup (`root_setup_violation`): a pre-filled tree can block holders, and an R7 set at creation lets the owner withdraw at once.
 
 **`ReserveSim`** is one reserve over time: its box, its redemption tree (R5) and its history.
 
 - **Builders.** Each returns a `SimTx`:
   - `buildRedeem({ receiver, totalDebt, timestamp, amount, issuerSig, trackerSig, trackerBox, height, tamper? })`;
   - `buildTopUp(amount, payer, height)`;
-  - `buildInitiateRefund(r7, height, signers?)`;
+  - `buildInitiateRefund(r7, height, signers?)`. The contract needs R7 ≥ HEIGHT of the block that includes the transaction. The engine's HEIGHT is that block, so `r7 = height` passes; a real wallet adds a few blocks of margin;
   - `buildCompleteRefund(height, signers?)`.
 - **Checks and reads.**
   - `evaluate(tx)` runs the contract checks.
@@ -138,7 +144,7 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
 - **Other exports.**
   - `combineRedemptions(parts, height, extraSigners)` builds one atomic transaction with up to 10 reserve inputs.
   - `trackerBoxFor(...)` builds the tracker data input.
-  - `contextVarsHex(tx.contextVars[i])` gives the context-extension hex for the X-ray view.
+  - `contextVarsHex(tx.contextVars[i])` gives the context extension for the X-ray view as `{ type, hex, value, wire }`. `hex` is the raw value; a Long is shown as 8 bytes big-endian. `wire` is the serialised constant the transaction carries: `02‖b`, `05‖VLQ(zigzag)`, `07‖33 bytes` or `0e‖VLQ(len)‖bytes`. An empty `#6` (emergency) is `0e00`.
 
 ## 6. Tracker (`tracker`)
 
@@ -149,10 +155,15 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
   - `history` holds every signed version.
 - **`boxes`** (`TrackerBoxRecord[]`)
   - Each box is a commitment: `{ boxId, txId, digest, creationHeight, confirmedHeight, tree }`.
-- **`status(rec)`**
-  - Returns `local` until the latest version is in the committed tree.
-  - It becomes `pending` in the committing cycle.
-  - It becomes `confirmed` at the next updater cycle at which depth ≥ 2, which is one 600 s cycle later.
+- **`status(rec)`** is per note, like the server's `NoteConfirmationStatus`:
+  - `local` while the current box does not hold the note's latest total;
+  - `pending` while only the newest box, still waiting for depth, holds it;
+  - `confirmed` once a box the updater has confirmed holds it, at the next updater cycle at which depth ≥ 2, which is one 600 s cycle later.
+  - A new box leaves unchanged notes `confirmed` and redeemable: `mark_notes_pending` only touches notes whose total changed.
+- **`committedTotal(key)`, `confirmedTotal(key)`, `confirmedBox()`**
+  - `committedTotal` is the value in the current box, which is the data input on chain.
+  - `confirmedTotal` is the value in the newest confirmed box, the server's `confirmed_total_debt`.
+  - Lookup trees are kept for the last two boxes and the newest confirmed box.
 - **`checkNote(sub, nowMs)`** (`POST /notes`), in the server's order:
   1. offline
   2. censorship
@@ -166,9 +177,12 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
 
   **No acceptance policy is evaluated here.**
 - **`authorizeRedemption(...)`** (`/redemption/build` and `/tracker/signature`)
-  - Refusal codes, in order: `tracker-offline`, `not-found`, `stale-committed-debt`, `note-not-committed`, `note-not-confirmed`, `rate-limited`, `multiple-reserves`, `no-reserve`, then the FIFO and policy gate.
-  - `Economy.redeem` adds two wallet-side checks before this gate: `insufficient-collateral` and `nothing-to-redeem`.
-  - `worstCase` checks the full outstanding amount, as `/tracker/signature` does.
+  - Refusal codes, in the order of `/redemption/build`: `tracker-offline`, `rate-limited`, `not-found`, `multiple-reserves`, `no-reserve`, the FIFO and policy gate, then `stale-committed-debt`, `note-not-committed` and `note-not-confirmed`.
+  - **Rate limit.** The limiter records every attempt it lets through, even one refused later, so 60 refused builds use up the hour.
+  - **Stale committed debt.** This is judged against `confirmedTotal`, like the server. An emergency check uses the current box instead.
+  - `Economy.redeem` runs its own wallet-side checks before this gate: `no-reserve`, `not-found`, `note-not-committed`, `nothing-to-redeem` and `insufficient-collateral`. Attempts it refuses never reach the limiter.
+  - `worstCase` checks the full outstanding amount, as `/tracker/signature` does. The real `/tracker/signature` has no rate-limit, stale or confirmation gate.
+  - **Not modelled: the server's stale data input.** The reference server builds against its last confirmed box id. Once an update transaction is mined, that box is spent, so `/utxo/byIdBinary` fails and every `/redemption/build` fails until the next updater cycle. The engine redeems against the current box, as the contract allows.
 - **`exchanges`** and **`decideExchange(x, boxId)`** (`POST /notes/exchange`, two-phase)
   - Decisions are `wait`, `apply` or `cancel` with the server's reason text.
 - **`options`** (`TrackerOptions`)
@@ -216,7 +230,7 @@ Every command validates first, then emits events. Refusals are events too, so th
 - **Reserves**
   - `createReserve`.
   - `topUp({ reserve, amount, by })`: anyone may top up, with no signature.
-  - `initiateRefund({ reserve, r7? })`, `completeRefund({ reserve })`.
+  - `initiateRefund({ reserve, r7? })`, `completeRefund({ reserve })`. `r7` defaults to the current height, which is the inclusion height in the engine. It may be any value ≥ HEIGHT; the 43 200 blocks count from R7, not from the announcement.
 - **Redemption**
   - **`redeem(opts)`.** Runs the wallet check, then the tracker gate, then the transaction, then contract evaluation.
   - **Options.** Defaults are given in brackets.
@@ -253,7 +267,7 @@ All views are pure reads.
 | `p(id)`, `t(id?)`, `r(id)` | Participant, tracker and reserve lookups. |
 | `balance(id, denom)` | Wallet balance. |
 | `coverage(id, denom)` | `{ collateral, liabilities, ratio, level: critical<1.0 / warning<1.2 / caution<1.5 / ok / none, label: TUI reserve label }`. |
-| `balanceSheet(id, denom)` | Assets and liabilities. Each has an "on-chain" variant that ignores waivers. Also the self-note, reserve, wallet, net, coverage and per-counterparty lines. |
+| `balanceSheet(id, denom)` | Assets and liabilities. Each has an "on-chain" variant that ignores waivers. Also the self-note, reserve, wallet, net, coverage and per-counterparty lines. A claim after waivers never goes below 0, even when a holder redeems past its own waiver. Clearing edges use the same rule. |
 | `graph(denom?)` | `{ nodes: GraphNode[], edges: GraphEdge[] }`, ready for a force graph. |
 | `notesOf(id)`, `note(issuer, receiver, denom?, tracker?)`, `noteStatus(rec)` | Notes and their status. |
 | `stats()` | Totals for the HUD. |
@@ -284,6 +298,8 @@ All views are pure reads.
 ### Replay
 
 - `Economy.replay(events, { avl })` rebuilds a whole economy from a log.
+  - Without `avl`, it uses the backend named in genesis (`avlBackend`) if that backend is loaded (`loadedAvlBackend(id)`), and otherwise the active one.
+  - A replay on another backend throws `replay diverged` at the first commit, because the digests differ.
 - `eco.clone()` copies an economy.
 - `eco.ingest(e)` applies one more event.
 - Reducers only apply data that is already in the event, so a replay never re-runs checks or crypto.
@@ -291,7 +307,7 @@ All views are pure reads.
 ## 8. Time machine (`timemachine`)
 
 ```ts
-const tm = new TimeMachine(eco, { checkpointEvery: 256 });
+const tm = new TimeMachine(eco, { checkpointEvery: 256, avl? }); // avl defaults to eco.avl (a bare log: the genesis backend)
 tm.stateAt(seq);                 // fresh Economy right after event seq (frontier + clone checkpoints → O(checkpointEvery))
 tm.stateAtHeight(h);             // state at the end of block h (also inside long chain.mined ranges)
 tm.fork(seq);                    // a live alternate history; mutate freely, the original is untouched

@@ -9,7 +9,7 @@
 // eager run would have produced, and it verifies under the contract's rules.
 
 import { blake2b256, bytesToHex, hexToBytes, utf8, type Hex } from "./bytes";
-import { type AvlBackend, getAvlBackend } from "./avl";
+import { type AvlBackend, getAvlBackend, loadedAvlBackend } from "./avl";
 import { applyCycle, clearingStats, findCycles as findDebtCycles, netPositions as debtNetPositions, settlementPlan, type ClearingStats, type DebtCycle, type DebtEdge } from "./clearing";
 import { BlockClock, MIN_BOX_VALUE_NANOERG, MINER_FEE_NANOERG, REFUND_PERIOD_BLOCKS } from "./clock";
 import { INFORMATIONAL_EVENTS, type EconomyEvent, type EventBody, type EventOf, type KeySource, type NostrKind, type ParticipantKind } from "./events";
@@ -277,6 +277,14 @@ export function maxPayout(reserve: ReserveSim): bigint {
   return c > floor ? c - floor : 0n;
 }
 const outstandingOf = (r: NoteRecord) => (r.totalDebt > r.amountRedeemed ? r.totalDebt - r.amountRedeemed : 0n);
+/**
+ * What an honest holder still claims: outstanding minus its own waivers, never below 0. A holder who redeems
+ * past a waiver (the contract cannot see waivers) has a claim of 0, not a negative one.
+ */
+const honestClaimOf = (r: NoteRecord) => {
+  const c = outstandingOf(r) - r.waived;
+  return c > 0n ? c : 0n;
+};
 
 export function coverageLevel(ratio: number | null): CoverageLevel {
   if (ratio === null) return "none";
@@ -370,7 +378,9 @@ export class Economy {
     const self = eco as unknown as Record<string, unknown>;
     self.seed = g.seed;
     self.lazy = g.lazySignatures;
-    self.avl = avl ?? getAvlBackend();
+    // digests in the log belong to the backend that recorded it: prefer that one when it is loaded, so a
+    // replay does not depend on which backend happens to be active now
+    self.avl = avl ?? loadedAvlBackend(g.avlBackend) ?? getAvlBackend();
     self.demoSalt = g.demoSalt;
     self.clock = new BlockClock({ genesisHeight: g.genesisHeight, genesisTimeMs: g.genesisTimeMs });
     self.participants = new Map();
@@ -1507,11 +1517,12 @@ export class Economy {
         feePayer = operator;
       } else {
         const auth = tracker.authorizeRedemption({ issuer: I.pub, receiver: R.pub, denom, amount, emergency: false, height, nowMs: this.clock.nowMs(), reserves: this.reserveViews(tracker), worstCase: o.worstCase });
+        // the server's rate limiter records every /redemption/build attempt it lets through, even one it refuses later
+        built = auth.ok || (auth.code !== "rate-limited" && auth.code !== "tracker-offline");
         if (!auth.ok) return fail("tracker", auth.code, auth.message, { compliance: auth.compliance ?? null }, reserve.id, amount);
         trackerSig = auth.trackerSig;
         compliance = auth.compliance;
         feePayer = operator;
-        built = true;
       }
     }
     const minBox = reserve.contract === "basis-token" ? MIN_BOX_VALUE_NANOERG : 0n;
@@ -1624,7 +1635,7 @@ export class Economy {
     const edges: DebtEdge[] = members.map((m, i) => {
       const to = members[(i + 1) % members.length];
       const rec = tracker.note(this.p(m).pub, this.p(to).pub, denom);
-      return { from: m, to, amount: rec ? outstandingOf(rec) - rec.waived : 0n };
+      return { from: m, to, amount: rec ? honestClaimOf(rec) : 0n };
     });
     const maxAmount = edges.reduce((m, e) => (e.amount < m ? e.amount : m), edges[0]?.amount ?? 0n);
     const amount = o.amount ?? maxAmount;
@@ -1750,16 +1761,16 @@ export class Economy {
         }
         held++;
         assetsOnChain += out;
-        assets += out - rec.waived;
-        line(this.idOf(rec.issuer)!).owesMe += out - rec.waived;
+        assets += honestClaimOf(rec);
+        line(this.idOf(rec.issuer)!).owesMe += honestClaimOf(rec);
       }
       for (const rec of t.notesOfIssuer(me.pub, denom)) {
         if (rec.receiver === me.pub) continue;
         const out = outstandingOf(rec);
         issued++;
         liabilitiesOnChain += out;
-        liabilities += out - rec.waived;
-        line(this.idOf(rec.receiver)!).iOwe += out - rec.waived;
+        liabilities += honestClaimOf(rec);
+        line(this.idOf(rec.receiver)!).iOwe += honestClaimOf(rec);
       }
     }
     for (const l of cp.values()) l.net = l.owesMe - l.iOwe;

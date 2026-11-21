@@ -81,6 +81,15 @@ describe("basis.es action 0 (redeem)", () => {
     expectFail(w.reserve.evaluate(tx2), "ownerKey", "throws");
   });
 
+  it("refundHeightRead: an R7 of another type throws in every action (getReg InvalidType, evaluated up front)", () => {
+    const w = world();
+    const h = w.eco.clock.height;
+    for (const tx of [mutable(w.build()), mutable(w.reserve.buildTopUp(erg(1), w.alice.pub, h)), mutable(w.reserve.buildCompleteRefund(h))]) {
+      tx.inputs[0].registers.R7 = { type: "Coll[Byte]", value: "00" };
+      expectFail(w.reserve.evaluate(tx), "refundHeightRead", "throws");
+    }
+  });
+
   it("selfPreserved: unique input, script, tokens, owner, tracker NFT (lazy &&)", () => {
     const w = world();
     const self = w.reserve.box!;
@@ -290,12 +299,12 @@ describe("basis.es actions 1–3", () => {
 
   it("every check id of the evaluator is covered by this file", () => {
     const covered: ReserveCheckId[] = [
-      "actionVar", "outputExists", "ownerKey", "reserveTokens", "uniqueReserveInput", "scriptPreserved", "tokensPreserved", "tokenIdsPreserved",
+      "actionVar", "outputExists", "ownerKey", "reserveTokens", "refundHeightRead", "uniqueReserveInput", "scriptPreserved", "tokensPreserved", "tokenIdsPreserved",
       "ergPreserved", "ownerPreserved", "trackerNftPreserved", "trackerIdCorrect", "trackerDebtCorrect", "timestampCorrect", "properRedemptionTree",
       "properReserveSignature", "properlyRedeemed", "trackerSigValid", "refundPreserved", "receiverSignature", "treePreserved", "topUpAmount",
       "valueNotDecreased", "refundHeightValid", "refundNotStarted", "ownerSignature", "refundStarted", "refundPeriodOver", "invalidAction",
     ];
-    expect(new Set(covered).size).toBe(29);
+    expect(new Set(covered).size).toBe(30);
     void demoKeyPair;
   });
 });

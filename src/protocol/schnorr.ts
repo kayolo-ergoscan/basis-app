@@ -517,11 +517,20 @@ export function contractDecodePoint(bytes: Uint8Array): CurvePoint {
   }
 }
 
-/** ErgoScript `byteArrayToBigInt`: signed, 1..32 bytes. */
+const BIGINT_MIN = -(1n << 255n);
+const BIGINT_MAX = (1n << 255n) - 1n;
+
+/**
+ * ErgoScript `byteArrayToBigInt` = `new java.math.BigInteger(bytes).to256BitValueExact`: signed two's
+ * complement of ANY non-empty length, accepted while bitLength ≤ 255, i.e. the value lies in
+ * [−2^255, 2^255 − 1]. Longer encodings are fine when they are sign-extended (00‖x, ff‖x, …), so the
+ * contract accepts e.g. a 66-byte signature a ‖ 00 ‖ z that the tracker's 65-byte rule rejects.
+ */
 export function contractBigInt(bytes: Uint8Array): bigint {
-  if (bytes.length === 0) throw new ContractThrow("byteArrayToBigInt: zero-length array");
-  if (bytes.length > 32) throw new ContractThrow("byteArrayToBigInt: value exceeds 256 bits");
-  return bytesToSignedBig(bytes);
+  if (bytes.length === 0) throw new ContractThrow("byteArrayToBigInt: zero-length array (BigInteger throws)");
+  const v = bytesToSignedBig(bytes);
+  if (v < BIGINT_MIN || v > BIGINT_MAX) throw new ContractThrow("byteArrayToBigInt: BigInteger out of 256 bit range (bitLength > 255)");
+  return v;
 }
 
 /**

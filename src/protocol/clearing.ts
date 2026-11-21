@@ -2,8 +2,9 @@
 //
 // In Basis cumulative totals never decrease, so a cycle is not "netted" by rewriting notes. It is cleared
 //   • on-chain: ONE transaction redeems `amount` along every edge (each debtor's reserve pays its creditor);
-//     every edge's outstanding debt drops by `amount` and every member's wallet ends where it started
-//     (+amount in, −amount out of its reserve). At most 10 reserves per transaction (#0 % 10 = output index).
+//     every edge's outstanding debt drops by `amount` and every member's net worth is unchanged: its wallet
+//     gains `amount`, its own reserve pays `amount` (collateral that backed the loop is released).
+//     At most 10 reserves per transaction (#0 % 10 = output index).
 //   • off-chain: each creditor waives `amount` of its incoming edge. Cheap, but a waiver is only a promise:
 //     the contract would still let the creditor redeem the full note.
 

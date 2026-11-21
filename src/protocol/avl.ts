@@ -502,6 +502,14 @@ export function getAvlBackend(): AvlBackend {
   return current;
 }
 
+/** The backend with this id when it is active or already loaded (never starts a load). */
+export function loadedAvlBackend(id: string | undefined): AvlBackend | undefined {
+  if (!id) return undefined;
+  if (current.id === id) return current;
+  const entry = registry.get(id);
+  return entry && typeof entry !== "function" ? entry : undefined;
+}
+
 export function onAvlBackendChange(listener: (b: AvlBackend) => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

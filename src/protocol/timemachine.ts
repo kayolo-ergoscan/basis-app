@@ -67,7 +67,8 @@ export class TimeMachine {
     this.events = (source instanceof Economy ? source.events : source).slice();
     if (this.events.length === 0 || this.events[0].type !== "genesis") throw new Error("the log must start with genesis");
     this.checkpointEvery = Math.max(16, opts.checkpointEvery ?? 256);
-    this.avl = opts.avl;
+    // replay with the backend that produced the digests in the log, not whichever one is active later
+    this.avl = opts.avl ?? (source instanceof Economy ? source.avl : undefined);
   }
 
   get length(): number {

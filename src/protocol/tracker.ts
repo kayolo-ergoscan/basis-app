@@ -349,7 +349,24 @@ export class TrackerSim {
   /** Reducer: the updater saw `boxId` deep enough at `height`. */
   markConfirmed(boxId: Hex, height: number): void {
     const box = this.boxes.find((b) => b.boxId === boxId);
-    if (box && box.confirmedHeight === null) box.confirmedHeight = height;
+    if (!box || box.confirmedHeight !== null) return;
+    const before = this.confirmedIndex();
+    box.confirmedHeight = height;
+    // lookup trees are kept for the current box, the previous one and the newest confirmed one
+    const after = this.confirmedIndex();
+    if (before >= 0 && before !== after && before < this.boxes.length - 2) this.boxes[before].tree = null;
+  }
+
+  /** Index in `boxes` of the newest box the updater has confirmed (−1 if none). */
+  private confirmedIndex(): number {
+    for (let i = this.boxes.length - 1; i >= 0; i--) if (this.boxes[i].confirmedHeight !== null) return i;
+    return -1;
+  }
+
+  /** The newest box the updater has confirmed: the state the server builds committed proofs against. */
+  confirmedBox(): TrackerBoxRecord | undefined {
+    const i = this.confirmedIndex();
+    return i >= 0 ? this.boxes[i] : undefined;
   }
 
   /** Total committed in the latest on-chain box for `key` (null = not in the tree). */
@@ -360,13 +377,29 @@ export class TrackerSim {
     return v ? readI64BE(v, 0) : null;
   }
 
+  /** Total for `key` in the newest confirmed box: the server's per-note `confirmed_total_debt` (null = none). */
+  confirmedTotal(key: Hex): bigint | null {
+    const box = this.confirmedBox();
+    if (!box?.tree) return null;
+    const v = box.tree.get(hexToBytes(key));
+    return v ? readI64BE(v, 0) : null;
+  }
+
+  /**
+   * Per-note confirmation, like the server (NoteConfirmationStatus): `confirmed` when the note's total is in a
+   * box the updater has confirmed, `pending` when only the newest (still unconfirmed) box holds it, `local`
+   * otherwise. While a new box waits for depth, mark_notes_pending only touches notes whose total changed, so an
+   * unchanged note stays Confirmed (and redeemable). The current box must hold the total too: it is the data
+   * input every redemption uses.
+   */
   status(rec: NoteRecord, height: number): NoteStatus {
     const box = this.currentBox();
     if (!box) return "local";
     const c = this.committedTotal(rec.key);
     if (c === null || c !== rec.totalDebt) return "local";
     void height;
-    return this.isConfirmed(box) ? "confirmed" : "pending";
+    if (this.isConfirmed(box)) return "confirmed";
+    return this.confirmedTotal(rec.key) === rec.totalDebt ? "confirmed" : "pending";
   }
 
   /** Blocks since the latest tracker box was created. */
@@ -527,7 +560,10 @@ export class TrackerSim {
       confirmedHeight: null,
     };
     this.boxes.push(box);
-    if (this.boxes.length > 2) this.boxes[this.boxes.length - 3].tree = null;
+    // drop the lookup tree of the box before the previous one, unless it is still the newest confirmed box
+    // (status() and confirmedTotal() read it while a newer box waits for depth)
+    const old = this.boxes.length - 3;
+    if (old >= 0 && old !== this.confirmedIndex()) this.boxes[old].tree = null;
     this.lastCommitAttemptHeight = p.creationHeight;
     return box;
   }
@@ -549,6 +585,13 @@ export class TrackerSim {
    * /redemption/build + /tracker/signature: returns the tracker signature (empty in emergency) or the
    * server's refusal. `worstCase` = check policy compliance for redeeming the full outstanding amount
    * (what /tracker/signature does) instead of `amount` (what /redemption/build does).
+   *
+   * Order of /redemption/build: the per-pair rate limit comes first (the server records every attempt it
+   * lets through, refused later or not), then the note lookup, the single-reserve rule, the acceptance
+   * policy, and last the committed proof (stale committed debt, then not committed / not confirmed).
+   * Attempts a wallet refuses before it reaches the tracker (Economy.redeem's own checks) are not counted.
+   * The real /tracker/signature has none of the rate-limit, stale or confirmation gates.
+   * `emergency` only reports what the tracker data allows a holder's own build; it skips the server gates.
    */
   authorizeRedemption(p: {
     issuer: Hex;
@@ -564,21 +607,22 @@ export class TrackerSim {
   }): { ok: true; record: NoteRecord; trackerSig: Uint8Array; compliance: ComplianceResult | null } | TrackerReject {
     const rec = this.note(p.issuer, p.receiver, p.denom);
     if (!p.emergency && !this.online) return reject("tracker-offline", 503, "tracker unreachable");
-    if (!rec) return reject("not-found", 404, "Note not found");
-    const committed = this.committedTotal(rec.key);
-    if (committed !== null && committed > rec.totalDebt) {
-      return reject(
-        "stale-committed-debt",
-        409,
-        `Committed tracker state (${committed}) is ahead of the note's current total (${rec.totalDebt}); a consented debt decrease has not been committed yet. Retry after the next tracker box update`,
-      );
-    }
-    if (p.emergency) return { ok: true, record: rec, trackerSig: new Uint8Array(), compliance: null };
-    if (committed === null) return reject("note-not-committed", 409, "Note is not committed on-chain yet");
-    if (this.status(rec, p.height) !== "confirmed") return reject("note-not-confirmed", 409, "Note is not committed on-chain yet");
-    if (this.recentBuilds(p.issuer, p.receiver, p.nowMs) >= this.options.rateLimitPerHour) {
+    if (!p.emergency && this.recentBuilds(p.issuer, p.receiver, p.nowMs) >= this.options.rateLimitPerHour) {
       return reject("rate-limited", 429, `rate limit: at most ${this.options.rateLimitPerHour} redemption builds per pair per hour`);
     }
+    if (!rec) return reject("not-found", 404, "Note not found");
+    const committed = this.committedTotal(rec.key);
+    // a consented decrease (exchange) that is not committed yet: the server compares the note's confirmed value
+    // (generate_committed_tracker_lookup_proof); a holder's own emergency build reads the current box, its data input
+    const reference = p.emergency ? committed : this.confirmedTotal(rec.key);
+    const ahead = reference !== null && reference > rec.totalDebt ? reference : null;
+    const stale = (): TrackerReject =>
+      reject(
+        "stale-committed-debt",
+        409,
+        `Committed tracker state (${ahead}) is ahead of the note's current total (${rec.totalDebt}); a consented debt decrease has not been committed yet. Retry after the next tracker box update`,
+      );
+    if (p.emergency) return ahead !== null ? stale() : { ok: true, record: rec, trackerSig: new Uint8Array(), compliance: null };
     const live = p.reserves.filter((r) => r.active && r.owner === p.issuer && r.denom === p.denom);
     if (live.length > 1) {
       return reject("multiple-reserves", 409, `issuer has ${live.length} tracked reserves in ${p.denom}; refusing to sign: the same note would redeem in full against each`);
@@ -603,6 +647,9 @@ export class TrackerSim {
       });
       if (!compliance.ok) return reject(compliance.failureId, 400, compliance.message, { compliance });
     }
+    if (ahead !== null) return stale();
+    if (committed === null) return reject("note-not-committed", 409, "Note is not committed on-chain yet");
+    if (this.status(rec, p.height) !== "confirmed") return reject("note-not-confirmed", 409, "Note is not committed on-chain yet");
     const trackerSig = p.sign === false ? new Uint8Array() : this.coSign(rec, rec.totalDebt, rec.timestamp);
     return { ok: true, record: rec, trackerSig, compliance };
   }
