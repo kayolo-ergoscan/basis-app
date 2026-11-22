@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import { OUR_TRACKER } from "../../chain/ours/types";
 import { blake2b256, bytesToHex, hexToBytes } from "../../protocol/bytes";
 import {
-  EMPTY_RESERVE_R5, FEE_TREE_HEX, R7_NO_REFUND, RESERVE_TREE_BLAKE2B256, RESERVE_TREE_BYTES, RESERVE_TREE_HEX, RESERVE_TREE_SHA256, TRACKER_NFT, TRACKER_PK, p2pkKeyOfTree, p2pkTree,
+  EMPTY_RESERVE_R5, FEE_TREE_HEX, R7_NO_REFUND, RESERVE_TEMPLATE_HASH, RESERVE_TREE_BLAKE2B256, RESERVE_TREE_BYTES, RESERVE_TREE_HEX, RESERVE_TREE_SHA256, TRACKER_NFT, TRACKER_PK,
+  p2pkKeyOfTree, p2pkTree,
 } from "./constants";
 import { ALL, ISSUER_A, R1, R2, R3, R3_RESERVE_IN, R3_TRACKER, T1 } from "./fixtures/chain";
+import { CURRENT_TEMPLATES, templateHashSync } from "../../chain/decode";
 import { register } from "./model";
 
 describe("pinned constants", () => {
@@ -17,6 +19,8 @@ describe("pinned constants", () => {
     expect(bytesToHex(sha256(t))).toBe("760b84d23538708f9997f5598f02bdc7e3b90d4d52f47d5ab3744aa71cdae4f6");
     expect(bytesToHex(sha256(t))).toBe(RESERVE_TREE_SHA256);
     expect(bytesToHex(blake2b256(t))).toBe(RESERVE_TREE_BLAKE2B256);
+    expect(templateHashSync(RESERVE_TREE_HEX)).toBe(RESERVE_TEMPLATE_HASH);
+    expect(CURRENT_TEMPLATES.erg).toBe(RESERVE_TEMPLATE_HASH);
   });
 
   it("every reserve on chain sits under the pinned tree", () => {

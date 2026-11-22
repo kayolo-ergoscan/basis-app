@@ -14,7 +14,7 @@ import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
-  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, needsPassphrase, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
+  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf } from "./redeem";
@@ -95,15 +95,12 @@ describe("notes", () => {
     expect(() => signNote(SK_B, { issuer: A, recipient: B, total: 1n, timestamp: 1n })).toThrow();
   });
 
-  it("pair state, coverage and the 25 % passphrase rule", () => {
+  it("pair state and coverage (the passphrase rule is the vault's: vault/__tests__/policy.test.ts)", () => {
     const n = parseStoredNote(TEXT.frontNote);
     expect(pairStateOf(n)).toEqual({ total: n.amountCollected, redeemed: n.amountRedeemed, timestamp: n.timestamp });
     expect(pairStateOf(null)).toBeNull();
     expect(coverage(1_000_000_000n, 500_000_000n)).toBe(200);
     expect(coverage(1n, 0n)).toBeNull();
-    expect(needsPassphrase(250_000_000n, 1_000_000_000n)).toBe(false);
-    expect(needsPassphrase(250_000_001n, 1_000_000_000n)).toBe(true);
-    expect(needsPassphrase(1n, 0n)).toBe(true);
   });
 });
 

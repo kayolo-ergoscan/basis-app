@@ -206,7 +206,7 @@ describe("mainnet journal", () => {
     const pub = v.getState().key!.pub;
     const id = hex(0xab);
     const msg = new Uint8Array(32).fill(7);
-    const entry = await v.signToJournal("t1", (sk) => ({ txId: id, signedRaw: JSON.stringify({ id, proof: bytesToHex(secp256k1.sign(msg, sk).toCompactRawBytes()) }), inputs: [hex(0xcd)] }));
+    const entry = await v.signToJournal("t1", (sk) => ({ txId: id, signedRaw: JSON.stringify({ id, proof: bytesToHex(secp256k1.sign(msg, sk).toCompactRawBytes()) }), inputs: [hex(0xcd)] }), { passphrase: PASS });
     expect(entry).toMatchObject({ kind: "t1", pub, state: "signed", sendAttempts: 0, txId: id });
     expect(secp256k1.verify(JSON.parse(entry.signedRaw).proof, msg, pub)).toBe(true);
     let touched = false;
@@ -215,7 +215,7 @@ describe("mainnet journal", () => {
         v.signToJournal("t1", () => {
           touched = true;
           return { txId: hex(0xef), signedRaw: JSON.stringify({ id: hex(0xef) }), inputs: [hex(1)] };
-        }),
+        }, { passphrase: PASS }),
       ),
     ).toBe("t1-exists");
     expect(touched).toBe(false);

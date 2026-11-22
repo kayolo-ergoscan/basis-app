@@ -1,6 +1,7 @@
 // Issuing or raising a note (design §6.2 "Note (pay)", §6.6): the cumulative total for the pair, the timestamp the
 // tracker accepts (after the pair's last note, not after its own clock), the signature over the 80-byte message and the
-// `POST /notes` body as a string. Coverage and the passphrase rule are wallet policy, not contract rules.
+// `POST /notes` body as a string, and the checks of the pair's previous note. Coverage is wallet policy, not a contract
+// rule; when the passphrase is asked again is the vault's (vault/policy.ts).
 import { bytesToHex } from "../../protocol/bytes";
 import { TRACKER_NFT, jsonString, noteMessage, signBasis, verifyBasis, type StoredNote } from "../tx";
 import type { JournalEntry } from "../vault";
@@ -53,9 +54,6 @@ export function coverage(collateral: bigint, outstanding: bigint): number | null
   if (outstanding <= 0n) return null;
   return Number((collateral * 10000n) / outstanding) / 100;
 }
-
-/** Design §4.2: ask for the passphrase again when one signature promises more than 25 % of the reserve. */
-export const needsPassphrase = (added: bigint, reserve: bigint): boolean => reserve <= 0n || added * 4n > reserve;
 
 // ─── the pair's previous note (keys review P0-1, money review P1-1) ──────────────────────────────
 

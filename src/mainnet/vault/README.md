@@ -88,17 +88,31 @@ progress. The design expects 0.5–1.5 s on phones.
 
   It fails closed: a function or a promise anywhere, more than 12 levels, more than 50 000 parts or a string over
   1 MiB counts as a leak. An error from `fn` that does not hold the secret passes through unchanged.
-- **`passphrase`:** asks for the passphrase again, which runs one derivation. The design wants this for any signature
-  that moves or promises more than 25 % of the reserve (§4.2); that policy belongs to the flow.
+- **`passphrase`:** asks for the passphrase again, which runs one derivation. The vault enforces when (§4.2, keys
+  review P1-2, `policy.ts`):
+  - `t1` (a reserve creation moves the whole reserve) and `export-hex`: always;
+  - `withdraw`: unless every output of the signed transaction pays this key's own P2PK tree or the miner fee (Combine,
+    a cancel back to the key); `signToJournal` checks the signed bytes and drops them when the rule is broken;
+  - `note`: when the notes signed since the passphrase was last typed (the unlock counts, so does any use with
+    `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
+    read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
+    the pair's previous note, which must be this key's (its signature is checked);
+  - `redeem`, `build-request`: never (a redemption pays only this key).
+
+  A direct `withSecret` for `t1`, `withdraw` or `note` always needs `passphrase` (the vault cannot see what such a
+  callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule
+  binds the app's own flows; code injected into the page could still call `withSecret("redeem", …)` with any callback,
+  which is what the CSP is for.
 - **`export-hex`:** always needs `passphrase`, and it is the one purpose whose output is not scanned: its output is the
   key. Show it behind a hold and a warning (§4.3). Never put it in state, storage or a URL, and clear it from the screen
   afterwards.
 - **Hold-to-sign:** every signature is an explicit hold (§4.2). That is the UI's part.
 
-`signToJournal(kind, fn, { passphrase? })` → `JournalEntry` signs and records in one step; use it for every T1,
-redemption, withdrawal and note. `fn` returns the journal fields `{ txId, signedRaw, unsignedRaw?, inputs, meta?,
-height? }`. For a T1, the journal is checked before the key is touched (`t1-exists`). If the journal refuses the
-entry, the signed bytes are dropped and never sent.
+`signToJournal(kind, fn, { passphrase?, note? })` → `JournalEntry` signs and records in one step; use it for every
+T1, redemption, withdrawal and note. `fn` returns the journal fields `{ txId, signedRaw, unsignedRaw?, inputs, meta?,
+height? }`. For a T1, the journal is checked before the key is touched (`t1-exists`). A note needs `note: { recipient,
+total, reserveValue, prev }` (what it promises); the signed `POST /notes` body must be exactly that note. If the journal
+or a rule refuses the entry, the signed bytes are dropped and never sent.
 
 ```ts
 const entry = await vault.signToJournal("withdraw", (sk) => {
@@ -259,7 +273,7 @@ Every error is a `VaultError`: `{ name: "VaultError", code, message, detail }`. 
 | `damaged` | The stored record is unreadable. Offer a restore from the file after `wipe({ confirmUnbacked })` |
 | `weak-passphrase` | Fewer than 12 characters after NFKC |
 | `wrong-passphrase` | A wrong passphrase, or changed encrypted data (AES-GCM cannot tell them apart) |
-| `passphrase-required` | `export-hex` without `passphrase` |
+| `passphrase-required` | A use that needs `passphrase` without it (`detail.reason`: `export-hex`, `t1`, `withdraw`, `note`, `withdraw-foreign`, `note-over-quarter`, `note-no-reserve`) |
 | `bad-backup` | Not a well-formed mainnet key backup (a sandbox file included), or its secret does not match its `pub` |
 | `backup-other-key` | The file holds another key than this browser's |
 | `invalid-hex`, `out-of-range` | Not 64 hex characters, or not in [1, n − 1] |

@@ -1,12 +1,13 @@
 // /wallet/mainnet/reserve — the key's reserve (design §2): its state when the tracker tracks it, or T1, which creates
 // it: precheck (the tracker, the journal, the mempool) → plan (coins, the final amount) → the tracker's template,
-// checked byte for byte against the app's pinned constants → the transaction, checked → review → hold to sign →
-// journal → broadcast → depth 2 → tracked → active. One reserve per key: a second one would be quarantined and block
+// checked byte for byte against the app's pinned constants → the transaction, checked → review → the passphrase again
+// (a T1 moves the whole reserve: the vault asks every time) → hold to sign → journal → broadcast → depth 2 → tracked →
+// active. One reserve per key: a second one would be quarantined and block
 // every new note for 60 days. Top-up and refund come later.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, int } from "@/ui";
+import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, TextInput, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
   buildReserveCreation, checkReserveCreation, checkReservePayload, computeTxId, outputBoxes, parseReservePayload,
@@ -77,6 +78,8 @@ export function ReserveScreen() {
   const [amountText, setAmountText] = useState(ergPlain(RESERVE_DEFAULT_CAP_NANOERG / 2n));
   const [big, setBig] = useState(false);
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const [pass, setPass] = useState("");
+  const [passWrong, setPassWrong] = useState(false);
   const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
   const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
   const cap = big ? RESERVE_HARD_CAP_NANOERG : RESERVE_DEFAULT_CAP_NANOERG;
@@ -146,14 +149,18 @@ export function ReserveScreen() {
   }
 
   async function sign() {
-    if (phase.k !== "review" || !me) return;
+    if (phase.k !== "review" || !me || !pass) return;
+    const review = phase;
     const { plan, fee, tx, tip } = phase;
     setPhase({ k: "working", step: "sign" });
+    setPassWrong(false);
     try {
       const reserveBox = outputBoxes(tx)[0].boxId;
-      const r = await signAndSend(vault, "t1", tx, plan.inputs, { amount: plan.amount.toString(), fee: fee.toString(), nftId: plan.nftId, reserveBox }, tip);
+      const r = await signAndSend(vault, "t1", tx, plan.inputs, { amount: plan.amount.toString(), fee: fee.toString(), nftId: plan.nftId, reserveBox }, tip, pass);
+      setPass("");
       setPhase(r.problem ? { k: "error", problem: r.problem } : { k: "idle" });
     } catch (e) {
+      if (isVaultError(e, "wrong-passphrase")) { setPassWrong(true); return setPhase(review); }
       if (isBroadcastLimit(e)) {
         const fresh = un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : plan.inputs;
         return offerCombine(fresh);
@@ -203,7 +210,10 @@ export function ReserveScreen() {
                       sum={{ label: t("mw.res.rowSpent", { n: phase.plan.inputs.length }), value: <Erg nano={phase.plan.inputs.reduce((s, b) => s + b.value, 0n)} /> }}
                       extra={<p className="t-small">{t("mw.res.reviewChecks")}</p>} />
                     <Callout tone="policy">{t("mw.res.lock")}</Callout>
-                    <Key variant="primary" hold block onAct={() => void sign()}>{t("mw.res.hold")}</Key>
+                    <Field label={t("mw.pay.passAgain")} help={t("mw.res.passWhy")} error={passWrong ? t("mw.pay.passWrong") : undefined}>
+                      <TextInput type="password" autoComplete="current-password" value={pass} onChange={(v) => { setPass(v); setPassWrong(false); }} />
+                    </Field>
+                    <Key variant="primary" hold block disabled={!pass} onAct={() => void sign()}>{t("mw.res.hold")}</Key>
                     <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
                   </div>
                 ) : phase.k === "combine" ? (

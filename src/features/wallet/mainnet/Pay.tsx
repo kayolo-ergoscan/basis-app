@@ -1,9 +1,10 @@
 // /wallet/mainnet/pay — issue or raise a note (design §6.2 "Note (pay)"): the receiver (public key or P2PK address),
 // the amount to add, the pair's current note from the tracker, checked (this key's signature, our tracker, not older than
 // what the tracker took from this browser, not dated ahead) → the new cumulative total, the coverage after it
-// (wallet policy: warn when notes exceed the reserve), hold to sign (0.7 s; the passphrase again above 25 % of the
-// reserve), journal, POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits
-// it: about 10–25 minutes until the receiver can redeem.
+// (wallet policy: warn when notes exceed the reserve), hold to sign (0.7 s; the passphrase again once the notes signed
+// since it was typed promise more than 25 % of the reserve on chain: the vault decides, vault/policy.ts), journal,
+// POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 10–25
+// minutes until the receiver can redeem.
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
@@ -11,11 +12,11 @@ import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, Te
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
 import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
 import {
-  checkPreviousNote, coverage, ergPlain, needsPassphrase, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
+  checkPreviousNote, coverage, ergPlain, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
   type CheckedPrev, type NoteReceipt, type PrevNoteRule,
 } from "@/mainnet/flows";
-import { isVaultError, noteScope, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
-import { localProblem, type Problem } from "@/mainnet/net";
+import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
+import { chainReserveValue, localProblem, type Problem } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource } from "./data";
@@ -93,7 +94,16 @@ function NoteStatus({ e }: { e: JournalEntry }) {
   );
 }
 
-type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; debt: bigint };
+/** reserve: the tracker's view; onChain: the key's reserve value read from /v1 (the passphrase rule counts this one). */
+type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; onChain: bigint; debt: bigint; needPass?: boolean };
+
+/** What the note promises, as the vault checks it (vault/policy.ts). */
+const intentOf = (d: Draft): NoteIntent => ({
+  recipient: d.to,
+  total: (d.prev?.total ?? 0n) + d.add,
+  reserveValue: d.onChain,
+  prev: d.prev ? { total: d.prev.total, timestamp: d.prev.timestamp, signature: d.prev.signature } : null,
+});
 
 /** The journal error of a note a later one replaced (stored as plain text, like the tracker's reasons). */
 const SUPERSEDED = "A later note to this receiver replaced it; this one can no longer be recorded.";
@@ -165,16 +175,19 @@ export function PayScreen() {
     const rs = await net().reservesOf(me.pub, { priority: "user" });
     if (!rs.ok) return setPhase({ k: "error", problem: rs.problem });
     const r = rs.value[0] ?? null;
+    // the passphrase rule counts the reserve the chain shows, never the tracker's figure
+    const oc = await net().reservesOnChain(me.pub, { priority: "user" });
+    if (!oc.ok) return setPhase({ k: "error", problem: oc.problem });
     const ksDebt = ks.value?.denominations.find((d) => d.id === "erg")?.debt ?? 0n;
     const debt = r && r.debt > ksDebt ? r.debt : ksDebt;
-    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, debt } });
+    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain: chainReserveValue(oc.value), debt } });
   }
 
   async function signAndPost(d: Draft, retry = 0): Promise<void> {
     if (!me) return;
     setPhase({ k: "working" });
     const total = (d.prev?.total ?? 0n) + d.add;
-    const big = needsPassphrase(d.add, d.reserve?.collateral ?? 0n);
+    const intent = intentOf(d);
     let entry: JournalEntry;
     try {
       const cand = Number(noteTimestamp(d.prev?.timestamp ?? null, net().clock.now()));
@@ -182,8 +195,10 @@ export function PayScreen() {
       entry = await vault.signToJournal("note", (sk) => {
         const s = signNote(sk, { issuer: me.pub, recipient: d.to, total, timestamp: ts });
         return { txId: null, signedRaw: s.body, inputs: [], meta: { to: d.to, total: total.toString(), added: d.add.toString(), ts: ts.toString(), sig: s.signature, status: "draft" } };
-      }, big ? { passphrase: pass } : {});
+      }, pass ? { note: intent, passphrase: pass } : { note: intent });
     } catch (e) {
+      // the vault counts every note since the passphrase was typed: back to the review, with the field
+      if (isVaultError(e, "passphrase-required")) return setPhase({ k: "review", d: { ...d, needPass: true } });
       return setPhase({ k: "error", text: isVaultError(e, "wrong-passphrase") ? t("mw.pay.passWrong") : verr(e) });
     }
     await vault.journal.markSending(entry.id);
@@ -256,8 +271,11 @@ export function PayScreen() {
   const d = phase.k === "review" ? phase.d : null;
   const total = d ? (d.prev?.total ?? 0n) + d.add : null;
   const debtAfter = d ? d.debt + d.add : null;
-  const cov = d && debtAfter !== null ? coverage(d.reserve?.collateral ?? 0n, debtAfter) : null;
-  const askPass = d ? needsPassphrase(d.add, d.reserve?.collateral ?? 0n) : false;
+  const cov = d && debtAfter !== null ? coverage(d.onChain, debtAfter) : null;
+  let askPass = false;
+  if (d) {
+    try { askPass = d.needPass === true || vault.notePolicy(intentOf(d)).passphrase; } catch { askPass = true; }
+  }
   const failedEntry = phase.k === "error" && phase.id ? entries.find((e) => e.id === phase.id) ?? null : null;
 
   return (
@@ -292,10 +310,10 @@ export function PayScreen() {
                     { label: t("mw.pay.rowAdd"), value: <Erg nano={d.add} sign="favour" /> },
                   ]} sum={{ label: t("mw.pay.rowTotal"), value: <Erg nano={total!} /> }} />
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
-                  {d.reserve ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.reserve.collateral), debt: ergText(debtAfter!), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
+                  {d.onChain > 0n ? (
+                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.onChain), debt: ergText(debtAfter!), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
                   ) : null}
-                  {d.reserve && debtAfter! > d.reserve.collateral && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
+                  {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>
                   {askPass && (
                     <Field label={t("mw.pay.passAgain")} help={t("mw.pay.passWhy")}>
