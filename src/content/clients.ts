@@ -113,8 +113,8 @@ export const clients = {
     "Погасить расписку через трекер ErgoScan этими программами нельзя: трекер требует подпись получателя на запросе погашения, а программы её не ставят.",
   ),
   routesLede: t(
-    "Request by request. We have not tested these programs with it end to end.",
-    "По каждому запросу. Мы не проверяли эти программы с ним от начала до конца.",
+    "Request by request, from the programs' code and the tracker's rules. We have not run the programs against it end to end.",
+    "По каждому запросу — по коду программ и правилам трекера. Целиком мы эти программы с трекером ErgoScan не запускали.",
   ),
   accepted: [
     {
