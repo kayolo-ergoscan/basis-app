@@ -1,7 +1,8 @@
 // Which key each wallet keeps in this browser, so that neither takes the other's (keys review P2-7): the sandbox key
 // lies in localStorage as plain hex (play money), so a mainnet key must never go there, and a sandbox key must never
 // become a mainnet key. Each side reads only the other's public key: the sandbox record's `pubHex`, and the marker the
-// mainnet wallet keeps up to date while it shows its key. Tiny on purpose: the sandbox imports this file directly.
+// mainnet wallet keeps up to date while it shows its key. Mainnet code only: the sandbox reads the marker itself
+// (world/identity.ts), so the pages without the mainnet wallet load nothing more.
 
 /** The sandbox wallet's record (world/identity.ts WALLET_STORAGE_KEY). */
 export const SANDBOX_WALLET_STORAGE_KEY = "basis.world.wallet.v1";
