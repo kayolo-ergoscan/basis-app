@@ -122,6 +122,14 @@ describe("honest wallet without a key", () => {
     expect([EN["wallet.onb.whyLink"], RU["wallet.onb.whyLink"]]).toEqual(["why?", "почему?"]);
   });
 
+  it("calls itself what the buttons call it, a sandbox wallet, and says the money is play money", () => {
+    expect(`${EN["wallet.onb.h.0"]} ${EN["wallet.onb.em.0"]}`).toBe("Sandbox wallet.");
+    expect(`${RU["wallet.onb.h.0"]} ${RU["wallet.onb.em.0"]}`).toBe("Игровой кошелёк.");
+    expect(EN["wallet.onb.lede.0"]).toMatch(/play money\.$/);
+    expect(RU["wallet.onb.lede.0"]).toMatch(/деньги игровые\.$/);
+    expect(EN["wallet.onb.createB"]).not.toMatch(/secp256k1/);
+  });
+
   it("every wallet tab says what it will hold once there is a key (the phone's «Расписки» and «Вы» tabs too)", () => {
     expect(whereKey("/wallet")).toBeNull();
     expect(whereKey("/wallet/")).toBeNull();
