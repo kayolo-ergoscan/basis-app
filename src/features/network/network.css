@@ -231,6 +231,7 @@
 .nw .x-refund { background: var(--metal-lo); }
 .nw .x-redeem-if-tracker, .nw .x-refund-redeem-if-tracker { background: repeating-linear-gradient(90deg, var(--metal) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--metal); }
 .nw .x-locked { background: var(--hatch), var(--well); }
+.nw .x-redeem-checking, .nw .x-refund-redeem-checking { background: var(--rule-2); }
 
 /* top up: the one metal key, closed */
 .nw-topup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 16px; border: 1px dashed var(--rule-2); border-radius: var(--r-paper); margin-top: 6px; }

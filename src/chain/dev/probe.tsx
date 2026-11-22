@@ -15,7 +15,7 @@ import { chain } from "../store";
 import type { ExitClass, TrackerStatus } from "../types";
 
 const LAMP: Record<TrackerStatus, LampState> = { live: "live", stale: "stale", burned: "off", locked: "off", unused: "signed" };
-const TONE: Record<ExitClass, TagTone> = { locked: "under", refund: "watch", "refund+redeem": "ok", "redeem-if-tracker": "warn", redeem: "ok", "refund+redeem-if-tracker": "watch" };
+const TONE: Record<ExitClass, TagTone> = { locked: "under", refund: "watch", "refund+redeem": "ok", "redeem-if-tracker": "warn", redeem: "ok", "refund+redeem-if-tracker": "watch", "redeem-checking": "plain", "refund+redeem-checking": "watch" };
 const FOCUS_TRACKER = "34dd2a13c19a711f64f9259992adb13bf9c33424945c07b070b95744774d0319";
 
 function Probe() {

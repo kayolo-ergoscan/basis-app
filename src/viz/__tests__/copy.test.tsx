@@ -150,6 +150,15 @@ describe("components render without raw keys (EN and RU)", () => {
       renderToStaticMarkup(<TemplateHashTool />),
     ].join("\n");
   };
+  test("ExitClocks says 'checking' while the tracker box is being looked up, never 'no box'", () => {
+    setLang("ru");
+    const pending = renderToStaticMarkup(<ExitClocks height={5000} boxCreationHeight={null} boxPending />);
+    expect(pending).toMatch(/Проверяем,\sгде\sбокс\sтрекера/);
+    expect(pending).not.toMatch(/ещё\sнет\sбокса/);
+    setLang("en");
+    expect(renderToStaticMarkup(<ExitClocks height={5000} boxCreationHeight={null} boxPending />)).toMatch(/Checking where the tracker box is/);
+    expect(renderToStaticMarkup(<ExitClocks height={5000} boxCreationHeight={null} />)).toMatch(/no box on chain yet/);
+  });
   test.each(["en", "ru"] as const)("%s", (lang) => {
     setLang(lang);
     const out = html();

@@ -14,8 +14,10 @@ import "./clocks.css";
 
 export interface ExitClocksProps {
   height: number;
-  /** Creation height of the tracker's newest box (null: no box yet). */
+  /** Creation height of the tracker's newest box (null: no box yet, or not looked up yet: see boxPending). */
   boxCreationHeight: number | null;
+  /** The tracker box is still being looked up: say "checking", never "no box". */
+  boxPending?: boolean;
   /** The reserve's R7 (0 / null / undefined: no exit announced). */
   r7?: number | null;
   /** Which clocks to show (default both). */
@@ -99,7 +101,7 @@ export function ExitClocks(p: ExitClocksProps) {
                 {em.zone === "silent" ? <p className="vz-clock-line calm">{t("viz.clock.calm")}</p> : null}
               </>
             ) : (
-              <p className="vz-clock-line">{t("viz.clock.noBox")}</p>
+              <p className="vz-clock-line">{t(p.boxPending ? "viz.clock.checking" : "viz.clock.noBox")}</p>
             )}
             <p className="vz-small">{t("viz.clock.emSub")}</p>
           </div>

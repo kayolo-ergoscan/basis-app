@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import seedJson from "./seed.json";
 import type { ApiBox, ApiTx, ExitClass, Seed } from "./types";
 import { EMPTY_DIGEST, USE_LOOKALIKE_ID, USE_TOKEN_ID, assessExit, describeExit, formatUnits, p2sAddress } from "./decode";
-import { boxDetail, buildObservatory, contractIndex, emptyLive, interpretTx, liveBoxFromApi, trackerLookup } from "./model";
+import { boxDetail, buildObservatory, contractIndex, emptyLive, interpretTx, liveBoxFromApi, liveTrackerLookup, trackerLookup } from "./model";
 
 const seed = seedJson as unknown as Seed;
 const H = seed.asOf.height;
@@ -71,11 +71,31 @@ describe("exit assessment (same rules as KNOWLEDGE §i.1)", () => {
     expect(pending.refund).toBe("pending");
     expect(pending.refundClock).toMatchObject({ completesAt: H - 100 + 43200, blocksLeft: 43100 });
     expect(assessExit({ ...base, r7: H - 43200, tip: H }).refund).toBe("ready");
-    expect(assessExit({ ...base, r7: 0, tip: H }).class).toBe("refund+redeem-if-tracker");
+    // where the R6 NFT is has not been looked up yet: "checking", never "needs a tracker box"
+    const unknown = assessExit({ ...base, r7: 0, tip: H });
+    expect(unknown).toMatchObject({ class: "refund+redeem-checking", redeem: "checking", reason: { code: "tracker-unknown" } });
+    expect(describeExit(unknown, "en")).toMatch(/checking where tracker NFT/i);
+    expect(describeExit(unknown, "ru")).toMatch(/проверяем, где сейчас NFT трекера/i);
+    expect(describeExit(unknown, "en")).not.toMatch(/tracker box appears|has not been checked/);
+    expect(assessExit({ ...base, ownerExit: false, r7: 0, tip: H }).class).toBe("redeem-checking");
     const t = obs.index.trackers.get("34dd2a13c19a711f64f9259992adb13bf9c33424945c07b070b95744774d0319")!;
     const withLive = assessExit({ ...base, r7: 0, tip: H, tracker: trackerLookup(seed, t) });
     expect(withLive.class).toBe("refund+redeem");
     expect(describeExit(withLive, "en")).toMatch(/no longer needs its signature/);
+  });
+});
+
+describe("a tracker NFT outside the seed", () => {
+  const nft = "f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f";
+  it("is unknown (null) until the live layer answers, then a live tracker with its box height", () => {
+    expect(liveTrackerLookup(seed, nft, undefined)).toBeNull();
+    const key = seed.trackers.find((t) => t.lastTrackerBox)!.lastTrackerBox!.key;
+    const box = liveBoxFromApi({
+      boxId: "7c".repeat(32), transactionId: "ee".repeat(32), value: "1000000", creationHeight: H + 3, ergoTree: `0008cd${key}`, address: "",
+      assets: [{ tokenId: nft, amount: "1" }], additionalRegisters: { R4: `07${key}`, R5: `64${"ab".repeat(32)}02032000` }, spentTransactionId: null,
+    });
+    expect(liveTrackerLookup(seed, nft, { checkedAt: 1, checkedHeight: H + 4, box, newCommits: [] })).toMatchObject({ status: "live", currentBox: "7c".repeat(32), trackerBoxHeight: H + 3 });
+    expect(liveTrackerLookup(seed, nft, { checkedAt: 1, checkedHeight: H + 4, box: null, newCommits: [] })).toMatchObject({ status: "burned", trackerBoxHeight: null });
   });
 });
 

@@ -3,17 +3,22 @@
 //
 // What is polled (background lane, only while some chain hook is mounted and the tab is visible):
 //   1. follow-ups of a change (full template list → box → spending tx), at once;
-//   2. focus: the reserve or tracker a mounted useReserve()/useTracker() shows, and the mempool of that reserve's P2S;
+//   2. focus: the reserve or tracker a mounted useReserve()/useTracker() shows, the mempool of that reserve's P2S and
+//      the tracker NFT its R6 names;
 //   3. the detector: all boxes at the two current templates (ERG 6e7d9a0e…, multi-token 8699a557…);
-//   4. tracker NFTs that can still change (live, stale, unused): the unspent box that holds each NFT;
+//   4. tracker NFTs that can still change (live, stale, unused): the unspent box that holds each NFT, including NFTs
+//      outside the seed that a reserve found live names in R6 (its exit depends on where that NFT is);
 //   5. one cheap "signature" per legacy template with unspent reserves (total + newest box, limit=1).
-// A change found by 4 becomes a pulse (`pulse.commit({ source: "mainnet", … })`) and a new commit on the tracker; a
-// change found by 5 triggers one full list of that template, and the diff is merged in one update.
+// The first look at what the user opened (the focused reserve or tracker, and the tracker NFT of a reserve found live)
+// is a user-started load: it goes out at once on the interactive lane, outside the background budget; every later
+// re-check is background work. A change found by 4 becomes a pulse (`pulse.commit({ source: "mainnet", … })`) and a new
+// commit on the tracker; a change found by 5 triggers one full list of that template, and the diff is merged in one
+// update.
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { pulse as appPulse, type Pulse } from "@/app/pulse";
-import { chainApi, ChainApiError, paths, type ChainApi } from "./api";
+import { chainApi, ChainApiError, finalBox, finalTx, paths, type ChainApi, type Lane } from "./api";
 import { CURRENT_TEMPLATES, isHex, p2pkKeyOfTree, templateHash } from "./decode";
-import { boxDetail, buildObservatory, contractIndex, contractOf, detectedBox, emptyLive, idleStatus, interpretTx, isTrackerShaped, liveBoxFromApi } from "./model";
+import { boxDetail, buildObservatory, contractIndex, contractOf, detectedBox, emptyLive, idleStatus, interpretTx, isTrackerShaped, liveBoxFromApi, liveTrackerStatus } from "./model";
 import type { ApiBox, ApiList, ApiTx, BoxDetail, DetectedBox, Hex, LiveData, LiveStatus, Observatory, Seed, TrackerCommit, TxDetail } from "./types";
 
 export interface Fetched<T> { state: "loading" | "ok" | "missing" | "error"; data: T | null; error: string | null; at: number }
@@ -40,7 +45,12 @@ export interface ChainStoreOptions {
 export const INTERVALS = { followUp: 0, focusTracker: 2, focusReserve: 10, mempool: 3, detector: 6, tracker: 6, trackerQuiet: 20, template: 12, hostIndex: 360 } as const;
 
 type TaskKind = "tracker" | "template" | "templateFull" | "box" | "tx" | "detector" | "mempool" | "hostIndex";
-interface Task { key: string; kind: TaskKind; arg: string; prio: number; every: number }
+/** `user`: the first run of this task in the tab is a user-started load (interactive lane), see firstLooks(). */
+interface Task { key: string; kind: TaskKind; arg: string; prio: number; every: number; user?: boolean }
+
+/** First looks at tracker NFTs named by reserves found live (not focused) per tab on the interactive lane; more of them
+ *  wait for the background budget, so many fresh reserves cannot turn one page view into a burst. */
+export const FIRST_LOOK_NFTS = 3;
 
 const defaultLoadSeed = async (): Promise<Seed> => (await import("./seed.json")).default as unknown as Seed;
 
@@ -138,12 +148,26 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
   function trackerStatusNow(nft: Hex): string | null {
     const { seed, live } = get();
     const t = seed?.trackers.find((x) => x.nft === nft);
-    if (!t) return null;
     const L = live.trackers[nft];
+    if (!t) return L ? liveTrackerStatus(L.box, nft) : null;
     if (!L) return t.status;
-    if (L.box === null) return "burned";
-    if (L.box.id === t.currentBox) return t.status;
-    return isTrackerShaped(L.box, nft) && p2pkKeyOfTree(L.box.ergoTree) ? (L.box.basis.tree!.zero ? "stale" : "live") : p2pkKeyOfTree(L.box.ergoTree) ? "unused" : "locked";
+    if (L.box !== null && L.box.id === t.currentBox) return t.status;
+    return liveTrackerStatus(L.box, nft);
+  }
+
+  /** Tracker NFTs outside the seed that unspent reserves name in R6 (reserves found live), each with "named by a
+   *  focused reserve". Where such an NFT is decides those reserves' exits, so it is looked up like a tracker. */
+  function namedOutsideSeed(seed: Seed): Map<Hex, boolean> {
+    const { live } = get();
+    const known = new Set(seed.trackers.map((t) => t.nft));
+    const out = new Map<Hex, boolean>();
+    const note = (nft: Hex | null | undefined, id: Hex) => {
+      if (!nft || known.has(nft) || !isHex(nft, 32)) return;
+      out.set(nft, (out.get(nft) ?? false) || focusReserves.has(id));
+    };
+    for (const r of seed.reserves) if (!r.spent && !live.spent[r.id]) note(r.r6, r.id);
+    for (const b of Object.values(live.extraReserves)) if (!b.spentTx && !live.spent[b.id]) note(b.basis.nft, b.id);
+    return out;
   }
 
   function targets(): Task[] {
@@ -152,23 +176,34 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const out = new Map<string, Task>();
     const add = (t: Task) => {
       const had = out.get(t.key);
-      if (!had || t.prio < had.prio) out.set(t.key, had ? { ...t, every: Math.min(t.every, had.every) } : t);
+      if (!had) { out.set(t.key, t); return; }
+      const best = t.prio < had.prio ? t : had;
+      out.set(t.key, { ...best, every: Math.min(t.every, had.every), user: !!(t.user || had.user) });
     };
+    const named = namedOutsideSeed(seed);
     for (const nft of focusTrackers.keys()) {
-      if (seed.trackers.some((t) => t.nft === nft)) add({ key: `tracker:${nft}`, kind: "tracker", arg: nft, prio: 1, every: INTERVALS.focusTracker });
+      if (seed.trackers.some((t) => t.nft === nft) || named.has(nft)) add({ key: `tracker:${nft}`, kind: "tracker", arg: nft, prio: 1, every: INTERVALS.focusTracker, user: true });
     }
     for (const id of focusReserves.keys()) {
-      if (isUnspentNow(id)) add({ key: `box:${id}`, kind: "box", arg: id, prio: 1, every: INTERVALS.focusReserve });
+      if (isUnspentNow(id)) add({ key: `box:${id}`, kind: "box", arg: id, prio: 1, every: INTERVALS.focusReserve, user: true });
       const r = seed.reserves.find((x) => x.id === id);
       const lb = get().live.extraReserves[id];
       const c = r ? contractIndex(seed).byId.get(r.contract) : lb ? contractOf(seed, lb.ergoTree, lb.templateHash) : null;
-      if (c) add({ key: `mempool:${c.p2sFull}`, kind: "mempool", arg: c.p2sFull, prio: 2, every: INTERVALS.mempool });
+      if (c) add({ key: `mempool:${c.p2sFull}`, kind: "mempool", arg: c.p2sFull, prio: 2, every: INTERVALS.mempool, user: true });
     }
     for (const h of [CURRENT_TEMPLATES.erg, CURRENT_TEMPLATES.multiToken]) add({ key: `detector:${h}`, kind: "detector", arg: h, prio: 3, every: INTERVALS.detector });
     for (const t of seed.trackers) {
       const st = trackerStatusNow(t.nft);
       if (st === "live") add({ key: `tracker:${t.nft}`, kind: "tracker", arg: t.nft, prio: 4, every: INTERVALS.tracker });
       else if (st === "stale" || st === "unused") add({ key: `tracker:${t.nft}`, kind: "tracker", arg: t.nft, prio: 6, every: INTERVALS.trackerQuiet });
+    }
+    for (const [nft, focused] of named) {
+      const key = `tracker:${nft}`;
+      if (focused) add({ key, kind: "tracker", arg: nft, prio: 1, every: INTERVALS.tracker, user: true });
+      const st = trackerStatusNow(nft);
+      if (st === null) add({ key, kind: "tracker", arg: nft, prio: 3, every: INTERVALS.tracker, user: true });   // not looked up yet
+      else if (st === "live") add({ key, kind: "tracker", arg: nft, prio: 4, every: INTERVALS.tracker });
+      else if (st === "stale" || st === "unused") add({ key, kind: "tracker", arg: nft, prio: 6, every: INTERVALS.trackerQuiet });
     }
     const hashes = new Set<Hex>();
     const byId = contractIndex(seed).byId;
@@ -199,10 +234,42 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     followUps.push({ key, kind, arg, prio: 0, every: INTERVALS.followUp });
   }
 
+  // ── first looks: what the user just opened goes out at once on the interactive lane ──
+  const looking = new Set<string>();           // task keys of first looks in flight
+  const lookedNfts = new Set<Hex>();           // NFTs outside the seed given a first look without focus (≤ FIRST_LOOK_NFTS)
+
+  /** Starts every due first look: a `user` task that has never run in this tab (a focused reserve's box, its contract's
+   *  mempool and its R6 tracker NFT, a focused tracker, an NFT outside the seed that a live reserve names). They do not
+   *  wait for the background budget; a failed one is tried again on the next block, in the background. */
+  function firstLooks() {
+    const { seed } = get();
+    if (!seed || users === 0 || hidden()) return;
+    const known = new Set(seed.trackers.map((t) => t.nft));
+    for (const task of targets()) {
+      if (!task.user || last.has(task.key) || looking.has(task.key)) continue;
+      if (task.kind === "tracker" && !known.has(task.arg) && task.prio > 1) {
+        if (!lookedNfts.has(task.arg) && lookedNfts.size >= FIRST_LOOK_NFTS) continue;
+        lookedNfts.add(task.arg);
+      }
+      looking.add(task.key);
+      last.set(task.key, tipOrSeed() ?? 0);
+      void run(task, "interactive")
+        .then(() => { ok(); if (task.kind !== "tracker") recheck.delete(task.key); },
+          (e) => {
+            if (e instanceof ChainApiError && (e.kind === "aborted" || e.kind === "hidden")) { last.delete(task.key); return; }
+            fail(e);
+            recheck.add(task.key);
+          })
+        .finally(() => { looking.delete(task.key); queueStatus(); void tick(); });
+    }
+  }
+
   /** Runs due checks while the block budget lasts. Safe to call often. */
   async function tick() {
-    if (running || users === 0 || hidden()) return;
+    if (users === 0 || hidden()) return;
     if (!get().seed) return;
+    firstLooks();
+    if (running) return;
     running = true;
     try {
       while (users > 0 && api.canSpend("background")) {
@@ -211,8 +278,9 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
         const prev = last.get(task.key);
         last.set(task.key, tipOrSeed() ?? 0);
         try {
-          await run(task);
+          await run(task, "background");
           ok();
+          if (task.kind !== "tracker") recheck.delete(task.key);
         } catch (e) {
           if (e instanceof ChainApiError && (e.kind === "budget" || e.kind === "hidden")) {
             if (prev === undefined) last.delete(task.key); else last.set(task.key, prev);
@@ -220,31 +288,32 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
             break;
           }
           fail(e);
+          recheck.add(task.key);                // a failed check is tried again on the next block, not after its interval
         }
         queueStatus();
+        firstLooks();                           // what this answer revealed (a reserve found live, its tracker NFT)
       }
     } finally {
       running = false;
     }
   }
 
-  const bg = { lane: "background" as const };
-
-  async function run(t: Task) {
+  async function run(t: Task, lane: Lane) {
+    const o = { lane };
     switch (t.kind) {
-      case "tracker": return checkTracker(t.arg);
-      case "template": return checkTemplate(t.arg);
-      case "templateFull": return fullTemplate(t.arg);
-      case "box": return checkBox(t.arg);
-      case "tx": return loadTx(t.arg);
-      case "detector": return detect(t.arg);
-      case "mempool": return checkMempool(t.arg);
-      case "hostIndex": return checkHostIndex();
+      case "tracker": return checkTracker(t.arg, o);
+      case "template": return checkTemplate(t.arg, o);
+      case "templateFull": return fullTemplate(t.arg, o);
+      case "box": return checkBox(t.arg, o);
+      case "tx": return loadTx(t.arg, o);
+      case "detector": return detect(t.arg, o);
+      case "mempool": return checkMempool(t.arg, o);
+      case "hostIndex": return checkHostIndex(o);
     }
   }
 
-  async function checkTracker(nft: Hex) {
-    const res = await api.get<ApiList<ApiBox>>(paths.unspentByToken(nft), bg);
+  async function checkTracker(nft: Hex, o: { lane: Lane }) {
+    const res = await api.get<ApiList<ApiBox>>(paths.unspentByToken(nft), o);
     const seed = get().seed!;
     const t = seed.trackers.find((x) => x.nft === nft);
     const items = res.items || [];
@@ -259,7 +328,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       patchLive((l) => {
         const prev = l.trackers[nft];
         if (prev && prev.box === null) return { ...l, trackers: { ...l.trackers, [nft]: { ...prev, checkedAt: at, checkedHeight: h } } };
-        const changed = t?.status !== "burned";
+        // a change since the snapshot only for an NFT the snapshot knows
+        const changed = !!t && t.status !== "burned";
         return { ...l, changes: l.changes + (changed ? 1 : 0), trackers: { ...l.trackers, [nft]: { checkedAt: at, checkedHeight: h, box: null, newCommits: prev?.newCommits ?? [] } } };
       });
       return;
@@ -269,6 +339,11 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const box = liveBoxFromApi(items[0]);
     const l = get().live;
     const prev = l.trackers[nft];
+    if (!t) {
+      // an NFT outside the seed (named by a reserve found live): only where it is; no commits, no pulse, no "change"
+      set({ live: { ...l, trackers: { ...l.trackers, [nft]: { checkedAt: at, checkedHeight: h, box, newCommits: [] } } } });
+      return;
+    }
     const known = prev?.box?.id ?? t?.currentBox ?? null;
     const newCommits = prev?.newCommits ?? [];
     const isNew = box.id !== known && box.id !== t?.lastTrackerBox?.box && !newCommits.some((c) => c.box === box.id);
@@ -289,8 +364,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     }
   }
 
-  async function checkTemplate(hash: Hex) {
-    const res = await api.get<ApiList<ApiBox>>(paths.unspentByTemplate(hash, 1), bg);
+  async function checkTemplate(hash: Hex, o: { lane: Lane }) {
+    const res = await api.get<ApiList<ApiBox>>(paths.unspentByTemplate(hash, 1), o);
     const expected = expectedAt(hash);
     const total = res.total ?? res.items.length;
     const newest = res.items[0]?.boxId ?? null;
@@ -300,8 +375,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     if (changed) followUp("templateFull", hash);
   }
 
-  async function fullTemplate(hash: Hex) {
-    const res = await api.get<ApiList<ApiBox>>(paths.unspentByTemplate(hash, 50), bg);
+  async function fullTemplate(hash: Hex, o: { lane: Lane }) {
+    const res = await api.get<ApiList<ApiBox>>(paths.unspentByTemplate(hash, 50), o);
     const items = res.items || [];
     const complete = !res.hasMore && (res.total === undefined || res.total <= items.length);
     const expected = expectedAt(hash);
@@ -328,10 +403,10 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     for (const id of gone.slice(0, 3)) followUp("box", id);
   }
 
-  async function checkBox(id: Hex) {
+  async function checkBox(id: Hex, o: { lane: Lane }) {
     let b: ApiBox;
     try {
-      b = await api.get<ApiBox>(paths.box(id), bg);
+      b = await api.get<ApiBox>(paths.box(id), { ...o, final: finalBox });
     } catch (e) {
       if (e instanceof ChainApiError && e.status === 404) return;
       throw e;
@@ -359,15 +434,15 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     });
   }
 
-  async function loadTx(id: Hex) {
-    const tx = await api.get<ApiTx>(paths.tx(id), bg);
+  async function loadTx(id: Hex, o: { lane: Lane }) {
+    const tx = await api.get<ApiTx>(paths.tx(id), { ...o, final: finalTx });
     const d = interpretTx(get().seed, tx);
     applyTx(d, tx);
     set({ txs: { ...get().txs, [id]: { state: "ok", data: d, error: null, at: now() } } });
   }
 
-  async function detect(hash: Hex) {
-    const res = await api.get<ApiList<ApiBox>>(paths.boxesByTemplate(hash, 20), bg);
+  async function detect(hash: Hex, o: { lane: Lane }) {
+    const res = await api.get<ApiList<ApiBox>>(paths.boxesByTemplate(hash, 20), o);
     const seed = get().seed!;
     const at = now();
     const h = tipOrSeed();
@@ -396,14 +471,14 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     });
   }
 
-  async function checkMempool(address: string) {
-    const res = await api.get<ApiList<unknown>>(paths.mempoolByAddress(address), bg);
+  async function checkMempool(address: string, o: { lane: Lane }) {
+    const res = await api.get<ApiList<unknown>>(paths.mempoolByAddress(address), o);
     const at = now();
     patchLive((l) => ({ ...l, mempool: { ...l.mempool, [address]: { total: res.total ?? (res.items || []).length, checkedAt: at } } }));
   }
 
-  async function checkHostIndex() {
-    const res = await api.get<{ reserveCount?: number; ergLockedNano?: string; trackerCount?: number; tipHeight?: number; reserves?: { boxId: Hex }[] }>(paths.hostIndex(), bg);
+  async function checkHostIndex(o: { lane: Lane }) {
+    const res = await api.get<{ reserveCount?: number; ergLockedNano?: string; trackerCount?: number; tipHeight?: number; reserves?: { boxId: Hex }[] }>(paths.hostIndex(), o);
     const at = now();
     patchLive((l) => ({
       ...l,
@@ -434,7 +509,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const p = (async () => {
       try {
         await ensureSeed();
-        const b = await api.get<ApiBox>(paths.box(key), { lane: "interactive" });
+        const b = await api.get<ApiBox>(paths.box(key), { lane: "interactive", final: finalBox });
         let th: Hex | null = null;
         try { th = await templateHash(b.ergoTree); } catch { th = null; }
         const d = boxDetail(get().seed, b, th);
@@ -471,7 +546,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const p = (async () => {
       try {
         await ensureSeed();
-        const tx = await api.get<ApiTx>(paths.tx(key), { lane: "interactive" });
+        const tx = await api.get<ApiTx>(paths.tx(key), { lane: "interactive", final: finalTx });
         const d = interpretTx(get().seed, tx);
         ok();
         const rin = d.reserveIn?.boxId;
@@ -511,7 +586,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     };
   }
 
-  /** Ref-counted focus on one reserve or tracker; the first focus checks it at once when the budget allows. */
+  /** Ref-counted focus on one reserve or tracker; the first focus checks it at once, on the interactive lane. */
   function focus(kind: "reserve" | "tracker", id: Hex): () => void {
     const m = kind === "reserve" ? focusReserves : focusTrackers;
     const key = id.toLowerCase();
@@ -570,7 +645,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       return t;
     },
     /** Test/dev: forget everything (seed stays). */
-    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
+    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
     dispose: () => { unsubApi(); if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility); },
   };
 }
