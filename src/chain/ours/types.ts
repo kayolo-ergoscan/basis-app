@@ -62,12 +62,14 @@ export interface ApiReserve {
   box_id: string;
   owner_pubkey: string;
   collateral_amount: string;
+  /** The owner's outstanding debt in this reserve's denomination: note totals minus redeemed (older versions: 0). */
   total_debt: string;
   tracker_nft_id: string;
   reserve_token_id?: string;
   last_updated_height: number;
   last_updated_timestamp: number;
-  collateralization_ratio: number;
+  /** collateral / total_debt; null when there is no debt (999999.0 is read as no debt too). */
+  collateralization_ratio: number | null;
   refund_initiation_height: number;
 }
 
@@ -77,7 +79,8 @@ export interface ApiKeyDenomination {
   decimals: number;
   total_debt: string;
   collateral: string;
-  collateralization_ratio: number;
+  /** collateral / total_debt; 999999.0 when there is no debt. */
+  collateralization_ratio: number | null;
   note_count: number;
   reserve_box_id?: string;
   has_pending_refund: boolean;
@@ -123,7 +126,7 @@ export interface TrackedReserve {
   updatedHeight: number;
   /** The tracker's own timestamp for the last update (as it sends it). */
   updatedAt: number;
-  /** collateral ÷ debt as the tracker computes it; null when there is no debt. */
+  /** collateral ÷ debt as the tracker computes it; null when there is no debt or the tracker sent no ratio. */
   ratio: number | null;
   /** R7: 0 = no refund started. */
   refundHeight: number;

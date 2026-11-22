@@ -564,8 +564,7 @@ export default {
     "network.ours.c.owner": "Owner",
     "network.ours.c.collateral": "Collateral",
     "network.ours.c.debt": "Debt",
-    "network.ours.debtLink": "from notes",
-    "network.ours.debtNote": "Debt is not in the tracker's list of reserves (in this version its debt field stays 0). The Mainnet console's key lookup computes it from the issuer's notes.",
+    "network.ours.c.cover": "Coverage",
     "network.ours.c.updated": "Updated",
   },
   ru: {
@@ -1121,8 +1120,7 @@ export default {
     "network.ours.c.owner": "Владелец",
     "network.ours.c.collateral": "Залог",
     "network.ours.c.debt": "Долг",
-    "network.ours.debtLink": "по распискам",
-    "network.ours.debtNote": "Долга нет в списке резервов трекера (в этой версии поле долга остаётся нулевым). Поиск по ключу в консоли основной сети считает его по распискам эмитента.",
+    "network.ours.c.cover": "Покрытие",
     "network.ours.c.updated": "Обновлён",
   },
 } satisfies I18nBundle;

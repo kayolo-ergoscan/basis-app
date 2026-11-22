@@ -175,10 +175,13 @@ use the background lane, at most every 30 min or when the tracker box moved.
   before `JSON.parse` and become `bigint`. Ratio 999 999 means "no debt" → `null`; `collateralization_ratio` is
   collateral / debt (2.0 = 200 %). Failures: 404 `notFound`, 429 `rate` (Retry-After honoured), 502/503/504
   `unavailable`, `timeout`, `network`, `shape`; an invalid key is refused before any request.
-- `/reserves` carries `total_debt` and `collateralization_ratio`, but this tracker version does not compute them (debt
-  stays 0, the ratio comes back null: upstream `specs/PRODUCTION_READINESS_AUDIT.md` item 6; seen on 22 Nov: 0 in the
-  list while `/key-status` said 0.3 ERG). Pages never show them; the reserves tables link to the key lookup, which
-  computes debt from notes.
+- `/reserves` (and `/reserves/{box_id}`, `/reserves/issuer/{pk}`) carries `total_debt` = the owner's outstanding debt in
+  the reserve's denomination (Σ over the owner's notes of collected − redeemed) and `collateralization_ratio` =
+  collateral / debt, null at 0 debt. Older tracker versions sent 0 and null (upstream
+  `specs/PRODUCTION_READINESS_AUDIT.md` item 6). The reserves tables show both: 0 debt reads "0 ERG" with coverage "—",
+  and a ratio the tracker did not send is "—" too. A redemption changes the note's redeemed amount, and so this debt,
+  only once its transaction has 2 confirmations (about 4–6 min after the submit); until then `POST /redemption/build`
+  for that reserve answers 409.
 - `store.ts`: polls nothing while the tab is hidden or no page watches (ref-counted `acquire()`). Backoff after a
   failure: 30 s × 2^(n−1), at most 10 min, +0–20 % jitter, never shorter than Retry-After; key lookups are refused while
   a 429 backoff runs. The last good answers are saved in localStorage `basis.ours.v1` (≤ 256 KB) and shown as a saved
