@@ -4,7 +4,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT, useTitle } from "@/app";
-import { CopyButton, Dial, Honest, Icon, Key, Lamp, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
+import { CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, ratioPct, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
 import {
   p2pkAddress,
@@ -221,8 +221,10 @@ export function OurReserves({ v }: { v: OurView }) {
     { key: "o", label: t("network.ours.c.owner"), render: (r) => <span className="nw-inl"><KeyName pk={r.owner} addr={addrOf(r.owner)} size={20} />{isOurTestReserve(r.owner) && <OurTestReserveTag />}</span> },
     // a token reserve shows raw units next to the token id: the tracker does not send decimals, so none are guessed
     { key: "c", label: t("network.ours.c.collateral"), align: "right", render: (r) => <span className="num">{r.token ? <>{amount(r.collateral, 0)} <span className="hex">{sid(r.token)}</span></> : `${ergs(r.collateral)} ERG`}</span> },
-    // the list's debt field is not computed by this tracker version (it stays 0): the console's key lookup computes it
-    { key: "d", label: t("network.ours.c.debt"), render: (r) => <Link className="textlink" to={`/tracker/mainnet?key=${r.owner}#lookup`}>{t("network.ours.debtLink")} →</Link> },
+    // debt = the owner's note totals minus what is redeemed, in the reserve's own units; coverage only while there is debt
+    { key: "d", label: t("network.ours.c.debt"), align: "right", render: (r) => <span className="num">{r.token ? <>{amount(r.debt, 0)} <span className="hex">{sid(r.token)}</span></> : `${r.debt === 0n ? "0" : ergs(r.debt)} ERG`}</span> },
+    { key: "cov", label: t("network.ours.c.cover"), render: (r) => r.ratio === null ? <span className="dim">{DASH}</span>
+      : <span className="nw-inl"><span className="num">{ratioPct(r.ratio)}</span><CoverageTag pct={r.ratio * 100} small /></span> },
     { key: "u", label: t("network.ours.c.updated"), align: "right", render: (r) => <span className="num">{fmtH(r.updatedHeight)}</span> },
   ];
   const sub = v.reservesAt !== null ? `${t("network.ours.td.reservesSub")} ${t(v.reservesCached ? "chain.ours.saved" : "chain.ours.answered", { ago: ago(v.reservesAt) })}.` : t("network.ours.td.reservesSub");
@@ -231,10 +233,7 @@ export function OurReserves({ v }: { v: OurView }) {
       <p className="t-small">{sub}</p>
       {v.reserves === null ? <p className="t-small dim">{DASH}</p>
         : v.reserves.length === 0 ? <p className="nw-ours-empty">{t("network.ours.td.none")}</p>
-          : <>
-            <div className="nw-tablecard"><Table<TrackedReserve> columns={cols} rows={v.reserves} rowKey={(r) => r.box} stack={phone} caption={t("network.ours.td.reserves")} /></div>
-            <p className="t-small dim">{t("network.ours.debtNote")}</p>
-          </>}
+          : <div className="nw-tablecard"><Table<TrackedReserve> columns={cols} rows={v.reserves} rowKey={(r) => r.box} stack={phone} caption={t("network.ours.td.reserves")} /></div>}
     </Block>
   );
 }

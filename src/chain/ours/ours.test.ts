@@ -19,8 +19,8 @@ const OWNER = "03" + "ab".repeat(32);
 
 const stateBody = (box: string = BOX1, digest: string = EMPTY, height = 1_922_276) =>
   `{"success":true,"data":{"local_digest":"${digest}","confirmed_digest":"${digest}","confirmed_box_id":"${box}","confirmed_height":${height},"pending_digest":null,"pending_tx_id":null,"pending_submitted_height":null,"tracker_box_id":"${box}"},"error":null}`;
-const reserveJson = (o: { box?: string; owner?: string; collateral?: string; nft?: string; token?: string } = {}) =>
-  `{"box_id":"${o.box ?? "aa".repeat(32)}","owner_pubkey":"${o.owner ?? OWNER}","collateral_amount":${o.collateral ?? "1000000000"},"total_debt":0,"tracker_nft_id":"${o.nft ?? OUR_TRACKER.nft}",${o.token ? `"reserve_token_id":"${o.token}",` : ""}"last_updated_height":1922300,"last_updated_timestamp":1795346722196,"collateralization_ratio":999999.0,"refund_initiation_height":0}`;
+const reserveJson = (o: { box?: string; owner?: string; collateral?: string; debt?: string; ratio?: string; nft?: string; token?: string } = {}) =>
+  `{"box_id":"${o.box ?? "aa".repeat(32)}","owner_pubkey":"${o.owner ?? OWNER}","collateral_amount":${o.collateral ?? "1000000000"},"total_debt":${o.debt ?? "0"},"tracker_nft_id":"${o.nft ?? OUR_TRACKER.nft}",${o.token ? `"reserve_token_id":"${o.token}",` : ""}"last_updated_height":1922300,"last_updated_timestamp":1795346722196,"collateralization_ratio":${o.ratio ?? "999999.0"},"refund_initiation_height":0}`;
 const reservesBody = (items: string[] = []) => `{"success":true,"data":[${items.join(",")}],"error":null}`;
 const NOT_FOUND = `{"success":false,"data":null,"error":"not found"}`;
 
@@ -78,6 +78,26 @@ describe("tracker client", () => {
     const a = await clientWith(f).reserves();
     expect(a.ok && a.data.list[0].collateral).toBe(18446744073709551615n);
     expect(a.ok && a.data.list[0].ratio).toBeNull(); // 999999.0 = no debt, not a ratio
+  });
+
+  // The tracker update after 22 Nov fills debt and coverage in /reserves; the live API still sends 0 and null until
+  // then, so these answers are mocked: ErgoScan's test reserve with 0.55 ERG, notes 0.6, redeemed 0.45.
+  it("reads the real debt and coverage of /reserves; 0 debt has no ratio", async () => {
+    const test = OUR_TRACKER.testReserveOwner;
+    const f = fakeFetch({ "/reserves": [
+      { body: reservesBody([reserveJson({ owner: test, collateral: "550000000", debt: "150000000", ratio: "3.6666666666666665" })]) },
+      { body: reservesBody([reserveJson({ owner: test, collateral: "550000000", debt: "0", ratio: "null" })]) },
+      { body: reservesBody([reserveJson({ debt: "0", ratio: "2.5" }), reserveJson({ box: "bb".repeat(32), debt: "18446744073709551615", ratio: "null" })]) },
+    ] });
+    const c = clientWith(f, { minGapMs: 0 });
+    const a = await c.reserves();
+    expect(a.ok && a.data.list[0]).toMatchObject({ owner: test, collateral: 550_000_000n, debt: 150_000_000n });
+    expect(a.ok && a.data.list[0].ratio).toBeCloseTo(3.667, 3);
+    const b = await c.reserves();
+    expect(b.ok && b.data.list[0]).toMatchObject({ debt: 0n, ratio: null });
+    const d = await c.reserves();
+    // a ratio sent with 0 debt is not a coverage; a debt with no ratio keeps its amount and has no coverage ("—")
+    expect(d.ok && d.data.list.map((r) => [r.debt, r.ratio])).toEqual([[0n, null], [18446744073709551615n, null]]);
   });
 
   it("skips reserve entries it cannot read, never guesses", () => {

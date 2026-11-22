@@ -32,6 +32,8 @@ function dpFor(raw: bigint, decimals: number, min = 2): number {
 }
 const amountOf = (raw: bigint, decimals: number): string => units(raw, decimals, dpFor(raw, decimals));
 const ergStr = (nano: bigint): string => amountOf(nano, 9);
+/** Debt and collateral cells: no debt reads "0 ERG", not "0.00 ERG". */
+const sumOf = (raw: bigint, decimals: number): string => (raw === 0n ? "0" : amountOf(raw, decimals));
 
 const STATE: Record<OurStatus, { lamp: LampState; cls: string }> = {
   connecting: { lamp: "signed", cls: "s-off" },
@@ -245,10 +247,9 @@ function SideCard({ v }: { v: OurView }) {
   );
 }
 
-/** Coverage = collateral / debt as the tracker reports it (2.0 = 200 %); null when there is no debt. */
+/** Coverage = collateral / debt as the tracker reports it (2.0 = 200 %); "—" when there is no debt or no ratio. */
 function Cover({ ratio }: { ratio: number | null }) {
-  const t = useT();
-  if (ratio === null) return <span className="dim">{t("tracker.m.res.noDebt")}</span>;
+  if (ratio === null) return <span className="dim">{DASH}</span>;
   return <span className="trk-m-cov"><span className="num">{ratioPct(ratio)}</span><CoverageTag pct={ratio * 100} small /></span>;
 }
 
@@ -309,7 +310,7 @@ function tapeEvent(e: OurEvent, t: ReturnType<typeof useT>, ago: (at: number) =>
 
 /* ---------------- 02 reserves ---------------- */
 
-function Reserves({ v }: { v: OurView }) {
+export function Reserves({ v }: { v: OurView }) {
   const t = useT();
   const ago = useAgo();
   const phone = useIsPhone();
@@ -319,10 +320,11 @@ function Reserves({ v }: { v: OurView }) {
     { key: "c", label: t("tracker.m.res.c.collateral"), align: "right", render: (r) => r.token
       ? <span className="num" title={t("tracker.m.res.tokenRaw", { id: short(r.token, 4, 4) })}>{units(r.collateral, 0, 0)} <span className="dim">{short(r.token, 4, 4)}</span></span>
       : <span className="num">{ergStr(r.collateral)} ERG</span> },
-    // the list's debt field is not computed by this tracker version (it stays 0): debt comes from the key lookup
-    { key: "d", label: t("tracker.m.res.c.debt"), render: (r) => (
-      <Link className="textlink t-small" to={`?key=${r.owner}#lookup`} preventScrollReset title={t("tracker.m.res.debtTitle")}>{t("tracker.m.res.debtLink")} →</Link>
-    ) },
+    // debt = the owner's note totals minus what is redeemed, in the reserve's own units (raw units for a token)
+    { key: "d", label: t("tracker.m.res.c.debt"), align: "right", render: (r) => r.token
+      ? <span className="num" title={t("tracker.m.res.tokenRaw", { id: short(r.token, 4, 4) })}>{units(r.debt, 0, 0)} <span className="dim">{short(r.token, 4, 4)}</span></span>
+      : <span className="num">{sumOf(r.debt, 9)} ERG</span> },
+    { key: "cov", label: t("tracker.m.res.c.cover"), render: (r) => <Cover ratio={r.ratio} /> },
     { key: "u", label: t("tracker.m.res.c.updated"), align: "right", render: (r) => (
       <span className="num">{int(r.updatedHeight)}{r.refundHeight > 0 && <span className="dim"> · {t("tracker.m.res.refund", { h: int(r.refundHeight) })}</span>}</span>
     ) },
@@ -337,7 +339,6 @@ function Reserves({ v }: { v: OurView }) {
       ) : (
         <div className="trk-m-table"><Table<TrackedReserve> columns={cols} rows={v.reserves} rowKey={(r) => r.box} stack={phone} caption={t("tracker.m.res.title").replace(/\*/g, "")} /></div>
       )}
-      {v.reserves !== null && v.reserves.length > 0 && <p className="t-small trk-m-when">{t("tracker.m.res.debtNote")}</p>}
       {when && <p className="t-small dim trk-m-when">{when}{v.reservesError ? ` · ${t("chain.ours.err." + v.reservesError.kind, { status: v.reservesError.status ?? DASH, message: v.reservesError.message })}` : ""}</p>}
       {v.skipped > 0 && <p className="t-small dim">{t.p("tracker.m.res.skipped", v.skipped)}</p>}
     </div>
@@ -358,7 +359,7 @@ function KeyLookup({ ready }: { ready: boolean }) {
   const fromLink = useRef(false);
   const result = useRef<HTMLDivElement>(null);
   const [queued, setQueued] = useState<string | null>(null);
-  // ?key= (links from the reserves tables): fill the field now, ask once the page is ready; once per link click
+  // ?key= (a link to a lookup): fill the field now, ask once the page is ready; once per link click
   useEffect(() => {
     if (!asked) return;
     const r = parseKeyInput(asked);
@@ -417,7 +418,7 @@ function LookupFailed({ a }: { a: Extract<ReturnType<typeof useKeyLookup>["looku
   return <p className="trk-m-fail" role="alert">{t("tracker.m.key.failed", { why })}</p>;
 }
 
-function KeyResult({ data, at, from }: { data: KeyStatus; at: number; from: string | null }) {
+export function KeyResult({ data, at, from }: { data: KeyStatus; at: number; from: string | null }) {
   const t = useT();
   const ago = useAgo();
   const phone = useIsPhone();
@@ -425,8 +426,8 @@ function KeyResult({ data, at, from }: { data: KeyStatus; at: number; from: stri
   const empty = data.notes === 0 && data.denominations.every((d) => d.debt === 0n && d.collateral === 0n && d.notes === 0 && !d.reserve);
   const cols: Column<KeyDenomination>[] = [
     { key: "n", label: t("tracker.m.key.d.denom"), lead: true, render: (d) => <b>{d.symbol || short(d.id, 4, 4)}</b> },
-    { key: "debt", label: t("tracker.m.key.d.debt"), align: "right", render: (d) => <span className="num">{amountOf(d.debt, d.decimals)}</span> },
-    { key: "col", label: t("tracker.m.key.d.collateral"), align: "right", render: (d) => <span className="num">{amountOf(d.collateral, d.decimals)}</span> },
+    { key: "debt", label: t("tracker.m.key.d.debt"), align: "right", render: (d) => <span className="num">{sumOf(d.debt, d.decimals)}{d.symbol && ` ${d.symbol}`}</span> },
+    { key: "col", label: t("tracker.m.key.d.collateral"), align: "right", render: (d) => <span className="num">{sumOf(d.collateral, d.decimals)}{d.symbol && ` ${d.symbol}`}</span> },
     { key: "cov", label: t("tracker.m.key.d.cover"), render: (d) => <Cover ratio={d.ratio} /> },
     { key: "notes", label: t("tracker.m.key.d.notes"), align: "right", render: (d) => <span className="num">{int(d.notes)}</span> },
     { key: "res", label: t("tracker.m.key.d.reserve"), render: (d) => d.reserve ? <ExtId kind="box" id={d.reserve} /> : <span className="dim">{DASH}</span> },

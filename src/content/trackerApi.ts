@@ -50,7 +50,7 @@ export interface ApiEndpoint {
   gotchas?: Text[];
   /** Kept for older clients; a new client should not use it. */
   legacy?: boolean;
-  /** ErgoScan's tracker on mainnet (beta) opens this write route: its status and its own rules there. */
+  /** ErgoScan's tracker on mainnet (beta): its own rules or answers on this route, where they differ from the reference. */
   ergoscan?: Text[];
 }
 
@@ -79,6 +79,12 @@ export const apiGroups: ApiGroup[] = [
   { id: "redemption", title: t("Redemption", "Погашение"), lede: t("The current path: build, sign input 0 locally, submit once.", "Текущий путь: собрать, подписать вход 0 у себя, отправить один раз.") },
   { id: "legacy", title: t("Legacy redemption", "Старые пути погашения"), lede: t("Older endpoints. They still answer, but a new client should not use them.", "Старые эндпоинты. Они ещё отвечают, но новому клиенту они не нужны.") },
   { id: "events", title: t("Events", "События"), lede: t("An in-memory event list. Do not build a feed on it.", "Список событий в памяти. Ленту на нём строить не стоит.") },
+];
+
+/** The three reserve routes: ErgoScan's tracker fills debt and coverage (the reference keeps 0 and null). */
+const RESERVE_DEBT_OURS: Text[] = [
+  t("`total_debt` is what the owner still owes in this reserve's denomination: the sum of the owner's note totals minus what was already redeemed. A redemption counts once its transaction has 2 confirmations.", "`total_debt` — сколько владелец ещё должен в валюте этого резерва: сумма итогов его расписок минус уже погашенное. Погашение учитывается, когда у его транзакции 2 подтверждения."),
+  t("`collateralization_ratio` is collateral ÷ `total_debt`, or `null` when the debt is 0.", "`collateralization_ratio` — обеспечение ÷ `total_debt` или `null`, если долг равен 0."),
 ];
 
 export const apiEndpoints: ApiEndpoint[] = [
@@ -289,6 +295,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     request: "GET /reserves",
     response: `{ "success": true, "data": [ { "box_id": "b1f0…7e", "owner_pubkey": "${A}", "collateral_amount": 3000000000, "total_debt": 0, "tracker_nft_id": "${NFT}", "last_updated_height": 1921849, "collateralization_ratio": null, "refund_initiation_height": null } ], "error": null }`,
     gotchas: [t("`total_debt` is always 0 and `collateralization_ratio` always null here. Use /key-status for both.", "Здесь `total_debt` всегда 0, а `collateralization_ratio` всегда null. Берите оба значения из /key-status.")],
+    ergoscan: RESERVE_DEBT_OURS,
   },
   {
     n: 15, id: "reserve-by-id", method: "GET", path: "/reserves/{box_id}", role: "read", group: "reserves",
@@ -296,6 +303,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     request: "GET /reserves/b1f0…7e",
     response: `{ "success": true, "data": { "box_id": "b1f0…7e", "…": "…" }, "error": null }`,
     gotchas: [t("An unknown box answers 404 with success: true and data: null.", "Неизвестный бокс даёт 404 с success: true и data: null.")],
+    ergoscan: RESERVE_DEBT_OURS,
   },
   {
     n: 16, id: "reserves-by-issuer", method: "GET", path: "/reserves/issuer/{pk}", role: "read", group: "reserves",
@@ -303,6 +311,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     request: `GET /reserves/issuer/${A}`,
     response: `{ "success": true, "data": [ { "box_id": "b1f0…7e", "owner_pubkey": "${A}", "…": "…" } ], "error": null }`,
     gotchas: [t("Exact string match: send the 66-hex key in lowercase, without the 07 prefix from R4.", "Сравнение строк точное: отправляйте 66-символьный ключ строчными буквами, без префикса 07 из R4.")],
+    ergoscan: RESERVE_DEBT_OURS,
   },
   {
     n: 17, id: "reserves-quarantined", method: "GET", path: "/reserves/quarantined", role: "read", group: "reserves",
@@ -478,6 +487,7 @@ export const apiEndpoints: ApiEndpoint[] = [
       t("Open. The receiver signs every build request (message `basis-build-v1`, 131 bytes for ERG). Its timestamp must be within ±120 s of the tracker's clock and later than that receiver's previous one.", "Открыт. Каждый запрос на сборку подписывает получатель (сообщение `basis-build-v1`, 131 байт для ERG). Его метка времени должна быть в пределах ±120 с от часов трекера и позже предыдущей метки этого получателя."),
       t("For ERG reserves the miner fee comes out of the payout, and the transaction spends only the reserve.", "Для резервов в ERG комиссия майнера вычитается из выплаты, и транзакция тратит только резерв."),
       t("At most 30 builds an hour per receiver and 12 an hour per pair.", "Не больше 30 сборок в час на получателя и 12 в час на пару."),
+      t("While an earlier redemption from the same reserve waits for 2 confirmations, a build answers 409 `…has redemption <tx_id> waiting for the chain…`: build again once it is confirmed.", "Пока предыдущее погашение из того же резерва ждёт 2 подтверждений, сборка отвечает 409 `…has redemption <tx_id> waiting for the chain…`: соберите снова, когда оно подтвердится."),
     ],
   },
   {
@@ -506,6 +516,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     ],
     ergoscan: [
       t("Open. Send the exact `unsigned_tx` the build returned, together with the signed transaction.", "Открыт. Отправьте ровно тот `unsigned_tx`, который вернула сборка, вместе с подписанной транзакцией."),
+      t("The note's redeemed amount changes only once the transaction has 2 confirmations, about 4–6 minutes later; the tracker checks every 60 s.", "Погашенная сумма по расписке меняется только после 2 подтверждений транзакции, примерно через 4–6 минут; трекер проверяет раз в 60 с."),
     ],
   },
   {
