@@ -12,6 +12,9 @@ export const OUR_TRACKER = {
   mintTx: "0841b4425b8b54fb33faf31983e1ade474774a000b96faf4302b0b26db697969",
   mintHeight: 1_922_275,
   firstBox: "2af09409e39799eb39e90f3c126d7a0dd2cfa98743d25cc2076fcbabe87ca345",
+  /** Owner key (R4) of ErgoScan's own test reserve from the closed test of 22 Nov 2026 (P2PK 9euZX3…4e5U). Pages tag a
+   *  reserve "ErgoScan test reserve" only on this exact key. */
+  testReserveOwner: "023316d27ad52bd767e5e97e2ecba3f0dbc2f92095875f918fcaa95ae6711b1207",
 } as const;
 
 /** Polling and budget. ≤ 1 request per second per visitor; nothing while the tab is hidden. */

@@ -185,6 +185,10 @@ use the background lane, at most every 30 min or when the tracker box moved.
   of unspent tracker boxes add it once its API has named its box (`useOursInCounts(obs).withBox`: the Network strip,
   Home's "Trackers by status" and its mainnet door). `/network/tracker/<our nft>` is served from the tracker API, not
   from the chain store.
+- ErgoScan's own test reserve (closed test of 22 Nov): `OUR_TRACKER.testReserveOwner` is its owner key, and
+  `isOurTestReserve(key)` matches only that exact key. `OurTestReserveTag` (`tag.tsx`) is the quiet tag shown next to
+  that owner wherever reserves are listed: the console's reserves table, tape and key lookup; on Network, our tracker's
+  reserves and events, the detector list, the reserves table, the overview cards and the reserve page.
 - Hooks: `useOurTracker({ fees? })` → `OurView`, `useOursInCounts(obs)`, `useKeyLookup()`, `useAgo()`, `useNow()`.
   Tests: `ours/ours.test.ts`.
 

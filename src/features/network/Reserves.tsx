@@ -6,7 +6,7 @@ import { useQuery } from "./query";
 import { rich, useT, useTitle } from "@/app";
 import { Digest, Empty, FaceTabs, Faces, Icon, KeySeal, Seg, Table, Tag, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
-import { decodeConstant, describeExit, REFUND_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
+import { decodeConstant, describeExit, isOurTestReserve, OurTestReserveTag, REFUND_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
 import { amount, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, EXIT_ORDER, ExitTag, Ext, Facts, IdLink, KeyName, NetLoading, NftTile, TrackerTag, trackerSilent, UntrustedName, useProgressive } from "./parts";
 import { FeedRow, r7Word, reserveRank, TopUpClosed, TrackerPanel, treeWord, unitKind, VaultCard } from "./Overview";
@@ -57,7 +57,7 @@ export function ReservesList({ obs }: { obs: Observatory }) {
     { key: "trk", label: t("network.c.tracker"), render: (r) => r.r6 ? <Link to={`/network/tracker/${r.r6}`} className="hex">{r.r6.slice(0, 8)}</Link> : <span className="dim">—</span> },
     { key: "r5", label: t("network.c.tree"), render: (r) => treeWord(r, t) },
     { key: "r7", label: t("network.c.r7"), render: (r) => r7Word(r, obs.height, t) },
-    { key: "owner", label: t("network.c.owner"), render: (r) => r.owner ? <span className="nw-inl"><KeySeal pk={r.owner.key} size={20} /><span className="hex">{sAddr(r.owner.addr)}</span></span> : <span className="dim">{t("network.owner.malformed")}</span> },
+    { key: "owner", label: t("network.c.owner"), render: (r) => r.owner ? <span className="nw-inl"><KeySeal pk={r.owner.key} size={20} /><span className="hex">{sAddr(r.owner.addr)}</span>{isOurTestReserve(r.owner.key) && <OurTestReserveTag />}</span> : <span className="dim">{t("network.owner.malformed")}</span> },
     { key: "h", label: t("network.c.height"), align: "right", render: (r) => <span className="num">{fmtH(r.height)}</span> },
   ];
 
@@ -324,7 +324,7 @@ function Registers({ r, obs }: { r: ReserveView; obs: Observatory }) {
     <div className="nw-regs">
       <div className="nw-reg">
         <span className="label">{t("network.rv.r4")}</span>
-        {r.owner ? <KeyName pk={r.owner.key} addr={r.owner.addr} label={r.owner.label} size="md" /> : <p className="t-small">{t("chain.malformedOwner")}</p>}
+        {r.owner ? <KeyName pk={r.owner.key} addr={r.owner.addr} label={r.owner.label} size="md" sub={isOurTestReserve(r.owner.key) ? <OurTestReserveTag /> : undefined} /> : <p className="t-small">{t("chain.malformedOwner")}</p>}
         <p className="t-small">{t("network.rv.r4Story")}</p>
       </div>
       <div className="nw-reg">

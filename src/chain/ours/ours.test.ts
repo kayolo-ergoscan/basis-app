@@ -4,7 +4,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Pulse } from "@/app/pulse";
 import { createTrackerClient, parseKeyInput, parseReserves, quoteBigInts, type TrackerClient } from "./client";
-import { commitEvent, oursExtra, ourView, reserveEvents, statusOf } from "./model";
+import { p2pkAddress } from "../decode";
+import { commitEvent, isOurTestReserve, oursExtra, ourView, reserveEvents, statusOf } from "./model";
 import { createOursStore, feeFundsOf, OURS_STORAGE_KEY, type OursState } from "./store";
 import { OUR_TRACKER, OURS_POLL, STALE_AFTER_BLOCKS, type FeeFunds, type TrackedReserve, type TrackerState } from "./types";
 
@@ -401,5 +402,21 @@ describe("counts", () => {
     expect(oursExtra(null)).toBe(0);
     expect(oursExtra(idx(["aa".repeat(32)]))).toBe(1);
     expect(oursExtra(idx(["aa".repeat(32), OUR_TRACKER.nft]))).toBe(0);
+  });
+});
+
+describe("ErgoScan test reserve", () => {
+  it("is recognised only by its exact owner key, the key of 9euZX3…4e5U", () => {
+    const k = OUR_TRACKER.testReserveOwner;
+    expect(k).toMatch(/^0[23][0-9a-f]{64}$/);
+    const addr = p2pkAddress(k);
+    expect(addr.slice(0, 6)).toBe("9euZX3");
+    expect(addr.slice(-4)).toBe("4e5U");
+    expect(isOurTestReserve(k)).toBe(true);
+    expect(isOurTestReserve(k.slice(0, -2) + "08")).toBe(false);
+    expect(isOurTestReserve(k.slice(0, 20))).toBe(false);
+    expect(isOurTestReserve(addr)).toBe(false);
+    expect(isOurTestReserve(null)).toBe(false);
+    expect(isOurTestReserve(undefined)).toBe(false);
   });
 });

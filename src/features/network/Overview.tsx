@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, oursExtra, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
@@ -86,7 +86,7 @@ function Detector({ obs }: { obs: Observatory }) {
         ) : (
           <ul className="nw-det-found" aria-label={t("network.det.found")}>
             {live.map((b) => (
-              <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} /></li>
+              <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} />{isOurTestReserve(b.owner?.key) && <OurTestReserveTag />}</li>
             ))}
           </ul>
         )}
@@ -328,7 +328,7 @@ export function VaultCard({ r, obs }: { r: ReserveView; obs: Observatory }) {
         <div>
           <dt>{t("network.res.owner")}</dt>
           <dd>
-            {r.owner ? <span className="nw-inl"><KeySeal pk={r.owner.key} size={22} /><span className="hex">{sAddr(r.owner.addr)}</span>{r.owner.label && <span className="nw-label">{r.owner.label}</span>}</span>
+            {r.owner ? <span className="nw-inl"><KeySeal pk={r.owner.key} size={22} /><span className="hex">{sAddr(r.owner.addr)}</span>{r.owner.label && <span className="nw-label">{r.owner.label}</span>}{isOurTestReserve(r.owner.key) && <OurTestReserveTag />}</span>
               : <span className="dim">{t("network.owner.malformed")}</span>}
           </dd>
         </div>

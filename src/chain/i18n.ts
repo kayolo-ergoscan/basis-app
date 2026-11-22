@@ -94,6 +94,8 @@ export default {
 
     // our tracker (src/chain/ours): status words, answer ages and failures, shared by /network and /tracker
     "chain.ours.name": "ErgoScan's tracker",
+    "chain.ours.testReserve": "ErgoScan test reserve",
+    "chain.ours.testReserve.title": "ErgoScan's own reserve from the closed test of 22 November 2026, made with its own test key. Not a user's reserve.",
     "chain.ours.beta": "beta",
     "chain.ours.st.connecting": "Connecting",
     "chain.ours.st.live": "Live",
@@ -217,6 +219,8 @@ export default {
     "chain.box.templateUnknown": "Хеш шаблона не совпадает ни с одним известным контрактом Basis",
 
     "chain.ours.name": "Трекер ErgoScan",
+    "chain.ours.testReserve": "Тестовый резерв ErgoScan",
+    "chain.ours.testReserve.title": "Собственный резерв ErgoScan из закрытого теста 22 ноября 2026 года, сделанный его тестовым ключом. Это не резерв пользователя.",
     "chain.ours.beta": "бета",
     "chain.ours.st.connecting": "Подключаемся",
     "chain.ours.st.live": "Работает",

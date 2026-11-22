@@ -9,7 +9,7 @@ import { useT } from "@/app/lang";
 import { useTitle } from "@/app";
 import { copy, pick } from "@/content";
 import {
-  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, explorer, p2pkAddress, parseKeyInput, useAgo, useKeyLookup, useNow, useOurTracker,
+  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, explorer, isOurTestReserve, p2pkAddress, parseKeyInput, useAgo, useKeyLookup, useNow, useOurTracker,
   type KeyDenomination, type KeyStatus, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import {
@@ -252,13 +252,15 @@ function Cover({ ratio }: { ratio: number | null }) {
   return <span className="trk-m-cov"><span className="num">{ratioPct(ratio)}</span><CoverageTag pct={ratio * 100} small /></span>;
 }
 
-/** A reserve owner: its seal and P2PK address (the tracker sends the key; the key is in the tooltip). */
+/** A reserve owner: its seal and P2PK address (the tracker sends the key; the key is in the tooltip), and the quiet
+ *  tag on ErgoScan's own test reserve. */
 function Owner({ pk }: { pk: string }) {
   const addr = useMemo(() => { try { return p2pkAddress(pk); } catch { return null; } }, [pk]);
   return (
     <span className="trk-m-owner" title={pk}>
       <KeySeal pk={pk} size="sm" />
       {addr ? <ExtId kind="address" id={addr} /> : <code className="trk-code">{short(pk, 6, 4)}</code>}
+      {isOurTestReserve(pk) && <OurTestReserveTag />}
     </span>
   );
 }
@@ -300,7 +302,7 @@ function tapeEvent(e: OurEvent, t: ReturnType<typeof useT>, ago: (at: number) =>
   return {
     type: "RESERVE",
     lamp: "tracked",
-    parties: <span>{t("tracker.m.tape.reserve", { box: short(e.box, 6, 4) })} · {ago(e.at)}</span>,
+    parties: <span>{t("tracker.m.tape.reserve", { box: short(e.box, 6, 4) })}{isOurTestReserve(e.owner) ? ` · ${t("chain.ours.testReserve")}` : ""} · {ago(e.at)}</span>,
     amount: e.token ? `${units(e.collateral, 0, 0)} ${short(e.token, 4, 4)}` : `${ergStr(e.collateral)} ERG`,
   };
 }
@@ -441,6 +443,7 @@ function KeyResult({ data, at, from }: { data: KeyStatus; at: number; from: stri
           </span>
         </div>
         <div className="trk-m-keytags">
+          {isOurTestReserve(data.key) && <OurTestReserveTag />}
           <span className="label num">{t.p("tracker.m.key.notes", data.notes, { n: int(data.notes) })}</span>
           {data.pendingRefund && <span className="label">{t("tracker.m.key.refund")}</span>}
         </div>

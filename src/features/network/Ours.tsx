@@ -8,7 +8,7 @@ import { CopyButton, Dial, Honest, Icon, Key, Lamp, Table, Tag, useIsPhone, type
 import { copy, pick } from "@/content";
 import {
   p2pkAddress,
-  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, useAgo, useNow, useOurTracker,
+  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, useAgo, useNow, useOurTracker,
   type Observatory, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import { amount, approx, blocks, ergs, height as fmtH, sid, type Lang } from "./fmt";
@@ -195,6 +195,7 @@ function EventRow({ e }: { e: OurEvent }) {
       <span>{t("network.ours.td.reserve", { box: sid(e.box, 6, 4) })}</span>
       <b className="num">{e.token ? amount(e.collateral, 0) : `${ergs(e.collateral)} ERG`}</b>
       <Ext kind="box" id={e.box} />
+      {isOurTestReserve(e.owner) && <OurTestReserveTag />}
       <span className="dim">{t("network.ours.lastAt", { h: fmtH(e.height) })} · {ago(e.at)}</span>
     </li>
   );
@@ -217,7 +218,7 @@ export function OurReserves({ v }: { v: OurView }) {
   const phone = useIsPhone();
   const cols: Column<TrackedReserve>[] = [
     { key: "id", label: t("network.ours.c.box"), lead: true, render: (r) => <IdLink id={r.box} kind="box" a={6} b={4} /> },
-    { key: "o", label: t("network.ours.c.owner"), render: (r) => <KeyName pk={r.owner} addr={addrOf(r.owner)} size={20} /> },
+    { key: "o", label: t("network.ours.c.owner"), render: (r) => <span className="nw-inl"><KeyName pk={r.owner} addr={addrOf(r.owner)} size={20} />{isOurTestReserve(r.owner) && <OurTestReserveTag />}</span> },
     // a token reserve shows raw units next to the token id: the tracker does not send decimals, so none are guessed
     { key: "c", label: t("network.ours.c.collateral"), align: "right", render: (r) => <span className="num">{r.token ? <>{amount(r.collateral, 0)} <span className="hex">{sid(r.token)}</span></> : `${ergs(r.collateral)} ERG`}</span> },
     // the list's debt field is not computed by this tracker version (it stays 0): the console's key lookup computes it

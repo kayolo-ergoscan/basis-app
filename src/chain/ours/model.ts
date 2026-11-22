@@ -84,6 +84,12 @@ export function statusOf(s: Pick<OursState, "stateError" | "fresh">, age: number
   return "live";
 }
 
+/** ErgoScan's own test reserve: its owner key is exactly OUR_TRACKER.testReserveOwner. Keys reach the pages normalized
+ *  (lowercase hex: the tracker client's normalizeKey, the chain decoder), so the whole key is compared as it is. */
+export function isOurTestReserve(ownerKey: string | null | undefined): boolean {
+  return ownerKey === OUR_TRACKER.testReserveOwner;
+}
+
 /** Our tracker's NFT was minted (block 1 922 275) after the snapshot the observatory is built from, so snapshot counts
  *  of tracker NFTs miss it: pages add this (1) to them. 0 once a newer snapshot lists the NFT, or while none is loaded. */
 export function oursExtra(obs: Pick<Observatory, "index"> | null): 0 | 1 {
