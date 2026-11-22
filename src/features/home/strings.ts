@@ -45,6 +45,13 @@ export default {
 
     // live strip
     "home.tape.aria": "Sandbox live tape: what the story economy on this page just did",
+    "home.tape.ev.RESERVE": "RESERVE",
+    "home.tape.ev.NOTE": "NOTE",
+    "home.tape.ev.WITNESS": "WITNESS",
+    "home.tape.ev.COMMIT": "COMMIT",
+    "home.tape.ev.CHECK": "CHECK",
+    "home.tape.ev.TOPUP": "TOP UP",
+    "home.tape.ev.REDEEM": "REDEEM",
     "home.tape.reserve": "Alice's reserve",
     "home.tape.note": "Alice → Bob",
     "home.tape.witness": "T-\u206001 co-signed",
@@ -225,6 +232,13 @@ export default {
     "home.list.aria": "Что показывает расписка",
 
     "home.tape.aria": "Лента песочницы: что только что сделала экономика этой страницы",
+    "home.tape.ev.RESERVE": "РЕЗЕРВ",
+    "home.tape.ev.NOTE": "РАСПИСКА",
+    "home.tape.ev.WITNESS": "ЗАВЕРКА",
+    "home.tape.ev.COMMIT": "ФИКСАЦИЯ",
+    "home.tape.ev.CHECK": "ПРОВЕРКА",
+    "home.tape.ev.TOPUP": "ПОПОЛНЕНИЕ",
+    "home.tape.ev.REDEEM": "ПОГАШЕНИЕ",
     "home.tape.reserve": "Резерв Алисы",
     "home.tape.note": "Алиса → Боб",
     "home.tape.witness": "T-\u206001 подписал",

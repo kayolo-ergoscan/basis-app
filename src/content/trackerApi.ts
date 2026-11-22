@@ -636,7 +636,7 @@ export const trackerApi = {
     t("Public keys are 66 hex characters. Strip the 07 prefix that R4 adds.", "Открытые ключи — 66 hex-символов. Убирайте префикс 07, который добавляет R4."),
     t("Amounts are raw units below 2^63.", "Суммы — в минимальных единицах и меньше 2^63."),
     t("/reserves shows debt 0 and coverage null; use /key-status. `redeemable` ignores status; check status = \"confirmed\" too.", "/reserves показывает долг 0 и покрытие null — используйте /key-status. `redeemable` не учитывает status — проверяйте ещё и status = «confirmed»."),
-    t("/tracker/latest-box-id returns a height in `timestamp`. /tracker/proof uses the live tree. /reserve/proof has no proof on a first redemption.", "/tracker/latest-box-id возвращает высоту в `timestamp`. /tracker/proof строится по живому дереву. /reserve/proof не даёт proof при первом погашении."),
+    t("/tracker/latest-box-id returns a height in `timestamp`. /tracker/proof uses the live tree. /reserve/proof has no proof on a first redemption.", "/tracker/latest-box-id возвращает высоту в `timestamp`. /tracker/proof строится по живому дереву. /reserve/proof не отдаёт доказательство при первом погашении."),
     t("/events starts with demo data and keeps only the first 50; past the last page /events/paginated drops the connection.", "/events начинается с демонстрационных данных и отдаёт только первые 50; за последней страницей /events/paginated обрывает соединение."),
   ],
   sources: ["bt-openapi", "bt-spec-tracker", "bt-21", "bt-24"] as SourceId[],

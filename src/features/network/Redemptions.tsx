@@ -341,13 +341,15 @@ function TxBox({ b, lang, tip }: { b: TxBoxView; lang: Lang; tip?: number }) {
  *  (up to ≈ 2 min). Say so in words instead of a silent spinner, and offer the explorer meanwhile. */
 function TxWait({ txId }: { txId: string }) {
   const t = useT();
-  useChainStatus(); // re-render when the budget moves
-  const queued = chainApi.budgetLeft() === 0;
+  const st = useChainStatus(); // re-render when the budget moves
+  // offline first: failed requests also use up the block's budget, and "spent its share" would then be the wrong reason
+  const offline = !st.online && st.lastError !== null;
+  const queued = !offline && chainApi.budgetLeft() === 0;
   return (
     <div className="nw-lazy nw-txwait">
       <Loading label={t("network.tx.loading")} seed={txId} lines={5} />
       <p className="nw-wait" role="status" aria-live="polite">
-        {queued ? t("network.tx.queued") : t("network.tx.loading")}{" "}
+        {offline ? t("network.tx.offline") : queued ? t("network.tx.queued") : t("network.tx.loading")}{" "}
         <Ext kind="tx" id={txId}>{t("network.nf.explorer", { id: sid(txId, 6, 6) })}</Ext>
       </p>
     </div>

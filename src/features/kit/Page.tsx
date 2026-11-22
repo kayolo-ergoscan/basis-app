@@ -1,7 +1,7 @@
 // /kit — every component of src/ui in its real states, with the style tile's sample data (VISUAL §13, §17).
 import "./kit.css";
 import { Link } from "react-router-dom";
-import { LangSeg, ThemeSeg } from "@/app/chrome";
+import { LangSeg, MOD, ThemeSeg } from "@/app/chrome";
 import { openCommandBar } from "@/app/commands";
 import { addI18n, rich, useT } from "@/app/lang";
 import { FaceTabs, GuillocheField, Key, setUiSettings, Switch, useLens, useUiSettings } from "@/ui";
@@ -39,7 +39,7 @@ export default function KitPage() {
             <LangSeg />
             <FaceTabs value={lens} onChange={setLens} idBase="kit-head" />
             <Key variant="primary" icon="stamp" onClick={() => firePulse()}>{t("kit.pulse")}</Key>
-            <Key icon="search" kbd="⌘K" onClick={() => openCommandBar()}>{t("kit.openCmdk")}</Key>
+            <Key icon="search" kbd={`${MOD} K`} onClick={() => openCommandBar()}>{t("kit.openCmdk")}</Key>
           </div>
           <div className="kit-switches">
             <Switch checked={ui.motion === "reduce"} onChange={(v) => setUiSettings({ motion: v ? "reduce" : "system" })} label={t("app.prefs.motion")} />

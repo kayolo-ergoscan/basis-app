@@ -5,7 +5,7 @@
 .vz *, .vz *::before, .vz *::after { box-sizing: border-box; }
 .vz .num, .vz-num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
 .vz code, .vz .mono { font-family: var(--f-mono); }
-.vz button { font: inherit; color: inherit; }
+:where(.vz) button { font: inherit; color: inherit; } /* zero-class specificity: .vz-chip, .vz-fd-row … set their own font and colour */
 .vz :where(button, a, [tabindex], input, select, textarea, summary):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 15%, transparent); }
 .vz-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -71,6 +71,8 @@
 @media (pointer: coarse) { .vz-btn { height: 44px; padding: 0 14px; } }
 .vz-copy { border: 0; background: transparent; color: var(--ink-3); font: 500 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 6px 6px; border-radius: 4px; cursor: pointer; flex: none; }
 .vz-copy:hover { color: var(--ink); background: var(--surface-2); }
+/* touch: 44 px targets for copy buttons and tappable bytes (dense proofs stay at 36 px so long grids stay short) */
+@media (pointer: coarse) { .vz-copy { min-height: 44px; min-width: 44px; } .vz-bytes.live .vz-b { padding: 16.5px 0; } .vz-bytes.live.dense .vz-b { padding: 13px 0; } }
 
 /* byte grid (machine face) */
 .vz-bytes { --cols: 16; display: grid; max-width: 760px; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; font: 500 11.5px/1 var(--f-mono); }
@@ -146,7 +148,7 @@ select.vz-input { font-family: var(--f-ui); font-size: 14px; }
 }
 /* chips: filter and pick toggles (VISUAL §12.2) */
 .vz-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: var(--r-pill); border: 1px solid var(--rule-2); background: transparent; color: var(--ink-3); cursor: pointer; font: 500 12.5px/1 var(--f-ui); }
-.vz-chip .n { font: 400 11px/1 var(--f-mono); color: var(--ink-4); }
+.vz-chip .n { font: 400 11px/1 var(--f-mono); color: var(--ink-3); }
 .vz-chip:hover { color: var(--ink-2); }
 .vz-chip.on { color: var(--ink); border-color: var(--ink-3); background: var(--surface-2); }
 .vz-chip.on .n { color: var(--ink-3); }

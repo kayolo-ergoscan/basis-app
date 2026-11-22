@@ -53,7 +53,7 @@ function figureFor(c: Chapter, n: string): ReactNode {
 export default function HowPage() {
   const t = useT();
   const L = t.lang;
-  useBookSections(chapters.map((c) => ({ id: `ch-${c.id}`, label: pick(c.title, L) })));
+  useBookSections(chapters.map((c) => ({ id: c.id, label: pick(c.title, L) })));
   return (
     <article>
       <BookHead id="how" lede={inline(pick(howItWorksLede, L))} minutes={pageMinutes("how", L) ?? undefined} meta={<span className="label">{t("learn.how.meta", { n: chapters.length })}</span>} />
@@ -64,7 +64,7 @@ export default function HowPage() {
         const labPage = lab ? pageOf(lab) : null;
         const labName = lab ? t(`learn.page.${lab}.toc`) : "";
         return (
-          <Sec key={c.id} id={`ch-${c.id}`} first={i === 0} no={String(c.n).padStart(2, "0")} title={pick(c.title, L)} lede={inline(pick(c.lede, L))}>
+          <Sec key={c.id} id={c.id} first={i === 0} no={String(c.n).padStart(2, "0")} title={pick(c.title, L)} lede={inline(pick(c.lede, L))}>
             <Side label={t("learn.words")}>
               <Terms ids={c.terms} />
               {c.sources.length > 0 && <div style={{ marginTop: 14 }}><SourceLinks ids={c.sources.slice(0, 3)} /></div>}

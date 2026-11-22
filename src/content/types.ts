@@ -26,6 +26,8 @@ export interface Text {
 }
 
 export const NBSP = " ";
+/** Word joiner: forbids a line break on either side, draws nothing. */
+export const WJ = "\u2060";
 /** Thin space + word joiner: the VISUAL §4.3 thousands separator (also used before %). */
 export const THIN = " ⁠";
 
@@ -48,6 +50,8 @@ export function typo(input: string, lang: Lang, o: TypoOptions = {}): string {
   s = s.replace(/(\d) (?=[\p{L}≈×])/gu, `$1${NBSP}`);
   s = s.replace(/≈ /g, `≈${NBSP}`);
   s = s.replace(/ — /g, `${NBSP}— `);
+  // ISO dates never break at their hyphens: "2026-08-02" (a word joiner after each hyphen)
+  s = s.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, `$1-${WJ}$2-${WJ}$3`);
   if (lang === "ru") {
     // keep short prepositions and conjunctions with the next word (two passes for "и в …")
     s = s.replace(RU_SHORT_WORDS, `$1$2${NBSP}`).replace(RU_SHORT_WORDS, `$1$2${NBSP}`);

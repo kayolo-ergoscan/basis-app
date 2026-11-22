@@ -62,7 +62,7 @@ export const personas: Persona[] = [
       "Creditors can redeem at any time. If the reserve runs short, the first valid transaction on chain is paid first.",
       "Кредиторы могут погашать в любой момент. Если резерва не хватает, первой получает та корректная транзакция, что раньше попала в блок.",
     ),
-    start: { label: t("Create a sandbox reserve", "Создать резерв в песочнице"), to: "/wallet/reserves" },
+    start: { label: t("Create a sandbox reserve", "Создать резерв в песочнице"), to: "/wallet/reserve" },
     scenario: "free-bank",
     sources: ["tg-1317", "bt-basis-es"],
   },

@@ -77,7 +77,7 @@ export function ExitClocks(p: ExitClocksProps) {
       <header className="vz-head">
         <div className="vz-head-t">
           <div className="vz-eyebrow">{t("viz.clock.eyebrow")}</div>
-          <h3 className="vz-title">{p.title ?? t("viz.clock.title")}</h3>
+          <h3 className="vz-title">{p.title ?? t(show === "exit" ? "viz.clock.titleExit" : show === "emergency" ? "viz.clock.titleEm" : "viz.clock.title")}</h3>
         </div>
         <div className="vz-head-a">
           <span className="vz-small">{t("viz.clock.blockNow", { h: fmtInt(p.height) })}</span>

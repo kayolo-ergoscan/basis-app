@@ -529,7 +529,7 @@ function WalletTop() {
           <div style={{ borderTopColor: "var(--up)" }}><div className="label">{t("kit.wallet.owed")}</div><div className="v">{money(1950)}</div><div className="t-small">{t("kit.wallet.n3")}</div></div>
           <div style={{ textAlign: "right" }}><div className="label">{t("kit.wallet.owe")}</div><div className="v">{money(332.6)}</div><div className="t-small">{t("kit.wallet.n2")}</div></div>
         </div>
-        <div style={{ marginTop: 16 }}><BackedTrustBar backed={85} /></div>
+        <div style={{ marginTop: 16 }}><BackedTrustBar backed={0.85} /></div>
       </div></div>
     </Spec>
   );

@@ -23,6 +23,9 @@ export interface NoteProps {
   /** Display names (both are always printed: a note is never a bearer IOU). */
   issuer: string;
   receiver: string;
+  /** The receiver's name as it reads after "owes" and in "{name}'s limit": Russian needs the genitive («Боба»).
+   *  When omitted, the sandbox cast is declined from a small table; any other name is printed as given. */
+  receiverOf?: string;
   /** Public keys (hex). Without them the demo keys of the sample names are used. */
   issuerPk?: string;
   receiverPk?: string;
@@ -75,11 +78,18 @@ const keyOf = (p: Pick<NoteProps, "noteKey" | "issuerPk" | "receiverPk" | "issue
 /** Size of the engraved total by visible glyphs (tile: 12.8 / 11.6 / 9.8 cqw). */
 const amtSize = (s: string) => { const g = glyphCount(s); return g <= 8 ? 12.8 : g <= 9 ? 11.6 : g <= 11 ? 9.8 : 8.2; };
 
+/** Genitive of the sandbox cast's Russian names (VISUAL §14: never decline a name we do not know). */
+const RU_GEN: Record<string, string> = {
+  "Алиса": "Алисы", "Боб": "Боба", "Дэн": "Дэна", "Ева": "Евы", "Мира": "Миры", "Дмитрий": "Дмитрия", "Дэйв": "Дэйва", "Дейв": "Дейва",
+  "Скаут": "Скаута", "Квилл": "Квилла", "Пекарня": "Пекарни", "Вы": "вас",
+};
+
 export function Note(props: NoteProps) {
   const { issuer, receiver, amount, unit = "ERG", dp = 2, prev, limit = 0, settled = 0, state = "committed", tracker = "T-01", trackerId, digest, block,
     lite, live, odometer, loupe, bare, className, style, onClick, ariaLabel, decorative } = props;
   const t = useT();
   const ui = useUiSettings();
+  const owed = props.receiverOf ?? (t.lang === "ru" ? RU_GEN[receiver] ?? receiver : receiver);
   const key = useMemo(() => keyOf(props), [props.noteKey, props.issuerPk, props.receiverPk, issuer, receiver]); // eslint-disable-line react-hooks/exhaustive-deps
   const keyHex = useMemo(() => hex(key), [key]);
   const ink = useMemo(() => inksFor(key), [key]);
@@ -96,13 +106,15 @@ export function Note(props: NoteProps) {
   const pctW = (v: number) => (limit ? Math.max(0, Math.min(100, (v / limit) * 100)).toFixed(2) : "0");
   const amtStr = money(amount, dp);
   const issuerPk = props.issuerPk ?? DEMO_PK[issuer];
-  const dg = digest ? short(digest, 4, 2).toUpperCase() : "9F3C…E1";
-  const blkStr = block != null ? int(block) : "1 921 400";
+  // only what the caller gave: no invented digest, block or signature (a sample note passes its own)
+  const dg = digest ? short(digest, 4, 2).toUpperCase() : null;
+  const blkStr = block != null ? int(block) : null;
   const stateWords = t(`ui.note.state.${state}`);
   const label = ariaLabel ?? t("ui.note.aria", {
-    issuer, receiver, amount: priv ? "•••" : amtStr.replace(/⁠/g, ""), unit,
-    state: state === "committed" ? t("ui.note.aria.committed", { digest: digest ? short(digest, 4, 2) : "9f3c…e1", block: blkStr }) : stateWords,
+    issuer, receiver: owed, amount: priv ? "•••" : amtStr.replace(/⁠/g, ""), unit,
+    state: state === "committed" && digest && blkStr ? t("ui.note.aria.committed", { digest: short(digest, 4, 2), block: blkStr }) : stateWords,
   });
+  const foilTxt = [state === "signed" ? t("ui.note.notWitnessed") : null, tracker, dg && `DIGEST ${dg}`, blkStr && `BLK ${blkStr}`].filter(Boolean).join(" · ");
 
   const art = live
     ? <span className="note-art" aria-hidden="true" dangerouslySetInnerHTML={{ __html: liveSvg }} />
@@ -128,7 +140,7 @@ export function Note(props: NoteProps) {
             <span className="note-brand">BASIS<small>{t("ui.note.brandSub")}</small></span>
             <span className="note-serial">№ {serialOf(key)}</span>
           </div>
-          <div className="note-parties"><span>{issuer}</span><span className="owes">{t("ui.note.owes")}</span><span>{receiver}</span></div>
+          <div className="note-parties"><span>{issuer}</span><span className="owes">{t("ui.note.owes")}</span><span>{owed}</span></div>
           <div className="note-caption">{t("ui.note.caption")}{prev != null ? ` · ${t("ui.note.was", { v: priv ? "•••" : money(prev, dp) })}` : ""}</div>
           <div className="note-amount" style={{ fontSize: `${amtSize(amtStr)}cqw` }}>
             <span className="engr">{odometer ? <Odometer value={amount} dp={dp} /> : <span className="odo">{priv ? "•••" : amtStr}</span>}</span>
@@ -140,20 +152,22 @@ export function Note(props: NoteProps) {
               <div className="legend">
                 <span>{t("ui.note.outstanding")} <b>{priv ? "•••" : money(out, dp)}</b></span>
                 <span>{t("ui.note.headroom")} <b>{priv ? "•••" : money(Math.max(0, limit - amount), dp)}</b></span>
-                <span>{t("ui.note.limitOf", { name: receiver })} <b>{priv ? "•••" : money(limit, 0)}</b></span>
+                <span>{t("ui.note.limitOf", { name: owed })} <b>{priv ? "•••" : money(limit, 0)}</b></span>
               </div>
             </div>
           )}
           <div className="note-sigs">
-            <div>{t("ui.note.signed")} · {issuer}<span>{issuerPk ? short(issuerPk, 4, 4) : "02a1…7c9f"}</span></div>
-            <div>{t("ui.note.witnessed")} · {tracker}<span>sig {sigs.sigT.slice(0, 4)}…{sigs.sigT.slice(-4)}</span></div>
+            <div>{t("ui.note.signed")} · {issuer}{issuerPk ? <span>{short(issuerPk, 4, 4)}</span> : null}</div>
+            {state === "signed"
+              ? <div>{t("ui.note.notWitnessed").toLowerCase()}</div>
+              : <div>{t("ui.note.witnessed")} · {tracker}{props.sigT ? <span>sig {props.sigT.slice(0, 4)}…{props.sigT.slice(-4)}</span> : null}</div>}
           </div>
         </div>
       )}
       <div className="note-foil" aria-hidden="true">
         <div className="band" />
         {!bare && <span className="mark">{tracker.replace("T-", "T")}</span>}
-        {!bare && <span className="txt">{state === "signed" ? `${t("ui.note.notWitnessed")} · ` : ""}{tracker} · DIGEST {dg} · BLK {blkStr}</span>}
+        {!bare && <span className="txt">{foilTxt}</span>}
       </div>
     </div>
   );

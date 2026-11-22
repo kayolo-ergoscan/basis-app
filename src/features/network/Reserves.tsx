@@ -253,8 +253,8 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
                 <>
                   <ExitClocks height={obs.height} boxCreationHeight={trackerBoxH} r7={r.r7 && r.r7 > 0 ? r.r7 : null}
                     show={r.contract?.ownerExit ? "both" : "emergency"} trackerName={tracker ? sid(tracker.nft) : undefined}
-                    loading={t("network.rv.clocksLoading")} failed={<ClocksFallback em={em} lang={lang} />} />
-                  <p className="nw-em-idle">{t("network.em.idle")}</p>
+                    loading={t("network.rv.clocksLoading")}
+                    failed={<><ClocksFallback em={em} lang={lang} /><p className="nw-em-idle">{t("network.em.idle")}</p></>} />
                   <p className="t-small">{t("network.rv.clocksNote")} {pick(copy.refundCreditors, lang)}</p>
                 </>
               )}

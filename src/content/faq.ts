@@ -106,7 +106,7 @@ export const faq: Faq[] = [
     short: t("No protocol fee. A redemption pays the 0.001 ERG miner fee; paying with a note is free.", "Комиссии протокола нет. Погашение платит комиссию майнера 0,001 ERG; платёж распиской бесплатен."),
     a: [
       t("The reserve contract takes nothing: the receiver gets exactly the amount redeemed.", "Контракт резерва ничего не удерживает: получатель получает ровно погашенную сумму."),
-      t("Every Ergo transaction pays a miner fee, 0.001 ERG here. When the tracker builds the redemption, the tracker pays it.", "Каждая транзакция в Ergo платит комиссию майнеру, здесь — 0,001 ERG. Если погашение собирает трекер, её платит трекер."),
+      t("Every Ergo transaction pays a miner fee, 0.001 ERG here. When the tracker builds the redemption, the tracker pays it.", "Каждая транзакция в Ergo платит комиссию майнера, здесь — 0,001 ERG. Если погашение собирает трекер, её платит трекер."),
       copy.feeDenial,
       t("A tracker operator may charge for its service in future. Nothing in the contract does.", "Оператор трекера в будущем может брать плату за свою услугу. В контракте ничего такого нет."),
     ],
@@ -173,7 +173,7 @@ export const faq: Faq[] = [
     short: denial("Not yet. Basis has not launched: the current contracts have no boxes, and no public tracker is running.", "Пока нет. Basis ещё не запущен: у текущих контрактов нет боксов, публичного трекера тоже нет."),
     a: [
       denial("Basis has not launched on mainnet. The contracts reviewed in October 2026 have no boxes yet.", "Basis ещё не запущен в mainnet. У контрактов, прошедших ревью в октябре 2026 года, пока нет ни одного бокса."),
-      t("What you can see on mainnet is test use of older contract versions: 99 reserve boxes, about 9 ERG, 41 redemptions so far.", "В mainnet видно только тестовое использование старых версий контракта: 99 боксов резервов, около 9 ERG, 41 погашение на сегодня."),
+      t("What you can see on mainnet is test use of older contract versions: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions so far.", "В mainnet видно только тестовое использование старых версий контракта: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и пока 41 погашение."),
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
     tags: ["status"],

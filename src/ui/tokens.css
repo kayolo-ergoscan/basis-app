@@ -1,6 +1,8 @@
 /* Basis · INTAGLIO tokens — design/final/intaglio.css section 1, copied verbatim (VISUAL §3, §17).
- * One deliberate edit, required by VISUAL.md (which wins over the tile): the three font stacks name the self-hosted
- * Fontsource families first (VISUAL §4.1). Night = :root (data-theme="dark"), Cotton = :root[data-theme="light"].
+ * Two deliberate edits: the three font stacks name the self-hosted Fontsource families first (VISUAL §4.1, which wins
+ * over the tile), and Cotton --up is #11735A instead of #12775B so "in your favour" text keeps 4.5 : 1 on --well and
+ * --bg-2 (the tile's value gave 4.29 : 1 on --well). Checked 2026-11-22: every other text token passes 4.5 : 1 on every
+ * surface in both themes; --ink-4 and Cotton --metal are fills and rules, never text (use --metal-ink). Night = :root (data-theme="dark"), Cotton = :root[data-theme="light"].
  * Components use these tokens only: no raw hex outside this file and src/ui/engine/inks.ts. */
 
 /* ============ 1. TOKENS ============ */
@@ -53,7 +55,7 @@
   --metal: #B48D30; --metal-hi: #E9D49A; --metal-lo: #8A6A1E; --metal-ink: #7A5C12; --metal-wash: rgba(180,141,48,.13);
   --holo: linear-gradient(118deg, #6FD8C6 0%, #8E9FFF 24%, #E592EA 48%, #F2C76A 72%, #84E2AE 90%, #6FD8C6 100%);
   --holo-stale: linear-gradient(118deg, #A9A7A1 0%, #DAD7D0 45%, #A9A7A1 100%);
-  --up: #12775B; --up-wash: rgba(18,119,91,.10);
+  --up: #11735A; --up-wash: rgba(17,115,90,.10);
   --foil-text: linear-gradient(100deg, #6A4D0E 0%, #A47C22 30%, #74560F 55%, #AD872C 78%, #6A4D0E 100%);
   --alarm: #C11F38; --alarm-fill: #D2283F; --alarm-wash: rgba(193,31,56,.09);
   --key-bg: #131315; --key-fg: #FBFAF7; --key-skirt: #000000; --key-hi: rgba(255,255,255,.16);

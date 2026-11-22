@@ -29,3 +29,4 @@ export { threeWords, wordsLine } from "./engine/words";
 export { keyHash, pairKey } from "./engine/seal";
 export { inksFor, INKS } from "./engine/inks";
 export { demoKey, demoPair, DEMO_PK, DEMO_NAMES, DEMO_TRACKER_NFT, isDemoAgent, demoNoteSigs } from "./engine/demo";
+export { keySeed, sealUrl } from "./engine/raster";

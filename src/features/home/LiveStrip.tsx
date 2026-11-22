@@ -35,7 +35,7 @@ function Row({ it }: { it: TapeItem }) {
       body = <>{t("home.tape.redeem")} <b>{money(num("amount"))}</b> ERG</>;
       break;
   }
-  return <span className="board-row"><span className="ev">{it.kind}</span><Lamp state={it.lamp} size={8} />{body}</span>;
+  return <span className="board-row"><span className="ev">{t(`home.tape.ev.${it.kind.replace(" ", "")}`)}</span><Lamp state={it.lamp} size={8} />{body}</span>;
 }
 
 export function LiveStrip() {

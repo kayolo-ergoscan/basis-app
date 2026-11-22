@@ -39,11 +39,13 @@ export function HeightChip() {
     if (last.current != null && h.height > last.current) flash(lamp.current?.querySelector(".lamp"), "ping", 1200);
     last.current = h.height;
   }, [h.height]);
-  const title = h.height == null ? t("app.height.wait") : h.error ? t("app.height.stale") : t("app.height.title");
+  // offline before the first answer: say so calmly (a grey lamp and a word), never an error colour
+  const offline = h.height == null && h.error;
+  const title = offline ? t("app.height.offline.title") : h.height == null ? t("app.height.wait") : h.error ? t("app.height.stale") : t("app.height.title");
   return (
-    <Link to="/network" className="chip height" title={title} ref={chip as React.Ref<HTMLAnchorElement>} aria-label={`${t("app.height.label")} ${h.height != null ? int(h.height) : "…"}. ${title}`}>
-      <span ref={lamp} style={{ display: "inline-flex" }}><Lamp state={h.height == null ? "signed" : h.error ? "stale" : "live"} /></span>
-      <span className="lbl-l">{t("app.height.label")}</span> <b className="num">{h.height != null ? int(h.height) : "· · ·"}</b>
+    <Link to="/network" className="chip height" title={title} ref={chip as React.Ref<HTMLAnchorElement>} aria-label={`${t("app.height.label")} ${h.height != null ? int(h.height) : offline ? t("app.height.offline") : "…"}. ${title}`}>
+      <span ref={lamp} style={{ display: "inline-flex" }}><Lamp state={offline ? "stale" : h.height == null ? "signed" : h.error ? "stale" : "live"} /></span>
+      <span className="lbl-l">{t("app.height.label")}</span> {offline ? <span className="off">{t("app.height.offline")}</span> : <b className="num">{h.height != null ? int(h.height) : "· · ·"}</b>}
     </Link>
   );
 }

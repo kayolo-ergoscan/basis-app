@@ -704,7 +704,7 @@ export function FreeTools({ run, eco, t, lang, past, onLive, onFork, onXray }: P
 
         <Section id="chain" title={t("play.free.sec.chain")} open={!!open.chain} onToggle={toggle}>
           <div className="pl-acts pl-mine">
-            {[1, 5, 720, 2160].map((n) => (
+            {[1, 5, 720, 2161].map((n) => (
               <Key key={n} size="sm" onClick={() => void mine(n)}>
                 {t("play.free.mineN", { n: int(n) })}
               </Key>

@@ -87,18 +87,18 @@ const UNITS: Record<FmtLang, { min: string; h: string; d: string; days: (n: numb
 export function humanTime(blocks: number, lang: FmtLang = "en"): string {
   const U = UNITS[lang];
   const mins = Math.max(0, Math.round(blocks)) * MIN_PER_BLOCK;
-  if (mins < 60) return `≈ ${mins}${NBSP}${U.min}`;
+  if (mins < 60) return `≈${NBSP}${mins}${NBSP}${U.min}`;
   if (mins < 24 * 60) {
     const h = Math.floor(mins / 60), m = mins % 60;
-    return `≈ ${h}${NBSP}${U.h}` + (m ? ` ${m}${NBSP}${U.min}` : "");
+    return `≈${NBSP}${h}${NBSP}${U.h}` + (m ? ` ${m}${NBSP}${U.min}` : "");
   }
   if (mins < 7 * 24 * 60) {
     let d = Math.floor(mins / 1440), h = Math.round((mins - d * 1440) / 60);
     if (h === 24) { d += 1; h = 0; }
-    return h ? `≈ ${d}${NBSP}${U.d} ${h}${NBSP}${U.h}` : `≈ ${d}${NBSP}${U.days(d)}`;
+    return h ? `≈${NBSP}${d}${NBSP}${U.d} ${h}${NBSP}${U.h}` : `≈${NBSP}${d}${NBSP}${U.days(d)}`;
   }
   const d = Math.round(mins / 1440);
-  return `≈ ${int(d)}${NBSP}${U.days(d)}`;
+  return `≈${NBSP}${int(d)}${NBSP}${U.days(d)}`;
 }
 
 /** Blocks first, then human time: "37 blk · ≈ 1 h 14 min". */

@@ -2,10 +2,8 @@
 // The @font-face rules come from the Fontsource packages (src/ui/fonts.ts); these links only start the downloads early.
 import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import geistCyr from "@fontsource-variable/geist/files/geist-cyrillic-wght-normal.woff2?url";
-import monoLatin from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 import serifLatin from "@fontsource-variable/noto-serif-display/files/noto-serif-display-latin-wdth-normal.woff2?url";
 import serifCyr from "@fontsource-variable/noto-serif-display/files/noto-serif-display-cyrillic-wdth-normal.woff2?url";
-import serifLatinIt from "@fontsource-variable/noto-serif-display/files/noto-serif-display-latin-wdth-italic.woff2?url";
 
 const done = new Set<string>();
 function add(href: string) {
@@ -20,8 +18,13 @@ function add(href: string) {
   document.head.appendChild(l);
 }
 
-/** Call once at boot and again when the language changes. */
+/** Call once at boot and again when the language changes. The two critical Latin files are already preloaded by
+ *  index.html; mono and the italic follow, then the Cyrillic pair for Russian. A preload whose file the CSS already
+ *  requested would fetch it twice, so only files not yet in the resource timeline are added. */
 export function preloadFonts(lang: "en" | "ru") {
-  [geistLatin, monoLatin, serifLatin, serifLatinIt].forEach(add);
-  if (lang === "ru") [geistCyr, serifCyr].forEach(add);
+  const seen = new Set(typeof performance !== "undefined" ? performance.getEntriesByType("resource").map((e) => e.name) : []);
+  // mono and the italic are left to the CSS: by the time this runs their fetch has usually started, and a late preload
+  // would request them a second time
+  const want = [geistLatin, serifLatin, ...(lang === "ru" ? [geistCyr, serifCyr] : [])];
+  want.filter((h) => !seen.has(new URL(h, location.href).href)).forEach(add);
 }

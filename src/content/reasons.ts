@@ -144,6 +144,8 @@ export const economyReasons: Record<string, Reason> = {
   "invalid-amount": R("Invalid amount", "Некорректная сумма", "The amount must be a positive whole number of raw units.", "Сумма должна быть положительным целым числом минимальных единиц."),
   "unknown-denomination": R("Unknown denomination", "Неизвестная валюта", "This denomination is not available here.", "Эта валюта здесь недоступна."),
   "not-a-cycle": R("Not a loop", "Это не кольцо", "Clearing needs debts that form a closed loop.", "Для клиринга долги должны образовывать замкнутое кольцо."),
+  amount: R("Amount outside the loop", "Сумма вне кольца", "A clearing amount must be above 0 and at most the smallest debt in the loop.", "Сумма клиринга должна быть больше 0 и не больше наименьшего долга в кольце."),
+  "insufficient-collateral": R("Not enough in the reserve", "В резерве не хватает", "The reserve cannot pay this much now: after the payout the box must still keep 0.001 ERG, or one unit of its token.", "Резерв сейчас не может выплатить столько: после выплаты в боксе должно остаться 0,001 ERG или одна единица его токена."),
   "too-many-legs": R("Loop too long", "Слишком длинное кольцо", "The loop has more members than one transaction can clear.", "В кольце больше участников, чем можно закрыть одной транзакцией."),
   contract: R("Rejected by the contract", "Отклонено контрактом", "One of the reserve contract's checks failed.", "Одна из проверок контракта резерва не прошла."),
 };

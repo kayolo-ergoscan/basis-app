@@ -25,8 +25,8 @@ const subs = new Set<() => void>();
 function apply(t: Theme) {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = t === "cotton" ? "light" : "dark";
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", t === "cotton" ? "#F2EFE8" : "#0B0B0C");
+  // both scheme-specific metas follow the chosen theme (the browser bar matches the page, not the OS)
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", t === "cotton" ? "#F2EFE8" : "#0B0B0C"));
 }
 apply(theme);
 

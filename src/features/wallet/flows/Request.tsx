@@ -147,9 +147,14 @@ function RequestLine({ r, big }: { r: PaymentRequest; big?: boolean }) {
           {nameOf(r.from)} · <span className="num">{f.amt(r.amount, unit, { unit: true })}</span>
         </span>
         <span className="what">
-          {wt(`world.request.status.${r.status}`)}
-          {r.status === "pending" ? ` · ${t("wallet.req.answerIn", { n: f.blocks(left) })}` : ""}
-          {r.memo ? (t.lang === "ru" ? ` · «${r.memo}»` : ` · “${r.memo}”`) : ""}
+          {/* a paid request already carries the Paid tag on the right: the line keeps only the memo */}
+          {[
+            r.status === "paid" ? "" : wt(`world.request.status.${r.status}`),
+            r.status === "pending" ? t("wallet.req.answerIn", { n: f.blocks(left) }) : "",
+            r.memo ? (t.lang === "ru" ? `«${r.memo}»` : `“${r.memo}”`) : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </span>
         {(r.status === "declined" || r.status === "refused") && r.code && <span className="t-small wl-reason">{f.prose(wt(`world.code.${r.code}`, { name: nameOf(r.from) }))}</span>}
       </span>

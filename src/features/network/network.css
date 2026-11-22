@@ -25,8 +25,8 @@
 .nw-ext:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 3px; }
 .nw-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
 .nw-id .hex { font-size: 13px; color: var(--ink); }
-.nw-id a.hex, .nw-ver a, a.hex { text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
-a.hex:hover { text-decoration-color: var(--ink-2); }
+.nw-id a.hex, .nw-ver a, .nw a.hex { text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+.nw a.hex:hover { text-decoration-color: var(--ink-2); }
 .nw-inl { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
 .nw-untrusted { font: italic 400 12.5px/1.3 var(--f-ui); color: var(--ink-2); overflow-wrap: anywhere; }
 .nw-untrusted sup { font: normal 500 9px/1 var(--f-mono); color: var(--ink-3); margin-left: 2px; }
@@ -116,12 +116,12 @@ a.hex:hover { text-decoration-color: var(--ink-2); }
 .nw-strip-g, .nw-rp-sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; }
 .nw-strip-g .fig, .nw-rp-sum .fig { padding: 0 22px; border-left: 1px solid var(--rule); min-width: 0; }
 .nw-strip-g .fig:first-child, .nw-rp-sum .fig:first-child { padding-left: 0; border-left: 0; }
-.fig dt { font: 500 11px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
-.fig dd { margin: 0; }
-.fig .v { font: 600 clamp(32px, 2.7vw, 46px)/1 var(--f-ui); letter-spacing: -.035em; color: var(--ink); }
-.fig.metal .v { font-family: var(--f-display); font-weight: 440; font-variation-settings: 'wdth' 66; font-size: clamp(38px, 3.2vw, 56px); letter-spacing: -.01em; color: var(--metal-ink); }
-.fig .u { font: 500 12px/1 var(--f-mono); letter-spacing: .1em; color: var(--metal-ink); margin-left: 8px; }
-.fig .s { font: 400 12.5px/1.45 var(--f-ui); color: var(--ink-3); margin-top: 10px; }
+.nw .fig dt { font: 500 11px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
+.nw .fig dd { margin: 0; }
+.nw .fig .v { font: 600 clamp(32px, 2.7vw, 46px)/1 var(--f-ui); letter-spacing: -.035em; color: var(--ink); }
+.nw .fig.metal .v { font-family: var(--f-display); font-weight: 440; font-variation-settings: 'wdth' 66; font-size: clamp(38px, 3.2vw, 56px); letter-spacing: -.01em; color: var(--metal-ink); }
+.nw .fig .u { font: 500 12px/1 var(--f-mono); letter-spacing: .1em; color: var(--metal-ink); margin-left: 8px; }
+.nw .fig .s { font: 400 12.5px/1.45 var(--f-ui); color: var(--ink-3); margin-top: 10px; }
 .nw-rp-sum { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border-top: 2px solid var(--ink); padding: 16px 0 22px; margin-bottom: clamp(24px, 3vw, 40px); border-bottom: 1px solid var(--rule); }
 .nw-rp-sum .fig .v { font-size: clamp(30px, 2.4vw, 40px); }
 /* one row of figures: label, value and note line up across the row even when a label wraps to two lines */
@@ -227,10 +227,10 @@ a.hex:hover { text-decoration-color: var(--ink-2); }
 .nw-exitbar .sw { width: 12px; height: 12px; border-radius: 2px; }
 .nw-exitbar .row b { font: 600 14px/1 var(--f-ui); color: var(--ink); }
 .nw-exitbar .sub { font: 400 12px/1.3 var(--f-ui); color: var(--ink-3); text-align: right; min-width: 0; }
-.x-refund-redeem, .x-redeem { background: var(--foil-metal); background-size: 180% 100%; }
-.x-refund { background: var(--metal-lo); }
-.x-redeem-if-tracker, .x-refund-redeem-if-tracker { background: repeating-linear-gradient(90deg, var(--metal) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--metal); }
-.x-locked { background: var(--hatch), var(--well); }
+.nw .x-refund-redeem, .nw .x-redeem { background: var(--foil-metal); background-size: 180% 100%; }
+.nw .x-refund { background: var(--metal-lo); }
+.nw .x-redeem-if-tracker, .nw .x-refund-redeem-if-tracker { background: repeating-linear-gradient(90deg, var(--metal) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--metal); }
+.nw .x-locked { background: var(--hatch), var(--well); }
 
 /* top up: the one metal key, closed */
 .nw-topup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 16px; border: 1px dashed var(--rule-2); border-radius: var(--r-paper); margin-top: 6px; }
@@ -610,8 +610,8 @@ a.hex:hover { text-decoration-color: var(--ink-2); }
   .nw-strip-g .fig.metal { grid-column: 1 / -1; order: -1; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
   .nw-rp-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 22px; }
   .nw-rp-sum .fig, .nw-rp-sum .fig:first-child { padding: 0; border-left: 0; }
-  .fig dt { margin-bottom: 8px; }
-  .fig .s { margin-top: 6px; }
+  .nw .fig dt { margin-bottom: 8px; }
+  .nw .fig .s { margin-top: 6px; }
   .nw-det { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
   /* two records per row: five short facts do not need five full-width rows */
   .nw-records ol { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }

@@ -27,6 +27,8 @@
 .vz-sl-form { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @container (min-width: 820px) { .vz-sl-form { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .vz-sl-ts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+/* phone: one field per row, so the 13-digit timestamp and its "Now" button both fit */
+@container (max-width: 480px) { .vz-sl-form { grid-template-columns: minmax(0, 1fr); } }
 .vz-sl-attempts { width: 100%; border-collapse: collapse; font: 400 12.5px/1.4 var(--f-mono); }
 .vz-sl-attempts th { text-align: left; font: 500 10.5px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 6px 8px 6px 0; border-bottom: 1px solid var(--rule); }
 .vz-sl-attempts td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); vertical-align: top; }

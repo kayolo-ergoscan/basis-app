@@ -15,6 +15,7 @@ import { hrefOf, NAV, ROUTES } from "./routes";
 import { toggleTheme } from "./theme";
 
 const HEX64 = /^[0-9a-fA-F]{64}$/;
+interface GlossaryTerm { id: string; en: string; ru: string; also: string }
 
 function score(c: Command, q: string): number {
   if (!q) return 1;
@@ -40,6 +41,12 @@ export function Palette() {
     return () => setCommandOpener(null);
   }, []);
   const close = () => { setOpen(false); requestAnimationFrame(() => back.current?.focus?.()); };
+  // glossary terms (→ /learn/glossary#t-<id>), loaded on first open so the shell entry stays small
+  const [terms, setTerms] = useState<GlossaryTerm[] | null>(null);
+  useEffect(() => {
+    if (!open || terms) return;
+    import("@/content/glossary").then((m) => setTerms(m.glossary.map((x) => ({ id: x.id, en: x.en, ru: x.ru, also: [...(x.alsoEN ?? []), ...(x.alsoRU ?? [])].join(" ") })))).catch(() => setTerms([]));
+  }, [open, terms]);
   useEscape(open, close);
   useEffect(() => { if (open) requestAnimationFrame(() => input.current?.focus()); }, [open]);
 
@@ -55,8 +62,16 @@ export function Palette() {
       { id: "set.help", label: t("app.cmd.help"), group: "settings", icon: "keyboard", run: () => { setTimeout(() => helpRef.open?.(), 30); }, kbd: "?", keywords: "keys shortcuts motion confirm privacy" },
     ];
     const dev: Command[] = feat.some((c) => c.to === "/kit") ? [] : [{ id: "dev.kit", label: t("app.cmd.kit"), sub: "/kit", to: "/kit", group: "dev", icon: "kit", keywords: "components design" }];
-    return [...go, ...feat, ...dyn.map((c) => ({ group: "actions" as const, ...c })), ...settings, ...dev];
-  }, [t, dyn]);
+    // pages outside the nav with no commands of their own (the X-ray lab) are still reachable from the bar
+    for (const r of ROUTES) {
+      if (r.nav || r.commands?.length || !r.titleKey) continue;
+      const to = hrefOf(r);
+      if (!feat.some((c) => c.to === to)) dev.push({ id: "dev." + r.id, label: t(r.titleKey), sub: to, to, group: "dev", icon: "eye", keywords: r.id });
+    }
+    const lang = getLang();
+    const words: Command[] = (terms ?? []).map((x) => ({ id: "term." + x.id, label: lang === "ru" ? x.ru : x.en, sub: `/learn/glossary#t-${x.id}`, to: `/learn/glossary#t-${x.id}`, group: "terms", icon: "learn", keywords: `${x.en} ${x.ru} ${x.also}` }));
+    return [...go, ...feat, ...dyn.map((c) => ({ group: "actions" as const, ...c })), ...settings, ...dev, ...words];
+  }, [t, dyn, terms]);
 
   const query = q.trim();
   const ids: Command[] = HEX64.test(query)
@@ -66,8 +81,9 @@ export function Palette() {
         { id: "id.nft", label: `${t("app.cmd.tracker")} ${short(query, 8, 6)}`, sub: `/network/tracker/${query.toLowerCase()}`, to: `/network/tracker/${query.toLowerCase()}`, group: "id", icon: "tracker" },
       ]
     : [];
-  const hits = ids.length ? ids : all.map((c) => [c, score(c, query)] as const).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([c]) => c);
-  const order = ["id", "go", "actions", "settings", "dev"] as const;
+  // terms only answer a query (an empty bar lists pages and commands)
+  const hits = ids.length ? ids : all.filter((c) => query || c.group !== "terms").map((c) => [c, score(c, query)] as const).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  const order = ["id", "go", "actions", "terms", "settings", "dev"] as const;
   const groups = order.map((g) => [g, hits.filter((c) => (c.group ?? "actions") === g)] as const).filter(([, l]) => l.length);
   const flat = groups.flatMap(([, l]) => l);
   const cur = Math.min(i, Math.max(0, flat.length - 1));
@@ -84,7 +100,7 @@ export function Palette() {
     <div className="cmdk-wrap" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="cmdk" role="dialog" aria-modal="true" aria-label={t("app.cmd.aria")}>
         <div className="q">
-          <span className="mono" style={{ color: "var(--ink-3)", flex: "none" }}>{MOD} K</span>
+          <span className="mono cmdk-mod" style={{ color: "var(--ink-3)", flex: "none" }}>{MOD} K</span>
           <input
             ref={input}
             value={q}
@@ -164,7 +180,9 @@ function FragmentRow({ keys, label }: { keys: string[]; label: string }) {
   return <><span className="k">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span><span>{label}</span></>;
 }
 
-/** Global keys. Single letters are ignored while typing or with a modifier; ⌘K / Ctrl+K always opens the bar. */
+/** Global keys. Single letters are ignored while typing or with a modifier, when a page already handled the key
+ *  (defaultPrevented, also by listeners added later on window), and when the key would only reopen the section the
+ *  reader is already in (P inside /play/<scenario> stays with the run). ⌘K / Ctrl+K always opens the bar. */
 export function Shortcuts() {
   const nav = useNavigate();
   useEffect(() => {
@@ -174,17 +192,24 @@ export function Shortcuts() {
         openCommandBar();
         return;
       }
-      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || isTyping(e)) return;
-      if (document.querySelector(".cmdk-wrap, .sheet-panel[aria-modal='true']")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || e.defaultPrevented || isTyping(e)) return;
       const k = e.key;
-      const go = (p: string) => { e.preventDefault(); nav(p); };
-      if (k === "p" || k === "P") go("/play");
-      else if (k === "w" || k === "W") go("/wallet");
-      else if (k === "n" || k === "N") go("/network");
-      else if (k === "l" || k === "L") go("/learn");
-      else if (k === "t" || k === "T") { e.preventDefault(); toggleTheme(); }
-      else if (k === "m" || k === "M") { e.preventDefault(); toggleLens(); }
-      else if (k === "?") { e.preventDefault(); helpRef.open?.(); }
+      if (!/^[pwnltmPWNLTM?]$/.test(k)) return;
+      // decide after the whole dispatch, so a page handler on window (bubble phase) can still claim the key
+      setTimeout(() => {
+        if (e.defaultPrevented) return;
+        if (document.querySelector(".cmdk-wrap, [aria-modal='true']")) return;
+        const here = location.pathname;
+        const go = (p: string) => { if (here === p || here.startsWith(p + "/")) return; nav(p); };
+        const l = k.toLowerCase();
+        if (l === "p") go("/play");
+        else if (l === "w") go("/wallet");
+        else if (l === "n") go("/network");
+        else if (l === "l") go("/learn");
+        else if (l === "t") toggleTheme();
+        else if (l === "m") toggleLens();
+        else if (k === "?") helpRef.open?.();
+      }, 0);
     };
     document.addEventListener("keydown", on);
     return () => document.removeEventListener("keydown", on);

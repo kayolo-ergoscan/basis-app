@@ -11,7 +11,7 @@ export interface Command {
   sub?: string;
   /** Extra search words. */
   keywords?: string;
-  group?: "go" | "actions" | "id" | "settings" | "dev";
+  group?: "go" | "actions" | "id" | "settings" | "dev" | "terms";
   icon?: IconName;
   /** Either navigate… */
   to?: string;

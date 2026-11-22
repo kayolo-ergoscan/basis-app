@@ -128,13 +128,13 @@ describe("formatting (VISUAL §4.3)", () => {
   });
   it("time is blocks first, then human time (1 block ≈ 2 min)", () => {
     const N = " ";
-    expect(humanTime(37)).toBe(`≈ 1${N}h 14${N}min`);
-    expect(humanTime(1348)).toBe(`≈ 1${N}d 21${N}h`);
-    expect(humanTime(2160)).toBe(`≈ 3${N}days`);
-    expect(humanTime(43200)).toBe(`≈ 60${N}days`);
-    expect(humanTime(2160, "ru")).toBe(`≈ 3${N}дня`);
-    expect(humanTime(43200, "ru")).toBe(`≈ 60${N}дней`);
-    expect(humanTime(10)).toBe(`≈ 20${N}min`);
+    expect(humanTime(37)).toBe(`≈${N}1${N}h 14${N}min`);
+    expect(humanTime(1348)).toBe(`≈${N}1${N}d 21${N}h`);
+    expect(humanTime(2160)).toBe(`≈${N}3${N}days`);
+    expect(humanTime(43200)).toBe(`≈${N}60${N}days`);
+    expect(humanTime(2160, "ru")).toBe(`≈${N}3${N}дня`);
+    expect(humanTime(43200, "ru")).toBe(`≈${N}60${N}дней`);
+    expect(humanTime(10)).toBe(`≈${N}20${N}min`);
   });
   it("hex helpers", () => {
     const d = "9f3c1a2d07be55c0aa11bb22cc33dd44ee55ff6600112233445566772d18f0c7e1";

@@ -13,7 +13,7 @@ const en = {
   "nav.you": "You",
   "nav.primary": "Main",
 
-  "app.title": "Basis — offchain cash on Ergo",
+  "app.title": "Basis · unofficial interface",
   "app.brand.home": "Basis, to the start",
   "app.brand.sub": "unofficial · ErgoScan",
   "app.openWallet": "Open wallet",
@@ -27,6 +27,8 @@ const en = {
   "app.height.title": "Ergo mainnet height, read every 30 s from the ErgoScan API",
   "app.height.stale": "Last known Ergo height: the API did not answer the last request",
   "app.height.wait": "Reading the Ergo height",
+  "app.height.offline": "offline",
+  "app.height.offline.title": "The mainnet API does not answer right now; the sandbox works without it. Retrying every 30 s.",
 
   "app.banner": "Basis has not launched on mainnet. This is an independent interface (not by Better Money Labs). The sandbox uses real cryptography and play money.",
   "app.banner.close": "Hide this notice for this visit",
@@ -50,6 +52,7 @@ const en = {
   "app.cmd.group.id": "Open by id",
   "app.cmd.group.settings": "Settings",
   "app.cmd.group.dev": "Developer",
+  "app.cmd.group.terms": "Glossary",
   "app.cmd.tx": "Transaction",
   "app.cmd.reserve": "Reserve box",
   "app.cmd.tracker": "Tracker NFT",
@@ -89,7 +92,7 @@ const en = {
   "app.404.title": "This note was torn out.",
   "app.404.text": "There is no page at {path}. The link may be old or mistyped.",
   "app.404.home": "Go to the start",
-  "app.404.cmdk": "Search with ⌘K",
+  "app.404.cmdk": "Search with {mod} K",
   "app.404.doc": "Page not found",
 
   "app.loading": "Loading the page",
@@ -107,7 +110,7 @@ const ru: Partial<typeof en> = {
   "nav.you": "Вы",
   "nav.primary": "Главное",
 
-  "app.title": "Basis — офчейн-деньги на Ergo",
+  "app.title": "Basis · неофициальный интерфейс",
   "app.brand.home": "Basis, на главную",
   "app.brand.sub": "неофициально · ErgoScan",
   "app.openWallet": "Открыть кошелёк",
@@ -121,6 +124,8 @@ const ru: Partial<typeof en> = {
   "app.height.title": "Высота сети Ergo, обновляется каждые 30 с из API ErgoScan",
   "app.height.stale": "Последняя известная высота Ergo: API не ответил на последний запрос",
   "app.height.wait": "Читаем высоту Ergo",
+  "app.height.offline": "нет связи",
+  "app.height.offline.title": "API основной сети сейчас не отвечает; песочница работает и без него. Повторяем каждые 30 с.",
 
   "app.banner": "Basis ещё не запущен в основной сети. Это независимый интерфейс (не от Better Money Labs). В песочнице настоящая криптография и игровые деньги.",
   "app.banner.close": "Скрыть до следующего визита",
@@ -132,7 +137,7 @@ const ru: Partial<typeof en> = {
   "app.footer.chat": "Чат сообщества",
   "app.footer.explorer": "Обозреватель Ergo",
   "app.footer.unofficial": "неофициально · ErgoScan",
-  "app.footer.kit": "UI-кит",
+  "app.footer.kit": "UI\u2011кит",
   "app.footer.keys": "Горячие клавиши",
 
   "app.tape.waiting": "Ждём следующую фиксацию",
@@ -143,6 +148,7 @@ const ru: Partial<typeof en> = {
   "app.cmd.group.actions": "Команды",
   "app.cmd.group.id": "Открыть по id",
   "app.cmd.group.settings": "Настройки",
+  "app.cmd.group.terms": "Словарь",
   "app.cmd.group.dev": "Для разработчиков",
   "app.cmd.tx": "Транзакция",
   "app.cmd.reserve": "Бокс резерва",
@@ -183,7 +189,7 @@ const ru: Partial<typeof en> = {
   "app.404.title": "Эту расписку вырвали.",
   "app.404.text": "Страницы {path} нет. Ссылка устарела или в ней опечатка.",
   "app.404.home": "На главную",
-  "app.404.cmdk": "Искать через ⌘K",
+  "app.404.cmdk": "Искать через {mod} K",
   "app.404.doc": "Страница не найдена",
 
   "app.loading": "Загружаем страницу",

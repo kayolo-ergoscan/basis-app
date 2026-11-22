@@ -5,14 +5,14 @@
 import { useMemo, useState } from "react";
 import { bytesToHex, debtKey, demoKeyPair, noteMessage, parseUnits, signWithTrace, type SignTrace } from "@/protocol";
 import { fmtInt, shortHex } from "../core/format";
-import { useVizT } from "../core/lang";
+import { useVizLang, useVizT } from "../core/lang";
 import { Btn, Tag } from "../core/primitives";
 import { SignatureXray } from "./SignatureXray";
 import "../core/core.css";
 import "./signature.css";
 
 export { LAB_DEFAULT_TS, LAB_NAMES, LAB_SALT, LAB_TRACKER_NFT } from "../core/lab";
-import { LAB_DEFAULT_TS, LAB_NAMES, LAB_SALT, LAB_TRACKER_NFT } from "../core/lab";
+import { LAB_DEFAULT_TS, LAB_NAMES, LAB_SALT, LAB_TRACKER_NFT, labDisplayName } from "../core/lab";
 
 export interface SignLabProps {
   issuer?: string;
@@ -35,6 +35,7 @@ function parseAmount(s: string): bigint | null {
 
 export function SignLab(p: SignLabProps) {
   const t = useVizT();
+  const lang = useVizLang();
   const [issuer, setIssuer] = useState(p.issuer ?? "Alice");
   const [receiver, setReceiver] = useState(p.receiver ?? "Bob");
   const [amount, setAmount] = useState(p.amount ?? "1.5");
@@ -53,7 +54,7 @@ export function SignLab(p: SignLabProps) {
       <select id={id} className="vz-input" value={value} onChange={(e) => set(e.target.value)}>
         {LAB_NAMES.map((n) => (
           <option key={n} value={n}>
-            {n}
+            {labDisplayName(n, lang)}
           </option>
         ))}
       </select>

@@ -6,8 +6,8 @@
   var norm = function (v) { return v === "cotton" || v === "light" ? "light" : v === "night" || v === "dark" ? "dark" : null; };
   var th = norm(t) || norm(s) || (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
   d.setAttribute("data-theme", th);
-  var m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute("content", th === "light" ? "#F2EFE8" : "#0B0B0C");
+  var ms = document.querySelectorAll('meta[name="theme-color"]');
+  for (var i = 0; i < ms.length; i++) ms[i].setAttribute("content", th === "light" ? "#F2EFE8" : "#0B0B0C");
   if (q.has("still")) d.classList.add("still");
   try { var ui = JSON.parse(localStorage.getItem("basis.ui") || "{}"); if (ui.motion === "reduce") d.classList.add("rm"); } catch (e) {}
   var l = null;

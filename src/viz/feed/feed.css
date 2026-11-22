@@ -16,8 +16,9 @@
 .vz-fd-row.g-chain .tx { color: var(--ink-3); }
 .vz-fd-row.g-rejections .tx { color: var(--ink); }
 .vz-fd-row.m-metal .tx { color: var(--metal-ink); }
-.vz-fd-list.tall .vz-fd-row { grid-template-rows: 40px 18px; align-items: start; padding-top: 7px; }
-.vz-fd-list.tall .vz-fd-row .mk { height: 18px; }
+/* narrow: one- and two-line texts sit as one centred block, so every 72 px slot looks the same */
+.vz-fd-list.tall .vz-fd-row { grid-template-rows: auto auto; align-content: center; align-items: start; row-gap: 4px; padding-top: 6px; padding-bottom: 6px; }
+.vz-fd-list.tall .vz-fd-row .mk { height: 17.5px; }
 .vz-fd-list.tall .vz-fd-row .tx { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
 .vz-fd-list.tall .vz-fd-row .meta { align-self: center; }
 .vz-fd-glyph { display: inline-block; width: 10px; height: 10px; }

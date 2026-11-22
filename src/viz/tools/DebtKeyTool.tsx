@@ -4,8 +4,8 @@
 import { useMemo, useState } from "react";
 import { blake2b256, isValidPublicKey } from "@/protocol";
 import { parseHexInput, toHexStr } from "../core/format";
-import { useVizT, type TFn } from "../core/lang";
-import { LAB_NAMES, labKey, labNameOf } from "../core/lab";
+import { useVizLang, useVizT, type TFn } from "../core/lang";
+import { LAB_NAMES, labDisplayName, labKey, labNameOf } from "../core/lab";
 import { Btn, ByteGrid, ByteLegend, CopyBtn, HexBlock, type ByteSeg } from "../core/primitives";
 import "../core/core.css";
 import "./tools.css";
@@ -43,11 +43,12 @@ export function debtKeyParts(owner: Uint8Array, receiver: Uint8Array, tokenId: U
 
 export function KeyPicker({ value, onPick, label }: { value: string; onPick: (hex: string) => void; label: string }) {
   const current = labNameOf(value.trim());
+  const lang = useVizLang();
   return (
     <div className="vz-tl-picks" role="group" aria-label={label}>
       {LAB_NAMES.map((n) => (
         <button key={n} type="button" className={`vz-chip${current === n ? " on" : ""}`} aria-pressed={current === n} onClick={() => onPick(labKey(n).pubHex)}>
-          {n}
+          {labDisplayName(n, lang)}
         </button>
       ))}
     </div>
@@ -68,8 +69,11 @@ export function DebtKeyTool(p: DebtKeyToolProps) {
     { from: 33, length: 33, tone: "e", label: t("viz.dk.seg.receiver") },
     ...(vt.bytes ? [{ from: 66, length: 32, tone: "nft" as const, label: t("viz.dk.seg.token") }] : []),
   ];
-  const nameI = labNameOf(iss.trim());
-  const nameR = labNameOf(rcv.trim());
+  const lang = useVizLang();
+  const labI = labNameOf(iss.trim());
+  const labR = labNameOf(rcv.trim());
+  const nameI = labI ? labDisplayName(labI, lang) : undefined;
+  const nameR = labR ? labDisplayName(labR, lang) : undefined;
   return (
     <section className={`vz vz-panel vz-tl vz-dk${p.className ? " " + p.className : ""}`} aria-label={t("viz.dk.eyebrow")}>
       <header className="vz-head">

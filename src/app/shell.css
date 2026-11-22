@@ -107,3 +107,10 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
   .banner p { font-size: 12.5px; }
 }
 @media (max-width: 1000px) { .shell-tape { display: none; } }
+/* the page heading takes focus after a navigation (frame.tsx): no ring on a heading that is not a control */
+#main h1[tabindex="-1"]:focus, #main h1[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
+/* footer links stay on one line (the RU «UI‑кит» uses a no-break hyphen) */
+footer.foot .f-col a, footer.foot .f-col button { white-space: nowrap; }
+/* ⌘K on touch: no key legend and no keyboard footer (they mean nothing without a keyboard; the query gets the width) */
+@media (pointer: coarse) { .cmdk .cmdk-mod, .cmdk .foot { display: none; } }
+.chip.height .off { color: var(--ink-3); font: 500 12px/1 var(--f-ui); }

@@ -20,7 +20,7 @@ const onSwatch = (h: string) => {
   return cr(L, lum("#17171A")) >= cr(L, lum("#F2EEE5")) ? "var(--paper-ink)" : "var(--paper-hi)";
 };
 const SEM_N: Record<string, string> = { paper: "#F1E9D8", metal: "#D9B65F", "metal-ink": "#E6C777", up: "#5DD3AD", alarm: "#FF6271", "alarm-fill": "#D8344A", "paper-ink": "#17171A" };
-const SEM_C: Record<string, string> = { paper: "#F6F0E2", metal: "#B48D30", "metal-ink": "#7A5C12", up: "#12775B", alarm: "#C11F38", "alarm-fill": "#D2283F", "paper-ink": "#17171A" };
+const SEM_C: Record<string, string> = { paper: "#F6F0E2", metal: "#B48D30", "metal-ink": "#7A5C12", up: "#11735A", alarm: "#C11F38", "alarm-fill": "#D2283F", "paper-ink": "#17171A" };
 
 function Swatch({ name, value, label }: { name: string; value?: string; label?: string }) {
   const t = useT();

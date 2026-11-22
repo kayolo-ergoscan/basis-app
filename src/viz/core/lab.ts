@@ -21,6 +21,12 @@ export function labKey(name: string): KeyPair {
   return k;
 }
 
+const RU_NAMES: Record<LabName, string> = { Alice: "Алиса", Bob: "Боб", Carol: "Кэрол", Dave: "Дейв" };
+/** The name shown for a lab key (the key itself is always derived from the English name). */
+export function labDisplayName(name: LabName, lang: "en" | "ru"): string {
+  return lang === "ru" ? RU_NAMES[name] : name;
+}
+
 /** Sandbox name of a public key, if it is one of the lab keys. */
 export function labNameOf(pubHex: string): LabName | undefined {
   const h = pubHex.toLowerCase();

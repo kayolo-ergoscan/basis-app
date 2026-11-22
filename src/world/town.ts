@@ -230,6 +230,8 @@ export class Town {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private saving: Promise<void> | null = null;
   private saveAgain = false;
+  /** A save asked for while one was running must not wait for the debounce (a person's action, page hide). */
+  private saveUrgent = false;
   private persistError: string | null = null;
   // live effects
   private live = false;
@@ -851,6 +853,8 @@ export class Town {
       this.flushOutbox();
       this.batch.mark();
       this.batch.flushNow();
+      // a person's action is stored at once (a reload right after joining or paying must not lose it)
+      if (out.ok && (events !== null || WORLD_COMMANDS.has(cmd))) void this.saveNow(true);
       return toPlain({ ...out, events }) as unknown as CommandResults[K];
     });
   }
@@ -1071,7 +1075,7 @@ export class Town {
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
     this.hidden = document.visibilityState === "hidden";
     const onVis = () => this.setHidden(document.visibilityState === "hidden");
-    const onHide = () => void this.saveNow();
+    const onHide = () => void this.saveNow(true);
     document.addEventListener("visibilitychange", onVis);
     if (typeof window !== "undefined") window.addEventListener("pagehide", onHide);
     this.cleanup.push(() => {
@@ -1117,12 +1121,13 @@ export class Town {
   }
 
   /** Writes the log now (leader). Resolves when it is stored. */
-  async saveNow(): Promise<void> {
+  async saveNow(urgent = false): Promise<void> {
     if (this.role === "follower" || this.role === null || !this.log || !this.eco || !this.epoch || this.resetting) return;
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = null;
     if (this.saving) {
       this.saveAgain = true;
+      if (urgent) this.saveUrgent = true;
       return this.saving;
     }
     const eco = this.eco;
@@ -1136,7 +1141,11 @@ export class Town {
       } finally {
         this.saving = null;
         this.batch.mark();
-        if (this.saveAgain) {
+        if (this.saveAgain && this.saveUrgent) {
+          this.saveAgain = false;
+          this.saveUrgent = false;
+          void this.saveNow();
+        } else if (this.saveAgain) {
           this.saveAgain = false;
           this.scheduleSave();
         }

@@ -48,13 +48,13 @@ export default {
     "chain.tracker.unused.help": "The NFT sits in a plain wallet and has never been in a tracker box.",
     "chain.tracker.honest": "Cannot steal · Can censor",
     "chain.tracker.untrustedName": "Name chosen by whoever minted the NFT. A name proves nothing.",
-    "chain.tracker.silent": "silent {blocks} blk · {approx}",
+    "chain.tracker.silent": "box age {blocks} blk · {approx}",
     "chain.tracker.keyNotHolder": "The key in R4 may differ from the address that holds the box, and it can change between boxes.",
 
-    "chain.emergency.open": "Emergency redeem is open: the tracker has been silent more than 2 ⁠160 blk ≈ 3 days, so a redemption no longer needs its signature.",
+    "chain.emergency.open": "Emergency redeem is open: the tracker's newest box is older than 2 ⁠160 blk (≈ 3 days), so a redemption no longer needs its signature.",
     "chain.emergency.opensAt": "Emergency redeem opens at block {height} ({left} blk left).",
     "chain.refund.running": "Refund running: the owner can take what is left from block {height} ({left} blk left). Until then, redemptions work as before.",
-    "chain.refund.ready": "The refund has waited 43 ⁠200 blk. The owner can take what is left now.",
+    "chain.refund.ready": "The 43 ⁠200-block refund wait is over. The owner can take what is left now.",
     "chain.refund.none": "No refund started (R7 = 0).",
     "chain.refund.notInContract": "This contract has no owner refund.",
 
@@ -139,13 +139,13 @@ export default {
     "chain.tracker.unused.help": "NFT лежит в обычном кошельке и ни разу не был в боксе трекера.",
     "chain.tracker.honest": "Не может украсть · Может цензурировать",
     "chain.tracker.untrustedName": "Имя выбрал тот, кто выпустил NFT. Имя ничего не доказывает.",
-    "chain.tracker.silent": "молчит {blocks} блоков · {approx}",
+    "chain.tracker.silent": "возраст бокса {blocks} блк · {approx}",
     "chain.tracker.keyNotHolder": "Ключ в R4 может не совпадать с адресом, на котором лежит бокс, и может меняться от бокса к боксу.",
 
-    "chain.emergency.open": "Аварийное погашение открыто: трекер молчит больше 2 ⁠160 блоков ≈ 3 дня, поэтому погашению уже не нужна его подпись.",
+    "chain.emergency.open": "Аварийное погашение открыто: новейшему боксу трекера больше 2 ⁠160 блоков (≈ 3 дня), поэтому погашению уже не нужна его подпись.",
     "chain.emergency.opensAt": "Аварийное погашение откроется на блоке {height} (осталось {left} блоков).",
     "chain.refund.running": "Идёт возврат: владелец сможет забрать остаток с блока {height} (осталось {left} блоков). До тех пор погашение работает как прежде.",
-    "chain.refund.ready": "Возврат выждал 43 ⁠200 блоков. Владелец может забрать остаток.",
+    "chain.refund.ready": "Срок возврата в 43 ⁠200 блоков истёк. Владелец может забрать остаток.",
     "chain.refund.none": "Возврат не начат (R7 = 0).",
     "chain.refund.notInContract": "В этом контракте нет возврата для владельца.",
 
@@ -172,7 +172,7 @@ export default {
     "chain.malformedOwner": "R4 — не открытый ключ, поэтому ни одну расписку против этого резерва не проверить.",
 
     "chain.receipt.trackerAge": "Возраст бокса трекера при погашении: {age} блоков",
-    "chain.receipt.emergency": "Добыта после открытия аварийного окна (боксу трекера больше 2 ⁠160 блоков).",
+    "chain.receipt.emergency": "Попала в блок после открытия аварийного окна (боксу трекера больше 2 ⁠160 блоков).",
     "chain.receipt.amount": "{amount} из резерва {owner} получателю {receiver}",
 
     "chain.box.idle": "Вставьте id бокса (64 шестнадцатеричных символа).",

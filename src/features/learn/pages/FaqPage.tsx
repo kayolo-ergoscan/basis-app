@@ -9,21 +9,33 @@ import { BookHead, Pager, inline, useBookSections } from "../layout";
 
 const TAGS: FaqTag[] = ["status", "trust", "money", "wallet", "tracker", "community", "site"];
 
+/** An answer id from the URL hash: "#q-fee" (the copy-link form) or a bare "#fee". */
+function faqIdOfHash(hash: string): string {
+  const h = decodeURIComponent(hash.replace(/^#/, ""));
+  if (h.startsWith("q-") && faq.some((f) => f.id === h.slice(2))) return h.slice(2);
+  return faq.some((f) => f.id === h) ? h : "";
+}
+
 export default function FaqPage() {
   const t = useT();
   const L = t.lang;
   const [tag, setTag] = useState<FaqTag | "all">("all");
   const [open, setOpen] = useState<Set<string>>(() => {
-    const h = typeof window !== "undefined" ? decodeURIComponent(window.location.hash.slice(1)) : "";
-    return new Set(h.startsWith("q-") ? [h.slice(2)] : []);
+    const id = typeof window !== "undefined" ? faqIdOfHash(window.location.hash) : "";
+    return new Set(id ? [id] : []);
   });
   useEffect(() => {
-    const on = () => {
-      const h = decodeURIComponent(window.location.hash.slice(1));
-      if (h.startsWith("q-")) setOpen((s) => new Set(s).add(h.slice(2)));
+    const on = (first: boolean) => {
+      const id = faqIdOfHash(window.location.hash);
+      if (!id) return;
+      setOpen((s) => new Set(s).add(id));
+      // a bare "#fee" has no element of its own: bring its answer ("q-fee") into view
+      if (!window.location.hash.startsWith("#q-")) window.setTimeout(() => document.getElementById(`q-${id}`)?.scrollIntoView({ block: "start" }), first ? 120 : 0);
     };
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    on(true);
+    const h = () => on(false);
+    window.addEventListener("hashchange", h);
+    return () => window.removeEventListener("hashchange", h);
   }, []);
   useBookSections([]);
   const used = useMemo(() => TAGS.filter((x) => faq.some((f) => f.tags.includes(x))), []);

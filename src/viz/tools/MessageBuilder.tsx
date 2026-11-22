@@ -4,8 +4,8 @@
 import { useMemo, useState } from "react";
 import { debtKey } from "@/protocol";
 import { ERG_UNIT, fmtAmount, fmtInt, fmtTimestamp, shortHex, toHexStr, type UnitInfo } from "../core/format";
-import { useVizT } from "../core/lang";
-import { LAB_DEFAULT_TS, LAB_TRACKER_NFT, labKey } from "../core/lab";
+import { useVizLang, useVizT } from "../core/lang";
+import { LAB_DEFAULT_TS, LAB_TRACKER_NFT, labDisplayName, labKey } from "../core/lab";
 import { Btn, ByteGrid, ByteLegend, CopyBtn, HexBlock, type ByteSeg } from "../core/primitives";
 import { checkHexField } from "./DebtKeyTool";
 import "../core/core.css";
@@ -71,6 +71,7 @@ export interface MessageBuilderProps {
 
 export function MessageBuilder(p: MessageBuilderProps) {
   const t = useVizT();
+  const lang = useVizLang();
   const unit = p.unit ?? ERG_UNIT;
   const aliceBob = useMemo(() => toHexStr(debtKey(labKey("Alice").pub, labKey("Bob").pub)), []);
   const [key, setKey] = useState(p.debtKey ?? aliceBob);
@@ -117,7 +118,7 @@ export function MessageBuilder(p: MessageBuilderProps) {
           <input id="vz-mb-k" className={`vz-input mono${vk.error ? " err" : ""}`} value={key} onChange={(e) => setKey(e.target.value)} spellCheck={false} autoComplete="off" />
           <div className="vz-tl-row">
             <Btn kind="quiet" onClick={() => setKey(aliceBob)}>
-              {t("viz.mb.keyFrom", { a: "Alice", b: "Bob" })}
+              {t("viz.mb.keyFrom", { a: labDisplayName("Alice", lang), b: labDisplayName("Bob", lang) })}
             </Btn>
             {vk.error ? <span className="vz-help err">{vk.error}</span> : null}
           </div>

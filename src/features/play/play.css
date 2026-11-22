@@ -49,7 +49,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-sc-t { font: 600 14px/1.3 var(--f-ui); color: var(--ink); }
 .pl-sc-tag { font: 400 12.5px/1.4 var(--f-ui); color: var(--ink-3); }
 .pl-sc-feats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.pl-sc-n { font-size: 10.5px; color: var(--ink-4); margin-left: auto; }
+.pl-sc-n { font-size: 10.5px; color: var(--ink-3); margin-left: auto; }
 .pl-feats { display: flex; flex-wrap: wrap; gap: 4px; }
 .pl-feat { font: 500 10.5px/1 var(--f-mono); letter-spacing: .03em; color: var(--ink-3); padding: 4px 6px; border-radius: 5px; background: var(--well); white-space: nowrap; }
 
@@ -291,7 +291,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-ver-state i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.3px var(--ink-3); flex: none; }
 .pl-ver-state.pending i { background: linear-gradient(90deg, transparent 50%, var(--ink-2) 50%); }
 .pl-ver-state.confirmed i { background: var(--holo); box-shadow: none; }
-.pl-ver-state.superseded { color: var(--ink-4); }
+.pl-ver-state.superseded { color: var(--ink-3); }
 .pl-ver-state.omitted { color: var(--alarm); }
 .pl-ver-state.omitted i { box-shadow: inset 0 0 0 1.3px var(--alarm); }
 .pl-ladder li.latest .pl-ver { color: var(--ink); }
@@ -365,7 +365,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-seg { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--rule-2); pointer-events: none; }
 .pl-seg:last-child { border-right: 0; }
 .pl-seg.ahead { background: var(--hatch); opacity: .16; }
-.pl-seg i { position: absolute; left: 4px; top: 2px; font: 500 9.5px/1 var(--f-mono); font-style: normal; color: var(--ink-4); }
+.pl-seg i { position: absolute; left: 4px; top: 2px; font: 500 9.5px/1 var(--f-mono); font-style: normal; color: var(--ink-3); }
 .pl-played { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px 0 0 8px; background: var(--surface-2); pointer-events: none; }
 .pl-marks { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .mk-tick { stroke: var(--ink-4); stroke-width: 1; }

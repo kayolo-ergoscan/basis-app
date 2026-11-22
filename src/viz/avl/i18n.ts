@@ -18,7 +18,7 @@ export default vizBundle({
     "viz.avl.seg.end": "end of tree",
     "viz.avl.seg.directions": "direction bits",
     "viz.avl.seg.sandbox": "sandbox proof",
-    "viz.avl.parts": "{labels} labels · {leaves} leaves · {internals} internal nodes",
+    "viz.avl.parts": "labels: {labels} · leaves: {leaves} · internal nodes: {internals}",
     "viz.avl.sandboxParts": "bucket {b}: {e} entries, {s} sibling hashes",
     "viz.avl.run": "Verifier run",
     "viz.avl.step.parse": "Parse the proof",
@@ -69,7 +69,7 @@ export default vizBundle({
   ru: {
     "viz.avl.proofEyebrow": "Рентген доказательства AVL+ · поиск",
     "viz.avl.proofTitle": "Доказать одну запись по дайджесту",
-    "viz.avl.proofSub": "В сети лежит только 33-байтовый дайджест. Доказательство раскрывает ровно столько дерева, чтобы его пересчитать.",
+    "viz.avl.proofSub": "В блокчейне лежит только 33-байтный дайджест. Доказательство раскрывает ровно столько дерева, чтобы его пересчитать.",
     "viz.avl.digest": "Опубликованный дайджест",
     "viz.avl.digestSub": "метка корня (32 байта) ‖ высота дерева (1 байт) = {h}",
     "viz.avl.key": "Искомый ключ",

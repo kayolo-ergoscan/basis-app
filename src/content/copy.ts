@@ -50,9 +50,9 @@ export const copy = {
   fee: t("Protocol fee: none (basis.es) · Miner fee 0.001 ERG", "Комиссия протокола: нет (basis.es) · Комиссия майнера 0,001 ERG"),
   feeProtocol: t("Protocol fee: none (basis.es)", "Комиссия протокола: нет (basis.es)"),
   feeMiner: t("Miner fee 0.001 ERG", "Комиссия майнера 0,001 ERG"),
-  feeDenial: denial(
-    "There is no 2 % fee in Basis. That fee belonged to ChainCash, the predecessor, and is not in basis.es.",
-    "В Basis нет комиссии 2 %. Она была у ChainCash, предшественника, и в basis.es её нет.",
+  feeDenial: t(
+    "Protocol fee: none. basis.es has no fee rule; the percentage fee people remember belonged to ChainCash, the predecessor, and was removed there in May 2025.",
+    "Комиссии протокола нет: в basis.es нет правила о комиссии. Процентная комиссия, о которой иногда вспоминают, была у ChainCash, предшественника, и её убрали ещё в мае 2025 года.",
   ),
   feeOffchain: t("Paying with a note costs nothing: it is a signature, not a transaction.", "Платёж распиской ничего не стоит: это подпись, а не транзакция."),
 

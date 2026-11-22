@@ -97,7 +97,7 @@ Sub-routes inside a feature use relative `<Routes>`.
 
 ## 3. Tokens, themes and materials
 
-`src/ui/tokens.css` is intaglio.css §1, copied verbatim.
+`src/ui/tokens.css` is intaglio.css §1, copied verbatim, with two recorded changes: the font stacks name the self-hosted Fontsource families, and Cotton `--up` is `#11735A` (the tile's `#12775B` gave 4.29 : 1 on `--well`).
 
 **Themes:**
 - **Night** is `:root` / `.theme-dark`.

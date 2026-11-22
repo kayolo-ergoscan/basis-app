@@ -59,6 +59,8 @@ export function groupOf(e: EconomyEvent): FeedGroup {
     case "tracker.options":
       return "tracker";
     case "nostr":
+      // Every NOSTR kind is spec only: the reference server has no NOSTR code, its reserve-event handler
+      // (basis_server main.rs process_reserve_event) has no caller, and commitments/alerts are seeded demo events.
       return e.kind === "alert-80" || e.kind === "alert-100" ? "alerts" : e.kind === "commitment" ? "tracker" : "reserves";
     case "annotation":
       return e.level === "warn" ? "alerts" : "notes";
@@ -98,6 +100,8 @@ export function markOf(e: EconomyEvent): FeedMark {
     case "exchange.cancelled":
       return "refused";
     case "nostr":
+      // Every NOSTR kind is spec only: the reference server has no NOSTR code, its reserve-event handler
+      // (basis_server main.rs process_reserve_event) has no caller, and commitments/alerts are seeded demo events.
       return e.kind === "alert-80" || e.kind === "alert-100" ? "alert" : "nostr";
     case "tracker.status":
       return e.online ? "live" : "alert";
@@ -148,7 +152,12 @@ export function describeLine(e: EconomyEvent, ctx: DescribeCtx): FeedLine {
     case "denomination.added":
       return L("denomination.added", { s: e.denom.symbol }, []);
     case "participant.joined":
-      return L("participant.joined", { who: e.name, kind: T(`viz.ev.kind.${e.kind}`) }, [e.name]);
+    {
+      // the page's nameOf knows display names (localised demo names); fall back to the event's own name
+      const known = n(e.id);
+      const who = known && known !== e.id ? known : e.name;
+      return L("participant.joined", { who, kind: T(`viz.ev.kind.${e.kind}`) }, [who]);
+    }
     case "participant.status":
       return L(e.online ? "participant.online" : "participant.offline", { who: n(e.participant) }, [n(e.participant)]);
     case "wallet.funded":
@@ -196,7 +205,9 @@ export function describeLine(e: EconomyEvent, ctx: DescribeCtx): FeedLine {
     case "action.rejected":
       return L("action.rejected", { action: T(`viz.ev.action.${e.action}`), r: e.reserve, why: reason(e.code, e.message) }, [n(e.by)]);
     case "nostr":
-      return L(`nostr.${e.kind}`, { t: n(e.tracker), who: e.issuer ? n(e.issuer) : "", to: e.receiver ? n(e.receiver) : "", amount: e.amount !== undefined ? amt(e.amount, e.denom ?? "erg") : "", ratio: e.ratio !== undefined ? `${Math.round(e.ratio * 100)} ⁠%` : "" }, [n(e.tracker)], e.inServer);
+      // Every NOSTR kind is spec only: the reference server has no NOSTR code, its reserve-event handler
+      // (basis_server main.rs process_reserve_event) has no caller, and commitments/alerts are seeded demo events.
+      return L(`nostr.${e.kind}`, { t: n(e.tracker), who: e.issuer ? n(e.issuer) : "", to: e.receiver ? n(e.receiver) : "", amount: e.amount !== undefined ? amt(e.amount, e.denom ?? "erg") : "", ratio: e.ratio !== undefined ? `${Math.round(e.ratio * 100)} ⁠%` : "" }, [n(e.tracker)], false);
     case "exchange.staged":
       return L("exchange.staged", { a: n(e.receiver), b: n(e.issuer), x: amt(e.fromAmount, e.fromDenom), y: amt(e.toAmount, e.toDenom) }, [n(e.receiver), n(e.issuer)]);
     case "exchange.applied":

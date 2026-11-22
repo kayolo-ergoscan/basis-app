@@ -65,4 +65,5 @@ export type { KnownTemplate, TemplateAnalysis } from "./tools/template";
 // shared
 export { FaceToggle, useFace } from "./core/primitives";
 export type { Face } from "./core/primitives";
-export { LAB_NAMES, LAB_SALT, LAB_TRACKER_NFT, LAB_DEFAULT_TS, labKey, labNameOf } from "./core/lab";
+export { LAB_NAMES, LAB_SALT, LAB_TRACKER_NFT, LAB_DEFAULT_TS, labDisplayName, labKey, labNameOf } from "./core/lab";
+export type { LabName } from "./core/lab";

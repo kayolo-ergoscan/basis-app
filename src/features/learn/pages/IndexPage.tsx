@@ -61,7 +61,7 @@ export default function IndexPage() {
         {moments.map((m) => {
           const ch = LEARN_PAGES[0];
           return (
-            <Link key={m.id} className="lx-moment" to={`${ch.path}#ch-${m.chapter}`}>
+            <Link key={m.id} className="lx-moment" to={`${ch.path}#${m.chapter}`}>
               <span className="nm" aria-hidden="true">{m.numeral}</span>
               <span className="t">{pick(m.title, t.lang)}</span>
               <span className="d">{pick(m.text, t.lang)}</span>
@@ -153,15 +153,15 @@ function Plate({ id }: { id: LearnPageId }) {
   switch (id) {
     case "how":
       return (
-        <div className="pl-note">
+        <div className="lxp-note">
           <Note issuer="Alice" receiver="Bob" amount={1240} prev={1000} state="signed" lite bare decorative />
         </div>
       );
     case "signature":
-      return <div className="pl-bytes">{MSG_TONES.map((c, i) => <i key={i} className={c} />)}</div>;
+      return <div className="lxp-bytes">{MSG_TONES.map((c, i) => <i key={i} className={c} />)}</div>;
     case "contract":
       return (
-        <div className="pl-code">
+        <div className="lxp-code">
           {CODE.map(([s, w], i) => (
             <div key={i}>
               <span className="ln">{381 + i}</span>
@@ -173,7 +173,7 @@ function Plate({ id }: { id: LearnPageId }) {
       );
     case "avl":
       return (
-        <div className="pl-tree">
+        <div className="lxp-tree">
           <svg viewBox="0 0 236 128" aria-hidden="true">
             <g stroke="var(--ink-4)" strokeWidth="1" fill="none">
               <path d="M118 22 L62 64 M118 22 L174 64 M62 64 L34 106 M62 64 L90 106 M174 64 L146 106 M174 64 L202 106" />
@@ -191,7 +191,7 @@ function Plate({ id }: { id: LearnPageId }) {
       return <TrustPlate />;
     case "tools":
       return (
-        <div className="pl-mono">
+        <div className="lxp-mono">
           <div><b>debtKey</b> = blake2b256(</div>
           <div>&nbsp;&nbsp;A<span className="m">(33)</span> ‖ B<span className="m">(33)</span>)</div>
           <div><b>msg</b> = key ‖ total ‖ ts ‖ nft <span className="m">(80)</span></div>
@@ -200,7 +200,7 @@ function Plate({ id }: { id: LearnPageId }) {
       );
     case "api":
       return (
-        <div className="pl-api">
+        <div className="lxp-api">
           {API_SAMPLE.map((e) => (
             <div key={e.id}><span className={e.method === "POST" ? "m post" : "m"}>{e.method}</span><span>{e.path}</span></div>
           ))}
@@ -215,7 +215,7 @@ function TrustPlate() {
   const t = useT();
   const [steal, censor] = pick(copy.trackerLine, t.lang).split(" · ");
   return (
-    <div className="pl-trust">
+    <div className="lxp-trust">
       <div><span className="g no">✕</span><b>{steal}</b></div>
       <div><span className="g yes">!</span><b>{censor}</b></div>
     </div>

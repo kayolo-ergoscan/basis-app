@@ -4,6 +4,7 @@
 // one reserve per denomination (R05), no payment to yourself (use a self-note), the faucet cooldown.
 import {
   erg,
+  MINER_FEE_NANOERG,
   type AcceptanceConfig,
   type CensorshipMode,
   type DenomId,
@@ -161,7 +162,7 @@ export function cmdPay(ctx: CommandContext, a: CommandArgs["pay"], kind: "pay" |
     totalAfter: rec.totalDebt,
     note: noteSummary(eco, rec, YOU),
     acceptance: r.acceptance,
-    toast: toast("up", kind === "self-note" ? "world.toast.selfNote.ok" : "world.toast.pay.ok", { to: ref(to), total: amountText(eco, rec.totalDebt, denom), delta: amountText(eco, a.amount, denom, "always") }, "world.toast.pay.okDetail", { refs: { participant: to, noteKey: rec.key } }),
+    toast: toast("info", kind === "self-note" ? "world.toast.selfNote.ok" : "world.toast.pay.ok", { to: ref(to), total: amountText(eco, rec.totalDebt, denom), delta: amountText(eco, a.amount, denom, "always") }, "world.toast.pay.okDetail", { refs: { participant: to, noteKey: rec.key } }),
   };
 }
 
@@ -257,7 +258,7 @@ export function cmdCompleteRefund(ctx: CommandContext, a: CommandArgs["completeR
   const value = res.box?.value ?? 0n;
   const r = eco.completeRefund({ reserve: a.reserve, signer: YOU });
   if (!r.ok) return { ok: false, kind: "reserve.complete-refund", reserve: a.reserve, code: r.code, message: r.message, eval: r.eval, tx: r.tx, unlockHeight: res.refundUnlockHeight(), toast: refused(r.code, { unlock: String(res.refundUnlockHeight() ?? "") }) };
-  return { ok: true, kind: "reserve.complete-refund", reserve: a.reserve, amount: value, eval: r.eval, tx: r.tx, txId: r.tx?.id, toast: toast("metal", "world.toast.reserve.refundCompleted", { amount: amountText(eco, value, "erg") }, undefined, { refs: { reserve: a.reserve } }) };
+  return { ok: true, kind: "reserve.complete-refund", reserve: a.reserve, amount: value, eval: r.eval, tx: r.tx, txId: r.tx?.id, toast: toast("metal", "world.toast.reserve.refundCompleted", { amount: fmtDenom(eco, value, "erg", { dp: 3 }), net: fmtDenom(eco, value > MINER_FEE_NANOERG ? value - MINER_FEE_NANOERG : 0n, "erg", { dp: 3 }), fee: fmtDenom(eco, MINER_FEE_NANOERG, "erg", { dp: 3 }) }, undefined, { refs: { reserve: a.reserve } }) };
 }
 
 export function cmdNovate(ctx: CommandContext, a: CommandArgs["novate"]): Draft<PayOutcome> {
@@ -341,7 +342,7 @@ export function cmdTracker(ctx: CommandContext, a: CommandArgs["tracker"]): Draf
     }
     case "offline":
       eco.disappear(TOWN_TRACKER, "switched off from the tracker console");
-      return { ok: true, kind: "tracker", toast: toast("alarm", "world.toast.tracker.offline", { tracker: TOWN_TRACKER }, "world.toast.tracker.offlineDetail") };
+      return { ok: true, kind: "tracker", toast: toast("info", "world.toast.tracker.offline", { tracker: TOWN_TRACKER }, "world.toast.tracker.offlineDetail") };
     case "online":
       eco.reappear(TOWN_TRACKER);
       return { ok: true, kind: "tracker", toast: toast("info", "world.toast.tracker.online", { tracker: TOWN_TRACKER }) };

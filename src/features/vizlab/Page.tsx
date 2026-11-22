@@ -3,7 +3,6 @@
 // feed at 10 000 events, and the tools.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LangSeg, ThemeSeg } from "@/app/chrome";
 import { rich, useT } from "@/app/lang";
 import { Page, PageHead, Section } from "@/ui";
 import { getAvlBackend, REFUND_PERIOD_BLOCKS, type AvlBackend, type EconomyEvent, type ReserveEval, type SimTx } from "@/protocol";
@@ -225,12 +224,6 @@ export default function VizLabPage() {
         eyebrow={t("vizlab.eyebrow")}
         title={rich(t("vizlab.h1"))}
         lede={t("vizlab.lede")}
-        actions={
-          <div className="vl-actions">
-            <ThemeSeg />
-            <LangSeg />
-          </div>
-        }
       />
       <div className="vl-meta">
         <Tag tone="agent">{t("viz.sandbox")}</Tag>

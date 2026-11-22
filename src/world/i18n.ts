@@ -2,6 +2,8 @@
 // src/**/i18n.ts; worldText() renders a key without React (toasts, feed, tests). Honesty rules (PRODUCT §1):
 // sandbox objects are labelled as sandbox; 150/120/100 % are wallet policy, not contract rules.
 import type { I18nBundle, Lang } from "@/app/types";
+import { fmtUnits, groupThousands, NBSP } from "./format";
+import { FAUCET_ERG, FAUCET_SUSE } from "./town/worlddata";
 
 const en = {
   // labels
@@ -169,7 +171,7 @@ const en = {
   "world.toast.reserve.backed": "You added {amount} to {owner}'s reserve",
   "world.toast.reserve.refundStarted": "Refund announced",
   "world.toast.reserve.refundStartedDetail": "It unlocks at height {unlock}. Until then holders can still redeem.",
-  "world.toast.reserve.refundCompleted": "Reserve closed: {amount} back in your wallet",
+  "world.toast.reserve.refundCompleted": "Reserve closed: {net} back in your wallet ({amount} minus the {fee} miner fee)",
   "world.toast.novate.ok": "{amount} of {issuer}'s debt moved to {to}",
   "world.toast.novate.okDetail": "The note to {to} grew; your claim on {issuer} is waived by the same amount.",
   "world.toast.exchange.staged": "Exchange requested",
@@ -486,7 +488,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.redeem.blocker.reserve-empty": "В резерве не осталось средств для выплаты.",
   "world.redeem.blocker.refund-pending": "Эмитент объявил возврат: погасите до разблокировки.",
   "world.redeem.blocker.tracker-offline": "Трекер недоступен; аварийный путь открыт.",
-  "world.redeem.blocker.emergency-not-open": "Трекер недоступен; аварийный путь откроется, когда коробке трекера будет 2 160 блоков.",
+  "world.redeem.blocker.emergency-not-open": "Трекер недоступен; аварийный путь откроется, когда возраст бокса трекера превысит 2 160 блоков.",
   "world.redeem.blocker.policy": "Правила трекера не пропускают это погашение (сначала более старая расписка или лимит политики).",
 
   "world.toast.refused": "Не сделано",
@@ -508,14 +510,14 @@ const ru: Partial<Record<Key, string>> = {
   "world.toast.redeem.ok": "Погашено {amount} у {issuer}",
   "world.toast.redeem.okDetail": "Контракт резерва прошёл все проверки: {checks}.",
   "world.toast.redeem.emergency": "Аварийное погашение: {amount} у {issuer}",
-  "world.toast.redeem.emergencyDetail": "Без подписи трекера: коробке трекера больше 2 160 блоков.",
+  "world.toast.redeem.emergencyDetail": "Без подписи трекера: боксу трекера больше 2 160 блоков.",
   "world.toast.reserve.created": "Резерв открыт: {amount}",
-  "world.toast.reserve.createdDetail": "Привязан к трекеру {tracker}. Коробка песочницы, игровые деньги.",
+  "world.toast.reserve.createdDetail": "Привязан к трекеру {tracker}. Бокс в песочнице, игровые деньги.",
   "world.toast.reserve.toppedUp": "Резерв пополнен на {amount}",
   "world.toast.reserve.backed": "Вы добавили {amount} в резерв {owner}",
   "world.toast.reserve.refundStarted": "Возврат объявлен",
   "world.toast.reserve.refundStartedDetail": "Он разблокируется на высоте {unlock}. До тех пор держатели могут погашать.",
-  "world.toast.reserve.refundCompleted": "Резерв закрыт: {amount} вернулись в кошелёк",
+  "world.toast.reserve.refundCompleted": "Резерв закрыт: в кошелёк вернулось {net} ({amount} минус комиссия майнеру {fee})",
   "world.toast.novate.ok": "{amount} долга {issuer} переданы {to}",
   "world.toast.novate.okDetail": "Расписка для {to} выросла; ваше требование к {issuer} прощено на ту же сумму.",
   "world.toast.exchange.staged": "Обмен запрошен",
@@ -529,7 +531,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.toast.contact.removed": "Контакт удалён",
   "world.toast.tracker.committed": "{tracker} опубликовал дайджест {digest}…",
   "world.toast.tracker.offline": "{tracker} недоступен",
-  "world.toast.tracker.offlineDetail": "Расписки больше не заверяются. Когда коробке будет 2 160 блоков, держатели смогут погашать без трекера.",
+  "world.toast.tracker.offlineDetail": "Расписки больше не заверяются. Когда возраст бокса трекера превысит 2 160 блоков, держатели смогут погашать без трекера.",
   "world.toast.tracker.online": "{tracker} снова в сети",
   "world.toast.tracker.heartbeatOn": "{tracker} публикует в каждом цикле (heartbeat)",
   "world.toast.tracker.heartbeatOff": "{tracker} пропускает неизменные дайджесты",
@@ -725,6 +727,9 @@ export function castName(id: string, lang: Lang = "en"): string | undefined {
   return worldLookup(`world.cast.${id}.name`, lang);
 }
 
+/** Params that are plain integers (heights, block counts) and print with digit groups; ids and digests never do. */
+const GROUPED = new Set(["height", "unlock", "n", "blocks", "block", "age", "due", "dueHeight", "count", "left"]);
+
 function interp(s: string, params: Record<string, string | number> | undefined, lang: Lang, o: WorldTextOptions): string {
   if (!params) return s;
   return s.replace(/\{(\w+)\}/g, (m, k: string) => {
@@ -735,14 +740,22 @@ function interp(s: string, params: Record<string, string | number> | undefined, 
       return o.name?.(id) ?? castName(id, lang) ?? id;
     }
     if (k === "reason" && v.startsWith("world.")) return worldLookup(v, lang) ?? v;
+    // heights, block counts and other plain integers read as grouped numbers (VISUAL §4.3): "1 643 257"
+    if (GROUPED.has(k) && /^\d{5,}$/.test(v)) return groupThousands(v);
     return v;
   });
 }
 
+/** Params a key needs that the world can supply itself (a page may still pass its own). */
+const DEFAULT_PARAMS: Record<string, () => Record<string, string>> = {
+  "world.join.about": () => ({ erg: `${fmtUnits(FAUCET_ERG, 9)}${NBSP}ERG`, suse: `${fmtUnits(FAUCET_SUSE, 3)}${NBSP}sUSE` }),
+};
+
 /** Renders a `world.` key in `lang` with {param} interpolation (missing keys render as the key). */
 export function worldText(key: string, params?: Record<string, string | number>, lang: Lang = "en", o: WorldTextOptions = {}): string {
   const s = worldLookup(key, lang);
-  return s === undefined ? key : interp(s, params, lang, o);
+  const d = DEFAULT_PARAMS[key];
+  return s === undefined ? key : interp(s, d ? { ...d(), ...params } : params, lang, o);
 }
 
 /** Plural form: key_one / key_few / key_many / key_other, then key; {n} is available. */

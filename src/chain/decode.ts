@@ -612,7 +612,7 @@ export function describeExit(a: Pick<ExitAssessment, "class" | "reason" | "refun
       case "tracker-live": {
         const e = a.emergency;
         const em = !e ? "" : e.open
-          ? (ru ? `; трекер молчит ${n(e.age)} блоков, больше ${n(EMERGENCY_BLOCKS)} блоков ≈ 3 дня, поэтому погашению уже не нужна его подпись` : `; the tracker has been silent ${n(e.age)} blk, more than ${n(EMERGENCY_BLOCKS)} blk ≈ 3 days, so a redemption no longer needs its signature`)
+          ? (ru ? `; новейшему боксу трекера ${n(e.age)}\u00a0блк, больше ${n(EMERGENCY_BLOCKS)}\u00a0блк (≈\u00a03\u00a0дня), поэтому погашению уже не нужна его подпись` : `; the tracker's newest box is ${n(e.age)}\u00a0blk old, more than ${n(EMERGENCY_BLOCKS)}\u00a0blk (≈\u00a03\u00a0days), so a redemption no longer needs its signature`)
           : (ru ? `; без подписи трекера — с блока ${n(e.opensAt)}` : `; without the tracker's signature from block ${n(e.opensAt)}`);
         if (r.emptyTree) {
           return ru

@@ -39,7 +39,8 @@ export function Sheet({ open, onClose, title, sub, lead, aside, children, footer
     if (!open) return;
     back.current = document.activeElement as HTMLElement | null;
     const p = panel.current;
-    const first = p?.querySelector<HTMLElement>("[data-autofocus]") ?? p?.querySelector<HTMLElement>(FOCUSABLE);
+    // the first VISIBLE control (the drag grip is display:none on side sheets, and focusing it silently failed)
+    const first = p?.querySelector<HTMLElement>("[data-autofocus]") ?? Array.from(p?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).find((x) => x.offsetParent !== null);
     (first ?? p)?.focus({ preventScroll: true });
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";

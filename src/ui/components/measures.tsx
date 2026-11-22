@@ -35,7 +35,8 @@ export function CoverageMeter({ value, ghost, scale = true, className, style }: 
         <i className="zone z-warn" style={{ left: `${x(100)}%`, width: `${x(120) - x(100)}%` }} />
         <i className="zone z-watch" style={{ left: `${x(120)}%`, width: `${x(150) - x(120)}%` }} />
         <i className="fill" style={{ width: `${x(value)}%` }} />
-        {[100, 120, 150].map((p) => <i key={p} className="tick" style={{ left: `${x(p)}%` }}><span>{p}</span></i>)}
+        {/* a threshold label right under the needle would collide with it: keep the tick, drop the number */}
+        {[100, 120, 150].map((p) => <i key={p} className="tick" style={{ left: `${x(p)}%` }}>{Math.abs(x(p) - x(value)) < 5 ? null : <span>{p}</span>}</i>)}
         {ghost != null && <i className="ghost" style={{ left: `${x(ghost)}%` }} />}
         <i className="needle" style={{ left: `${x(value)}%` }} />
       </div>

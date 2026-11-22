@@ -42,7 +42,7 @@ export const moments: Moment[] = [
     ),
     fact: fact("key = blake2b256(A ‖ B) · total only grows", "key = blake2b256(A ‖ B) · итог только растёт"),
     mini: "note-odometer",
-    miniAlt: t("An odometer rolls the note's total from 1 200.00 to 1 240.00.", "Счётчик прокручивает итог расписки с 1 200,00 до 1 240,00."),
+    miniAlt: t("An odometer rolls the note's total from 1 000.00 to 1 240.00.", "Счётчик прокручивает итог расписки с 1 000,00 до 1 240,00."),
     chapter: "running-total",
   },
   {
