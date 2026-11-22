@@ -62,7 +62,10 @@ function Detector({ obs }: { obs: Observatory }) {
   const t = useT();
   const lang = t.lang as Lang;
   const det = obs.detector;
-  const n = det.found.length;
+  // a reserve is its unspent box: spent boxes are earlier states of reserves (each redemption or top-up makes a new box)
+  const live = det.found.filter((b) => b.unspent);
+  const n = live.length;
+  const spent = det.found.length - n;
   const current = obs.contracts.filter((c) => c.current);
   return (
     <section className={cx("nw-det", n > 0 && "found")} aria-label={t("network.det.aria", { n })}>
@@ -82,11 +85,12 @@ function Detector({ obs }: { obs: Observatory }) {
           <p className="nw-det-p">{pick(copy.currentContractsEmpty, lang)} {t("network.det.willShow")}</p>
         ) : (
           <ul className="nw-det-found" aria-label={t("network.det.found")}>
-            {det.found.map((b) => (
+            {live.map((b) => (
               <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} /></li>
             ))}
           </ul>
         )}
+        {spent > 0 && <p className="nw-det-p dim">{t.p("network.det.spent", spent)}</p>}
         <span className="nw-det-c">
           {det.checkedHeight != null ? t("chain.detector.checked", { height: fmtH(det.checkedHeight) }) : t("network.det.waiting")}
         </span>

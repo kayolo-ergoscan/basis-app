@@ -44,7 +44,8 @@ export function Mainnet() {
   const T = obs.totals;
   const tokens = T.unspentTokens.length > 0;
   const last = obs.records.lastActivity;
-  const found = obs.detector.found.length;
+  // reserves = unspent boxes at the current contracts (a spent box is an earlier state of a reserve)
+  const found = obs.detector.found.filter((b) => b.unspent).length;
   const totalTrackers = obs.trackers.length + (ours?.extra ?? 0);
   const ergStr = units(T.unspentNano, 9, 3);
   const stats = [
