@@ -5,7 +5,7 @@ import { sha256 } from "@noble/hashes/sha256";
 import expected from "./fixtures/expected.json";
 import {
   blake2bN, blk, blocksAndTime, concat, demoKey, demoSig, erg, fromHex, groupHex, hex, humanTime, inksFor, int, keySeal, money,
-  noteArt, numberLang, pairKey, pairSeal, parseMoney, pct, plainNumber, rng, sealParams, sealSVG, serialOf, setNumberLang, short,
+  escapeXml, noteArt, numberLang, pairKey, pairSeal, parseMoney, pct, plainNumber, rng, sealParams, sealSVG, serialOf, setNumberLang, short,
   signed, threeWords, threeWordsOfHash, units, utf8,
   BRAND_INKS, NOTE_ALGO, SEAL_ALGO, INKS,
 } from "./index";
@@ -198,5 +198,15 @@ describe("performance budget (VISUAL §8.4)", () => {
     const lite = performance.now() - t;
     expect(perSeal).toBeLessThan(16);
     expect(lite).toBeLessThan(120);
+  });
+});
+
+describe("note art markup", () => {
+  it("escapes the microprint text: it is drawn with innerHTML (keys review P2-10)", () => {
+    const k = new Uint8Array(33).fill(7);
+    const svg = noteArt(k, { micro: `<img src=x onerror="alert(1)">'&`, uid: "x" });
+    expect(svg).not.toContain("<img");
+    expect(svg).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&#39;&amp;");
+    expect(escapeXml("a<b>&\"'")).toBe("a&lt;b&gt;&amp;&quot;&#39;");
   });
 });

@@ -9,7 +9,7 @@ import { VAULT, isVaultError } from "@/mainnet/vault";
 import { watchExtras } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
 import { useMw } from "./ctx";
-import { useWatchList } from "./data";
+import { forgetWatchList, useWatchList } from "./data";
 import { Persistence } from "./Start";
 import { Gate, useVaultError } from "./ui";
 
@@ -25,11 +25,26 @@ function ExportHex() {
   const [err, setErr] = useState<string | null>(null);
   const out = useRef<HTMLElement>(null);
   const timer = useRef<number | null>(null);
+  const copied = useRef(false);
+  const [didCopy, setDidCopy] = useState(false);
   const hide = () => {
     if (out.current) out.current.textContent = "";
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = null;
+    // a copied key does not stay on the clipboard (keys review P2-6); a browser that refuses leaves it to the user
+    if (copied.current) {
+      copied.current = false;
+      try { void navigator.clipboard?.writeText("").catch(() => {}); } catch { /* no clipboard */ }
+    }
+    setDidCopy(false);
     setShown(false);
+  };
+  const copy = () => {
+    const v = out.current?.textContent;
+    if (!v) return;
+    copied.current = true;
+    setDidCopy(true);
+    try { void navigator.clipboard?.writeText(v).catch(() => {}); } catch { /* no clipboard */ }
   };
   useEffect(() => hide, []);
   const reveal = async () => {
@@ -47,15 +62,17 @@ function ExportHex() {
     <Card title={t("mw.set.hexT")}>
       <div className="mw-form">
         <Callout tone="alarm" title={t("mw.set.hexWarnT")}>{t("mw.set.hexWarnB")}</Callout>
-        <div className={shown ? "mw-secret on" : "mw-secret"} aria-live="polite">
-          <code ref={out} className="mono mw-break" />
+        {/* never read aloud (keys review P2-6): only the status line below is announced, without the key */}
+        <div className={shown ? "mw-secret on" : "mw-secret"}>
+          <code ref={out} className="mono mw-break" aria-hidden="true" />
           {shown && (
             <div className="mw-actions">
-              <Key size="sm" icon="copy" onClick={() => { const v = out.current?.textContent; if (v) void navigator.clipboard.writeText(v).catch(() => {}); }}>{t("mw.set.hexCopy")}</Key>
+              <Key size="sm" icon="copy" onClick={copy}>{t("mw.set.hexCopy")}</Key>
               <Key size="sm" variant="quiet" onClick={hide}>{t("mw.set.hexHide")}</Key>
             </div>
           )}
         </div>
+        <p className="t-small mw-dim" role="status">{shown ? (didCopy ? t("mw.set.hexCopied") : t("mw.set.hexShown")) : ""}</p>
         {!shown && (
           <>
             <Field label={t("mw.pass.label")} help={t("mw.set.hexPass")} error={err ?? undefined}>
@@ -85,7 +102,12 @@ function Wipe() {
     e.preventDefault();
     if (!ready) return;
     setErr(null);
-    try { await vault.wipe({ confirmUnbacked: !state.backedUp, journal: journal && openEntries === 0, takeOver: true }); } catch (x) { setErr(verr(x)); }
+    const pub = me?.pub ?? null;
+    try {
+      await vault.wipe({ confirmUnbacked: !state.backedUp, journal: journal && openEntries === 0, takeOver: true });
+      // the watched issuers go with the key: they tell whom this key was paid by (keys review P2-8)
+      if (pub) forgetWatchList(pub);
+    } catch (x) { setErr(verr(x)); }
   };
   return (
     <Card title={t("mw.set.wipeT")}>

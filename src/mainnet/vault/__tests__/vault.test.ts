@@ -355,7 +355,7 @@ describe("mainnet vault: the secret door", () => {
     await backUp(v);
     const pub = v.getState().key!.pub;
     const kept: Uint8Array[] = [];
-    const seen = await v.withSecret("note", (sk, p) => {
+    const seen = await v.withSecret("build-request", (sk, p) => {
       kept.push(sk);
       expect(sk.length).toBe(32);
       expect(bytesToHex(secp256k1.getPublicKey(sk, true))).toBe(pub);
@@ -376,25 +376,25 @@ describe("mainnet vault: the secret door", () => {
     const v = await openTab(b);
     await v.create(PASS);
     await backUp(v);
-    expect(await code(v.withSecret("t1", (sk) => sk))).toBe("secret-in-output");
-    expect(await code(v.withSecret("t1", (sk) => sk.slice()))).toBe("secret-in-output");
-    expect(await code(v.withSecret("t1", (sk) => new Uint8Array([9, ...sk, 9])))).toBe("secret-in-output");
-    expect(await code(v.withSecret("t1", (sk) => ({ deep: [{ hex: `a${bytesToHex(sk).toUpperCase()}b` }] })))).toBe("secret-in-output");
-    expect(await code(v.withSecret("t1", (sk) => BigInt(`0x${bytesToHex(sk)}`)))).toBe("secret-in-output");
+    expect(await code(v.withSecret("redeem", (sk) => sk))).toBe("secret-in-output");
+    expect(await code(v.withSecret("redeem", (sk) => sk.slice()))).toBe("secret-in-output");
+    expect(await code(v.withSecret("redeem", (sk) => new Uint8Array([9, ...sk, 9])))).toBe("secret-in-output");
+    expect(await code(v.withSecret("redeem", (sk) => ({ deep: [{ hex: `a${bytesToHex(sk).toUpperCase()}b` }] })))).toBe("secret-in-output");
+    expect(await code(v.withSecret("redeem", (sk) => BigInt(`0x${bytesToHex(sk)}`)))).toBe("secret-in-output");
     expect(
       await code(
-        v.withSecret("t1", (sk) => {
+        v.withSecret("redeem", (sk) => {
           throw new Error(`bad key ${bytesToHex(sk)}`);
         }),
       ),
     ).toBe("secret-in-output");
     const plain = new Error("L1: the fee is too high");
     await expect(
-      v.withSecret("t1", () => {
+      v.withSecret("redeem", () => {
         throw plain;
       }),
     ).rejects.toBe(plain);
-    expect(await code(v.withSecret("t1", async () => 1))).toBe("async-callback");
+    expect(await code(v.withSecret("redeem", async () => 1))).toBe("async-callback");
     expect(await code(v.withSecret("nope" as never, () => 1))).toBe("bad-input");
     expect(v.getState().status).toBe("unlocked");
     v.close();

@@ -139,7 +139,9 @@ export function parseReserve(d: unknown): TrackedReserve | null {
   if (d.reserve_token_id && !token) return null;
   const ratio = typeof d.collateralization_ratio === "number" && Number.isFinite(d.collateralization_ratio) && d.collateralization_ratio < NO_DEBT_RATIO && debt > 0n
     ? d.collateralization_ratio : null;
-  return { box, owner, collateral, debt, nft, token, updatedHeight, updatedAt: intOrNull(d.last_updated_timestamp) ?? 0, ratio, refundHeight: intOrNull(d.refund_initiation_height) ?? 0 };
+  const pending = bigOf(d.pending_redemption_amount);
+  const pendingRedemption = pending !== null && pending <= debt ? pending : 0n;
+  return { box, owner, collateral, debt, nft, token, updatedHeight, updatedAt: intOrNull(d.last_updated_timestamp) ?? 0, ratio, refundHeight: intOrNull(d.refund_initiation_height) ?? 0, pendingRedemption };
 }
 
 export function parseReserves(d: unknown): ReservesAnswer | null {

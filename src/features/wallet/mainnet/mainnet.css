@@ -126,6 +126,9 @@
 .mw-secret { display: none; gap: 10px; padding: 14px; border-radius: var(--r-paper); background: var(--alarm-wash); }
 .mw-secret.on { display: grid; }
 .mw-secret code { font: 500 14px/1.5 var(--f-mono); color: var(--ink); user-select: all; }
+/* the hex import field: a text field drawn as dots (keys review P2-5); blurred where dots are not supported */
+.mw-masked input { -webkit-text-security: disc; }
+@supports not (-webkit-text-security: disc) { .mw-masked input { filter: blur(5px); } }
 
 /* the sandbox/mainnet switch sits in the top bar here */
 .mw-top .wl-mode { margin: 0; }

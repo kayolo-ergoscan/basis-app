@@ -222,18 +222,26 @@ export function planReserveCreation(boxes: readonly ErgoBox[], owner: Hex, amoun
 }
 
 /** The unsigned T1: [reserve, change?, fee], no data inputs, no extensions. */
+/**
+ * The creation height of a new transaction's outputs: the tip, never below its highest input's creation height (the
+ * node refuses an output created before its inputs; a stale tip must not make a transaction that never validates).
+ */
+export const outputHeight = (tip: number, inputs: readonly Pick<ErgoBox, "creationHeight">[]): number =>
+  Math.max(tip, ...inputs.map((b) => b.creationHeight));
+
 export function buildReserveCreation(t: ReserveCreationInput): UnsignedTx {
   if (t.inputs.length === 0) throw new Error("T1 needs at least one input");
+  const h = outputHeight(t.height, t.inputs);
   const total = sum(t.inputs.map((b) => b.value));
   const change = total - t.amount - t.fee;
   const tokens = mergedTokens(t.inputs);
   if (change < 0n) throw new Error("the inputs do not cover the amount and the fee");
   if ((change > 0n || tokens.length > 0) && change < MIN_BOX_NANOERG) throw new Error(`change ${change} nanoERG is below ${MIN_BOX_NANOERG}: add it to the amount or pick more boxes`);
   const outputs: BoxCandidate[] = [
-    { value: t.amount, ergoTree: RESERVE_TREE_HEX, creationHeight: t.height, tokens: [{ tokenId: t.inputs[0].boxId, amount: 1n }], registers: reserveRegisters(t.owner) },
+    { value: t.amount, ergoTree: RESERVE_TREE_HEX, creationHeight: h, tokens: [{ tokenId: t.inputs[0].boxId, amount: 1n }], registers: reserveRegisters(t.owner) },
   ];
-  if (change > 0n) outputs.push({ value: change, ergoTree: p2pkTree(t.owner), creationHeight: t.height, tokens, registers: [] });
-  outputs.push({ value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: t.height, tokens: [], registers: [] });
+  if (change > 0n) outputs.push({ value: change, ergoTree: p2pkTree(t.owner), creationHeight: h, tokens, registers: [] });
+  outputs.push({ value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] });
   return { inputs: t.inputs.map((b) => ({ boxId: b.boxId, extension: [] })), dataInputs: [], outputs };
 }
 
@@ -287,8 +295,8 @@ export function checkReserveCreation(tx: UnsignedTx, inputs: readonly ErgoBox[],
       refuse("change-output", "the inputs carry tokens and there is no change output: they would be burned");
     }
     if (fee.ergoTree !== FEE_TREE_HEX || fee.value !== want.fee || fee.tokens.length !== 0 || fee.registers.length !== 0) refuse("fee-output", "the last output is not the token-free miner fee");
-    const floor = Math.max(...inputs.map((b) => b.creationHeight));
-    for (const [i, o] of outs.entries()) if (o.creationHeight !== want.height || o.creationHeight < floor) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at the tip ${want.height} (inputs up to ${floor})`);
+    const at = outputHeight(want.height, inputs);
+    for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at} (the tip ${want.height}, inputs created up to ${outputHeight(0, inputs)})`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");
   });
 }
@@ -318,21 +326,24 @@ function destinationTree(to: string): Hex {
 /** The unsigned Withdraw: [destination, change?, fee]; tokens stay with the owner (change). */
 export function buildWithdraw(w: WithdrawInput): UnsignedTx {
   const tree = destinationTree(w.to);
+  if (w.inputs.length === 0) throw new Error("a withdrawal needs at least one input");
+  const h = outputHeight(w.height, w.inputs);
   const total = sum(w.inputs.map((b) => b.value));
   const change = total - w.amount - w.fee;
   const tokens = mergedTokens(w.inputs);
   if (w.amount < MIN_BOX_NANOERG) throw new Error(`a withdrawal sends at least ${MIN_BOX_NANOERG} nanoERG`);
   if (change < 0n) throw new Error("the inputs do not cover the amount and the fee");
   if ((change > 0n || tokens.length > 0) && change < MIN_BOX_NANOERG) throw new Error(`change ${change} nanoERG is below ${MIN_BOX_NANOERG}: add it to the amount or pick more boxes`);
-  const outputs: BoxCandidate[] = [{ value: w.amount, ergoTree: tree, creationHeight: w.height, tokens: [], registers: [] }];
-  if (change > 0n) outputs.push({ value: change, ergoTree: p2pkTree(w.owner), creationHeight: w.height, tokens, registers: [] });
-  outputs.push({ value: w.fee, ergoTree: FEE_TREE_HEX, creationHeight: w.height, tokens: [], registers: [] });
+  const outputs: BoxCandidate[] = [{ value: w.amount, ergoTree: tree, creationHeight: h, tokens: [], registers: [] }];
+  if (change > 0n) outputs.push({ value: change, ergoTree: p2pkTree(w.owner), creationHeight: h, tokens, registers: [] });
+  outputs.push({ value: w.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] });
   return { inputs: w.inputs.map((b) => ({ boxId: b.boxId, extension: [] })), dataInputs: [], outputs };
 }
 
-export type WithdrawRule = "inputs" | "outputs" | "destination" | "change-output" | "fee-output" | "totals";
+export type WithdrawRule = "inputs" | "outputs" | "destination" | "change-output" | "fee-output" | "creation-height" | "totals";
 
-export function checkWithdraw(tx: UnsignedTx, inputs: readonly ErgoBox[], want: { owner: Hex; to: string; amount: bigint; fee: bigint }): CheckResult<WithdrawRule> {
+/** `height`: the tip the transaction was built at; every output must be created at outputHeight(tip, inputs). */
+export function checkWithdraw(tx: UnsignedTx, inputs: readonly ErgoBox[], want: { owner: Hex; to: string; amount: bigint; fee: bigint; height: number }): CheckResult<WithdrawRule> {
   return run<WithdrawRule>((refuse) => {
     const owner = p2pkTree(want.owner);
     let dest: Hex = "";
@@ -358,6 +369,8 @@ export function checkWithdraw(tx: UnsignedTx, inputs: readonly ErgoBox[], want: 
     }
     if (fee.ergoTree !== FEE_TREE_HEX || fee.value !== want.fee || fee.tokens.length !== 0 || fee.registers.length !== 0) refuse("fee-output", "the last output is not the token-free miner fee");
     if (want.fee < T1_FEE_MIN_NANOERG || want.fee > T1_FEE_MAX_NANOERG) refuse("fee-output", `the fee ${want.fee} is outside ${T1_FEE_MIN_NANOERG} … ${T1_FEE_MAX_NANOERG}`);
+    const at = outputHeight(want.height, inputs);
+    for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at} (the tip ${want.height}, inputs created up to ${outputHeight(0, inputs)})`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");
   });
 }

@@ -104,7 +104,14 @@ describe("tracker client", () => {
     const r = parseReserves([JSON.parse(quoteBigInts(reserveJson(), ["collateral_amount", "total_debt"])), { box_id: "zz" }, null]);
     expect(r).toMatchObject({ invalid: 2 });
     expect(r!.list).toHaveLength(1);
-    expect(r!.list[0]).toMatchObject({ owner: OWNER, nft: OUR_TRACKER.nft, token: null, collateral: 1_000_000_000n });
+    expect(r!.list[0]).toMatchObject({ owner: OWNER, nft: OUR_TRACKER.nft, token: null, collateral: 1_000_000_000n, pendingRedemption: 0n });
+  });
+
+  it("reads the redemptions waiting for the chain (round 5b); never more than the debt", () => {
+    const j = (debt: string, pending: string) => JSON.parse(reserveJson({ debt }).replace(/"refund_initiation_height":0/, `"refund_initiation_height":0,"pending_redemption_amount":${pending}`));
+    expect(parseReserves([j("500000000", "200000000")])!.list[0]).toMatchObject({ debt: 500_000_000n, pendingRedemption: 200_000_000n });
+    expect(parseReserves([j("500000000", "900000000")])!.list[0].pendingRedemption).toBe(0n);
+    expect(parseReserves([j("500000000", "-1")])!.list[0].pendingRedemption).toBe(0n);
   });
 
   it("names 404, 429, 503, bad JSON and success:false", async () => {
@@ -174,7 +181,7 @@ describe("tracker client", () => {
 const st = (box: string, digest: string, height: number): TrackerState =>
   ({ localDigest: digest, confirmedDigest: digest, confirmedBox: box, confirmedHeight: height, pending: null, trackerBox: box });
 const res = (owner: string, box: string, nft: string = OUR_TRACKER.nft, collateral = 1n, token: string | null = null): TrackedReserve =>
-  ({ box, owner, collateral, debt: 0n, nft, token, updatedHeight: 1, updatedAt: 0, ratio: null, refundHeight: 0 });
+  ({ box, owner, collateral, debt: 0n, nft, token, updatedHeight: 1, updatedAt: 0, ratio: null, refundHeight: 0, pendingRedemption: 0n });
 
 describe("view model", () => {
   const base: OursState = { active: true, hidden: false, state: null, reserves: null, fees: null, fresh: null, stateError: null, reservesError: null, failures: 0, backoff: null, events: [], requests: 0 };

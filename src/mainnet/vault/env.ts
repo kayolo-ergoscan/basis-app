@@ -1,4 +1,5 @@
 // What the vault takes from the browser. Tests pass doubles for every field; pages use browserEnv().
+import { sandboxPubInBrowser } from "../key-markers";
 import type { LockManagerLike } from "./locks";
 import type { StorageManagerLike } from "./persist";
 
@@ -22,6 +23,8 @@ export interface VaultEnv {
   now: () => number;
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (handle: unknown) => void;
+  /** The sandbox key's public key in this browser (keys review P2-7: never imported as a mainnet key); optional. */
+  sandboxPub?: () => string | null;
 }
 
 function tryGet<T>(get: () => T): T | null {
@@ -47,5 +50,6 @@ export function browserEnv(): VaultEnv {
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+    sandboxPub: sandboxPubInBrowser,
   };
 }

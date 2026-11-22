@@ -134,7 +134,8 @@ describe("mainnet journal", () => {
     const done = await v.journal.update(e.id, { state: "final", lastHeight: 104, error: "x".repeat(400), meta: { note: "done" } });
     expect(done).toMatchObject({ state: "final", inclusionHeight: 103, lastHeight: 104, meta: { note: "done" } });
     expect(done.error).toHaveLength(300);
-    expect(await code(v.journal.update(e.id, { state: "mempool" }))).toBe("bad-transition");
+    expect(await code(v.journal.update(e.id, { state: "signed" }))).toBe("bad-transition"); // final goes back only after a reorg (below)
+    expect(await code(v.journal.update(e.id, { state: "failed" }))).toBe("bad-transition");
     expect(await code(v.journal.markSending(e.id))).toBe("bad-transition");
     expect(await code(v.journal.update(e.id, { state: "abandoned" }))).toBe("bad-transition");
     expect(await code(v.journal.update("nope", { state: "sent" }))).toBe("not-found");
@@ -144,6 +145,15 @@ describe("mainnet journal", () => {
     await v.journal.markSending(f.id);
     await v.journal.update(f.id, { state: "failed" });
     expect((await v.journal.update(f.id, { state: "confirmed" })).state).toBe("confirmed");
+    const g = await v.journal.record(tx(pub, hex(3), { inputs: [hex(0x23)] }));
+    await v.journal.markSending(g.id);
+    await v.journal.update(g.id, { state: "failed" });
+    expect((await v.journal.update(g.id, { state: "mempool" })).state).toBe("mempool"); // seen after all
+    expect(await code(v.journal.update(g.id, { state: "signed" }))).toBe("bad-transition");
+    // a final entry goes back after a reorg deeper than its 2 blocks; abandoned stays closed
+    await v.journal.update(g.id, { state: "final" });
+    expect((await v.journal.update(g.id, { state: "sent" })).state).toBe("sent");
+    expect((await v.journal.markSending(g.id)).sendAttempts).toBe(2);
     v.close();
   });
 
@@ -185,6 +195,14 @@ describe("mainnet journal", () => {
     expect(await t.journal.lastTimestamp(s)).toBe(5006);
     expect(await code(v.journal.claimTimestamp("", 1))).toBe("bad-input");
     expect(await code(v.journal.claimTimestamp(s, Number.NaN))).toBe("bad-input");
+    // a claim the server refused for its clock window is taken back, only that one, only downwards
+    const ahead = await v.journal.claimTimestamp(s, 900_000);
+    expect(await v.journal.rewindTimestamp(s, ahead - 1, 6000)).toBe(false);
+    expect(await v.journal.rewindTimestamp(s, ahead, ahead + 5)).toBe(false);
+    expect(await v.journal.rewindTimestamp(s, ahead, 6000)).toBe(true);
+    expect(await v.journal.claimTimestamp(s, 7000)).toBe(7000);
+    expect(await v.journal.rewindTimestamp(s, ahead, 6000)).toBe(false);
+    expect(await code(v.journal.rewindTimestamp(s, 1.5, 0))).toBe("bad-input");
     v.close();
     t.close();
   });
@@ -206,7 +224,7 @@ describe("mainnet journal", () => {
     const pub = v.getState().key!.pub;
     const id = hex(0xab);
     const msg = new Uint8Array(32).fill(7);
-    const entry = await v.signToJournal("t1", (sk) => ({ txId: id, signedRaw: JSON.stringify({ id, proof: bytesToHex(secp256k1.sign(msg, sk).toCompactRawBytes()) }), inputs: [hex(0xcd)] }));
+    const entry = await v.signToJournal("t1", (sk) => ({ txId: id, signedRaw: JSON.stringify({ id, proof: bytesToHex(secp256k1.sign(msg, sk).toCompactRawBytes()) }), inputs: [hex(0xcd)] }), { passphrase: PASS });
     expect(entry).toMatchObject({ kind: "t1", pub, state: "signed", sendAttempts: 0, txId: id });
     expect(secp256k1.verify(JSON.parse(entry.signedRaw).proof, msg, pub)).toBe(true);
     let touched = false;
@@ -215,7 +233,7 @@ describe("mainnet journal", () => {
         v.signToJournal("t1", () => {
           touched = true;
           return { txId: hex(0xef), signedRaw: JSON.stringify({ id: hex(0xef) }), inputs: [hex(1)] };
-        }),
+        }, { passphrase: PASS }),
       ),
     ).toBe("t1-exists");
     expect(touched).toBe(false);

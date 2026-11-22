@@ -45,32 +45,33 @@ describe("mainnet vault: the secret never leaves", () => {
     await attempt(v.verifyBackup(backup.json, OTHER_PASS));
     results.push(await v.verifyBackup(backup.json, PASS));
     // callbacks that try to hand the secret out, in every shape the guard knows
-    await attempt(v.withSecret("t1", (s) => s));
-    await attempt(v.withSecret("t1", (s) => ({ raw: Array.from(s) })));
-    await attempt(v.withSecret("t1", (s) => JSON.stringify({ k: Array.from(s) })));
-    await attempt(v.withSecret("t1", (s) => toB64(s)));
-    await attempt(v.withSecret("t1", (s) => `key=${bytesToHex(s).toUpperCase()};`));
-    await attempt(v.withSecret("t1", (s) => new Map([["k", s.slice().buffer]])));
-    await attempt(v.withSecret("t1", (s) => BigInt(`0x${bytesToHex(s)}`).toString()));
+    await attempt(v.withSecret("redeem", (s) => s));
+    await attempt(v.withSecret("redeem", (s) => ({ raw: Array.from(s) })));
+    await attempt(v.withSecret("redeem", (s) => JSON.stringify({ k: Array.from(s) })));
+    await attempt(v.withSecret("redeem", (s) => toB64(s)));
+    await attempt(v.withSecret("redeem", (s) => `key=${bytesToHex(s).toUpperCase()};`));
+    await attempt(v.withSecret("redeem", (s) => new Map([["k", s.slice().buffer]])));
+    await attempt(v.withSecret("redeem", (s) => BigInt(`0x${bytesToHex(s)}`).toString()));
     await attempt(
-      v.withSecret("t1", (s) => {
+      v.withSecret("redeem", (s) => {
         throw new Error("wrapped", { cause: { key: bytesToHex(s) } });
       }),
     );
     await attempt(
-      v.withSecret("t1", (s) => {
+      v.withSecret("redeem", (s) => {
         throw { inner: [s.slice()] };
       }),
     );
-    await attempt(v.withSecret("t1", (s) => () => s));
-    await attempt(v.withSecret("t1", async () => 1));
+    await attempt(v.withSecret("redeem", (s) => () => s));
+    await attempt(v.withSecret("redeem", async () => 1));
     await attempt(v.withSecret("export-hex", (s) => bytesToHex(s), { passphrase: OTHER_PASS }));
     await attempt(v.unlock(OTHER_PASS));
     // honest use
     const msg = sha256(new TextEncoder().encode("leak test"));
     results.push(await v.withSecret("build-request", (s) => bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes())));
     const txId = "ab".repeat(32);
-    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, proof: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()) }), inputs: ["cd".repeat(32)] })));
+    const own = `0008cd${bytesToHex(secp256k1.getPublicKey(sk, true))}`;
+    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, proof: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()), outputs: [{ value: 1000, ergoTree: own }] }), inputs: ["cd".repeat(32)] })));
     // more refusals: locked, weak, malformed, a second key, another tab
     v.lock();
     await attempt(v.withSecret("t1", () => 1));

@@ -22,13 +22,14 @@ import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } 
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
+import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, type NoteIntent, type NotePolicy, type PairPromise } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
 export type LockReason = "manual" | "idle" | "hidden" | "taken-over" | "lost" | "storage-changed" | "wiped";
 export type MissingFeature = "indexeddb" | "webcrypto" | "web-locks";
 /** What the secret is used for. Journal kinds sign transactions or notes; "build-request" signs a redemption build
- *  request; "export-hex" reveals the key (D4) and always needs the passphrase again. */
+ *  request; "export-hex" reveals the key (D4). When the passphrase is asked again: policy.ts. */
 export type SecretPurpose = JournalKind | "build-request" | "export-hex";
 
 export interface VaultKey {
@@ -64,8 +65,14 @@ export interface VaultOptions {
 }
 
 export interface SecretOptions {
-  /** Type the passphrase again (re-derived, ~1 s): required for "export-hex"; the UI asks for it on large amounts. */
+  /**
+   * The passphrase typed again (re-derived, ~1 s). Always required for "export-hex" and "t1"; for "withdraw" unless the
+   * transaction pays only this key (signToJournal checks); for "note" when the notes since the last passphrase entry
+   * promise more than 25 % of the reserve (policy.ts). A direct withSecret() for t1, withdraw or note always needs it.
+   */
   passphrase?: string;
+  /** signToJournal("note") only, and required there: what the note promises, checked before and after signing. */
+  note?: NoteIntent;
 }
 
 export interface TakeOverOptions {
@@ -114,7 +121,21 @@ interface Session {
   aad: string;
   pub: Hex;
   pubBytes: Uint8Array;
+  /** Notes signed without the passphrase since it was last typed (the unlock counts), per recipient. */
+  promised: Map<Hex, PairPromise>;
 }
+
+/** signToJournal's rules around one use of the key (both run in the signer's turn, see #use). */
+interface Guard<T> {
+  /** Before the key is touched: throws to refuse. `typed` = the passphrase was given. */
+  before?(s: Session, typed: boolean): void;
+  /** Right after the callback, before its result leaves the vault: throws to drop the signed bytes. */
+  after?(out: T, s: Session, typed: boolean): void;
+}
+
+/** Purposes a direct withSecret() serves only with the passphrase: the vault cannot see what such a callback signs. */
+const PASS_DIRECT: ReadonlySet<SecretPurpose> = new Set(["t1", "withdraw", "note", "export-hex"]);
+const needPass = (message: string, reason: string) => new VaultError("passphrase-required", message, { reason });
 
 type Stored = { kind: "none" } | { kind: "ok"; rec: KeyRecord } | { kind: "damaged"; backedUp: boolean };
 
@@ -446,6 +467,8 @@ export class MainnetVault {
     try {
       pub = bytesToHex(publicKeyOf(secret));
       refuseTrackerKey(pub);
+      // the sandbox key lies in localStorage as plain hex: it is never a mainnet key (keys review P2-7)
+      if (this.#env.sandboxPub?.() === pub) throw new VaultError("sandbox-key-refused", "this is the sandbox key of this browser: its secret is kept as plain text, so it is never used for real funds");
     } catch (e) {
       wipe(secret);
       throw e;
@@ -523,24 +546,46 @@ export class MainnetVault {
   /**
    * The only way to the secret: decrypts a fresh 32-byte copy, calls `fn(secret, pub)` synchronously and wipes the copy.
    * Needs an unlocked vault (this tab holds the signer lock) and a verified backup ("export-hex" excepted). Refuses a
-   * callback that returns a promise ("async-callback") or returns or throws the secret ("secret-in-output").
+   * callback that returns a promise ("async-callback") or returns or throws the secret ("secret-in-output"). "t1",
+   * "withdraw", "note" and "export-hex" need `passphrase` here; signToJournal() signs withdrawals to this key and small
+   * notes without it.
    */
   async withSecret<T>(purpose: SecretPurpose, fn: SecretCallback<T>, opts: SecretOptions = {}): Promise<T> {
+    if (purpose === "export-hex" && isObject(opts) && opts.passphrase === undefined) throw needPass("revealing the key needs the passphrase", "export-hex");
+    return this.#use(purpose, fn, opts, null);
+  }
+
+  /**
+   * The passphrase rule for a note this key would sign now (policy.ts): what it adds, what was promised since the
+   * passphrase was last typed, and whether it must be typed again. For the review screen; signToJournal applies the same.
+   */
+  notePolicy(intent: NoteIntent): NotePolicy {
+    const s = this.#liveSession();
+    return notePolicy(s.pub, intent, s.promised);
+  }
+
+  async #use<T>(purpose: SecretPurpose, fn: SecretCallback<T>, opts: SecretOptions, guard: Guard<T> | null): Promise<T> {
     const { crypto } = this.#need();
     if (!PURPOSES.includes(purpose)) throw new VaultError("bad-input", "unknown purpose");
     if (typeof fn !== "function") throw new VaultError("bad-input", "withSecret() takes a callback");
-    if (opts.passphrase !== undefined && typeof opts.passphrase !== "string") throw new VaultError("bad-input", "the passphrase must be a string");
-    if (purpose === "export-hex" && opts.passphrase === undefined) throw new VaultError("passphrase-required", "revealing the key needs the passphrase");
+    if (typeof opts !== "object" || opts === null) throw new VaultError("bad-input", "the options are an object");
+    const passphrase: unknown = opts.passphrase;
+    if (passphrase !== undefined && typeof passphrase !== "string") throw new VaultError("bad-input", "the passphrase must be a string");
+    const typed = passphrase !== undefined;
     this.#liveSession();
     return this.#exclusive(async () => {
       const s = this.#liveSession();
       const epoch = this.#epoch;
       const rec = await this.#sessionRecord(s, epoch);
       if (purpose !== "export-hex" && rec.backedUpAt === null) throw new VaultError("not-backed-up", "verify a backup file before signing");
-      const key = opts.passphrase === undefined ? s.key : await deriveKey(crypto.subtle, opts.passphrase, fromB64(rec.kdf.salt) as Uint8Array, rec.kdf.iterations);
-      const secret = opts.passphrase === undefined ? await this.#open(crypto, s) : await unseal(crypto.subtle, key, s.iv, s.aad, s.ct);
+      if (!guard && !typed && PASS_DIRECT.has(purpose)) throw needPass("this use of the key needs the passphrase", purpose);
+      guard?.before?.(s, typed);
+      const key = typeof passphrase !== "string" ? s.key : await deriveKey(crypto.subtle, passphrase, fromB64(rec.kdf.salt) as Uint8Array, rec.kdf.iterations);
+      const secret = typeof passphrase !== "string" ? await this.#open(crypto, s) : await unseal(crypto.subtle, key, s.iv, s.aad, s.ct);
       try {
         if (this.#epoch !== epoch || this.#session !== s) throw lockedError();
+        // the passphrase opened the key: a new count of notes signed without it starts here
+        if (typed) s.promised.clear();
         let out: T;
         try {
           out = fn(secret, s.pubBytes.slice());
@@ -552,6 +597,7 @@ export class MainnetVault {
           throw new VaultError("async-callback", "the secret callback must return synchronously");
         }
         if (purpose !== "export-hex" && holdsSecret(out, secret)) throw new VaultError("secret-in-output", "the callback's result held the secret key, or could not be checked");
+        guard?.after?.(out, s, typed);
         this.#activity();
         return out;
       } finally {
@@ -563,7 +609,9 @@ export class MainnetVault {
   /**
    * Write-ahead signing: signs with `fn` (which returns the journal fields: txId, signedRaw, inputs …) and records the
    * result before anyone can send it. When the journal refuses (a second T1, say), the signed bytes are dropped. A T1 is
-   * also checked against the journal before the key is touched.
+   * also checked against the journal before the key is touched. The passphrase rules (policy.ts) are enforced here:
+   * t1 always; a withdrawal that pays anything but this key and at most the wallet's miner fee; a note over the 25 %
+   * budget. A note needs `opts.note`, and the signed body must be that note; a redemption must pay this key.
    */
   async signToJournal(kind: JournalKind, fn: SecretCallback<Omit<JournalRecordInput, "kind" | "pub">>, opts: SecretOptions = {}): Promise<JournalEntry> {
     const pub = this.#session?.pub;
@@ -571,14 +619,37 @@ export class MainnetVault {
       const first = await this.journal.activeT1(pub);
       if (first) throw new VaultError("t1-exists", "this key already has a reserve creation in the journal", { id: first.id, state: first.state });
     }
+    const given: unknown = typeof opts === "object" && opts !== null ? opts.note : undefined;
+    if (kind === "note" && !isObject(given)) throw new VaultError("bad-input", "a note needs opts.note: what it promises");
+    const intent = given as NoteIntent;
+    type Part = Omit<JournalRecordInput, "kind" | "pub">;
+    const guard: Guard<Part> = {
+      before(s, typed) {
+        if (kind === "t1" && !typed) throw needPass("a reserve creation needs the passphrase", "t1");
+        if (kind === "note") {
+          const p = notePolicy(s.pub, intent, s.promised); // also refuses a previous note that is not this key's
+          if (p.passphrase && !typed) throw needPass("the notes since the passphrase was typed promise more than 25 % of the reserve", p.reserveValue > 0n ? "note-over-quarter" : "note-no-reserve");
+        }
+      },
+      after(part, s, typed) {
+        if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
+        if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
+        if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
+        if (kind === "note") {
+          checkNoteBody(part.signedRaw, s.pub, intent);
+          if (!typed) s.promised.set(intent.recipient, nextPromise(s.promised, intent.recipient, intent.prev?.total ?? 0n, intent.total));
+        }
+      },
+    };
     let signer = null as Hex | null;
-    const part = await this.withSecret(
+    const part = await this.#use(
       kind,
       (secret, p) => {
         signer = bytesToHex(p);
         return fn(secret, p);
       },
       opts,
+      guard,
     );
     if (!isObject(part) || signer === null) throw new VaultError("bad-input", "the callback must return the journal fields");
     return this.journal.record({ ...part, kind, pub: signer });
@@ -809,7 +880,7 @@ export class MainnetVault {
     const iv = fromB64(rec.cipher.iv, IV_BYTES);
     const ct = fromB64(rec.ct, CT_BYTES);
     if (!iv || !ct) return false;
-    this.#session = { key, iv, ct, ctB64: rec.ct, aad: rec.cipher.aad, pub: rec.pub, pubBytes: hexToBytes(rec.pub) };
+    this.#session = { key, iv, ct, ctB64: rec.ct, aad: rec.cipher.aad, pub: rec.pub, pubBytes: hexToBytes(rec.pub), promised: new Map() };
     this.#lease = lease;
     this.#opLease = null;
     const n = this.#env.now();

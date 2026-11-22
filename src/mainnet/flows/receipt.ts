@@ -57,6 +57,9 @@ export function encodeReceipt(r: NoteReceipt): string {
 }
 
 /** Reads and verifies a receipt (the `note` field of the fragment, or the bare base64url text). */
+/** The latest time a JavaScript Date can show (year 275 760), in ms. */
+export const RECEIPT_MAX_TS = 8_640_000_000_000_000n;
+
 export function decodeReceipt(text: string, opts: { trackerNft?: string } = {}): { ok: true; receipt: NoteReceipt } | { ok: false; reason: ReceiptRefusal } {
   const raw = b64urlDecode(text.trim());
   if (raw === null) return { ok: false, reason: "format" };
@@ -74,7 +77,8 @@ export function decodeReceipt(text: string, opts: { trackerNft?: string } = {}):
   if (!PK.test(issuer) || !PK.test(recipient)) return { ok: false, reason: "keys" };
   if (issuer === recipient) return { ok: false, reason: "same-key" };
   const total = BigInt(o.a), timestamp = BigInt(o.ts);
-  if (total > I64_MAX || timestamp > I64_MAX) return { ok: false, reason: "format" };
+  // a note's time is a date: past the last one a Date can hold (8.64e15 ms), the link is malformed (keys review P2-4)
+  if (total > I64_MAX || timestamp > RECEIPT_MAX_TS) return { ok: false, reason: "format" };
   const receipt: NoteReceipt = { nft, issuer, recipient, total, timestamp, signature: sig };
   return verifyReceipt(receipt) ? { ok: true, receipt } : { ok: false, reason: "signature" };
 }

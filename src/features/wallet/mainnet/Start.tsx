@@ -156,20 +156,24 @@ function ImportHex() {
   const [hex, setHex] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
   const go = async (pass: string) => {
     setBusy(true);
     setErr(null);
     try { await vault.importHex(hex, pass); setHex(""); } catch (e) { setErr(verr(e)); } finally { setBusy(false); }
   };
+  // keys review P2-5: a text field masked by CSS, outside the passphrase form, marked for password managers to skip,
+  // so none of them offers to save the raw key as a "password"
   return (
     <>
       <Callout tone="alarm" title={t("mw.start.hexWarnT")}>{t("mw.start.hexWarnB")}</Callout>
-      <NewPassphrase busy={busy} label={t("mw.start.import")} onSubmit={(p) => void go(p)}
-        extra={(
-          <Field label={t("mw.start.hexLabel")} error={err ?? undefined}>
-            <TextInput type="password" mono autoComplete="off" value={hex} onChange={setHex} />
-          </Field>
-        )} />
+      <Field label={t("mw.start.hexLabel")} error={err ?? undefined}>
+        <TextInput type="text" mono className={shown ? undefined : "mw-masked"} value={hex} onChange={setHex}
+          autoComplete="off" autoCapitalize="off" autoCorrect="off" name="basis-key-import"
+          data-1p-ignore="" data-lpignore="true" data-bwignore="" data-form-type="other"
+          trailing={<button type="button" className="key sm quiet" aria-pressed={shown} onClick={() => setShown(!shown)}>{shown ? t("mw.set.hexHide") : t("mw.start.hexShow")}</button>} />
+      </Field>
+      <NewPassphrase busy={busy} label={t("mw.start.import")} onSubmit={(p) => void go(p)} />
     </>
   );
 }

@@ -24,7 +24,8 @@ export function Erg({ nano, sign, tone, unit = true }: { nano: bigint; sign?: "f
   return <Num value={nano} decimals={9} dp={dpOf(nano)} unit={unit ? "ERG" : undefined} sign={sign ?? "auto"} tone={tone} reveal />;
 }
 
-/** ERG as text inside a sentence, formatted exactly like <Erg> (the kit's units(), "." in both languages). */
+/** ERG as text inside a sentence, formatted exactly like <Erg>: the kit's units() in the page language («9,545 ERG»,
+ *  "9.545 ERG"). */
 export const ergText = (nano: bigint): string => `${units(nano, 9, dpOf(nano))}\u00a0ERG`;
 
 /** A link to ergoscan.me for a transaction, box or address. */
@@ -60,6 +61,10 @@ export function ProblemText({ p, what }: { p: Problem; what?: "create" | "build"
     case "network": text = t("mw.err.network"); break;
     case "aborted": text = t("mw.err.aborted"); break;
     case "shape": text = t("mw.err.shape"); break;
+    case "clock-skew": text = t("mw.err.clockSkew"); break;
+    case "stale-ts": text = t("mw.err.staleTs"); break;
+    case "submit-unknown": text = t("mw.err.submitUnknown"); break;
+    case "not-submitted": text = t("mw.err.notSubmitted"); break;
     default: text = t("mw.err.http", { status: p.status ?? "—" });
   }
   return (

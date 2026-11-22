@@ -3,11 +3,11 @@
 import { describe, expect, it } from "vitest";
 import { createServerClock } from "../../chain/ours/clock";
 import type { RawAnswer, RawOptions } from "../../chain/ours/raw";
-import { p2pkTree } from "../tx";
+import { RESERVE_TEMPLATE_HASH, p2pkTree } from "../tx";
 import { p2pkBox } from "../tx/testkit";
-import { TEXT } from "../tx/fixtures/chain";
+import { ISSUER_A, R3_RESERVE_IN, TEXT } from "../tx/fixtures/chain";
 import { backoffMs, problemOf, reasonOf } from "./problems";
-import { createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
+import { REDEMPTION_TIMEOUT_MS, chainReserveValue, createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
 
 const ME = "03" + "ab".repeat(32);
 const OTHER = "02" + "cd".repeat(32);
@@ -41,6 +41,21 @@ describe("problems", () => {
     expect(c8b).toMatchObject({ kind: "waiting-chain", txId: TX });
     expect(problemOf("submit", ans(409, env("unknown build")))!.kind).toBe("replaced");
     expect(problemOf("notes", ans(409, env("issuer has no active reserve under this tracker")))).toMatchObject({ kind: "conflict", reason: "issuer has no active reserve under this tracker" });
+  });
+
+  it("the tracker's build and submit answers about timestamps and broadcasts, in its exact words (8f8fb76)", () => {
+    const skew = problemOf("build", ans(400, env("request_timestamp 1795000000000 is more than 120 s away from the tracker's clock (1795000300000 ms); sign the request again with the current time")));
+    expect(skew).toMatchObject({ kind: "clock-skew", trackerNowMs: 1795000300000 });
+    const stale = problemOf("build", ans(409, env("request_timestamp 1795000000000 is not greater than this recipient's previous build request (1795000005000): sign every build request with a new, later timestamp")));
+    expect(stale).toMatchObject({ kind: "stale-ts", previousTs: 1795000005000 });
+    expect(problemOf("notes", ans(400, env("request_timestamp 1 is more than 120 s away from the tracker's clock (5 ms)")))!.kind).toBe("refused");
+    const unknown = problemOf("submit", ans(500, env(`the node did not answer for redemption ${TX}; the tracker watches the chain for it and records it if it is mined. Its reserve builds nothing until then, or until it can no longer be mined`)));
+    expect(unknown!.kind).toBe("submit-unknown");
+    expect(problemOf("submit", ans(500, env(`the node did not accept redemption ${TX}; build it again with POST /redemption/build`)))!.kind).toBe("not-submitted");
+    expect(problemOf("submit", ans(500, env(`the tracker cannot record redemption ${TX}, so it did not submit it; build it again with POST /redemption/build`)))!.kind).toBe("not-submitted");
+    expect(problemOf("submit", ans(500, env("something else")))!.kind).toBe("http");
+    expect(problemOf("submit", ans(409, env("Unknown, expired or already-used unsigned_tx. Call POST /redemption/build again to obtain a fresh one.")))!.kind).toBe("replaced");
+    expect(problemOf("submit", ans(408, "")))!.toMatchObject({ kind: "http", status: 408 });
   });
 
   it("400: future and past timestamps, other refusals; the reason is cut to 300 characters", () => {
@@ -86,6 +101,10 @@ describe("wallet routes", () => {
     const b = await net.build(`{"q":1}`);
     expect(b).toEqual({ ok: true, value: `{"success":true, "data":{"b":1,"a":2}}` });
     expect(saved[0]).toMatch(/^wallet-canary-build-200-\d+\.json$/);
+    // a build or submit waits longer than the tracker's own 30 s limit (money P1-2); other routes keep the default
+    await net.submit(`{"s":1}`);
+    expect(calls.map((c) => [c.route, c.o.timeoutMs])).toEqual([["/notes", undefined], ["/redemption/build", REDEMPTION_TIMEOUT_MS], ["/redemption/submit", REDEMPTION_TIMEOUT_MS]]);
+    expect(REDEMPTION_TIMEOUT_MS).toBeGreaterThanOrEqual(35_000);
   });
 
   it("broadcast: the node's id string is the answer; its error body is the reason", async () => {
@@ -136,6 +155,27 @@ describe("wallet routes", () => {
     expect(await net.txStatus(TX)).toEqual({ ok: true, value: { inclusionHeight: 1922314, confirmations: 3 } });
     expect(await net.txStatus(TX)).toEqual({ ok: true, value: null });
     expect(parseMempool(`{"items":[{"id":"zz"}]}`)).toBeNull();
+  });
+
+  it("reserves on chain: the pinned contract under its template, R4 = the owner, R6 = our NFT, ids checked", async () => {
+    const unspent = TEXT.r3ReserveIn.replace(/"spentTransactionId":"[0-9a-f]{64}"/, `"spentTransactionId":null`);
+    const forged = unspent.replace(`"value":"650000000"`, `"value":"6500000000"`); // its id no longer holds
+    const page = (items: string[], more: boolean) => `{"items":[${items.join(",")}],"total":9,"offset":0,"limit":50,"hasMore":${more},"nextCursor":null,"source":"indexer"}`;
+    const { net, calls } = fakeNet({ "/boxes/unspent/byErgoTreeTemplateHash/*": ans(200, page([unspent, forged, TEXT.r3ReserveIn], false)) });
+    const r = await net.reservesOnChain(ISSUER_A);
+    expect(r.ok && r.value).toMatchObject({ complete: true });
+    expect(r.ok && r.value.boxes.map((u) => u.box.boxId)).toEqual([R3_RESERVE_IN.boxId]);
+    expect(calls[0]).toMatchObject({ route: `/boxes/unspent/byErgoTreeTemplateHash/${RESERVE_TEMPLATE_HASH}?limit=50`, o: { method: "GET", priority: "poll" } });
+    expect(chainReserveValue(r.ok ? r.value : null)).toBe(650_000_000n);
+    const none = await net.reservesOnChain(OTHER);
+    expect(none.ok && none.value.boxes).toEqual([]);
+    expect(chainReserveValue(none.ok ? none.value : null)).toBe(0n);
+    expect(chainReserveValue(null)).toBe(0n);
+    expect(await net.reservesOnChain("02ab")).toMatchObject({ ok: false, problem: { kind: "refused" } });
+    // more reserves than four pages: a missing one is no proof
+    const many = fakeNet({ "/boxes/unspent/byErgoTreeTemplateHash/*": ans(200, page([], true)) });
+    expect(await many.net.reservesOnChain(ISSUER_A)).toEqual({ ok: true, value: { boxes: [], complete: false } });
+    expect(many.calls).toHaveLength(4);
   });
 
   it("box: re-read from the chain with its spender", async () => {

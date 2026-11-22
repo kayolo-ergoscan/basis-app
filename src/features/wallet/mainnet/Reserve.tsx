@@ -1,18 +1,19 @@
 // /wallet/mainnet/reserve — the key's reserve (design §2): its state when the tracker tracks it, or T1, which creates
 // it: precheck (the tracker, the journal, the mempool) → plan (coins, the final amount) → the tracker's template,
-// checked byte for byte against the app's pinned constants → the transaction, checked → review → hold to sign →
-// journal → broadcast → depth 2 → tracked → active. One reserve per key: a second one would be quarantined and block
+// checked byte for byte against the app's pinned constants → the transaction, checked → review → the passphrase again
+// (a T1 moves the whole reserve: the vault asks every time) → hold to sign → journal → broadcast → depth 2 → tracked →
+// active. One reserve per key: a second one would be quarantined and block
 // every new note for 60 days. Top-up and refund come later.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, int } from "@/ui";
+import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, TextInput, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
-  buildReserveCreation, checkReserveCreation, checkReservePayload, computeTxId, outputBoxes, parseReservePayload,
+  buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
   type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
-import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
+import { ergInput, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
 import { blocksNewT1, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
@@ -31,16 +32,19 @@ type Phase =
 /** The tracked reserve: what it holds, what its notes promise, its box on ergoscan.me. */
 export function ReserveCard({ r }: { r: TrackedReserve }) {
   const t = useT();
-  const cov = r.debt > 0n ? Number((r.collateral * 10000n) / r.debt) / 100 : null;
+  const { pct: cov, settled, settling } = reserveCoverage(r);
+  // a low figure while redemptions wait for the chain is the tracker's short delay, not a shortfall (money P2-8)
+  const lowOnlyForNow = settling && cov !== null && cov < 100 && (settled === null || settled >= 100);
   return (
     <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={cov} /> : undefined}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
-        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span></div>
+        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(cov) }) : t("mw.res.noDebt")}</span>
+          {r.pendingRedemption > 0n && <span className="t-small mw-dim">{t("mw.res.pendingRed", { amount: ergText(r.pendingRedemption) })}</span>}</div>
       </div>
       <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
       {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: int(r.refundHeight) })}</Callout>}
-      {cov !== null && cov < 100 && <Callout tone="alarm">{t("mw.res.under")}</Callout>}
+      {cov !== null && cov < 100 && (lowOnlyForNow ? <Callout tone="calm">{t("mw.res.settling")}</Callout> : <Callout tone="alarm">{t("mw.res.under")}</Callout>)}
       <p className="t-small mw-dim">{t("mw.res.lock")}</p>
       <p className="t-small mw-dim">{t("mw.res.later")}</p>
     </Card>
@@ -74,9 +78,11 @@ export function ReserveScreen() {
   const verr = useVaultError();
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const un = useUnspent(me, height, state.backedUp);
-  const [amountText, setAmountText] = useState(ergPlain(RESERVE_DEFAULT_CAP_NANOERG / 2n));
+  const [amountText, setAmountText] = useState(() => ergInput(RESERVE_DEFAULT_CAP_NANOERG / 2n));
   const [big, setBig] = useState(false);
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const [pass, setPass] = useState("");
+  const [passWrong, setPassWrong] = useState(false);
   const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
   const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
   const cap = big ? RESERVE_HARD_CAP_NANOERG : RESERVE_DEFAULT_CAP_NANOERG;
@@ -98,6 +104,11 @@ export function ReserveScreen() {
     res.refresh();
     if (mine.value.length > 0) return fail({ text: t("mw.res.hasReserve") });
     if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
+    // the chain too (money review P2-4): a reserve made on another device, or one the tracker does not show yet
+    const onChain = await net().reservesOnChain(me.pub, { priority: "user" });
+    if (!onChain.ok) return fail({ problem: onChain.problem });
+    if (onChain.value.boxes.length > 0) return fail({ text: t("mw.res.hasReserveChain") });
+    if (!onChain.value.complete) return fail({ text: t("mw.res.chainIncomplete") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
     if (mempoolCreatesReserve(mem.value)) return fail({ text: t("mw.res.inMempool") });
@@ -142,21 +153,29 @@ export function ReserveScreen() {
     if (!me || height === null) return;
     const plan = planCombine(usable, me.pub, me.address, height);
     if (!plan.ok) return fail({ text: t("mw.res.combineNo") });
+    const c = checkWithdraw(plan.tx, plan.inputs, { owner: me.pub, to: me.address, amount: plan.sent, fee: MINER_FEE_NANOERG, height });
+    if (!c.ok) return fail({ text: t("mw.res.checkFailed"), rule: `${c.rule}: ${c.message}` });
     setPhase({ k: "combine", plan, tip: height, txId: computeTxId(plan.tx) });
   }
 
   async function sign() {
-    if (phase.k !== "review" || !me) return;
+    if (phase.k !== "review" || !me || !pass) return;
+    const review = phase;
     const { plan, fee, tx, tip } = phase;
     setPhase({ k: "working", step: "sign" });
+    setPassWrong(false);
     try {
       const reserveBox = outputBoxes(tx)[0].boxId;
-      const r = await signAndSend(vault, "t1", tx, plan.inputs, { amount: plan.amount.toString(), fee: fee.toString(), nftId: plan.nftId, reserveBox }, tip);
+      const r = await signAndSend(vault, "t1", tx, plan.inputs, { amount: plan.amount.toString(), fee: fee.toString(), nftId: plan.nftId, reserveBox }, tip, pass);
+      setPass("");
       setPhase(r.problem ? { k: "error", problem: r.problem } : { k: "idle" });
     } catch (e) {
+      if (isVaultError(e, "wrong-passphrase")) { setPassWrong(true); return setPhase(review); }
       if (isBroadcastLimit(e)) {
-        const fresh = un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : plan.inputs;
-        return offerCombine(fresh);
+        // the same filter as every selection: boxes an open entry or a mempool transaction spends stay out (P2-1)
+        const m = await net().mempool(me.address, { priority: "user" });
+        if (!m.ok) return fail({ problem: m.problem });
+        return offerCombine(un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub), m.value) : plan.inputs);
       }
       fail({ text: isVaultError(e, "t1-exists") ? t("mw.res.hasT1") : verr(e) });
     }
@@ -203,7 +222,10 @@ export function ReserveScreen() {
                       sum={{ label: t("mw.res.rowSpent", { n: phase.plan.inputs.length }), value: <Erg nano={phase.plan.inputs.reduce((s, b) => s + b.value, 0n)} /> }}
                       extra={<p className="t-small">{t("mw.res.reviewChecks")}</p>} />
                     <Callout tone="policy">{t("mw.res.lock")}</Callout>
-                    <Key variant="primary" hold block onAct={() => void sign()}>{t("mw.res.hold")}</Key>
+                    <Field label={t("mw.pay.passAgain")} help={t("mw.res.passWhy")} error={passWrong ? t("mw.pay.passWrong") : undefined}>
+                      <TextInput type="password" autoComplete="current-password" value={pass} onChange={(v) => { setPass(v); setPassWrong(false); }} />
+                    </Field>
+                    <Key variant="primary" hold block disabled={!pass} onAct={() => void sign()}>{t("mw.res.hold")}</Key>
                     <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
                   </div>
                 ) : phase.k === "combine" ? (

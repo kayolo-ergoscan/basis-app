@@ -131,6 +131,29 @@ export function planCombine(boxes: readonly ErgoBox[], owner: string, ownAddress
   }
 }
 
+/**
+ * "Cancel" a T1 or Withdraw the node refused and nobody has (money review P2-1): spend one of its inputs back to the
+ * key's own address. Once that is in a block, the stuck transaction can never confirm, the watcher sees its input spent
+ * by another transaction and closes it as failed. `boxes`: the key's confirmed boxes that are still unspent, also in
+ * the mempool. The smallest box that pays the fee is used; a token box keeps its tokens in a change box.
+ */
+export function planCancel(stuckInputs: readonly string[], boxes: readonly ErgoBox[], owner: string, ownAddress: string, height: number, fee: bigint = MINER_FEE_NANOERG): WithdrawPlan {
+  const ids = new Set(stuckInputs);
+  const mine = boxes.filter((b) => ids.has(b.boxId));
+  if (mine.length === 0) return { ok: false, why: "short" };
+  const asc = (a: ErgoBox, b: ErgoBox) => (a.value === b.value ? 0 : a.value < b.value ? -1 : 1);
+  const pick = mine.filter((b) => b.tokens.length === 0 && b.value - fee >= MIN_BOX_NANOERG).sort(asc)[0] ??
+    mine.filter((b) => b.tokens.length > 0 && b.value - fee >= 2n * MIN_BOX_NANOERG).sort(asc)[0];
+  if (!pick) return { ok: false, why: "dust" };
+  const amount = pick.tokens.length > 0 ? pick.value - fee - MIN_BOX_NANOERG : pick.value - fee;
+  try {
+    const tx = buildWithdraw({ owner, inputs: [pick], to: ownAddress, amount, fee, height });
+    return { ok: true, inputs: [pick], tx, change: pick.value - fee - amount, sent: amount };
+  } catch (e) {
+    return { ok: false, why: "build", message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** True for the signer's "spend fewer boxes" refusal (above the 16 KB broadcast limit): offer Combine, not an error. */
 export const isBroadcastLimit = (e: unknown): boolean => e instanceof Error && /broadcast limit/.test(e.message);
 

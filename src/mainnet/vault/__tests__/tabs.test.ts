@@ -25,7 +25,7 @@ describe("mainnet vault: tabs", () => {
     expect(t.getState().status).toBe("unlocked");
     expect(b.locks.holder(SIGN_LOCK_NAME)).toBe("b");
     expect(await code(a.withSecret("t1", () => 1))).toBe("locked");
-    expect(await t.withSecret("t1", () => 2)).toBe(2);
+    expect(await t.withSecret("redeem", () => 2)).toBe(2);
     expect(await a.signingElsewhere()).toBe(true);
 
     t.lock();

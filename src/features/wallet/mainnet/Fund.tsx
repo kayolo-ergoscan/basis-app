@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, Lamp, int } from "@/ui";
 import { MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_MIN_NANOERG } from "@/mainnet/tx";
-import { balanceOf, ergPlain, parseErg, spendable } from "@/mainnet/flows";
+import { balanceOf, ergInput, parseErg, spendable } from "@/mainnet/flows";
 import { mempoolInflow } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
@@ -18,7 +18,7 @@ export const T1_FEE_ALLOWANCE = 1_100_000n;
 export function FundScreen() {
   const t = useT();
   const { vault, state, me, height, entries } = useMw();
-  const [amountText, setAmountText] = useState(ergPlain(RESERVE_DEFAULT_CAP_NANOERG / 2n));
+  const [amountText, setAmountText] = useState(() => ergInput(RESERVE_DEFAULT_CAP_NANOERG / 2n));
   const un = useUnspent(me, height, state.backedUp);
   const mem = useResource(me ? R.mempool(me.address) : null, { everyMs: 20_000, enabled: state.backedUp && !!me });
   const usable = useMemo(() => (me && un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub), mem.value ?? []) : []), [me, un.value, mem.value, entries]);

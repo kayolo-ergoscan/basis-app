@@ -1,7 +1,7 @@
 // /wallet/mainnet/* — the Basis wallet on Ergo mainnet (beta, real ERG), against ErgoScan's tracker. Its own lazy chunk:
 // the vault (src/mainnet/vault), the transaction core (src/mainnet/tx), the network (src/mainnet/net) and these screens.
 // Every screen carries the MAINNET seal; the sandbox wallet and its key are never touched from here.
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { addI18n, getLang, useT } from "@/app/lang";
 import { useTitle } from "@/app/frame";
@@ -9,6 +9,7 @@ import { useHeight } from "@/app/height";
 import { typo } from "@/content";
 import { Callout, ErrorState, Icon, Key, KeySeal, Loading, Page, short } from "@/ui";
 import { p2pkTree } from "@/mainnet/tx";
+import { setMainnetPubMarker } from "@/mainnet/key-markers";
 import { WalletModeSwitch } from "../ModeSwitch";
 import strings from "./strings";
 import { MwCtx, type MwContext } from "./ctx";
@@ -96,6 +97,12 @@ export default function MainnetWallet() {
   const key = state.key;
   const me = useMemo(() => (key ? { pub: key.pub, address: key.address, tree: p2pkTree(key.pub) } : null), [key]);
   useJournalWatcher(vault, me, height, entries);
+  // the sandbox refuses to import this key while it is here (keys review P2-7)
+  const pubNow = key?.pub ?? null;
+  useEffect(() => {
+    if (pubNow) setMainnetPubMarker(pubNow);
+    else if (state.status === "none") setMainnetPubMarker(null);
+  }, [pubNow, state.status]);
   const ctx: MwContext | null = vault && state.status !== "loading" ? { vault, state, entries, me, height } : null;
 
   let body;

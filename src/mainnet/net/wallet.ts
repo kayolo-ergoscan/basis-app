@@ -8,12 +8,21 @@ import {
 } from "../../chain/ours";
 import type { ServerClock } from "../../chain/ours/clock";
 import { createRawClient, type RawAnswer, type RawClient } from "../../chain/ours/raw";
-import { boxFromV1, parseJson, saveDevFixture, utf8Length, type ErgoBox, type JsonNode } from "../tx";
+import {
+  RESERVE_TEMPLATE_HASH, RESERVE_TREE_HEX, TRACKER_NFT, boxFromV1, boxIdHolds, parseJson, register, saveDevFixture, utf8Length, type ErgoBox, type JsonNode,
+} from "../tx";
 import { localProblem, problemOf, type Problem, type WalletRoute } from "./problems";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; problem: Problem };
 
 export interface NetOptions { signal?: AbortSignal; priority?: Priority }
+
+/**
+ * How long a redemption build or submit may take (money review P1-2): the tracker calls the node (up to 15 s a call) and
+ * its own limit is 30 s (TimeoutLayer, then 408). Waiting longer than that means the wallet hears the tracker's answer
+ * instead of guessing; the front's proxy_read_timeout is above it too.
+ */
+export const REDEMPTION_TIMEOUT_MS = 40_000;
 
 /** Body limits of the front (nginx `client_max_body_size`, tracker-ops/front/nginx.conf.tmpl). */
 export const FRONT_BODY_MAX = { notes: 4096, "reserves-create": 4096, build: 4096, submit: 65536, broadcast: 16384 } as const;
@@ -37,6 +46,19 @@ export interface TxStatus { inclusionHeight: number; confirmations: number }
 
 export interface ChainBox { text: string; box: ErgoBox; spentBy: string | null }
 
+/** A key's reserves under our tracker as the chain shows them: the pinned contract, R4 = the owner, R6 = our NFT. */
+export interface ChainReserves {
+  boxes: UnspentBox[];
+  /** False when /v1 lists more reserves of the contract than the pages read: then a missing one is not proof. */
+  complete: boolean;
+}
+
+/** The value the passphrase rule counts against (design §4.2): the smallest of the key's reserves on chain, 0 for none. */
+export function chainReserveValue(r: ChainReserves | null): bigint {
+  if (!r || r.boxes.length === 0) return 0n;
+  return r.boxes.reduce((m, b) => (b.box.value < m ? b.box.value : m), r.boxes[0].box.value);
+}
+
 export interface WalletNet {
   readonly clock: ServerClock;
   trackerState(o?: NetOptions): Promise<Result<TrackerState>>;
@@ -54,6 +76,8 @@ export interface WalletNet {
   unspent(address: string, ergoTree: string, o?: NetOptions): Promise<Result<UnspentList>>;
   mempool(address: string, o?: NetOptions): Promise<Result<MempoolTx[]>>;
   box(boxId: string, o?: NetOptions): Promise<Result<ChainBox>>;
+  /** The key's unspent reserves under our tracker, from /v1 (never from the tracker): every box id checked. */
+  reservesOnChain(owner: string, o?: NetOptions): Promise<Result<ChainReserves>>;
   /** null: not in a block (yet). */
   txStatus(txId: string, o?: NetOptions): Promise<Result<TxStatus | null>>;
 }
@@ -62,6 +86,8 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const PK = /^0[23][0-9a-f]{64}$/;
 const UNSPENT_PAGE = 50;
 const UNSPENT_PAGES = 4;
+/** Every reserve of the contract (all owners, all trackers) is listed under its template: read at most this many pages. */
+const RESERVE_PAGES = 4;
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const bigOf = (v: unknown): bigint | null =>
@@ -142,8 +168,11 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
   const { tracker, v1 } = deps;
   const save = deps.saveFixture ?? (() => {});
 
-  const ask = (client: Pick<RawClient, "raw">, route: string, o: NetOptions = {}, post?: string): Promise<RawAnswer> =>
-    client.raw(route, { method: post === undefined ? "GET" : "POST", body: post, priority: o.priority ?? (post === undefined ? "poll" : "user"), signal: o.signal });
+  const ask = (client: Pick<RawClient, "raw">, route: string, o: NetOptions = {}, post?: string, timeoutMs?: number): Promise<RawAnswer> =>
+    client.raw(route, {
+      method: post === undefined ? "GET" : "POST", body: post, priority: o.priority ?? (post === undefined ? "poll" : "user"), signal: o.signal,
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    });
 
   async function getJson<T>(name: WalletRoute, route: string, parse: (d: unknown) => T | null, bigKeys: readonly string[], o?: NetOptions): Promise<Result<T>> {
     const a = await ask(tracker, route, o);
@@ -157,7 +186,7 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
 
   async function post(name: "notes" | "reserves-create" | "build" | "submit" | "broadcast", route: string, body: string, o?: NetOptions): Promise<Result<string>> {
     if (utf8Length(body) > FRONT_BODY_MAX[name]) return { ok: false, problem: localProblem("too-large", `${utf8Length(body)} bytes; the front takes at most ${FRONT_BODY_MAX[name]}`) };
-    const a = await ask(tracker, route, o, body);
+    const a = await ask(tracker, route, o, body, name === "build" || name === "submit" ? REDEMPTION_TIMEOUT_MS : undefined);
     const p = problemOf(name, a);
     if (a.ok && name !== "notes" && name !== "broadcast") save(`wallet-canary-${name}-${a.status}-${Date.now()}.json`, a.text);
     if (p || !a.ok) return { ok: false, problem: p ?? localProblem("network") };
@@ -234,6 +263,21 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
       if (r.value.status === 404) return { ok: true, value: [] };
       const list = parseMempool(r.value.text);
       return list ? { ok: true, value: list } : { ok: false, problem: localProblem("shape", "the mempool answer could not be read") };
+    },
+    async reservesOnChain(owner, o) {
+      if (!PK.test(owner)) return { ok: false, problem: localProblem("refused", "not a public key") };
+      const boxes: UnspentBox[] = [];
+      const r4 = `07${owner}`, r6 = `0e20${TRACKER_NFT}`;
+      for (let page = 0; page < RESERVE_PAGES; page++) {
+        const r = await v1Get(`/boxes/unspent/byErgoTreeTemplateHash/${RESERVE_TEMPLATE_HASH}?limit=${UNSPENT_PAGE}${page ? `&offset=${page * UNSPENT_PAGE}` : ""}`, o);
+        if (!r.ok) return r;
+        if (r.value.status === 404) return { ok: true, value: { boxes, complete: true } };
+        const pg = parseUnspentPage(r.value.text, RESERVE_TREE_HEX);
+        if (!pg) return { ok: false, problem: localProblem("shape", "the reserves on chain could not be read") };
+        for (const u of pg.boxes) if (register(u.box, "R4") === r4 && register(u.box, "R6") === r6 && boxIdHolds(u.box)) boxes.push(u);
+        if (!pg.hasMore) return { ok: true, value: { boxes, complete: true } };
+      }
+      return { ok: true, value: { boxes, complete: false } };
     },
     async box(boxId, o) {
       if (!HEX64.test(boxId)) return { ok: false, problem: localProblem("refused", "not a box id") };

@@ -51,7 +51,7 @@ For `damaged`, `backedUp` says whether that record had a verified backup.
 | `exportBackup({ extras? })` → `{ filename, json }` | The backup file of the unlocked key, with the watched issuers and contacts sealed inside. Offer it as a download (`application/json`) | `locked`, `bad-input` (extras) |
 | `verifyBackup(fileText, passphrase)` → state | The user loads the file again and types the passphrase. A match sets `backedUpAt`. Works locked or unlocked | `bad-backup`, `backup-other-key`, `wrong-passphrase`, `no-key`, `damaged` |
 | `restoreFromBackup(fileText, passphrase, { takeOver? })` → `{ state, alreadyPresent, extras, extrasUnreadable, persisted }` | Restores into a browser without a key; unlocked and backed up afterwards. The same key already here: the file only counts as a verified backup (`alreadyPresent`). `extras` are decrypted and returned as untrusted input; `extrasUnreadable` means the file has extras that do not open (the key restores without them) | `bad-backup`, `wrong-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
-| `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
+| `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified. This browser's sandbox key (its record's public key, `env.sandboxPub`) is refused: the sandbox keeps its secret as plain text (keys review P2-7) | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused`, `sandbox-key-refused` |
 | `unlock(passphrase, { takeOver? })` → state | Opens the session in this tab. When it is already open, it still checks the passphrase | `no-key`, `damaged`, `wrong-passphrase`, `locked-elsewhere`, `tracker-key-refused`, `locked` (lock() came first) |
 | `lock(reason = "manual")` (sync) | Drops the session and releases the Web Lock. It never throws | |
 | `confirmPassphrase(passphrase)` → boolean | True when the passphrase opens the stored key. It changes nothing | `no-key`, `damaged` |
@@ -88,17 +88,33 @@ progress. The design expects 0.5–1.5 s on phones.
 
   It fails closed: a function or a promise anywhere, more than 12 levels, more than 50 000 parts or a string over
   1 MiB counts as a leak. An error from `fn` that does not hold the secret passes through unchanged.
-- **`passphrase`:** asks for the passphrase again, which runs one derivation. The design wants this for any signature
-  that moves or promises more than 25 % of the reserve (§4.2); that policy belongs to the flow.
+- **`passphrase`:** asks for the passphrase again, which runs one derivation. The vault enforces when (§4.2, keys
+  review P1-2, `policy.ts`):
+  - `t1` (a reserve creation moves the whole reserve) and `export-hex`: always;
+  - `withdraw`: unless every output of the signed transaction pays this key's own P2PK tree or the miner-fee tree, and
+    the fee outputs add up to at most `MINER_FEE_NANOERG` (Combine, a cancel back to the key); `signToJournal` reads the
+    signed bytes with the strict parser and drops them when the rule is broken;
+  - `note`: when the notes signed since the passphrase was last typed (the unlock counts, so does any use with
+    `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
+    read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
+    the pair's previous note, which must be this key's (its signature is checked);
+  - `redeem`, `build-request`: never. A redemption pays only this key: `signToJournal("redeem")` refuses (`bad-input`)
+    signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`].
+
+  A direct `withSecret` for `t1`, `withdraw` or `note` always needs `passphrase` (the vault cannot see what such a
+  callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule
+  binds the app's own flows; code injected into the page could still call `withSecret("redeem", …)` with any callback,
+  which is what the CSP is for.
 - **`export-hex`:** always needs `passphrase`, and it is the one purpose whose output is not scanned: its output is the
   key. Show it behind a hold and a warning (§4.3). Never put it in state, storage or a URL, and clear it from the screen
   afterwards.
 - **Hold-to-sign:** every signature is an explicit hold (§4.2). That is the UI's part.
 
-`signToJournal(kind, fn, { passphrase? })` → `JournalEntry` signs and records in one step; use it for every T1,
-redemption, withdrawal and note. `fn` returns the journal fields `{ txId, signedRaw, unsignedRaw?, inputs, meta?,
-height? }`. For a T1, the journal is checked before the key is touched (`t1-exists`). If the journal refuses the
-entry, the signed bytes are dropped and never sent.
+`signToJournal(kind, fn, { passphrase?, note? })` → `JournalEntry` signs and records in one step; use it for every
+T1, redemption, withdrawal and note. `fn` returns the journal fields `{ txId, signedRaw, unsignedRaw?, inputs, meta?,
+height? }`. For a T1, the journal is checked before the key is touched (`t1-exists`). A note needs `note: { recipient,
+total, reserveValue, prev }` (what it promises); the signed `POST /notes` body must be exactly that note. If the journal
+or a rule refuses the entry, the signed bytes are dropped and never sent.
 
 ```ts
 const entry = await vault.signToJournal("withdraw", (sk) => {
@@ -133,6 +149,7 @@ On page load, `unresolved(pub)` lists the open entries: poll them, and rebroadca
 | `inFlightInputs(pub?)` → `Set` | Box ids spent by open entries: coin selection must skip them |
 | `claimTimestamp(scope, candidateMs)` → ms | Strictly increasing per scope, across reloads and tabs: max(last + 1, candidate). It is stored before use |
 | `lastTimestamp(scope)` | The last claim, or null |
+| `rewindTimestamp(scope, refusedMs, toMs)` → boolean | After the server refused that very claim for its clock window (a build request more than 120 s off): the last claim becomes `toMs`. Nothing changes when a later claim was made, or `toMs` is not lower |
 | `getSnapshot()`, `subscribe(fn)`, `reload()` | For React: all entries, newest first. Other tabs' changes arrive by themselves |
 
 Scopes: `buildScope(receiver)` for redemption build requests (`claimTimestamp(buildScope(me), serverNow)`), and
@@ -146,8 +163,9 @@ design §6.6).
 | --- | --- |
 | `signed` | `sent`, `mempool`, `confirmed`, `final`, `failed` (and `abandoned` through `abandon()`) |
 | `sent`, `mempool`, `confirmed` | each other (a drop from the mempool, a reorg), `final`, `failed` |
-| `failed` | `confirmed`, `final` (the chain has the last word) |
-| `final`, `abandoned` | nothing |
+| `final` | `sent`, `mempool`, `confirmed` (a reorg deeper than 2 blocks; flows/track.ts checks again until depth 10) |
+| `failed` | `mempool`, `confirmed`, `final` (the chain has the last word: a failed entry that was sent is still looked for, flows/track.ts) |
+| `abandoned` | nothing |
 
 **One reserve per key:**
 - At most one T1 per key that is not failed, abandoned or retired. The rule is atomic across tabs and throws
@@ -259,11 +277,12 @@ Every error is a `VaultError`: `{ name: "VaultError", code, message, detail }`. 
 | `damaged` | The stored record is unreadable. Offer a restore from the file after `wipe({ confirmUnbacked })` |
 | `weak-passphrase` | Fewer than 12 characters after NFKC |
 | `wrong-passphrase` | A wrong passphrase, or changed encrypted data (AES-GCM cannot tell them apart) |
-| `passphrase-required` | `export-hex` without `passphrase` |
+| `passphrase-required` | A use that needs `passphrase` without it (`detail.reason`: `export-hex`, `t1`, `withdraw`, `note`, `withdraw-foreign`, `note-over-quarter`, `note-no-reserve`) |
 | `bad-backup` | Not a well-formed mainnet key backup (a sandbox file included), or its secret does not match its `pub` |
 | `backup-other-key` | The file holds another key than this browser's |
 | `invalid-hex`, `out-of-range` | Not 64 hex characters, or not in [1, n − 1] |
 | `tracker-key-refused` | ErgoScan's tracker key (see below) |
+| `sandbox-key-refused` | This browser's sandbox key: `importHex` never takes it (keys review P2-7) |
 | `locked` | The session is locked (or locked itself meanwhile) |
 | `locked-elsewhere` | Another tab holds the signer (`takeOver` takes it) |
 | `not-backed-up` | No verified backup yet: nothing is signed, and a wipe needs `confirmUnbacked` |

@@ -95,7 +95,8 @@ const META_KEY = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 
 /**
  * Allowed state changes. sent, mempool and confirmed may move among themselves (a drop from the mempool, a reorg);
- * final and abandoned are terminal; failed can still become confirmed or final, because the chain has the last word.
+ * final can still go back to sent, mempool or confirmed (a reorg deeper than its 2 blocks); abandoned is terminal;
+ * failed can still be seen in the mempool or become confirmed or final, because the chain has the last word.
  * "abandoned" is reached only through abandon(), and only before the first send.
  */
 const NEXT: Readonly<Record<JournalState, readonly JournalState[]>> = {
@@ -103,8 +104,8 @@ const NEXT: Readonly<Record<JournalState, readonly JournalState[]>> = {
   sent: ["mempool", "confirmed", "final", "failed"],
   mempool: ["sent", "confirmed", "final", "failed"],
   confirmed: ["sent", "mempool", "final", "failed"],
-  final: [],
-  failed: ["confirmed", "final"],
+  final: ["sent", "mempool", "confirmed"],
+  failed: ["mempool", "confirmed", "final"],
   abandoned: [],
 };
 
@@ -418,6 +419,24 @@ export class MainnetJournal {
       if (!Number.isSafeInteger(next)) throw bad("the timestamp is out of range");
       await t.put(STORE_META, `ts|${scope}`, { last: next, at: now });
       return next;
+    });
+  }
+
+  /**
+   * Takes back the scope's last claim after the server refused that very timestamp for being too far from its clock
+   * (a build request's 120 s window): the last claim becomes `toMs`, so the next claim can follow the server's clock
+   * again. Does nothing (false) when a later claim was made meanwhile, or when `toMs` is not below the refused claim.
+   */
+  async rewindTimestamp(scope: string, refusedMs: number, toMs: number): Promise<boolean> {
+    if (typeof scope !== "string" || scope.length === 0 || scope.length > 200) throw bad("a timestamp scope is 1–200 characters");
+    if (!Number.isSafeInteger(refusedMs) || !Number.isSafeInteger(toMs) || toMs < 0) throw bad("the timestamps are times in ms");
+    const now = this.#deps.now();
+    return this.#db().write(async (t) => {
+      const cur = await t.get<unknown>(STORE_META, `ts|${scope}`);
+      const last = isObject(cur) && typeof cur.last === "number" && Number.isSafeInteger(cur.last) ? cur.last : null;
+      if (last !== refusedMs || toMs >= refusedMs) return false;
+      await t.put(STORE_META, `ts|${scope}`, { last: toMs, at: now });
+      return true;
     });
   }
 

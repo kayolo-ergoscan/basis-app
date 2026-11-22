@@ -22,6 +22,8 @@ export type VaultErrorCode =
   | "out-of-range"
   /** The key is ErgoScan's tracker key: it lives only on the server and is never accepted here. */
   | "tracker-key-refused"
+  /** The key is this browser's sandbox key (kept as plain text for play money): never a mainnet key. */
+  | "sandbox-key-refused"
   | "locked"
   /** Another tab holds the signer (Web Lock). */
   | "locked-elsewhere"

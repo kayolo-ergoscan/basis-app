@@ -26,6 +26,9 @@ export const RESERVE_TREE_HEX: Hex =
   "9299c17205c1a7731a95937202731bea02d1edededed720692c17205c1a793e4c672050564e4c6a7056492e4c6720507057ea30593720773" +
   "1ccd720495937202731dea02d1ed917207731e927ea3059a72077e731f05cd7204d17320";
 
+/** The tree template hash of RESERVE_TREE_HEX (/v1 lists reserves under it: byErgoTreeTemplateHash). */
+export const RESERVE_TEMPLATE_HASH = "6e7d9a0e012e556d78a84cb373eca1b279695e7b48731b9158fd0ddd3faeff01";
+
 /** SHA-256 and blake2b256 of RESERVE_TREE_HEX (design Appendix A). */
 export const RESERVE_TREE_SHA256 = "760b84d23538708f9997f5598f02bdc7e3b90d4d52f47d5ab3744aa71cdae4f6";
 export const RESERVE_TREE_BLAKE2B256 = "fe185cf083caa6a1027369f117d5a2c74ebcaabafe514dac0093c62cc3b212f8";

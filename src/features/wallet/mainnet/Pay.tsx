@@ -1,17 +1,22 @@
 // /wallet/mainnet/pay — issue or raise a note (design §6.2 "Note (pay)"): the receiver (public key or P2PK address),
-// the amount to add, the pair's current note from the tracker → the new cumulative total, the coverage after it
-// (wallet policy: warn when notes exceed the reserve), hold to sign (0.7 s; the passphrase again above 25 % of the
-// reserve), journal, POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits
-// it: about 10–25 minutes until the receiver can redeem.
+// the amount to add, the pair's current note from the tracker, checked (this key's signature, our tracker, not older than
+// what the tracker took from this browser, not dated ahead) → the new cumulative total, the coverage after it
+// (wallet policy: warn when notes exceed the reserve), hold to sign (0.7 s; the passphrase again once the notes signed
+// since it was typed promise more than 25 % of the reserve on chain: the vault decides, vault/policy.ts), journal,
+// POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 10–25
+// minutes until the receiver can redeem.
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, TextInput, short } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, TextInput, int, short } from "@/ui";
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
-import { TRACKER_NFT, parseStoredNote, p2pkAddress } from "@/mainnet/tx";
-import { coverage, ergPlain, needsPassphrase, noteTimestamp, parseErg, parseRequest, receiptLink, signNote, type NoteReceipt } from "@/mainnet/flows";
-import { isVaultError, noteScope, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
-import { localProblem, type Problem } from "@/mainnet/net";
+import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
+import {
+  checkPreviousNote, coverage, ergInput, laterNoteCovers, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
+  type CheckedPrev, type NoteReceipt, type PrevNoteRule,
+} from "@/mainnet/flows";
+import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
+import { chainReserveValue, localProblem, type Problem } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource } from "./data";
@@ -24,15 +29,21 @@ export function receiptOf(e: JournalEntry): NoteReceipt | null {
   return { nft: TRACKER_NFT, issuer: e.pub, recipient: m.to, total: BigInt(m.total), timestamp: BigInt(m.ts), signature: m.sig };
 }
 
-/** Follows a recorded note at the tracker: pending (a commit carries it) → committed. */
+/** Follows a recorded note at the tracker: pending (a commit carries it) → committed. A note sent without an answer
+ *  (still "signed") is followed too: once the pair shows exactly it, it was recorded. */
 export function useNoteTracking(vault: MainnetVault, e: JournalEntry | null) {
-  const open = !!e && (e.state === "sent" || e.state === "mempool" || e.state === "confirmed");
+  const uncertain = !!e && e.state === "signed" && e.sendAttempts > 0;
+  const open = !!e && (e.state === "sent" || e.state === "mempool" || e.state === "confirmed" || uncertain);
   const to = e && typeof e.meta.to === "string" ? e.meta.to : null;
   const pair = useResource(e && to ? R.pair(e.pub, to) : null, { everyMs: 120_000, enabled: open });
   useEffect(() => {
     if (!e || !open || !pair.value) return;
     let n;
     try { n = parseStoredNote(pair.value); } catch { return; }
+    if (uncertain) {
+      if (storedIsEntry(n, e)) void vault.journal.update(e.id, { state: "sent", error: null, meta: { status: "local_only" } });
+      return;
+    }
     const total = typeof e.meta.total === "string" ? BigInt(e.meta.total) : null;
     if (total === null) return;
     const committed = n.confirmation?.confirmedTotalDebt ?? null;
@@ -41,7 +52,7 @@ export function useNoteTracking(vault: MainnetVault, e: JournalEntry | null) {
     } else if (n.confirmation?.status === "pending" && e.state === "sent") {
       void vault.journal.update(e.id, { state: "mempool", meta: { status: "pending" } });
     }
-  }, [vault, e, open, pair.value]);
+  }, [vault, e, open, uncertain, pair.value]);
   return pair;
 }
 
@@ -83,7 +94,27 @@ function NoteStatus({ e }: { e: JournalEntry }) {
   );
 }
 
-type Draft = { to: string; add: bigint; prev: { total: bigint; redeemed: bigint; timestamp: bigint } | null; reserve: TrackedReserve | null; debt: bigint };
+/** reserve: the tracker's view; onChain: the key's reserve value read from /v1 (the passphrase rule counts this one). */
+type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; onChain: bigint; debt: bigint; needPass?: boolean };
+
+/** What the note promises, as the vault checks it (vault/policy.ts). */
+const intentOf = (d: Draft): NoteIntent => ({
+  recipient: d.to,
+  total: (d.prev?.total ?? 0n) + d.add,
+  reserveValue: d.onChain,
+  prev: d.prev ? { total: d.prev.total, timestamp: d.prev.timestamp, signature: d.prev.signature } : null,
+});
+
+/** The journal error of a note a later one replaced (stored as plain text, like the tracker's reasons). */
+const SUPERSEDED = "A later note to this receiver replaced it; this one can no longer be recorded.";
+/** … when that later note (this key, maybe on another device) promises at least this total: this one is inside it. */
+const INCLUDED = "A later note to this receiver already promises this total or more; this payment is included in it.";
+
+/** The pair's stored note: parsed, or null when the pair has none; "bad" when the answer cannot be read. */
+function readPair(text: string | null): StoredNote | null | "bad" {
+  if (text === null) return null;
+  try { return parseStoredNote(text); } catch { return "bad"; }
+}
 type Phase = { k: "edit" } | { k: "working" } | { k: "review"; d: Draft } | { k: "done"; id: string } | { k: "error"; problem?: Problem; text?: string; id?: string };
 
 export function PayScreen() {
@@ -93,7 +124,7 @@ export function PayScreen() {
   const loc = useLocation();
   const req = useMemo(() => parseRequest(loc.hash), [loc.hash]);
   const [toText, setToText] = useState(req?.to ?? "");
-  const [amountText, setAmountText] = useState(req?.amount ? ergPlain(req.amount) : "");
+  const [amountText, setAmountText] = useState(req?.amount ? ergInput(req.amount) : "");
   const [pass, setPass] = useState("");
   const [phase, setPhase] = useState<Phase>({ k: "edit" });
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
@@ -107,41 +138,70 @@ export function PayScreen() {
   const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note").slice(0, 8) : []), [entries, me]);
   const current = phase.k === "done" ? entries.find((e) => e.id === phase.id) ?? null : null;
 
+  const prevText = (rule: PrevNoteRule) => t(`mw.pay.prev.${rule}`);
+
+  /**
+   * The pair's previous note, checked against this key and this browser's journal (keys review P0-1): a note sent
+   * earlier without an answer that the tracker now shows is marked recorded; one a later note replaced is closed. Null
+   * prev = the pair's first note. Returns a phase to stop at instead when the answer cannot be trusted.
+   */
+  async function checkedPrev(to: string, stored: StoredNote | null): Promise<{ prev: CheckedPrev | null } | { stop: Phase }> {
+    if (!me) return { stop: { k: "edit" } };
+    let list = await vault.journal.list({ pub: me.pub, kind: "note" });
+    for (const u of pairJournalOf(list, me.pub, to).uncertain) {
+      if (stored && storedIsEntry(stored, u)) await vault.journal.update(u.id, { state: "sent", error: null, meta: { status: "local_only" } });
+    }
+    list = await vault.journal.list({ pub: me.pub, kind: "note" });
+    const pj = pairJournalOf(list, me.pub, to);
+    const c = checkPreviousNote(stored, { issuer: me.pub, recipient: to, accepted: pj.accepted, serverNowMs: net().clock.now() });
+    if (!c.ok) return { stop: { k: "error", text: prevText(c.rule) } };
+    for (const u of pj.uncertain) {
+      const f = noteEntryFields(u);
+      // the tracker keeps a note only with a later timestamp than the pair's: this one can never be recorded now
+      if (f && c.prev && c.prev.timestamp >= f.timestamp) await vault.journal.update(u.id, { state: "failed", error: laterNoteCovers(c.prev, f) ? INCLUDED : SUPERSEDED });
+      else return { stop: { k: "error", text: t("mw.pay.uncertain"), id: u.id } };
+    }
+    return { prev: c.prev };
+  }
+
   async function review() {
     if (!me || !key.ok || add === null || key.key === me.pub) return;
     setPhase({ k: "working" });
     const p = await net().pairNote(me.pub, key.key, { priority: "user" });
     if (!p.ok) return setPhase({ k: "error", problem: p.problem });
-    let prev: Draft["prev"] = null;
-    if (p.value !== null) {
-      try {
-        const n = parseStoredNote(p.value);
-        if (n.issuer !== me.pub || n.recipient !== key.key || n.denomination !== "erg") return setPhase({ k: "error", text: t("mw.pay.pairOther") });
-        prev = { total: n.amountCollected, redeemed: n.amountRedeemed, timestamp: n.timestamp };
-      } catch { return setPhase({ k: "error", problem: localProblem("shape") }); }
-    }
+    const stored = readPair(p.value);
+    if (stored === "bad") return setPhase({ k: "error", problem: localProblem("shape") });
+    const cp = await checkedPrev(key.key, stored);
+    if ("stop" in cp) return setPhase(cp.stop);
+    const prev = cp.prev;
     const rs = await net().reservesOf(me.pub, { priority: "user" });
     if (!rs.ok) return setPhase({ k: "error", problem: rs.problem });
     const r = rs.value[0] ?? null;
+    // the passphrase rule counts the reserve the chain shows, never the tracker's figure
+    const oc = await net().reservesOnChain(me.pub, { priority: "user" });
+    if (!oc.ok) return setPhase({ k: "error", problem: oc.problem });
     const ksDebt = ks.value?.denominations.find((d) => d.id === "erg")?.debt ?? 0n;
     const debt = r && r.debt > ksDebt ? r.debt : ksDebt;
-    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, debt } });
+    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain: chainReserveValue(oc.value), debt } });
   }
 
   async function signAndPost(d: Draft, retry = 0): Promise<void> {
     if (!me) return;
     setPhase({ k: "working" });
     const total = (d.prev?.total ?? 0n) + d.add;
-    const big = needsPassphrase(d.add, d.reserve?.collateral ?? 0n);
+    const intent = intentOf(d);
     let entry: JournalEntry;
+    let ts: bigint;
     try {
       const cand = Number(noteTimestamp(d.prev?.timestamp ?? null, net().clock.now()));
-      const ts = BigInt(await vault.journal.claimTimestamp(noteScope(me.pub, d.to), cand));
+      ts = BigInt(await vault.journal.claimTimestamp(noteScope(me.pub, d.to), cand));
       entry = await vault.signToJournal("note", (sk) => {
         const s = signNote(sk, { issuer: me.pub, recipient: d.to, total, timestamp: ts });
         return { txId: null, signedRaw: s.body, inputs: [], meta: { to: d.to, total: total.toString(), added: d.add.toString(), ts: ts.toString(), sig: s.signature, status: "draft" } };
-      }, big ? { passphrase: pass } : {});
+      }, pass ? { note: intent, passphrase: pass } : { note: intent });
     } catch (e) {
+      // the vault counts every note since the passphrase was typed: back to the review, with the field
+      if (isVaultError(e, "passphrase-required")) return setPhase({ k: "review", d: { ...d, needPass: true } });
       return setPhase({ k: "error", text: isVaultError(e, "wrong-passphrase") ? t("mw.pay.passWrong") : verr(e) });
     }
     await vault.journal.markSending(entry.id);
@@ -152,26 +212,30 @@ export function PayScreen() {
       return setPhase({ k: "done", id: entry.id });
     }
     const pr = r.problem;
-    // a POST that may have arrived: the pair route tells (the same total and timestamp = it is ours)
+    // a POST that may have arrived: the pair route tells (the same total, timestamp and signature = it is ours)
     if (pr.kind === "timeout" || pr.kind === "network" || pr.kind === "past-ts") {
       const chk = await net().pairNote(me.pub, d.to, { priority: "user" });
-      if (chk.ok && chk.value) {
-        try {
-          const n = parseStoredNote(chk.value);
-          if (n.amountCollected === total && String(n.timestamp) === entry.meta.ts) {
-            await vault.journal.update(entry.id, { state: "sent", meta: { status: "local_only" } });
-            return setPhase({ k: "done", id: entry.id });
-          }
-          if (pr.kind === "past-ts" && retry === 0) {
-            await vault.journal.update(entry.id, { state: "failed", error: pr.reason || "Past timestamp" });
-            if (n.amountCollected !== (d.prev?.total ?? 0n)) return setPhase({ k: "error", text: t("mw.pay.changedMeanwhile") });
-            return signAndPost({ ...d, prev: { total: n.amountCollected, redeemed: n.amountRedeemed, timestamp: n.timestamp } }, 1);
-          }
-        } catch { /* fall through */ }
+      const n = chk.ok ? readPair(chk.value) : "bad";
+      if (n !== "bad" && n !== null && storedIsEntry(n, entry)) {
+        await vault.journal.update(entry.id, { state: "sent", error: null, meta: { status: "local_only" } });
+        return setPhase({ k: "done", id: entry.id });
+      }
+      if (n !== "bad" && pr.kind === "past-ts" && retry === 0) {
+        // the pair moved on: sign again on top of its newest note, checked exactly as on review
+        await vault.journal.update(entry.id, { state: "failed", error: pr.reason || "Past timestamp" });
+        const cp = await checkedPrev(d.to, n);
+        if ("stop" in cp) return setPhase(cp.stop);
+        if ((cp.prev?.total ?? 0n) !== (d.prev?.total ?? 0n)) return setPhase({ k: "error", text: t("mw.pay.changedMeanwhile") });
+        return signAndPost({ ...d, prev: cp.prev }, 1);
       }
     }
     if (pr.kind === "future-ts" && retry === 0) {
       await vault.journal.update(entry.id, { state: "failed", error: pr.reason || "Future timestamp" });
+      // take the refused claim back (as builds do), down to the pair's newest known note, so the next one follows the
+      // tracker's clock again instead of staying ahead of it
+      const known = (await vault.journal.list({ pub: me.pub, kind: "note" })).filter((x) => x.id !== entry.id).map(noteEntryFields)
+        .filter((f): f is NonNullable<typeof f> => f !== null && f.to === d.to).map((f) => Number(f.timestamp));
+      await vault.journal.rewindTimestamp(noteScope(me.pub, d.to), Number(ts), Math.max(Number(d.prev?.timestamp ?? 0n), ...known));
       net().clock.reset();
       await net().trackerState({ priority: "user" });
       await net().pendingTx({ priority: "user" });
@@ -182,10 +246,28 @@ export function PayScreen() {
     setPhase({ k: "error", problem: pr, id: entry.id });
   }
 
+  /** The same recorded note again: first the pair route (it may be there already, or replaced by a later one). */
   async function postAgain(id: string) {
-    const e = entries.find((x) => x.id === id);
-    if (!e) return;
+    const e = await vault.journal.get(id);
+    const f = e ? noteEntryFields(e) : null;
+    if (!me || !e || !f || e.state !== "signed") return;
     setPhase({ k: "working" });
+    const chk = await net().pairNote(me.pub, f.to, { priority: "user" });
+    if (!chk.ok) return setPhase({ k: "error", problem: chk.problem, id: e.id });
+    const n = readPair(chk.value);
+    if (n === "bad") return setPhase({ k: "error", problem: localProblem("shape"), id: e.id });
+    if (n !== null && storedIsEntry(n, e)) {
+      await vault.journal.update(e.id, { state: "sent", error: null, meta: { status: "local_only" } });
+      return setPhase({ k: "done", id: e.id });
+    }
+    const list = (await vault.journal.list({ pub: me.pub, kind: "note" })).filter((x) => x.id !== e.id);
+    const c = checkPreviousNote(n, { issuer: me.pub, recipient: f.to, accepted: pairJournalOf(list, me.pub, f.to).accepted, serverNowMs: net().clock.now() });
+    if (!c.ok) return setPhase({ k: "error", text: prevText(c.rule) });
+    if (c.prev && c.prev.timestamp >= f.timestamp) {
+      const included = laterNoteCovers(c.prev, f);
+      await vault.journal.update(e.id, { state: "failed", error: included ? INCLUDED : SUPERSEDED });
+      return setPhase({ k: "error", text: t(included ? "mw.pay.included" : "mw.pay.superseded") });
+    }
     await vault.journal.markSending(e.id);
     const r = await net().postNote(e.signedRaw, { priority: "user" });
     if (r.ok) {
@@ -198,8 +280,11 @@ export function PayScreen() {
   const d = phase.k === "review" ? phase.d : null;
   const total = d ? (d.prev?.total ?? 0n) + d.add : null;
   const debtAfter = d ? d.debt + d.add : null;
-  const cov = d && debtAfter !== null ? coverage(d.reserve?.collateral ?? 0n, debtAfter) : null;
-  const askPass = d ? needsPassphrase(d.add, d.reserve?.collateral ?? 0n) : false;
+  const cov = d && debtAfter !== null ? coverage(d.onChain, debtAfter) : null;
+  let askPass = false;
+  if (d) {
+    try { askPass = d.needPass === true || vault.notePolicy(intentOf(d)).passphrase; } catch { askPass = true; }
+  }
   const failedEntry = phase.k === "error" && phase.id ? entries.find((e) => e.id === phase.id) ?? null : null;
 
   return (
@@ -230,14 +315,14 @@ export function PayScreen() {
                     <div><div className="label">{t("mw.pay.toL")}</div><div className="mono t-small mw-break">{p2pkAddress(d.to)}</div></div>
                   </div>
                   <Ledger rows={[
-                    { label: t("mw.pay.rowPrev"), value: <Erg nano={d.prev?.total ?? 0n} /> },
+                    { label: t("mw.pay.rowPrev"), sub: d.prev ? t("mw.pay.prevChecked") : t("mw.pay.prevNone"), value: <Erg nano={d.prev?.total ?? 0n} /> },
                     { label: t("mw.pay.rowAdd"), value: <Erg nano={d.add} sign="favour" /> },
                   ]} sum={{ label: t("mw.pay.rowTotal"), value: <Erg nano={total!} /> }} />
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
-                  {d.reserve ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.reserve.collateral), debt: ergText(debtAfter!), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
+                  {d.onChain > 0n ? (
+                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.onChain), debt: ergText(debtAfter!), pct: cov !== null ? int(cov) : "—" })}</p>
                   ) : null}
-                  {d.reserve && debtAfter! > d.reserve.collateral && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
+                  {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>
                   {askPass && (
                     <Field label={t("mw.pay.passAgain")} help={t("mw.pay.passWhy")}>

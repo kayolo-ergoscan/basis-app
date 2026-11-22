@@ -8,6 +8,7 @@ export { attachAutoLock, type AutoLockDom, type AutoLockTarget } from "./autoloc
 export { MainnetJournal, buildScope, noteScope, blocksNewT1, isOpenState, JOURNAL_KINDS, JOURNAL_STATES, OPEN_STATES, MAX_ERROR_CHARS, MAX_RAW_BYTES } from "./journal";
 export type { JournalEntry, JournalFilter, JournalKind, JournalMeta, JournalMetaValue, JournalPatch, JournalRecordInput, JournalState } from "./journal";
 export { VaultError, isVaultError, type VaultErrorCode, type ErrorDetail } from "./errors";
+export { NOTE_PASSPHRASE_DIVISOR, notePassphraseNeeded, type NoteIntent, type NotePolicy } from "./policy";
 export { checkPassphrase, normalizePassphrase, type PassphraseCheck, type PassphraseIssue } from "./passphrase";
 export { HOW_TO_DECRYPT, parseBackup, backupFilename, type BackupContact, type BackupExtras, type BackupFile, type SealedExtras } from "./backup";
 export { TRACKER_PUBLIC_KEY, isPublicKeyHex, type Hex } from "./keys";
