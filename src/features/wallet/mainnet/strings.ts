@@ -42,9 +42,9 @@ const en: Dict = {
 
   // times (design §6.5)
   "mw.time.deposit": "A deposit takes about 2 minutes",
-  "mw.time.t1": "The tracker sees a new reserve in about 6–15 minutes",
-  "mw.time.note": "A note becomes redeemable in about 10–25 minutes",
-  "mw.time.redeem": "A redemption confirms in about 2–4 minutes",
+  "mw.time.t1": "The tracker sees a new reserve in about 6–⁠15 minutes",
+  "mw.time.note": "A note becomes redeemable in about 10–⁠25 minutes",
+  "mw.time.redeem": "A redemption confirms in about 2–⁠4 minutes",
   "mw.time.refund": "A refund takes 43 200 blocks after its start, about 60 days",
 
   // errors (design §6.3)
@@ -666,9 +666,9 @@ const ru: Partial<Dict> = {
   "mw.warn.notes": "Расписка — ваше подписанное обязательство: её держатель сможет погасить её из вашего резерва после фиксации трекером.",
 
   "mw.time.deposit": "Пополнение занимает около 2 минут",
-  "mw.time.t1": "Трекер увидит новый резерв примерно через 6–15 минут",
-  "mw.time.note": "Расписку можно погасить примерно через 10–25 минут",
-  "mw.time.redeem": "Погашение подтверждается примерно за 2–4 минуты",
+  "mw.time.t1": "Трекер увидит новый резерв примерно через 6–⁠15 минут",
+  "mw.time.note": "Расписку можно погасить примерно через 10–⁠25 минут",
+  "mw.time.redeem": "Погашение подтверждается примерно за 2–⁠4 минуты",
   "mw.time.refund": "Возврат — 43 200 блоков после запуска, около 60 дней",
 
   "mw.err.busy": "Занято, скоро повторим.",
