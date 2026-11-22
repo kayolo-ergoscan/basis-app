@@ -4,7 +4,7 @@ import type { FeatureRoute } from "@/app/types";
 const route: FeatureRoute = {
   id: "wallet",
   path: "/wallet/*",
-  load: () => import("./Page"),
+  load: () => import("./Entry"),
   nav: { order: 2, labelKey: "nav.wallet" },
   titleKey: "wallet.title",
   commands: [

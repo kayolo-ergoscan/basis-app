@@ -17,6 +17,7 @@ import { ReservePage } from "./flows/Reserve";
 import { PolicyPage } from "./flows/Policy";
 import { ContactsPage } from "./flows/Contacts";
 import { SettingsPage } from "./flows/Settings";
+import { WalletModeSwitch } from "./ModeSwitch";
 import "./wallet.css";
 
 const typeset = (d: Partial<Record<string, string>>, lang: "en" | "ru"): Record<string, string> =>
@@ -106,6 +107,7 @@ export default function WalletPage() {
   else body = <WalletRoutes />;
   return (
     <Page className="wl-page">
+      <div className="wl-mode-row"><WalletModeSwitch mode="sandbox" /></div>
       <NoticeToasts />
       {body}
     </Page>

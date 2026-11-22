@@ -1,0 +1,255 @@
+// /wallet/mainnet/reserve — the key's reserve (design §2): its state when the tracker tracks it, or T1, which creates
+// it: precheck (the tracker, the journal, the mempool) → plan (coins, the final amount) → the tracker's template,
+// checked byte for byte against the app's pinned constants → the transaction, checked → review → hold to sign →
+// journal → broadcast → depth 2 → tracked → active. One reserve per key: a second one would be quarantined and block
+// every new note for 60 days. Top-up and refund come later.
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useT } from "@/app/lang";
+import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, blk } from "@/ui";
+import {
+  MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
+  buildReserveCreation, checkReserveCreation, checkReservePayload, computeTxId, outputBoxes, parseReservePayload,
+  type ErgoBox, type ReservePlan, type UnsignedTx,
+} from "@/mainnet/tx";
+import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
+import { blocksNewT1, isVaultError, type JournalEntry } from "@/mainnet/vault";
+import { localProblem, type Problem } from "@/mainnet/net";
+import type { TrackedReserve } from "@/chain/ours";
+import { useMw } from "./ctx";
+import { R, inFlightOf, net, useResource, useUnspent } from "./data";
+import { EntryProgress, signAndSend } from "./send";
+import { ChainLink, Erg, Gate, ProblemText, TimeHint, TxReview, ergText, useVaultError } from "./ui";
+
+type Phase =
+  | { k: "idle" }
+  | { k: "working"; step: "precheck" | "template" | "build" | "sign" | "send" }
+  | { k: "review"; plan: ReservePlan; fee: bigint; tx: UnsignedTx; txId: string; tip: number }
+  | { k: "combine"; plan: Extract<WithdrawPlan, { ok: true }>; tip: number; txId: string }
+  | { k: "error"; problem?: Problem; text?: string; rule?: string };
+
+/** The tracked reserve: what it holds, what its notes promise, its box on ergoscan.me. */
+export function ReserveCard({ r }: { r: TrackedReserve }) {
+  const t = useT();
+  const cov = r.debt > 0n ? Number((r.collateral * 10000n) / r.debt) / 100 : null;
+  return (
+    <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={cov} /> : undefined}>
+      <div className="mw-figs">
+        <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
+        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span></div>
+      </div>
+      <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: blk(r.updatedHeight) })}</p>
+      {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: blk(r.refundHeight) })}</Callout>}
+      {cov !== null && cov < 100 && <Callout tone="alarm">{t("mw.res.under")}</Callout>}
+      <p className="t-small mw-dim">{t("mw.res.lock")}</p>
+      <p className="t-small mw-dim">{t("mw.res.later")}</p>
+    </Card>
+  );
+}
+
+function T1Progress({ entry }: { entry: JournalEntry }) {
+  const t = useT();
+  const { vault, me, height } = useMw();
+  const waiting = entry.state === "final" || entry.state === "confirmed";
+  const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: waiting ? 30_000 : 120_000 });
+  const reserveBox = typeof entry.meta.reserveBox === "string" ? entry.meta.reserveBox : null;
+  const tracked = (res.value ?? []).find((r) => r.box === reserveBox) ?? (res.value ?? [])[0] ?? null;
+  const active = tracked && tracked.refundHeight === 0;
+  const late = entry.state === "final" && !tracked && entry.inclusionHeight !== null && height !== null && height - entry.inclusionHeight > 15;
+  return (
+    <Card title={t("mw.res.progressT")}>
+      <EntryProgress vault={vault} entry={entry} tip={height} timeKey="t1" extra={[
+        { id: "tracked", label: t("mw.res.tracked"), sub: entry.state === "final" && !tracked ? t("mw.res.trackedWait") : undefined, state: tracked ? "done" : entry.state === "final" ? "now" : "todo" },
+        { id: "active", label: t("mw.res.active"), state: active ? "done" : "todo" },
+      ]} />
+      {late && <Callout tone="calm" title={t("mw.res.lateT")}>{t("mw.res.lateB")}</Callout>}
+      {tracked && <ReserveCard r={tracked} />}
+    </Card>
+  );
+}
+
+export function ReserveScreen() {
+  const t = useT();
+  const { vault, state, me, height, entries } = useMw();
+  const verr = useVaultError();
+  const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
+  const un = useUnspent(me, height, state.backedUp);
+  const [amountText, setAmountText] = useState(ergPlain(RESERVE_DEFAULT_CAP_NANOERG / 2n));
+  const [big, setBig] = useState(false);
+  const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
+  const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
+  const cap = big ? RESERVE_HARD_CAP_NANOERG : RESERVE_DEFAULT_CAP_NANOERG;
+  const amount = parseErg(amountText);
+  const reserve = (res.value ?? [])[0] ?? null;
+
+  const fail = (p: Partial<Extract<Phase, { k: "error" }>>) => setPhase({ k: "error", ...p });
+
+  /** Precheck → plan → the tracker's template → the transaction, checked. Nothing is signed here. */
+  async function prepare() {
+    if (!me || amount === null) return;
+    if (height === null) return fail({ text: t("mw.res.noHeight") });
+    setPhase({ k: "working", step: "precheck" });
+    const mine = await net().reservesOf(me.pub, { priority: "user" });
+    if (!mine.ok) return fail({ problem: mine.problem });
+    res.refresh();
+    if (mine.value.length > 0) return fail({ text: t("mw.res.hasReserve") });
+    if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
+    const mem = await net().mempool(me.address, { priority: "user" });
+    if (!mem.ok) return fail({ problem: mem.problem });
+    if (mempoolCreatesReserve(mem.value)) return fail({ text: t("mw.res.inMempool") });
+    const fresh = await net().unspent(me.address, me.tree, { priority: "user" });
+    if (!fresh.ok) return fail({ problem: fresh.problem });
+    const usable = spendable(fresh.value.boxes, inFlightOf(entries, me.pub), mem.value);
+    let fee = MINER_FEE_NANOERG;
+    let p = planT1(usable, me.pub, amount, fee, cap);
+    if (!p.ok) {
+      if (p.why === "too-many-boxes") return offerCombine(usable);
+      return fail({ text: p.why === "short" ? t("mw.res.short", { need: ergText(p.need, t.lang), have: ergText(p.have, t.lang) }) : t("mw.res.amountRange", { min: ergText(p.min, t.lang), max: ergText(p.max, t.lang) }) });
+    }
+    setPhase({ k: "working", step: "template" });
+    for (let round = 0; round < 2; round++) {
+      const a = await net().createReserve(t1CreateBody(p.plan, me.pub), { priority: "user" });
+      if (!a.ok) return fail({ problem: a.problem });
+      let payload;
+      try { payload = parseReservePayload(a.value); } catch (e) {
+        if (e instanceof TrackerRefusal) return fail({ problem: localProblem("refused", e.reason) });
+        return fail({ text: t("mw.res.templateBad"), rule: e instanceof ShapeError || e instanceof JsonSyntaxError ? e.message : undefined });
+      }
+      const c = checkReservePayload(payload, { owner: me.pub, amount: p.plan.amount, nftId: p.plan.nftId });
+      if (!c.ok) return fail({ text: t("mw.res.templateBad"), rule: `${c.rule}: ${c.message}` });
+      if (payload.fee === fee) { fee = payload.fee; break; }
+      // the tracker asks another miner fee: plan again with it; the same amount and NFT keep this template
+      fee = payload.fee;
+      const again = planT1(usable, me.pub, amount, fee, cap);
+      if (!again.ok) return fail({ text: t("mw.res.short", { need: ergText(amount + fee, t.lang), have: ergText(usable.reduce((s, b) => s + b.value, 0n), t.lang) }) });
+      const same = again.plan.amount === p.plan.amount && again.plan.nftId === p.plan.nftId;
+      p = again;
+      if (same) break;
+      if (round === 1) return fail({ text: t("mw.res.templateBad"), rule: "fee" });
+    }
+    setPhase({ k: "working", step: "build" });
+    const tx = buildReserveCreation({ owner: me.pub, inputs: p.plan.inputs, amount: p.plan.amount, fee, height });
+    const c = checkReserveCreation(tx, p.plan.inputs, { owner: me.pub, amount: p.plan.amount, fee, height, cap });
+    if (!c.ok) return fail({ text: t("mw.res.checkFailed"), rule: `${c.rule}: ${c.message}` });
+    setPhase({ k: "review", plan: p.plan, fee, tx, txId: computeTxId(tx), tip: height });
+  }
+
+  function offerCombine(usable: ErgoBox[]) {
+    if (!me || height === null) return;
+    const plan = planCombine(usable, me.pub, me.address, height);
+    if (!plan.ok) return fail({ text: t("mw.res.combineNo") });
+    setPhase({ k: "combine", plan, tip: height, txId: computeTxId(plan.tx) });
+  }
+
+  async function sign() {
+    if (phase.k !== "review" || !me) return;
+    const { plan, fee, tx, tip } = phase;
+    setPhase({ k: "working", step: "sign" });
+    try {
+      const reserveBox = outputBoxes(tx)[0].boxId;
+      const r = await signAndSend(vault, "t1", tx, plan.inputs, { amount: plan.amount.toString(), fee: fee.toString(), nftId: plan.nftId, reserveBox }, tip);
+      setPhase(r.problem ? { k: "error", problem: r.problem } : { k: "idle" });
+    } catch (e) {
+      if (isBroadcastLimit(e)) {
+        const fresh = un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : plan.inputs;
+        return offerCombine(fresh);
+      }
+      fail({ text: isVaultError(e, "t1-exists") ? t("mw.res.hasT1") : verr(e) });
+    }
+  }
+
+  async function signCombine() {
+    if (phase.k !== "combine") return;
+    const { plan, tip } = phase;
+    setPhase({ k: "working", step: "sign" });
+    try {
+      const r = await signAndSend(vault, "withdraw", plan.tx, plan.inputs, { amount: plan.sent.toString(), to: me!.address, combine: true }, tip);
+      setPhase(r.problem ? { k: "error", problem: r.problem } : { k: "idle" });
+    } catch (e) { fail({ text: verr(e) }); }
+  }
+
+  const busy = phase.k === "working";
+  return (
+    <Gate vault={vault} state={state}>
+      <div className="mw-grid">
+        <div className="mw-main">
+          <header className="mw-screen-h">
+            <h1 className="t-h2">{t("mw.res.h")}</h1>
+            <p className="t-lede">{t("mw.res.lede")}</p>
+          </header>
+          {reserve && !t1 && <ReserveCard r={reserve} />}
+          {t1 && <T1Progress entry={t1} />}
+          {combineEntry && (
+            <Card title={t("mw.res.combineProgressT")}>
+              <EntryProgress vault={vault} entry={combineEntry} tip={height} />
+              <p className="t-small mw-dim">{t("mw.res.combineAfter")}</p>
+            </Card>
+          )}
+          {!reserve && !t1 && !combineEntry && (
+            <Gate vault={vault} state={state} unlocked why={t("mw.res.unlockWhy")}>
+              <Card title={t("mw.res.createT")}>
+                {phase.k === "review" ? (
+                  <div className="mw-form">
+                    <TxReview tx={phase.tx} inputs={phase.plan.inputs} signers={[me!.pub]} height={phase.tip + 1} txId={phase.txId}
+                      rows={[
+                        { label: t("mw.res.rowReserve"), value: <Erg nano={phase.plan.amount} /> },
+                        ...(phase.plan.change > 0n ? [{ label: t("mw.res.rowChange"), value: <Erg nano={phase.plan.change} /> }] : []),
+                        { label: t("mw.res.rowFee"), value: <Erg nano={phase.fee} /> },
+                      ]}
+                      sum={{ label: t("mw.res.rowSpent", { n: phase.plan.inputs.length }), value: <Erg nano={phase.plan.inputs.reduce((s, b) => s + b.value, 0n)} /> }}
+                      extra={<p className="t-small">{t("mw.res.reviewChecks")}</p>} />
+                    <Callout tone="policy">{t("mw.res.lock")}</Callout>
+                    <Key variant="primary" hold block onAct={() => void sign()}>{t("mw.res.hold")}</Key>
+                    <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
+                  </div>
+                ) : phase.k === "combine" ? (
+                  <div className="mw-form">
+                    <Callout tone="info" title={t("mw.res.combineT")}>{t("mw.res.combineB", { n: phase.plan.inputs.length })}</Callout>
+                    <TxReview tx={phase.plan.tx} inputs={phase.plan.inputs} signers={[me!.pub]} height={phase.tip + 1} txId={phase.txId}
+                      rows={[{ label: t("mw.res.combineRow", { n: phase.plan.inputs.length }), value: <Erg nano={phase.plan.sent} /> }, { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> }]} />
+                    <Key variant="primary" hold block onAct={() => void signCombine()}>{t("mw.res.combineHold")}</Key>
+                    <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
+                  </div>
+                ) : (
+                  <div className="mw-form">
+                    <Field label={t("mw.res.amount")} help={t("mw.res.amountHelp", { min: ergText(RESERVE_MIN_NANOERG, t.lang), max: ergText(cap, t.lang) })}
+                      error={amountText && (amount === null || amount > cap || amount < RESERVE_MIN_NANOERG) ? t("mw.res.amountRange", { min: ergText(RESERVE_MIN_NANOERG, t.lang), max: ergText(cap, t.lang) }) : undefined}>
+                      <AmountInput value={amountText} onChange={setAmountText} disabled={busy} />
+                    </Field>
+                    <Switch checked={big} onChange={setBig} label={t("mw.res.bigT")} help={t("mw.res.bigB")} />
+                    <p className="t-small">{t("mw.res.have")} <b>{un.value ? <Erg nano={spendable(un.value.boxes, inFlightOf(entries, me!.pub)).reduce((s, b) => s + b.value, 0n)} /> : "—"}</b> · <Link className="textlink" to="/wallet/mainnet/fund">{t("mw.res.fund")}</Link></p>
+                    {phase.k === "error" && (
+                      <Callout tone="alarm" title={t("mw.res.stopT")}>
+                        {phase.problem ? <ProblemText p={phase.problem} what="create" /> : phase.text}
+                        {phase.rule && <span className="mw-reason">{t("mw.rule")} <code>{phase.rule}</code></span>}
+                        <span className="mw-reason">{t("mw.nothingSigned")}</span>
+                      </Callout>
+                    )}
+                    <Key variant="primary" block disabled={busy || amount === null || amount > cap || amount < RESERVE_MIN_NANOERG} onClick={() => void prepare()}>
+                      {busy ? t(`mw.res.working.${(phase as { step: string }).step}`) : t("mw.res.prepare")}
+                    </Key>
+                    <p className="t-small mw-dim">{t("mw.res.prepareHint")}</p>
+                  </div>
+                )}
+              </Card>
+            </Gate>
+          )}
+        </div>
+        <aside className="mw-side">
+          <Card title={t("mw.res.howT")}>
+            <ul className="mw-facts">
+              <li>{t("mw.res.how1")}</li>
+              <li>{t("mw.res.how2")}</li>
+              <li>{t("mw.res.how3")}</li>
+              <li>{t("mw.res.how4")}</li>
+            </ul>
+            <TimeHint k="t1" />
+          </Card>
+          <Callout tone="calm" title={t("mw.honest.t")}>{t("mw.honest.b")}</Callout>
+          {res.problem && <p className="t-small"><ProblemText p={res.problem} what="read" /></p>}
+        </aside>
+      </div>
+    </Gate>
+  );
+}

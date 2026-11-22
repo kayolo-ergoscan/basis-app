@@ -1,0 +1,15 @@
+/* The wallet's mode switch (Sandbox | Mainnet), the same segmented plate as the tracker page's. */
+.wl-mode { display: inline-grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 12px; background: var(--well); max-width: 100%; }
+.wl-mode a { display: grid; gap: 3px; padding: 8px 16px 9px; border-radius: 9px; color: var(--ink-3); text-decoration: none; min-width: 0; }
+.wl-mode a:hover:not(.on) { color: var(--ink-2); }
+.wl-mode a.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
+.wl-mode a:focus-visible { box-shadow: var(--focus-halo); }
+.wl-mode-l { display: inline-flex; align-items: center; gap: 8px; font: 600 14px/1.1 var(--f-ui); white-space: nowrap; }
+.wl-mode-l .g { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
+.wl-mode a.on .wl-mode-l .g { color: var(--ink-2); }
+.wl-mode-s { font: 400 12px/1.3 var(--f-ui); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-mode-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: clamp(16px, 2vw, 24px); }
+@media (max-width: 640px) {
+  .wl-mode { display: grid; width: 100%; }
+  .wl-mode a { padding: 8px 10px 9px; }
+}
