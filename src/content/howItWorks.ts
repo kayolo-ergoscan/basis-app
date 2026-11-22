@@ -1,4 +1,4 @@
-// /learn/how: ten short chapters, plain words, one idea per sentence. Each chapter ends with a mono
+// /learn/how: ten short steps, plain words, one idea per sentence. Each chapter ends with a mono
 // "protocol fact" and suggests a figure; `lines` points the reader at the contract where the rule lives.
 
 import type { SourceId } from "./sources";
@@ -23,8 +23,8 @@ export interface Chapter {
 
 export const howItWorksTitle: Text = t("How Basis works", "Как устроен Basis");
 export const howItWorksLede: Text = t(
-  "Basis is off-chain IOU money with optional reserves on Ergo. Ten short chapters, from the first promise to the last exit.",
-  "Basis — это офчейн-деньги на долговых расписках с необязательными резервами в Ergo. Десять коротких глав — от первого обещания до выхода.",
+  "Basis is off-chain IOU money with optional reserves on Ergo. Ten short steps, from the first promise to the last exit.",
+  "Basis — это офчейн-деньги на долговых расписках с необязательными резервами в Ergo. Десять коротких шагов — от первого обещания до выхода.",
 );
 
 export const chapters: Chapter[] = [

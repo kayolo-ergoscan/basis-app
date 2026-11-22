@@ -116,7 +116,7 @@ export default {
     "home.m.redeem.wait": "Redemption opens once the note is in a digest.",
     "home.m.redeem.empty": "Nothing left to redeem against this note.",
     "home.m.redeem.alt": "Bob tears {v} off the note and takes it from Alice's reserve.",
-    "home.m.chapter": "Read the chapter",
+    "home.m.chapter": "Read more",
 
     // 02 doors
     "home.d.no": "Doors",
@@ -197,9 +197,9 @@ export default {
     "home.p.title": "Who it is for",
 
     // 04 learn
-    "home.l.title": "Ten short chapters. *One note.*",
+    "home.l.title": "Ten short steps. *One note.*",
     "home.l.all": "All chapters",
-    "home.l.ch": "Chapter {n}",
+    "home.l.ch": "Step {n}",
   },
   ru: {
     "home.name.alice": "Алиса",
@@ -312,7 +312,7 @@ export default {
     "home.m.redeem.wait": "Погашение откроется, когда расписка попадёт в дайджест.",
     "home.m.redeem.empty": "По этой расписке погашать больше нечего.",
     "home.m.redeem.alt": "Боб отрывает от расписки {v} и забирает их из резерва Алисы.",
-    "home.m.chapter": "Читать главу",
+    "home.m.chapter": "Читать подробнее",
 
     "home.d.no": "Двери",
     "home.d.title": "Три двери. *Выбирайте любую.*",
@@ -400,8 +400,8 @@ export default {
     "home.s.backed": "обеспечено в Ergo",
     "home.p.title": "Для кого это",
 
-    "home.l.title": "Десять коротких глав. *Одна расписка.*",
+    "home.l.title": "Десять коротких шагов. *Одна расписка.*",
     "home.l.all": "Все главы",
-    "home.l.ch": "Глава {n}",
+    "home.l.ch": "Шаг {n}",
   },
 } satisfies I18nBundle;
