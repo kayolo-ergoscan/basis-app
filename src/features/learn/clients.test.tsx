@@ -1,7 +1,7 @@
 // Ready-made programs (/learn/api#clients): the block renders in EN and RU as the page's first section, with the
 // three programs, ErgoScan's tracker address, the code links at the pinned commit, the redemption caveat and every
-// route linked to its catalogue entry. The tracker's Code card link is checked in tracker.test.ts; the copy rules
-// cover these texts in content.test.ts and in learn.test.ts.
+// route linked to its catalogue entry; the ⌘K bar finds it by the words people type. The tracker's Code card link is
+// checked in tracker.test.ts; the copy rules cover these texts in content.test.ts and in learn.test.ts.
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -9,6 +9,8 @@ import { getLang, setLang, translate } from "@/app/lang";
 import { CLIENTS_HREF, ERGOSCAN_TRACKER_URL, GIT_REF, apiEndpoints, clientPrograms, clients, pick, type Text } from "@/content";
 import "./Page"; // the page module merges the lazy strings, typeset as on the site
 import ApiPage from "./pages/ApiPage";
+import i18n from "./i18n";
+import route from "./route";
 
 type Lang = "en" | "ru";
 
@@ -99,3 +101,24 @@ for (const lang of ["en", "ru"] as const) {
     });
   });
 }
+
+describe("the ⌘K bar finds the ready-made programs", () => {
+  const cmd = route.commands?.find((c) => c.to === CLIENTS_HREF);
+  // the bar's own rule (score() in src/app/overlays.tsx): every word of the query is in the label, path or keywords
+  const finds = (q: string, label: string) => {
+    const hay = `${label} ${cmd?.to ?? ""} ${cmd?.keywords ?? ""} ${cmd?.to ?? ""}`.toLowerCase();
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+  };
+
+  it("has a command that opens the block, labelled in both languages", () => {
+    expect(cmd).toBeDefined();
+    expect((i18n.en as Record<string, string>)[cmd!.labelKey]).toBeTruthy();
+    expect((i18n.ru as Record<string, string>)[cmd!.labelKey]).toBeTruthy();
+  });
+
+  for (const q of ["cli", "tui", "mcp", "терминал", "агенты", "программы", "клиенты"]) {
+    it(`by "${q}"`, () => {
+      for (const lang of ["en", "ru"] as const) expect(finds(q, (i18n[lang] as Record<string, string>)[cmd!.labelKey]), lang).toBe(true);
+    });
+  }
+});
