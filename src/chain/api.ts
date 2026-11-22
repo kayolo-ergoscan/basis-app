@@ -296,6 +296,6 @@ export const paths = {
   mempoolByAddress: (address: string) => `/mempool/transactions/byAddress/${enc(address)}`,
   token: (tokenId: string) => `/tokens/${enc(tokenId)}`,
   hostIndex: () => `/defi/basis`,
-  /** Confirmed nanoERG and tokens at an address (one indexed read, ≈ 250 B). Used for our tracker's fee funds. */
-  addressBalance: (address: string) => `/addresses/${enc(address)}/balance/confirmed`,
+  /** Unspent boxes at an address, explorer shape with `hasMore` (our tracker's fee funds: its token-free boxes). */
+  unspentByAddress: (address: string, limit: number) => `/boxes/unspent/byAddress/${enc(address)}?limit=${limit}`,
 };

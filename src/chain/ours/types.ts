@@ -18,12 +18,16 @@ export const OUR_TRACKER = {
 export const OURS_POLL = {
   stateMs: 30_000,          // GET /tracker/state
   reservesMs: 120_000,      // GET /reserves
-  balanceMs: 30 * 60_000,   // /v1 balance of the tracker address (through the chain budget), plus once after each commit
+  feesMs: 30 * 60_000,      // /v1 fee funds at the tracker address (through the chain budget), plus once after each commit
   minGapMs: 1_000,          // request starts at least 1 s apart (key lookups share the gap)
   timeoutMs: 10_000,
   backoffBaseMs: 30_000,    // first wait after a failed poll; doubles per failure
   backoffMaxMs: 10 * 60_000,
 } as const;
+
+/** Fee money at the tracker address: its confirmed, unspent, token-free boxes. The box that holds the tracker NFT is not
+ *  fee money. `partial`: the address held more boxes than one page, so `nano` is a lower bound. */
+export interface FeeFunds { nano: bigint; boxes: number; partial: boolean }
 
 /** The tracker re-commits every 720 blocks when nothing changes (heartbeat). Older than that plus some slack = stale. */
 export const HEARTBEAT_BLOCKS = 720;

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { copy, pick } from "@/content";
-import { useObservatory } from "@/chain";
+import { OUR_TRACKER, oursExtra, useObservatory } from "@/chain";
 import type { EconomyEvent } from "@/protocol";
 import { Card, int, Key } from "@/ui";
 import { EventFeed } from "@/viz";
@@ -67,6 +67,9 @@ export function MainnetLink() {
   const t = useT();
   const obs = useObservatory();
   const asOf = obs ? pick(copy.asOfBlock(obs.height), t.lang) : null;
+  // ErgoScan's tracker NFT was minted after the snapshot: counted once, as on the Network and Home pages
+  const extra = oursExtra(obs);
+  const nfts = obs ? obs.totals.trackerNfts + extra : 0;
   return (
     <Card
       className="trk-mainnet"
@@ -77,9 +80,9 @@ export function MainnetLink() {
       <div className="trk-mainnet-b">
         {obs ? (
           <div className="trk-mainnet-n">
-            <div>
-              <span className="trk-mainnet-v num">{int(obs.totals.trackerNfts)}</span>
-              <span className="t-small">{t.p("tracker.mn.nfts", obs.totals.trackerNfts)}</span>
+            <div title={extra ? t("tracker.mn.nftsOurs", { h: int(OUR_TRACKER.mintHeight) }) : undefined}>
+              <span className="trk-mainnet-v num">{int(nfts)}</span>
+              <span className="t-small">{t.p("tracker.mn.nfts", nfts)}</span>
             </div>
             <div>
               <span className="trk-mainnet-v num">{int(obs.totals.trackerBoxes)}</span>

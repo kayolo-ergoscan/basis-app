@@ -3,7 +3,7 @@
 // near the screen (it runs the resident bots and its clock).
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { rich, useLang, useT } from "@/app/lang";
-import { useHeight, useObservatory } from "@/chain";
+import { useHeight, useObservatory, useOursInCounts } from "@/chain";
 import { copy, pick } from "@/content";
 import { Icon, int, Key, KeySeal, Lamp, Section, Tag, units, withUnit } from "@/ui";
 import { balanceSheet, castName, FAUCET_ERG, FAUCET_SUSE, graphSnapshot, threeWordsText, useTown, useTownReady, useTownView, useWallet, YOU, type GraphSnapshot } from "@/world";
@@ -143,18 +143,20 @@ function MainnetStrip() {
   const { lang } = useLang();
   const h = useHeight();
   const obs = useObservatory();
-  const live = obs ? obs.trackers.filter((x) => x.status === "live").length : null;
-  const cells: [string, ReactNode][] = [
+  // ErgoScan's tracker (minted after the snapshot) counts once its API has named its box, as in "Trackers by status"
+  const ours = useOursInCounts(obs);
+  const live = obs ? obs.trackers.filter((x) => x.status === "live").length + (ours?.withBox ?? 0) : null;
+  const cells: [string, ReactNode, string?][] = [
     [t("home.d.net.block"), h.height != null ? int(h.height) : obs ? int(obs.height) : "—"],
     [t("home.d.net.reserves"), obs ? int(obs.totals.unspent) : "—"],
     [t("home.d.net.locked"), obs ? units(obs.totals.unspentNano, 9, 3) : "—"],
-    [t("home.d.net.trackers"), live != null ? int(live) : "—"],
+    [t("home.d.net.trackers"), live != null ? int(live) : "—", ours?.withBox ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined],
   ];
   return (
     <div className="door-strip">
       <div className="ds-head"><Lamp state="live" size={8} /><b>MAINNET</b><Tag>{pick(copy.testUse, lang)}</Tag></div>
       <dl>
-        {cells.map(([k, v]) => <div key={k}><dt className="label">{k}</dt><dd className="num">{v}</dd></div>)}
+        {cells.map(([k, v, title]) => <div key={k} title={title}><dt className="label">{k}</dt><dd className="num">{v}</dd></div>)}
       </dl>
       {obs && <p className="ds-foot mono">{pick(copy.asOfBlock(obs.asOf.height), lang)}</p>}
     </div>

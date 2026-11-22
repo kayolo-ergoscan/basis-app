@@ -132,7 +132,7 @@ to 60 s, set `heightReserve: 2` and src/chain gets 4 per block with no other cha
 | `/transactions/{id}` | 56–111 ms | 33.5 KB | `{id, inclusionHeight, timestamp, inputs[full boxes + spendingProof], dataInputs[full boxes], outputs, size}` |
 | `/mempool/transactions/byAddress/{P2S}` | 4–7 ms | 67 B | `{items, total}` |
 | `/tokens/{id}` | 168–213 ms | 2.6 KB | `emissionAmount` is a JSON **number** (1e18 loses precision): use the seed's token data |
-| `/addresses/{addr}/balance/confirmed` | 6–29 ms (via the dev proxy) | 244 B | `{nanoErgs: string, tokens[]}`; our tracker's fee funds (`/balance` alone is 404) |
+| `/boxes/unspent/byAddress/{addr}?limit=100` | 50 ms | 2.3 KB (2 boxes) | `{items, total, hasMore, nextCursor, source: "indexer"}`, explorer-shape items with `value` string and `assets`; our tracker's fee funds (its token-free boxes) |
 | `/defi/basis` | 91–131 ms | 11.7 KB | `{tipHeight, reserveCount, ergLockedNano: string, trackerCount, reserves[{boxId, …}], source}` |
 
 `regHex()` and `liveBoxFromApi()` accept both register shapes. Ids go through `encodeURIComponent`. Amounts stay
@@ -152,9 +152,13 @@ Caddy does the same (`handle_path /api/tracker/* { reverse_proxy 127.0.0.1:3050 
 | `/key-status/{pk}` | key lookup on `/tracker/mainnet` | on demand, one at a time |
 | `/config/reserve-collateral` | client method only | not polled |
 
-Fee funds come from `/v1/addresses/{address}/balance/confirmed` through `api.ts` (they count in the per-block budget):
-the first read of a visit uses the interactive lane, later reads the background lane, at most every 30 min or when the
-tracker box moved. The total includes the 0.001 ERG in the tracker box itself.
+Fee funds are the confirmed, unspent, token-free boxes at the tracker address, from
+`/v1/boxes/unspent/byAddress/{address}?limit=100` through `api.ts` (they count in the per-block budget). The box that
+holds the tracker NFT (0.001 ERG) is not fee money and is not counted; a list with more pages makes the sum a lower
+bound, shown with "≥". Only pages that show them ask (`useOurTracker({ fees: true })`): the first read of a visit is
+asked at mount, before the tracker polls, on the interactive lane, so it takes one of the block's two /v1 slots ahead of
+the chain module's background checks (and waits for the next block only when the budget is already spent); later reads
+use the background lane, at most every 30 min or when the tracker box moved.
 
 - `client.ts`: one FIFO queue per visitor, ≥ 1 s between the starts of tracker requests (polls and lookups); 10 s
   timeout; `credentials: "omit"`, `cache: "no-store"`. Envelope `{success, data, error}`. u64 amounts are quoted
@@ -176,9 +180,13 @@ tracker box moved. The total includes the 0.001 ERG in the tracker box itself.
   changes (same digest = heartbeat), a reserve when a new owner + denomination bound to our NFT appears. The first
   answer of a visit and saved answers are the baseline, never events. One pulse per new commit
   (`pulse.commit({ source: "mainnet", trackerId: nft, … })`), not repeated if the bus already has it.
-- The seed (block 1 921 849) predates the NFT: the Network strip and list add it once until the seed is regenerated,
-  and `/network/tracker/<our nft>` is served from the tracker API, not from the chain store.
-- Hooks: `useOurTracker()` → `OurView`, `useKeyLookup()`, `useAgo()`, `useNow()`. Tests: `ours/ours.test.ts`.
+- The seed (block 1 921 849) predates the NFT: every snapshot count of tracker NFTs adds it once (`oursExtra(obs)`:
+  the Network bar, strip and list, Home and the tracker page's mainnet card) until the seed is regenerated, and counts
+  of unspent tracker boxes add it once its API has named its box (`useOursInCounts(obs).withBox`: the Network strip,
+  Home's "Trackers by status" and its mainnet door). `/network/tracker/<our nft>` is served from the tracker API, not
+  from the chain store.
+- Hooks: `useOurTracker({ fees? })` → `OurView`, `useOursInCounts(obs)`, `useKeyLookup()`, `useAgo()`, `useNow()`.
+  Tests: `ours/ours.test.ts`.
 
 ## How to add an endpoint
 

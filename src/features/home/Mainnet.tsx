@@ -3,7 +3,7 @@
 // detector. Every number carries "test use" and "as of block N".
 import { useMemo, type CSSProperties } from "react";
 import { rich, useLang, useT } from "@/app/lang";
-import { useObservatory } from "@/chain";
+import { useObservatory, useOursInCounts } from "@/chain";
 import type { TrackerStatus } from "@/chain/types";
 import { chainUrl, copy, pick } from "@/content";
 import { Icon, int, Key, Lamp, Section, units, type LampState } from "@/ui";
@@ -22,12 +22,16 @@ export function Mainnet() {
   const t = useT();
   const { lang } = useLang();
   const obs = useObservatory();
+  // ErgoScan's tracker was minted after the snapshot: counted here as on the Network pages (+1, and with the "box
+  // unspent" trackers once its API has named its box)
+  const ours = useOursInCounts(obs);
 
   const byStatus = useMemo(() => {
     const m = new Map<TrackerStatus, number>();
     for (const tr of obs?.trackers ?? []) m.set(tr.status, (m.get(tr.status) ?? 0) + 1);
+    if (ours?.withBox) m.set("live", (m.get("live") ?? 0) + 1);
     return STATUS_ORDER.filter((s) => m.get(s)).map((s) => ({ s, n: m.get(s)! }));
-  }, [obs?.trackers]);
+  }, [obs?.trackers, ours?.withBox]);
 
   if (!obs) {
     return (
@@ -41,13 +45,13 @@ export function Mainnet() {
   const tokens = T.unspentTokens.length > 0;
   const last = obs.records.lastActivity;
   const found = obs.detector.found.length;
-  const totalTrackers = obs.trackers.length;
+  const totalTrackers = obs.trackers.length + (ours?.extra ?? 0);
   const ergStr = units(T.unspentNano, 9, 3);
   const stats = [
     { k: t("home.n.boxes"), v: int(T.reserveBoxes), sub: t("home.n.unspent", { n: int(T.unspent) }) },
     { k: t("home.n.locked"), v: ergStr, sub: tokens ? t("home.n.tokens") : "", metal: true },
     { k: t("home.n.redemptions"), v: int(T.redemptions), sub: t("home.n.redeemed", { v: units(T.redeemedNano, 9, 2) }) },
-    { k: t("home.n.trackers"), v: int(totalTrackers), sub: pick(copy.trackerLine, lang) },
+    { k: t("home.n.trackers"), v: int(totalTrackers), sub: pick(copy.trackerLine, lang), title: ours ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined },
   ];
   const what = last?.what === "tracker NFT burned in a sweep" ? t("home.n.what.burned") : last?.what ?? "";
 
@@ -57,7 +61,7 @@ export function Mainnet() {
         <div className="mn-main">
           <dl className="mn-stats">
             {stats.map((s) => (
-              <div key={s.k} className={s.metal ? "metal" : undefined}>
+              <div key={s.k} className={s.metal ? "metal" : undefined} title={"title" in s ? s.title : undefined}>
                 <dt className="label">{s.k}</dt>
                 <dd className="v num">{s.v}{s.metal && <span className="unit">ERG</span>}</dd>
                 {s.sub && <dd className="sub">{s.sub}</dd>}

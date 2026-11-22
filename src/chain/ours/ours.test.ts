@@ -4,9 +4,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Pulse } from "@/app/pulse";
 import { createTrackerClient, parseKeyInput, parseReserves, quoteBigInts, type TrackerClient } from "./client";
-import { commitEvent, ourView, reserveEvents, statusOf } from "./model";
-import { createOursStore, OURS_STORAGE_KEY, type OursState } from "./store";
-import { OUR_TRACKER, OURS_POLL, STALE_AFTER_BLOCKS, type TrackedReserve, type TrackerState } from "./types";
+import { commitEvent, oursExtra, ourView, reserveEvents, statusOf } from "./model";
+import { createOursStore, feeFundsOf, OURS_STORAGE_KEY, type OursState } from "./store";
+import { OUR_TRACKER, OURS_POLL, STALE_AFTER_BLOCKS, type FeeFunds, type TrackedReserve, type TrackerState } from "./types";
 
 const T0 = 1_800_000_000_000;
 const EMPTY = "4ec61f485b98eb87153f7c57db4f5ecd75556fddbc403b41acf8441fde8e160900";
@@ -155,7 +155,7 @@ const res = (owner: string, box: string, nft: string = OUR_TRACKER.nft, collater
   ({ box, owner, collateral, debt: 0n, nft, token, updatedHeight: 1, updatedAt: 0, ratio: null, refundHeight: 0 });
 
 describe("view model", () => {
-  const base: OursState = { active: true, hidden: false, state: null, reserves: null, balance: null, fresh: null, stateError: null, reservesError: null, failures: 0, backoff: null, events: [], requests: 0 };
+  const base: OursState = { active: true, hidden: false, state: null, reserves: null, fees: null, fresh: null, stateError: null, reservesError: null, failures: 0, backoff: null, events: [], requests: 0 };
 
   it("status: connecting, live, stale, unreachable; a 429 after an answer keeps the answer", () => {
     expect(statusOf(base, null)).toBe("connecting");
@@ -178,7 +178,7 @@ describe("view model", () => {
     expect(v.emergency).toMatchObject({ open: false, opensAt: 1_922_276 + 2161, blocksLeft: 2161 - 24 });
     expect(v.totals).toEqual({ count: 2, ergNano: 2_000_000_000n, tokens: [{ id: "cc".repeat(32), raw: 5n, count: 1 }] });
     const unknown = ourView({ ...base }, null);
-    expect(unknown).toMatchObject({ box: null, digest: null, height: null, age: null, emergency: null, reserves: null, totals: null, balance: null });
+    expect(unknown).toMatchObject({ box: null, digest: null, height: null, age: null, emergency: null, reserves: null, totals: null, fees: null });
   });
 
   it("events: a new box is a commit (a heartbeat when the digest stays), a new issuer is a new reserve", () => {
@@ -196,22 +196,24 @@ describe("view model", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────────────────── store
 
-function setup(routes: Record<string, Answer[]>, o: { hidden?: () => boolean; storage?: ReturnType<typeof memStorage> | null; balance?: (a: string, first: boolean) => Promise<bigint> } = {}) {
+const FEES: FeeFunds = { nano: 997_000_000n, boxes: 1, partial: false };
+
+function setup(routes: Record<string, Answer[]>, o: { hidden?: () => boolean; storage?: ReturnType<typeof memStorage> | null; fees?: (a: string, first: boolean) => Promise<FeeFunds> } = {}) {
   const f = fakeFetch(routes);
   const client = clientWith(f);
   const pulses: Pulse[] = [];
   let last: Pulse | null = null;
-  const balance = vi.fn(o.balance ?? (async () => 998_000_000n));
+  const fees = vi.fn(o.fees ?? (async () => FEES));
   const s = createOursStore({
     client,
-    balanceOf: balance,
+    feesOf: fees,
     pulse: { commit: (p) => { pulses.push(p); last = p; }, last: () => last },
     now: () => Date.now(),
     isHidden: o.hidden ?? (() => false),
     random: () => 0,
     storage: o.storage === undefined ? memStorage() : o.storage,
   });
-  return { f, s, pulses, balance, get: () => s.store.getState(), setLast: (p: Pulse) => { last = p; } };
+  return { f, s, pulses, fees, get: () => s.store.getState(), setLast: (p: Pulse) => { last = p; } };
 }
 
 const urls = (f: ReturnType<typeof fakeFetch>) => f.calls.map((c) => c.url.replace("/api/tracker", ""));
@@ -219,13 +221,13 @@ const urls = (f: ReturnType<typeof fakeFetch>) => f.calls.map((c) => c.url.repla
 describe("poller", () => {
   it("state every 30 s, reserves every 120 s; nothing while hidden or unwatched", async () => {
     let hidden = false;
-    const { f, s, get, balance } = setup({ "/tracker/state": [{ body: stateBody() }], "/reserves": [{ body: reservesBody() }] }, { hidden: () => hidden });
+    const { f, s, get, fees } = setup({ "/tracker/state": [{ body: stateBody() }], "/reserves": [{ body: reservesBody() }] }, { hidden: () => hidden });
     const release = s.acquire();
     await vi.advanceTimersByTimeAsync(2500);
     expect(urls(f)).toEqual(["/tracker/state", "/reserves"]);
     expect(get()).toMatchObject({ fresh: expect.any(Number), stateError: null, reservesError: null });
     expect(get().reserves?.data.list).toEqual([]);
-    expect(balance).toHaveBeenCalledTimes(1);
+    expect(fees).not.toHaveBeenCalled(); // no page that shows the fee funds: no /v1 read
     await vi.advanceTimersByTimeAsync(30_000);
     expect(urls(f).filter((u) => u === "/tracker/state")).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(90_000);
@@ -281,18 +283,18 @@ describe("poller", () => {
   it("keeps the last good answer with its age; a new visit shows it as saved, then unreachable if the tracker is down", async () => {
     const storage = memStorage();
     const a = setup({ "/tracker/state": [{ body: stateBody() }], "/reserves": [{ body: reservesBody([reserveJson()]) }] }, { storage });
-    a.s.acquire();
+    a.s.acquire({ fees: true });
     await vi.advanceTimersByTimeAsync(1500);
     a.s.dispose();
     expect(storage.map.has(OURS_STORAGE_KEY)).toBe(true);
     const savedAt = a.get().state!.at;
 
     vi.setSystemTime(T0 + 3_600_000);
-    const b = setup({ "/tracker/state": ["throw"], "/reserves": ["throw"] }, { storage, balance: async () => { throw new Error("budget"); } });
-    b.s.acquire();
+    const b = setup({ "/tracker/state": ["throw"], "/reserves": ["throw"] }, { storage, fees: async () => { throw new Error("budget"); } });
+    b.s.acquire({ fees: true });
     expect(b.get().state).toMatchObject({ cached: true, at: savedAt });
     expect(b.get().reserves?.data.list[0].collateral).toBe(1_000_000_000n);
-    expect(b.get().balance).toMatchObject({ cached: true, data: 998_000_000n });
+    expect(b.get().fees).toMatchObject({ cached: true, data: FEES });
     await vi.advanceTimersByTimeAsync(100);
     const v = ourView(b.get(), 1_922_300);
     expect(v).toMatchObject({ status: "unreachable", cached: true, answeredAt: savedAt, box: BOX1, height: 1_922_276 });
@@ -311,11 +313,12 @@ describe("poller", () => {
   });
 
   it("a new box is one event and one mainnet pulse; a new reserve is one event", async () => {
-    const { s, get, pulses, balance } = setup({
+    const { s, get, pulses, fees } = setup({
       "/tracker/state": [{ body: stateBody() }, { body: stateBody() }, { body: stateBody(BOX2, EMPTY, 1_922_996) }],
       "/reserves": [{ body: reservesBody() }, { body: reservesBody([reserveJson({ nft: "ee".repeat(32), owner: "02" + "11".repeat(32) }), reserveJson()]) }],
     });
-    s.acquire();
+    s.acquire({ fees: true });
+    expect(fees).toHaveBeenCalledTimes(1); // at once, before the first tracker request
     await vi.advanceTimersByTimeAsync(1500);
     expect(get().events).toEqual([]);
     expect(pulses).toEqual([]);
@@ -323,8 +326,8 @@ describe("poller", () => {
     expect(get().events).toHaveLength(1);
     expect(get().events[0]).toMatchObject({ kind: "commit", box: BOX2, heartbeat: true, height: 1_922_996 });
     expect(pulses).toEqual([{ source: "mainnet", trackerId: OUR_TRACKER.nft, digest: EMPTY, height: 1_922_996 }]);
-    await vi.waitFor(() => expect(balance).toHaveBeenCalledTimes(2)); // fee funds re-read after the commit
-    expect(balance.mock.calls).toEqual([[OUR_TRACKER.address, true], [OUR_TRACKER.address, false]]); // first read waits for budget, refreshes do not
+    await vi.waitFor(() => expect(fees).toHaveBeenCalledTimes(2)); // fee funds re-read after the commit
+    expect(fees.mock.calls).toEqual([[OUR_TRACKER.address, true], [OUR_TRACKER.address, false]]); // first read waits for budget, refreshes do not
     await vi.advanceTimersByTimeAsync(60_000);
     expect(get().events.map((e) => e.kind)).toEqual(["reserve", "commit"]);
     expect(get().events[0]).toMatchObject({ owner: OWNER });
@@ -359,5 +362,44 @@ describe("poller", () => {
     await vi.advanceTimersByTimeAsync(1500);
     expect(await p).toMatchObject({ ok: true, data: { notes: 0, denominations: [] } });
     s.dispose();
+  });
+});
+
+describe("fee funds", () => {
+  const box = (value: string | number, tokens = 0) => ({ boxId: "ab".repeat(32), value, assets: Array.from({ length: tokens }, () => ({ tokenId: OUR_TRACKER.nft, amount: "1" })) });
+  it("counts only token-free boxes: the box with the tracker NFT is not fee money", () => {
+    expect(feeFundsOf({ items: [box("995000000"), box("1000000", 1)], total: 2, hasMore: false })).toEqual({ nano: 995_000_000n, boxes: 1, partial: false });
+    expect(feeFundsOf({ items: [box("1000000", 1)], total: 1 })).toEqual({ nano: 0n, boxes: 0, partial: false });
+    expect(feeFundsOf({ items: [box(5), box("18446744073709551615")], total: 2 }).nano).toBe(18_446_744_073_709_551_620n);
+  });
+  it("marks a list with more pages as a lower bound, and refuses an unexpected shape", () => {
+    expect(feeFundsOf({ items: [box("1")], total: 150, hasMore: true }).partial).toBe(true);
+    expect(feeFundsOf({ items: [box("1")], total: 150 }).partial).toBe(true);
+    expect(() => feeFundsOf({ nanoErgs: "1" })).toThrow();
+    expect(() => feeFundsOf({ items: [{ value: "1.5", assets: [] }] })).toThrow();
+    expect(() => feeFundsOf({ items: [{ value: "1" }] })).toThrow();
+    expect(() => feeFundsOf({ items: [{ value: 2 ** 60, assets: [] }] })).toThrow();
+  });
+  it("is read only for pages that show it, once at mount", async () => {
+    const { s, fees } = setup({ "/tracker/state": [{ body: stateBody() }], "/reserves": [{ body: reservesBody() }] });
+    const r1 = s.acquire();
+    expect(fees).not.toHaveBeenCalled();
+    const r2 = s.acquire({ fees: true });
+    expect(fees).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2500);
+    const r3 = s.acquire({ fees: true }); // a second page that shows it: the session already has it
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(fees).toHaveBeenCalledTimes(1);
+    r1(); r2(); r3();
+    s.dispose();
+  });
+});
+
+describe("counts", () => {
+  it("adds our tracker once to snapshot counts until a snapshot lists its NFT", () => {
+    const idx = (nfts: string[]) => ({ index: { trackers: new Map(nfts.map((n) => [n, {}])) } }) as unknown as Parameters<typeof oursExtra>[0];
+    expect(oursExtra(null)).toBe(0);
+    expect(oursExtra(idx(["aa".repeat(32)]))).toBe(1);
+    expect(oursExtra(idx(["aa".repeat(32), OUR_TRACKER.nft]))).toBe(0);
   });
 });

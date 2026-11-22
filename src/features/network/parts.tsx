@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app";
 import { CopyButton, Icon, KeySeal, Lamp, Loading, Tag, TrackerTile, usePulseClass, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
-import { explorer, OUR_TRACKER, useChainStatus, type ContractView, type ExitClass, type Hex, type Observatory, type TrackerView } from "@/chain";
+import { explorer, oursExtra, useChainStatus, type ContractView, type ExitClass, type Hex, type Observatory, type TrackerView } from "@/chain";
 import { blocks, height as fmtH, keyOfAddress, sAddr, sid, type Lang } from "./fmt";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
@@ -181,7 +181,7 @@ export function NetBar({ obs }: { obs: Observatory | null }) {
   const counts: Partial<Record<TabId, number>> = obs ? {
     reserves: obs.unspent.length,
     // ErgoScan's tracker was minted after the snapshot: counted here until the seed lists it (as on the list page)
-    trackers: obs.trackers.length + (obs.index.trackers.has(OUR_TRACKER.nft) ? 0 : 1),
+    trackers: obs.trackers.length + oursExtra(obs),
     redemptions: obs.redemptions.length,
     contracts: obs.contracts.filter((c) => c.role === "legacy" || c.role === "current").length,
     incidents: obs.incidents.burns.length + obs.incidents.locks.length,

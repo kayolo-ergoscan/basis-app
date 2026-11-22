@@ -1,6 +1,7 @@
 // src/chain/ours/store.ts — polls our tracker while someone watches (ref-counted acquire, like the chain store):
 //   /tracker/state every 30 s and /reserves every 120 s (both from the tracker's front),
-//   the tracker address balance from /v1 (through the chain module's budget) every 30 min and after each new commit.
+//   the fee funds at the tracker address from /v1 (its token-free unspent boxes, through the chain module's budget):
+//   once as soon as a page that shows them opens, then every 30 min and after each new commit.
 // Nothing is requested while the tab is hidden or nobody watches. A failed poll backs off: 30 s, 60 s, 120 s … 10 min
 // (or the server's Retry-After when it is longer); one success resets it.
 // The last good answers are kept in memory and saved in this browser (as the raw answer, parsed again on load), so an
@@ -13,7 +14,7 @@ import { chainApi, paths } from "../api";
 import type { Hex } from "../types";
 import { parseReserves, parseState, readEnvelope, trackerClient, type TrackerAnswer, type TrackerClient, type TrackerErrorKind } from "./client";
 import { commitEvent, reserveEvents } from "./model";
-import { OUR_TRACKER, OURS_POLL, type KeyStatus, type OurEvent, type ReservesAnswer, type TrackerState } from "./types";
+import { OUR_TRACKER, OURS_POLL, type FeeFunds, type KeyStatus, type OurEvent, type ReservesAnswer, type TrackerState } from "./types";
 
 export interface Snap<T> {
   data: T;
@@ -33,7 +34,7 @@ export interface OursState {
   hidden: boolean;
   state: Snap<TrackerState> | null;
   reserves: Snap<ReservesAnswer> | null;
-  balance: Snap<bigint> | null;
+  fees: Snap<FeeFunds> | null;
   /** When /tracker/state last answered in this session (null: not yet). */
   fresh: number | null;
   /** The latest failure of each poll; cleared by that poll's next answer. */
@@ -50,9 +51,9 @@ export interface OursState {
 
 export interface OursStoreOptions {
   client?: TrackerClient;
-  /** nanoERG at an address; throws when it cannot be read now (budget, hidden tab, network). null: never read it.
-   *  `first`: no balance read in this session yet (the page shows "—" until it comes). */
-  balanceOf?: ((address: string, first: boolean) => Promise<bigint>) | null;
+  /** Fee funds at an address; throws when they cannot be read now (budget, hidden tab, network). null: never read them.
+   *  `first`: not read in this session yet (the page shows "—", or the saved value, until it comes). */
+  feesOf?: ((address: string, first: boolean) => Promise<FeeFunds>) | null;
   pulse?: { commit(p: Pulse): void; last?(): Pulse | null };
   now?: () => number;
   isHidden?: () => boolean;
@@ -66,13 +67,34 @@ const MAX_SAVED_CHARS = 256 * 1024;
 const STATE_BIG: readonly string[] = [];
 const RESERVES_BIG = ["collateral_amount", "total_debt"] as const;
 
-/** The /v1 balance of an address, through the chain module's request budget, no retries. The first read of a visit
- *  takes the interactive lane (it waits for the next block's budget instead of failing, so "—" does not stay for many
- *  blocks while the chain module sweeps); refreshes take the background lane and simply try again later. */
-export async function balanceFromChain(address: string, first: boolean): Promise<bigint> {
-  const j = await chainApi.get<{ nanoErgs?: unknown }>(paths.addressBalance(address), { lane: first ? "interactive" : "background", retries: 0 });
-  if (typeof j?.nanoErgs !== "string" || !/^\d+$/.test(j.nanoErgs)) throw new Error("unexpected balance answer");
-  return BigInt(j.nanoErgs);
+/** One page of unspent boxes is enough for a tracker address (its NFT box and one change box); more → a lower bound. */
+export const FEES_PAGE = 100;
+
+/** Fee funds from a /v1 unspent-box list: the sum of the boxes that hold no token (the box with the tracker NFT, or any
+ *  box with a token, is not fee money). Throws on an unexpected shape. */
+export function feeFundsOf(list: unknown): FeeFunds {
+  const j = list as { items?: unknown; hasMore?: unknown; total?: unknown } | null;
+  if (!j || !Array.isArray(j.items)) throw new Error("unexpected box list");
+  let nano = 0n;
+  let boxes = 0;
+  for (const it of j.items as { value?: unknown; assets?: unknown }[]) {
+    const v = typeof it?.value === "string" ? it.value : typeof it?.value === "number" && Number.isSafeInteger(it.value) ? String(it.value) : null;
+    if (v === null || !/^\d{1,20}$/.test(v) || !Array.isArray(it.assets)) throw new Error("unexpected box in the list");
+    if (it.assets.length > 0) continue;
+    nano += BigInt(v);
+    boxes++;
+  }
+  const partial = j.hasMore === true || (typeof j.total === "number" && j.total > j.items.length);
+  return { nano, boxes, partial };
+}
+
+/** Fee funds at an address through the chain module's request budget, no retries. The first read of a visit takes the
+ *  interactive lane and is asked as soon as a page that shows it opens, so it gets one of the block's /v1 slots before
+ *  the chain module's background checks (and waits for the next block only when the budget is already spent);
+ *  refreshes take the background lane and simply try again later. */
+export async function feesFromChain(address: string, first: boolean): Promise<FeeFunds> {
+  const j = await chainApi.get<unknown>(paths.unspentByAddress(address, FEES_PAGE), { lane: first ? "interactive" : "background", retries: 0 });
+  return feeFundsOf(j);
 }
 
 const defaultStorage = (): OursStoreOptions["storage"] => {
@@ -83,7 +105,7 @@ export type OursStore = ReturnType<typeof createOursStore>;
 
 export function createOursStore(opts: OursStoreOptions = {}) {
   const client = opts.client ?? trackerClient;
-  const balanceOf = opts.balanceOf === undefined ? balanceFromChain : opts.balanceOf;
+  const feesOf = opts.feesOf === undefined ? feesFromChain : opts.feesOf;
   const bus = opts.pulse ?? appPulse;
   const now = opts.now ?? (() => Date.now());
   const random = opts.random ?? Math.random;
@@ -91,13 +113,14 @@ export function createOursStore(opts: OursStoreOptions = {}) {
   const storage = opts.storage === undefined ? defaultStorage() : opts.storage;
 
   const store: StoreApi<OursState> = createStore<OursState>(() => ({
-    active: false, hidden: false, state: null, reserves: null, balance: null, fresh: null,
+    active: false, hidden: false, state: null, reserves: null, fees: null, fresh: null,
     stateError: null, reservesError: null, failures: 0, backoff: null, events: [], requests: 0,
   }));
   const get = store.getState;
   const set = (p: Partial<OursState>) => store.setState({ ...p, requests: client.requests() });
 
   let users = 0;
+  let feeUsers = 0;   // mounted hooks that show the fee funds (only they make the /v1 read)
   let timer: ReturnType<typeof setTimeout> | null = null;
   let running = false;
   let lastStateTry: number | null = null;
@@ -106,10 +129,10 @@ export function createOursStore(opts: OursStoreOptions = {}) {
   // the session's own baselines for events (never the saved answers of an earlier visit)
   let prevState: TrackerState | null = null;
   let prevReserves: ReservesAnswer | null = null;
-  // balance bookkeeping
-  let balanceBusy = false;
-  let balanceRetryAt = 0;
-  let balanceForBox: Hex | null = null;
+  // fee funds bookkeeping
+  let feesBusy = false;
+  let feesRetryAt = 0;
+  let feesForBox: Hex | null = null;
 
   // ── saved answers: the raw text, parsed again with the same parser on load ──
   function load() {
@@ -119,7 +142,7 @@ export function createOursStore(opts: OursStoreOptions = {}) {
     try {
       const s = storage.getItem(OURS_STORAGE_KEY);
       if (!s) return;
-      const j = JSON.parse(s) as { v?: number; state?: { raw?: unknown; at?: unknown }; reserves?: { raw?: unknown; at?: unknown }; balance?: { nano?: unknown; at?: unknown } };
+      const j = JSON.parse(s) as { v?: number; state?: { raw?: unknown; at?: unknown }; reserves?: { raw?: unknown; at?: unknown }; fees?: { nano?: unknown; boxes?: unknown; partial?: unknown; at?: unknown } };
       if (j?.v !== 1) return;
       const cur = get();
       const p: Partial<OursState> = {};
@@ -136,9 +159,10 @@ export function createOursStore(opts: OursStoreOptions = {}) {
         const d = e.ok ? parseReserves(e.data) : null;
         if (d) p.reserves = { data: d, at: rs.at, cached: true, raw: rs.raw };
       }
-      const b = j.balance;
-      if (b && !cur.balance && typeof b.nano === "string" && /^\d{1,30}$/.test(b.nano) && typeof b.at === "number" && b.at <= now()) {
-        p.balance = { data: BigInt(b.nano), at: b.at, cached: true };
+      // (an older entry's "balance" counted the NFT box too: it is ignored)
+      const f = j.fees;
+      if (f && !cur.fees && typeof f.nano === "string" && /^\d{1,30}$/.test(f.nano) && typeof f.boxes === "number" && typeof f.partial === "boolean" && typeof f.at === "number" && f.at <= now()) {
+        p.fees = { data: { nano: BigInt(f.nano), boxes: f.boxes, partial: f.partial }, at: f.at, cached: true };
       }
       if (Object.keys(p).length) set(p);
     } catch { /* a broken entry is ignored; the next answer replaces it */ }
@@ -152,7 +176,7 @@ export function createOursStore(opts: OursStoreOptions = {}) {
         v: 1,
         state: keep(s.state),
         reserves: keep(s.reserves),
-        balance: s.balance ? { nano: s.balance.data.toString(), at: s.balance.at } : null,
+        fees: s.fees ? { nano: s.fees.data.nano.toString(), boxes: s.fees.data.boxes, partial: s.fees.data.partial, at: s.fees.at } : null,
       }));
     } catch { /* storage full or blocked: the in-memory answers still work */ }
   }
@@ -222,20 +246,22 @@ export function createOursStore(opts: OursStoreOptions = {}) {
     return true;
   }
 
-  function maybeBalance() {
-    if (!balanceOf || balanceBusy || hidden()) return;
+  function maybeFees() {
+    if (!feesOf || feesBusy || feeUsers === 0 || hidden()) return;
     const t = now();
-    if (t < balanceRetryAt) return;
-    const b = get().balance;
+    if (t < feesRetryAt) return;
+    const f = get().fees;
     const s = get().state;
     const box = s && !s.cached ? s.data.confirmedBox : null;
-    const moved = box !== null && balanceForBox !== null && box !== balanceForBox;
-    if (b && !b.cached && t - b.at < OURS_POLL.balanceMs && !moved) return;
-    balanceBusy = true;
-    balanceOf(OUR_TRACKER.address, !b || b.cached)
-      .then((nano) => { balanceForBox = box ?? balanceForBox; set({ balance: { data: nano, at: now(), cached: false } }); save(); })
-      .catch(() => { balanceRetryAt = now() + 60_000; })
-      .finally(() => { balanceBusy = false; });
+    // read before the first state answer (at page load): the box of that answer is the baseline for "moved"
+    if (feesForBox === null && box !== null && f && !f.cached) feesForBox = box;
+    const moved = box !== null && feesForBox !== null && box !== feesForBox;
+    if (f && !f.cached && t - f.at < OURS_POLL.feesMs && !moved) return;
+    feesBusy = true;
+    feesOf(OUR_TRACKER.address, !f || f.cached)
+      .then((data) => { feesForBox = box ?? feesForBox; set({ fees: { data, at: now(), cached: false } }); save(); })
+      .catch(() => { feesRetryAt = now() + 60_000; })
+      .finally(() => { feesBusy = false; });
   }
 
   // ── the loop ──
@@ -260,7 +286,7 @@ export function createOursStore(opts: OursStoreOptions = {}) {
       const go = () => users > 0 && !hidden() && blockedUntil() === null;
       if (go() && due(lastStateTry, OURS_POLL.stateMs)) await pollState();
       if (go() && due(lastReservesTry, OURS_POLL.reservesMs)) await pollReserves();
-      if (users > 0 && get().fresh !== null) maybeBalance();
+      if (users > 0) maybeFees();
     } finally {
       running = false;
       schedule();
@@ -273,19 +299,23 @@ export function createOursStore(opts: OursStoreOptions = {}) {
     set({ hidden: true });
   };
 
-  /** A hook mounted: load the saved answers, start polling. Returns release(). */
-  function acquire(): () => void {
+  /** A hook mounted: load the saved answers, start polling. `fees`: it shows the fee funds, which are then read at once
+   *  (before the polls) unless this session has them. Returns release(). */
+  function acquire(o: { fees?: boolean } = {}): () => void {
     users++;
+    if (o.fees) feeUsers++;
     if (users === 1) {
       load();
       set({ active: true, hidden: hidden() });
       if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
-      void tick();
     }
+    if (o.fees) maybeFees();
+    if (users === 1) void tick();
     let released = false;
     return () => {
       if (released) return;
       released = true;
+      if (o.fees) feeUsers = Math.max(0, feeUsers - 1);
       users = Math.max(0, users - 1);
       if (users === 0) {
         if (timer) { clearTimeout(timer); timer = null; }

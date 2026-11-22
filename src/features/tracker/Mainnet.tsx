@@ -66,7 +66,7 @@ function Answer({ v }: { v: OurView }) {
 
 export default function MainnetConsole() {
   const t = useT();
-  const v = useOurTracker();
+  const v = useOurTracker({ fees: true });
   useTitle(`${t("tracker.m.title")} · ${t("tracker.title")}`);
   return (
     <>
@@ -231,8 +231,8 @@ function SideCard({ v }: { v: OurView }) {
       </div>
       <div className="trk-m-fees">
         <div className="label">{t("tracker.m.fees")}</div>
-        <div className="trk-m-v num">{v.balance !== null ? ergStr(v.balance) : DASH}{v.balance !== null && <span className="u">ERG</span>}</div>
-        <p className="t-small">{t("tracker.m.feesSub")}{v.balanceAt !== null ? ` ${t("chain.ours.answered", { ago: ago(v.balanceAt) })}.` : ""}</p>
+        <div className="trk-m-v num">{v.fees ? `${v.fees.partial ? "≥ " : ""}${ergStr(v.fees.nano)}` : DASH}{v.fees && <span className="u">ERG</span>}</div>
+        <p className="t-small">{t("tracker.m.feesSub")}{v.feesAt !== null ? ` ${t(v.feesCached ? "chain.ours.saved" : "chain.ours.answered", { ago: ago(v.feesAt) })}.` : ""}</p>
       </div>
       <dl className="trk-kv trk-m-kv">
         <div><dt>{t("tracker.m.f.nft")}</dt><dd><ExtId kind="token" id={OUR_TRACKER.nft} /></dd></div>

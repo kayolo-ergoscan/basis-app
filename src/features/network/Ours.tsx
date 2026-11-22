@@ -99,7 +99,7 @@ function OurFigures({ v }: { v: OurView }) {
       </div>
       <div className="fig">
         <dt>{t("network.ours.fees")}</dt>
-        <dd><span className="v num">{v.balance !== null ? ergs(v.balance) : DASH}</span>{v.balance !== null && <span className="u">ERG</span>}</dd>
+        <dd><span className="v num">{v.fees ? `${v.fees.partial ? "≥ " : ""}${ergs(v.fees.nano)}` : DASH}</span>{v.fees && <span className="u">ERG</span>}</dd>
         <dd className="s">{t("network.ours.feesSub")}</dd>
       </div>
     </dl>
@@ -167,19 +167,12 @@ export function OurTrackerCard({ v }: { v: OurView }) {
   );
 }
 
-/** The overview card, mounted with its own poller (the card is the only reader on the overview). */
+/** The overview card, mounted with its own poller; it shows the fee funds, so it asks for them. */
 export function OurTrackerBlock() {
-  const v = useOurTracker();
+  const v = useOurTracker({ fees: true });
   return <OurTrackerCard v={v} />;
 }
 
-/** The strip counts our NFT (minted after the snapshot, so the chain seed does not know it) and its box. */
-export function useOursInStrip(obs: Observatory): { extra: number; withBox: number; mint: number } | null {
-  const known = obs.index.trackers.has(OUR_TRACKER.nft);
-  const v = useOurTracker();
-  if (known) return null;
-  return { extra: 1, withBox: v.box ? 1 : 0, mint: OUR_TRACKER.mintHeight };
-}
 
 /* ---------------- /network/tracker/<our NFT> ---------------- */
 
@@ -249,10 +242,10 @@ export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
   const t = useT();
   const lang = t.lang as Lang;
   const phone = useIsPhone();
-  const v = useOurTracker();
+  const v = useOurTracker({ fees: true });
   useTitle(`${t("network.td.title", { id: sid(OUR_TRACKER.nft) })} · ${t("network.title")}`);
   const em = v.emergency;
-  const balance = v.balance !== null ? `${ergs(v.balance)} ERG` : DASH;
+  const fees = v.fees ? `${v.fees.partial ? "≥ " : ""}${ergs(v.fees.nano)} ERG` : DASH;
   const facts: [ReactNode, ReactNode][] = [
     [t("network.td.f.nft"), <IdLink id={OUR_TRACKER.nft} kind="token" a={8} b={6} copy />],
     [t("network.ours.td.name"), <span className="nw-inl"><UntrustedName name="ErgoScan Basis Tracker" /></span>],
@@ -260,7 +253,7 @@ export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
     [t("network.ours.td.address"), <IdLink id={OUR_TRACKER.address} kind="address" copy />],
     [t("network.ours.box"), v.box ? <IdLink id={v.box} kind="box" a={6} b={4} copy /> : <span className="dim">{DASH}</span>],
     [t("network.ours.digest"), <DigestShort d={v.digest} a={6} b={4} />],
-    [t("network.ours.fees"), <span className="num">{balance}</span>],
+    [t("network.ours.fees"), <span className="num" title={t("network.ours.feesSub")}>{fees}</span>],
     [t("network.ours.td.api"), <AnswerLine v={v} className="in-facts" />],
   ];
   return (

@@ -1,8 +1,8 @@
 // src/chain/ours/model.ts — pure: what the pages show about our tracker, derived from the store's last answers, the
 // chain tip and the clock. No network, no React. Every value is null when its source is unknown ("—" on screen).
 import { emergencyClock } from "../decode";
-import type { EmergencyClock, Hex } from "../types";
-import { OUR_TRACKER, STALE_AFTER_BLOCKS, type OurEvent, type TrackedReserve, type TrackerState } from "./types";
+import type { EmergencyClock, Hex, Observatory } from "../types";
+import { type FeeFunds, OUR_TRACKER, STALE_AFTER_BLOCKS, type OurEvent, type TrackedReserve, type TrackerState } from "./types";
 import type { OursState } from "./store";
 
 /**
@@ -47,9 +47,10 @@ export interface OurView {
   reservesAt: number | null;
   reservesCached: boolean;
   reservesError: OursState["reservesError"];
-  /** nanoERG at the tracker address (it pays each commit's miner fee); null when not read. */
-  balance: bigint | null;
-  balanceAt: number | null;
+  /** Fee money at the tracker address (token-free boxes; each commit's miner fee comes from them); null when not read. */
+  fees: FeeFunds | null;
+  feesAt: number | null;
+  feesCached: boolean;
   events: OurEvent[];
   /** The latest /tracker/state failure (null after an answer). */
   error: OursState["stateError"];
@@ -83,6 +84,12 @@ export function statusOf(s: Pick<OursState, "stateError" | "fresh">, age: number
   return "live";
 }
 
+/** Our tracker's NFT was minted (block 1 922 275) after the snapshot the observatory is built from, so snapshot counts
+ *  of tracker NFTs miss it: pages add this (1) to them. 0 once a newer snapshot lists the NFT, or while none is loaded. */
+export function oursExtra(obs: Pick<Observatory, "index"> | null): 0 | 1 {
+  return obs && !obs.index.trackers.has(OUR_TRACKER.nft) ? 1 : 0;
+}
+
 export function ourView(s: OursState, tip: number | null): OurView {
   const st = s.state?.data ?? null;
   const height = st?.confirmedHeight ?? null;
@@ -107,8 +114,9 @@ export function ourView(s: OursState, tip: number | null): OurView {
     reservesAt: s.reserves?.at ?? null,
     reservesCached: !!s.reserves?.cached,
     reservesError: s.reservesError,
-    balance: s.balance?.data ?? null,
-    balanceAt: s.balance?.at ?? null,
+    fees: s.fees?.data ?? null,
+    feesAt: s.fees?.at ?? null,
+    feesCached: !!s.fees?.cached,
     events: s.events,
     error: s.stateError,
     limited: s.backoff?.kind === "rate",
