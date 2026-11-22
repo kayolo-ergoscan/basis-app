@@ -52,7 +52,7 @@ export default {
 
     // overview
     "network.ov.eyebrow": "ERGO MAINNET · READ-ONLY",
-    "network.ov.h1": "Test use on mainnet, *box by box.*",
+    "network.ov.h1": "Basis on mainnet, *box by box.*",
     "network.strip.aria": "Mainnet figures",
     "network.strip.block": "Block",
     "network.strip.blockLive": "chain tip, polled every 30\u00a0s",
@@ -606,7 +606,7 @@ export default {
     "network.live.on": "Обновляется вживую",
 
     "network.ov.eyebrow": "ОСНОВНАЯ СЕТЬ ERGO · ТОЛЬКО ЧТЕНИЕ",
-    "network.ov.h1": "Тесты в основной сети, *бокс за боксом.*",
+    "network.ov.h1": "Basis в основной сети, *бокс за боксом.*",
     "network.strip.aria": "Цифры основной сети",
     "network.strip.block": "Блок",
     "network.strip.blockLive": "вершина цепи, опрос раз в\u00a030\u00a0с",

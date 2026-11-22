@@ -51,12 +51,14 @@ export const copy = {
   feeOffchain: t("Paying with a note costs nothing: it is a signature, not a transaction.", "Платёж распиской ничего не стоит: это подпись, а не транзакция."),
 
   /** Mainnet honesty (VISUAL §13 Home, §14). */
-  testUse: t("test use", "тестовое использование"),
+  /** The status label next to mainnet data. Always true, whoever creates reserves; the only test-use claim is Home's
+   *  network door sentence, computed from the detector (src/chain/ours currentUse). */
+  experimental: t("experimental", "экспериментально"),
   mainnetFootnoteStatic: t("99 reserve boxes · 8.995 ERG · test use", "99 резервных боксов · 8,995 ERG · тестовое использование"),
   mainnetFootnote: (o: { boxes: number; erg: string; height?: number }): Text =>
     t(
-      `${o.boxes} reserve ${o.boxes === 1 ? "box" : "boxes"} · ${o.erg} ERG · test use${o.height ? ` · as of block ${height(o.height)}` : ""}`,
-      `${o.boxes} ${ruPlural(o.boxes, ["резервный бокс", "резервных бокса", "резервных боксов"])} · ${o.erg.replace(".", ",")} ERG · тестовое использование${o.height ? ` · на блоке ${height(o.height)}` : ""}`,
+      `${o.boxes} reserve ${o.boxes === 1 ? "box" : "boxes"} · ${o.erg} ERG · experimental${o.height ? ` · as of block ${height(o.height)}` : ""}`,
+      `${o.boxes} ${ruPlural(o.boxes, ["резервный бокс", "резервных бокса", "резервных боксов"])} · ${o.erg.replace(".", ",")} ERG · экспериментально${o.height ? ` · на блоке ${height(o.height)}` : ""}`,
     ),
   asOfBlock: (h: number): Text => t(`as of block ${height(h)}`, `на блоке ${height(h)}`),
   mainnetHonest: t(

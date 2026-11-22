@@ -189,7 +189,7 @@ export function NetBar({ obs }: { obs: Observatory | null }) {
   return (
     <div className="nw-bar">
       <div className="nw-bar-l">
-        <span className="label nw-bar-tag"><Lamp state="live" size={7} /><b>{t("network.bar.mainnet")}</b> · {pick(copy.testUse, t.lang as Lang)}</span>
+        <span className="label nw-bar-tag"><Lamp state="live" size={7} /><b>{t("network.bar.mainnet")}</b> · {pick(copy.experimental, t.lang as Lang)}</span>
         <nav className="nw-tabs" aria-label={t("network.bar.aria")}>
           {TABS.map((id) => (
             <Link key={id || "overview"} to={id ? `/network/${id}` : "/network"} className={cx("nw-tab", on === id && "on")} aria-current={on === id ? "page" : undefined}>

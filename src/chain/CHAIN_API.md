@@ -216,7 +216,9 @@ Keys are in `i18n.ts` (EN + RU). Numbers inside strings use U+2009 U+2060 as the
 
 - Say where every number comes from: `chain.asOf` (“as of block {height}”) for the snapshot, `chain.live.checked` for a
   live check, `chain.live.seedOnly` when a record was not checked live yet. `chain.live.source.seed|live` for tags.
-- Frame it as test use: `chain.testUse`. Never “launched”, “live on mainnet”, “official”.
+- Label it experimental: `copy.experimental` (tags, footnotes). The only test-use claim is the sentence Home's network
+  door takes from `currentUse()`; `chain.testUse` is left for the dev probe page. Never “launched”, “live on mainnet”,
+  “official”.
 - Exit per reserve: `chain.exit.<class>` (full), `.short` (tags), `.help` (one-paragraph explanation);
   `reserve.exit.line[lang]` is the per-box sentence (reason, clocks, tracker silence).
 - Trackers: `chain.tracker.<status>` + `.help`. “Box unspent” only means the NFT's box exists, not that anyone runs a

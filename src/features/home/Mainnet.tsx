@@ -1,6 +1,6 @@
 // 03 Mainnet now (src/chain): what Basis-shaped boxes exist on Ergo today, read from the snapshot plus the live
 // layer — reserve boxes, ERG locked, redemptions, trackers by status, the last activity and the current-contract
-// detector. Every number carries "test use" and "as of block N".
+// detector. Every number carries "experimental" and "as of block N".
 import { useMemo, type CSSProperties } from "react";
 import { rich, useLang, useT } from "@/app/lang";
 import { useObservatory, useOursInCounts } from "@/chain";

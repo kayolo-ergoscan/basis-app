@@ -154,7 +154,7 @@ function MainnetStrip() {
   ];
   return (
     <div className="door-strip">
-      <div className="ds-head"><Lamp state="live" size={8} /><b>MAINNET</b><Tag>{pick(copy.testUse, lang)}</Tag></div>
+      <div className="ds-head"><Lamp state="live" size={8} /><b>MAINNET</b><Tag>{pick(copy.experimental, lang)}</Tag></div>
       <dl>
         {cells.map(([k, v, title]) => <div key={k} title={title}><dt className="label">{k}</dt><dd className="num">{v}</dd></div>)}
       </dl>
