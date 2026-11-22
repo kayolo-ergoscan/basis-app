@@ -34,9 +34,10 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
   const t = useT();
   const { pct: cov, settled, settling } = reserveCoverage(r);
   // a low figure while redemptions wait for the chain is the tracker's short delay, not a shortfall (money P2-8)
+  // then the tag shows the settled figure too: a red "under" next to the calm note would say the opposite
   const lowOnlyForNow = settling && cov !== null && cov < 100 && (settled === null || settled >= 100);
   return (
-    <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={cov} /> : undefined}>
+    <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={lowOnlyForNow && settled !== null ? settled : cov} /> : undefined}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
         <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(cov) }) : t("mw.res.noDebt")}</span>
