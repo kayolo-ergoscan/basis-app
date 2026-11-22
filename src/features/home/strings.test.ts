@@ -1,13 +1,19 @@
 // Home strings: both languages, the copy rules (PRODUCT §1), and the first screen a newcomer reads — what it is and why
 // in two sentences, one main button «Начать здесь»/Start here to the sandbox, the sandbox wallet named honestly.
 import { describe, expect, it } from "vitest";
+import { CLIENTS_HREF, faq } from "@/content";
+import { FAQ_HREF, faqHref, HOME_FAQ } from "./Faq";
 import heroSrc from "./Hero.tsx?raw";
+import pageSrc from "./Page.tsx?raw";
+import spectrumSrc from "./Spectrum.tsx?raw";
 import i18n from "./i18n";
 import strings from "./strings";
 
 const EN = { ...(i18n.en as Record<string, string>), ...(strings.en as Record<string, string>) };
 const RU = { ...(i18n.ru as Record<string, string>), ...(strings.ru as Record<string, string>) };
 const PLURAL = /_(one|few|many|other)$/;
+/** Content text as plain words: house typography (no-break and thin spaces, word joiners) read as ordinary spaces. */
+const plain = (s = "") => s.replace(/[\u00a0\u2009\u2060\u202f]/g, " ").replace(/ {2,}/g, " ");
 
 const BANNED_EN = [/trustless/i, /guarante/i, /\bsafe(ly|r|st)?\b/i, /\bsafety\b/i, /unstoppable/i, /live on mainnet/i, /\blaunched\b/i, /\bofficial/i, /\byields?\b/i, /\bAPY\b/, /\b(7|seven) days\b/i, /(?<![\d.,])2 ?%/, /\bbearer\b/i, /risk-free/i];
 const BANNED_RU = [/гарант/iu, /(?<!\p{L})безопасн/iu, /(?<!\p{L})официальн/iu, /доходност/iu, /запущен/iu, /бездовер/iu, /(?<!\d)7[\s ]+(дн|сут)/iu, /(?<![\d.,])2 ?%/u, /на[\s ]+предъявителя/iu];
@@ -54,5 +60,32 @@ describe("home first screen", () => {
       expect(EN[`home.mat.${m}.sub`]).toMatch(/^\(.+\)$/);
       expect(RU[`home.mat.${m}.sub`]).toMatch(/^\(.+\)$/);
     }
+  });
+});
+
+describe("questions forward", () => {
+  it("the first screen links the FAQ next to the main buttons, and so does «Для кого это»", () => {
+    expect(FAQ_HREF).toBe("/learn/faq");
+    expect(heroSrc).toContain('<Link className="textlink home-how" to={FAQ_HREF}>{t("home.cta.faq")}');
+    expect(spectrumSrc).toContain('to={FAQ_HREF}>{t("home.cta.faq")}');
+    expect([EN["home.cta.faq"], RU["home.cta.faq"]]).toEqual(["Questions and answers", "Вопросы и ответы"]);
+  });
+
+  it("Home answers three questions with the FAQ's own short answers and links each full answer", () => {
+    expect(pageSrc).toMatch(/<Spectrum \/>\s*<HomeFaq \/>/);
+    expect([...HOME_FAQ]).toEqual(["lose-money", "tracker-disappears", "launched"]);
+    const qs = HOME_FAQ.map((id) => faq.find((f) => f.id === id));
+    expect(qs.map((f) => plain(f?.q.ru))).toEqual(["Могу ли я потерять деньги?", "Что, если трекер исчезнет?", "Можно ли уже с настоящими ERG?"]);
+    expect(qs.map((f) => plain(f?.q.en))).toEqual(["Can I lose money?", "What if the tracker disappears?", "Can I use real ERG yet?"]);
+    for (const f of qs) expect(f?.short.en && f.short.ru).toBeTruthy();
+    expect(HOME_FAQ.map(faqHref)).toEqual(["/learn/faq#q-lose-money", "/learn/faq#q-tracker-disappears", "/learn/faq#q-launched"]);
+  });
+
+  it("the real-ERG answer is honest: not on this site, play money, an experiment", () => {
+    const f = faq.find((x) => x.id === "launched")!;
+    expect(plain(f.short.en)).toMatch(/^Not on this site: its wallet is a sandbox with play money\./);
+    expect(plain(f.short.ru)).toMatch(/^Не на этом сайте: его кошелёк — песочница с игровыми деньгами\./);
+    expect(plain(f.short.en)).toMatch(/experimental: use small amounts only\.$/);
+    expect(f.links?.map((l) => l.to)).toEqual(["/network", CLIENTS_HREF]);
   });
 });

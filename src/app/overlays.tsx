@@ -9,7 +9,7 @@ import { isTyping, useEscape } from "@/ui/hooks";
 import { short } from "@/ui/engine/money";
 import { setUiSettings, useUiSettings } from "@/ui/settings";
 import { iconOf, MOD } from "./chrome";
-import { openCommandBar, setCommandOpener, setHelpOpener, useDynamicCommands, type Command } from "./commands";
+import { faqCommands, openCommandBar, score, setCommandOpener, setHelpOpener, useDynamicCommands, type Command, type FaqQuestion } from "./commands";
 import { getLang, setLang, useT } from "./lang";
 import { hrefOf, NAV, ROUTES } from "./routes";
 import { toggleTheme } from "./theme";
@@ -17,14 +17,6 @@ import { toggleTheme } from "./theme";
 const HEX64 = /^[0-9a-fA-F]{64}$/;
 interface GlossaryTerm { id: string; en: string; ru: string; also: string }
 
-function score(c: Command, q: string): number {
-  if (!q) return 1;
-  const hay = `${c.label} ${c.sub ?? ""} ${c.keywords ?? ""} ${c.to ?? ""}`.toLowerCase();
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.every((w) => hay.includes(w))) return 0;
-  const l = c.label.toLowerCase();
-  return l.startsWith(words[0]) ? 3 : l.includes(words[0]) ? 2 : 1;
-}
 
 export function Palette() {
   const t = useT();
@@ -47,6 +39,12 @@ export function Palette() {
     if (!open || terms) return;
     import("@/content/glossary").then((m) => setTerms(m.glossary.map((x) => ({ id: x.id, en: x.en, ru: x.ru, also: [...(x.alsoEN ?? []), ...(x.alsoRU ?? [])].join(" ") })))).catch(() => setTerms([]));
   }, [open, terms]);
+  // FAQ questions (→ /learn/faq#q-<id>), loaded the same way
+  const [faqs, setFaqs] = useState<FaqQuestion[] | null>(null);
+  useEffect(() => {
+    if (!open || faqs) return;
+    import("@/content/faq").then((m) => setFaqs(m.faq.map((f) => ({ id: f.id, q: f.q, short: f.short })))).catch(() => setFaqs([]));
+  }, [open, faqs]);
   useEscape(open, close);
   useEffect(() => { if (open) requestAnimationFrame(() => input.current?.focus()); }, [open]);
 
@@ -56,7 +54,7 @@ export function Palette() {
       id: c.id, label: t(c.labelKey), sub: c.to, to: c.to, keywords: c.keywords, group: c.to.startsWith("/kit") ? ("dev" as const) : ("actions" as const), icon: iconOf(r.id, r.nav?.icon),
     })));
     const settings: Command[] = [
-      { id: "set.theme", label: t("app.cmd.theme"), group: "settings", icon: "moon", run: toggleTheme, kbd: "T", keywords: "night cotton dark light тема" },
+      { id: "set.theme", label: t("app.cmd.theme"), group: "settings", icon: "moon", run: toggleTheme, kbd: "T", keywords: "night cotton dark light тема тёмная светлая" },
       { id: "set.lang", label: t("app.cmd.lang"), group: "settings", icon: "lang", run: () => setLang(getLang() === "en" ? "ru" : "en"), keywords: "english russian язык" },
       { id: "set.lens", label: t("app.cmd.lens"), group: "settings", icon: "eye", run: toggleLens, kbd: "M", keywords: "machine bytes human story faces" },
       { id: "set.help", label: t("app.cmd.help"), group: "settings", icon: "keyboard", run: () => { setTimeout(() => helpRef.open?.(), 30); }, kbd: "?", keywords: "keys shortcuts motion confirm privacy" },
@@ -70,8 +68,8 @@ export function Palette() {
     }
     const lang = getLang();
     const words: Command[] = (terms ?? []).map((x) => ({ id: "term." + x.id, label: lang === "ru" ? x.ru : x.en, sub: `/learn/glossary#t-${x.id}`, to: `/learn/glossary#t-${x.id}`, group: "terms", icon: "learn", keywords: `${x.en} ${x.ru} ${x.also}` }));
-    return [...go, ...feat, ...dyn.map((c) => ({ group: "actions" as const, ...c })), ...settings, ...dev, ...words];
-  }, [t, dyn, terms]);
+    return [...go, ...feat, ...dyn.map((c) => ({ group: "actions" as const, ...c })), ...settings, ...dev, ...faqCommands(faqs ?? [], lang), ...words];
+  }, [t, dyn, terms, faqs]);
 
   const query = q.trim();
   const ids: Command[] = HEX64.test(query)
@@ -81,9 +79,9 @@ export function Palette() {
         { id: "id.nft", label: `${t("app.cmd.tracker")} ${short(query, 8, 6)}`, sub: `/network/tracker/${query.toLowerCase()}`, to: `/network/tracker/${query.toLowerCase()}`, group: "id", icon: "tracker" },
       ]
     : [];
-  // terms only answer a query (an empty bar lists pages and commands)
-  const hits = ids.length ? ids : all.filter((c) => query || c.group !== "terms").map((c) => [c, score(c, query)] as const).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([c]) => c);
-  const order = ["id", "go", "actions", "terms", "settings", "dev"] as const;
+  // questions and terms only answer a query (an empty bar lists pages and commands)
+  const hits = ids.length ? ids : all.filter((c) => query || (c.group !== "terms" && c.group !== "faq")).map((c) => [c, score(c, query)] as const).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  const order = ["id", "go", "actions", "faq", "terms", "settings", "dev"] as const;
   const groups = order.map((g) => [g, hits.filter((c) => (c.group ?? "actions") === g)] as const).filter(([, l]) => l.length);
   const flat = groups.flatMap(([, l]) => l);
   const cur = Math.min(i, Math.max(0, flat.length - 1));

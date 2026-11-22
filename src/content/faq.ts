@@ -169,15 +169,26 @@ export const faq: Faq[] = [
   },
   {
     id: "launched",
-    q: t("Is Basis running on mainnet yet?", "Basis уже работает в mainnet?"),
-    short: t("In beta, and only in part. ErgoScan's tracker has run on mainnet since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.", "В бета-режиме и пока лишь частично. Трекер ErgoScan работает в mainnet с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы."),
+    q: t("Can I use real ERG yet?", "Можно ли уже с настоящими ERG?"),
+    short: t(
+      "Not on this site: its wallet is a sandbox with play money. On Ergo mainnet, ErgoScan's tracker has run in beta since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.",
+      "Не на этом сайте: его кошелёк — песочница с игровыми деньгами. В основной сети Ergo трекер ErgoScan работает в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы.",
+    ),
     a: [
+      t(
+        "This site does not move real ERG yet. Its wallet and the sandbox run on play money; the Network and Tracker pages only read Ergo mainnet.",
+        "Этот сайт пока не работает с настоящими ERG. Его кошелёк и песочница — на игровых деньгах, а страницы «Сеть» и «Трекер» только читают основную сеть Ergo.",
+      ),
       t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в mainnet Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
       t("Older contract versions hold the early test use: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions at the last snapshot.", "Под старыми версиями контракта — ранние тесты: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и 41 погашение на момент последнего снимка."),
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
     tags: ["status"],
-    links: [{ label: t("Open the network", "Открыть сеть"), to: "/network" }],
+    links: [
+      { label: t("Open the network", "Открыть сеть"), to: "/network" },
+      // CLIENTS_HREF (clients.ts), written out so this file stays light for the ⌘K bar (content.test checks it)
+      { label: t("Ready-made programs", "Готовые программы"), to: "/learn/api#clients" },
+    ],
     sources: ["bt-15", "f5368-1", "tg-1675", "bt-spec-compiled"],
   },
   {

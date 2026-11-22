@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useLang, useT } from "@/app/lang";
 import { personas, personasLede, personasTitle, pick, spectrum } from "@/content";
 import { useUid } from "@/ui";
+import { FAQ_HREF } from "./Faq";
 import { CodeText } from "./Moments";
 
 /** The serif second beat every section title has ("The money *spectrum.*"): the last word in italic ink-2. */
@@ -70,7 +71,7 @@ export function Spectrum() {
 
         <div className="pe-head">
           <h3 className="t-h3">{pick(personasTitle, lang)}</h3>
-          <p className="t-small">{pick(personasLede, lang)}</p>
+          <p className="t-small">{pick(personasLede, lang)} <Link className="textlink pe-faq" to={FAQ_HREF}>{t("home.cta.faq")} <span aria-hidden="true">→</span></Link></p>
         </div>
         <ul className="pe-row">
           {personas.map((p) => (
