@@ -2,6 +2,8 @@
 // space in the thousands; EN "9.545 ERG", "1,240.00". One switch (setLang → setNumberLang) moves every formatter: the
 // kit's, the world's, the X-rays', the chain's, /network's and the house typography of prose. The height pill says
 // «Блок»/Block, and Russian never shortens blocks to «блк» or «бл.».
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, describe, expect, it } from "vitest";
 import { ERG } from "@/protocol";
 import { fmtInt as chainInt } from "@/chain/decode";
@@ -9,6 +11,7 @@ import { copy } from "@/content";
 import { amount } from "@/features/network/fmt";
 import networkSrc from "@/features/network/Ours.tsx?raw";
 import tracker from "@/features/tracker/strings";
+import { Key } from "@/ui";
 import { int, money, numberLang, parseMoney, units } from "@/ui/engine/money";
 import { fmtAmount as vizAmount, ERG_UNIT } from "@/viz/core/format";
 import { fmtUnits, parseAmount } from "@/world/format";
@@ -47,6 +50,13 @@ describe("numbers per language", () => {
     expect(vizAmount(NANO_9545, ERG_UNIT)).toBe(`9.545${N}ERG`);
     expect(chainInt(1922434)).toBe("1,922,434");
     expect(amount(NANO_9545, 9)).toBe("9.545");
+  });
+
+  it("hold-to-act keys count their seconds the same way: «1,2 с» / 1.2 s", () => {
+    setLang("ru");
+    expect(renderToStaticMarkup(createElement(Key, { hold: true }, "Погасить"))).toMatch(/>1,2[ \u00a0]с</);
+    setLang("en");
+    expect(renderToStaticMarkup(createElement(Key, { hold: true }, "Redeem"))).toMatch(/>1\.2[ \u00a0]s</);
   });
 
   it("inputs read back what the page wrote, in both languages", () => {

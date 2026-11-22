@@ -5,6 +5,7 @@
 import { forwardRef, useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
+import { money } from "../engine/money";
 import { useUiSettings } from "../settings";
 import { Icon, type IconName } from "./Icon";
 
@@ -129,7 +130,7 @@ function HoldKey({ ms, confirmPress, variant, size, block, tall, className, styl
   };
   useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(armT.current); }, []);
 
-  const secsText = t("ui.key.secs", { v: (ms / 1000).toFixed(1) });
+  const secsText = t("ui.key.secs", { v: money(ms / 1000, 1, t.lang) }); // «1,2 с» / "1.2 s"
   const label = confirmPress && armed ? t("ui.key.again") : children;
   const handlers = confirmPress
     ? {
