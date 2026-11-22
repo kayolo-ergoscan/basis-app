@@ -1,0 +1,13 @@
+// The mainnet transaction core: everything the wallet flows need to build, check and sign real Ergo transactions.
+// See README.md in this folder for the flows and the rules. No network, no DOM, no storage: callers fetch, show and
+// keep secrets; this module only turns bytes into checked bytes.
+export * from "./address";
+export * from "./constants";
+export * from "./contract";
+export * from "./json";
+export * from "./messages";
+export * from "./model";
+export * from "./p2pk";
+export * from "./provedlog";
+export * from "./redemption";
+export * from "./serialize";
