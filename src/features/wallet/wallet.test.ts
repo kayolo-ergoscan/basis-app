@@ -6,6 +6,7 @@ import type { AcceptanceConfig } from "@/protocol";
 import page from "./strings";
 import eager from "./i18n";
 import route from "./route";
+import { MODE_STRINGS } from "./ModeSwitch";
 import { makePayLink, parsePayLink, plainAmount, policyCapFor, share } from "./lib/model";
 
 const BANNED_EN = [
@@ -104,8 +105,9 @@ describe("wallet strings", () => {
     const used = new Set<string>();
     for (const text of Object.values(src)) for (const m of text.matchAll(/["'](wallet\.[A-Za-z0-9_.]+)["']/g)) if (!m[1].endsWith(".")) used.add(m[1]);
     expect(used.size).toBeGreaterThan(100);
-    const missing = [...used].filter((k) => !(k in EN) && !(`${k}_other` in EN) && !route.commands?.some((c) => c.id === k) && k !== route.titleKey);
+    const missing = [...used].filter((k) => !(k in EN) && !(`${k}_other` in EN) && !(k in MODE_STRINGS.en) && !route.commands?.some((c) => c.id === k) && k !== route.titleKey);
     expect(missing).toEqual([]);
+    expect(Object.keys(MODE_STRINGS.ru).sort()).toEqual(Object.keys(MODE_STRINGS.en).sort());
   });
 });
 

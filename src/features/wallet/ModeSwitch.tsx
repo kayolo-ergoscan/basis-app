@@ -5,7 +5,8 @@ import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
 import "./mode.css";
 
-const STR = {
+/** The switch's own strings (both lazy pages use it, so it registers them itself). */
+export const MODE_STRINGS = {
   en: {
     "wallet.mode.aria": "Wallet mode",
     "wallet.mode.sandbox": "Sandbox",
@@ -22,8 +23,8 @@ const STR = {
   },
 };
 addI18n({
-  en: Object.fromEntries(Object.entries(STR.en).map(([k, v]) => [k, typo(v, "en")])),
-  ru: Object.fromEntries(Object.entries(STR.ru).map(([k, v]) => [k, typo(v, "ru")])),
+  en: Object.fromEntries(Object.entries(MODE_STRINGS.en).map(([k, v]) => [k, typo(v, "en")])),
+  ru: Object.fromEntries(Object.entries(MODE_STRINGS.ru).map(([k, v]) => [k, typo(v, "ru")])),
 });
 
 export function WalletModeSwitch({ mode }: { mode: "sandbox" | "mainnet" }) {
