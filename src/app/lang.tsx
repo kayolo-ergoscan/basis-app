@@ -3,6 +3,7 @@
 // missing keys render as the key itself. Interpolation: "{name}". Plurals: tp(key, n) looks up key_one / key_few /
 // key_many / key_other via Intl.PluralRules. Rich text: <T k="…"/> turns **bold**, *italic* and {var} into nodes.
 import { Fragment, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { setNumberLang } from "@/ui/engine/money";
 import type { Dict, I18nBundle, Lang } from "./types";
 
 const mods = import.meta.glob<{ default: I18nBundle }>("/src/**/i18n.ts", { eager: true });
@@ -33,11 +34,14 @@ function initial(): Lang {
 let lang: Lang = typeof window === "undefined" ? "en" : initial();
 const subs = new Set<() => void>();
 if (typeof document !== "undefined") document.documentElement.lang = lang;
+// numbers follow the page language: RU "1 240,00", EN "1,240.00" (src/ui/engine/money.ts)
+setNumberLang(lang);
 
 export function getLang(): Lang { return lang; }
 export function setLang(l: Lang) {
   if (l === lang) return;
   lang = l;
+  setNumberLang(l);
   try { localStorage.setItem(KEY, l); } catch { /* ignore */ }
   if (typeof document !== "undefined") document.documentElement.lang = l;
   for (const f of [...subs]) f();

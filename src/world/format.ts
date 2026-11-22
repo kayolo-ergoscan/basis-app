@@ -1,14 +1,16 @@
-// Small, dependency-free formatters for world strings (feed lines, toasts). Pages should render numbers with
-// the ui kit's money()/Num; these follow the same VISUAL §4.3 rules so inline text matches:
-// thin space + word joiner as the thousands separator, U+2212 minus, 2 dp (up to 4 dp for micro amounts).
+// Small formatters for world strings (feed lines, toasts). Pages should render numbers with the ui kit's
+// money()/Num; these take the kit's number rules (src/ui/engine/money.ts, pure, no DOM) so inline text matches:
+// numbers in the page language (RU "1 240,00", EN "1,240.00"), U+2212 minus, 2 dp (up to 4 dp for micro amounts).
 import { ERG, formatUnits, parseUnits, type DenomId, type DenominationInfo, type Economy } from "@/protocol";
+import { blk, decimalMark, groupDigits, numberLang, plainNumber, type FmtLang } from "@/ui/engine/money";
 
 export const THIN = " ⁠";
 export const MINUS = "−";
 export const NBSP = " ";
 
-export function groupThousands(int: string): string {
-  return int.replace(/\B(?=(\d{3})+(?!\d))/g, THIN);
+/** "1240000" → "1,240,000" (EN) / "1 240 000" (RU). */
+export function groupThousands(int: string, lang: FmtLang = numberLang()): string {
+  return groupDigits(int, lang);
 }
 
 /** Denomination info for an id (ERG, a token the economy knows, or a placeholder). */
@@ -30,7 +32,8 @@ function roundTo(x: bigint, decimals: number, dp: number): bigint {
  * "1 240.00" for UI text. dp "auto" (default): 2 dp, or up to 4 dp when 2 dp would show 0.00 for a non-zero
  * amount (agent micro-prices), or the exact value when even 4 dp is 0.
  */
-export function fmtUnits(v: bigint, decimals: number, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never" } = {}): string {
+export function fmtUnits(v: bigint, decimals: number, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never"; lang?: FmtLang } = {}): string {
+  const lang = o.lang ?? numberLang();
   const neg = v < 0n;
   const x = neg ? -v : v;
   let dp: number;
@@ -41,20 +44,20 @@ export function fmtUnits(v: bigint, decimals: number, o: { dp?: number | "auto";
   } else dp = Math.min(o.dp, decimals);
   const r = roundTo(x, decimals, dp);
   const base = 10n ** BigInt(dp);
-  const int = groupThousands((r / base).toString());
-  const frac = dp > 0 ? "." + (r % base).toString().padStart(dp, "0") : "";
+  const int = groupThousands((r / base).toString(), lang);
+  const frac = dp > 0 ? decimalMark(lang) + (r % base).toString().padStart(dp, "0") : "";
   const sign = neg ? (o.sign === "never" ? "" : MINUS) : o.sign === "always" && x !== 0n ? "+" : "";
   return `${sign}${int}${frac}`;
 }
 
 /** "500.00 ERG" (number + NBSP + symbol). */
-export function fmtAmount(v: bigint, info: DenominationInfo, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never"; symbol?: boolean } = {}): string {
+export function fmtAmount(v: bigint, info: DenominationInfo, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never"; symbol?: boolean; lang?: FmtLang } = {}): string {
   const n = fmtUnits(v, info.decimals, o);
   return o.symbol === false ? n : `${n}${NBSP}${info.symbol}`;
 }
 
 /** Amount in a denomination of an economy. */
-export function fmtDenom(eco: Pick<Economy, "denominations"> | null | undefined, v: bigint, denom: DenomId, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never"; symbol?: boolean } = {}): string {
+export function fmtDenom(eco: Pick<Economy, "denominations"> | null | undefined, v: bigint, denom: DenomId, o: { dp?: number | "auto"; sign?: "auto" | "always" | "never"; symbol?: boolean; lang?: FmtLang } = {}): string {
   return fmtAmount(v, denomInfo(eco, denom), o);
 }
 
@@ -65,7 +68,7 @@ export function fmtRaw(v: bigint): string {
 
 /** Parses a user-typed amount ("1.5", "1 240,50") into base units; null when it is not a valid amount. */
 export function parseAmount(text: string, info: DenominationInfo): bigint | null {
-  const s = text.replace(/[\s ⁠  ]/g, "").replace(",", ".");
+  const s = plainNumber(text);
   if (!/^\d+(\.\d+)?$/.test(s)) return null;
   try {
     return parseUnits(s, info.decimals);
@@ -78,8 +81,8 @@ export function parseAmount(text: string, info: DenominationInfo): bigint | null
 export function fmtPercent(ratio: number | null | undefined): string {
   if (ratio === null || ratio === undefined || !Number.isFinite(ratio)) return "—";
   const p = ratio * 100;
-  const s = p < 1 && p > 0 ? p.toFixed(1) : Math.round(p).toString();
-  return `${groupThousands(s)}${THIN}%`;
+  const s = p < 1 && p > 0 ? p.toFixed(1).replace(".", decimalMark()) : groupThousands(Math.round(p).toString());
+  return `${s}${THIN}%`;
 }
 
 /** "02d9…60b6" (VISUAL §4.3: first 4 + … + last 4). */
@@ -96,9 +99,9 @@ export function groupHex(hex: string, groups = 4): string {
   return h.length > groups * 4 ? `${parts.join(" ")} … ${h.slice(-2)}` : parts.join(" ");
 }
 
-/** "37 blk" with NBSP. */
-export function fmtBlocks(n: number): string {
-  return `${groupThousands(String(Math.round(n)))}${NBSP}blk`;
+/** "37 blk" (RU «37 блоков») with NBSP. */
+export function fmtBlocks(n: number, lang: FmtLang = numberLang()): string {
+  return blk(Math.round(n), lang);
 }
 
 /** Re-export for convenience: exact decimal string without grouping ("1.5"). */

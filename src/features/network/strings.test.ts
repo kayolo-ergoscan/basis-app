@@ -81,7 +81,7 @@ describe("plain words on the tracker cards (UX review, 22 Nov 2026)", () => {
       expect(src).toMatch(/<TrackerPanel key=\{tr\.nft\} tr=\{tr\} tip=\{obs\.height\} idle=\{false\} \/>/);
       expect(src.match(/nw-em-idle nw-em-idle-once/g)).toHaveLength(1);
     }
-    expect(plain(en["network.em.idle"])).toMatch(/^The window opens on time, not on failure\. If a tracker has written nothing to Ergo for about 3 days \(2 160 /);
+    expect(plain(en["network.em.idle"])).toMatch(/^The window opens on time, not on failure\. If a tracker has written nothing to Ergo for about 3 days \(2,160 blk\)/);
     expect(plain(ru["network.em.idle"])).toMatch(/^Окно открывается по времени, а не по поломке\. Если трекер около 3 дней \(2 160 блоков\)/);
   });
 

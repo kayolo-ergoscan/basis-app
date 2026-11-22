@@ -206,15 +206,15 @@ export function useFmt(): Fmt {
     const dpOf = (u: Unit) => (p.amounts === "exact" ? u.decimals : Math.min(2, u.decimals));
     const amt: Fmt["amt"] = (v, u, o = {}) => {
       if (ui.privacy && !o.reveal) return "•••";
-      const abs = units(v < 0n ? -v : v, u.decimals, o.dp ?? dpOf(u));
+      const abs = units(v < 0n ? -v : v, u.decimals, o.dp ?? dpOf(u), lang);
       const s = o.sign ?? "auto";
       const sign = v === 0n ? "" : s === "favour" ? "+" : s === "owe" ? MINUS : s === "auto" && v < 0n ? MINUS : "";
       return `${sign}${abs}${o.unit ? NBSP + u.symbol : ""}`;
     };
     const prose = (s: string) => (lang === "ru" ? s.replace(/(\d)\.(\d)/g, "$1,$2") : s);
     const dur = (n: number) => (p.durations === "time" ? `${humanTime(n, lang)} · ${blk(n, lang)}` : `${blk(n, lang)} · ${humanTime(n, lang)}`);
-    const pct = (r: number | null) => (r === null || !Number.isFinite(r) ? "—" : pctFmt(r * 100 < 1 && r > 0 ? Math.round(r * 1000) / 10 : Math.round(r * 100)));
-    return { lang, priv: ui.privacy, dpOf, amt, prose, dur, blocks: (n: number) => blk(n, lang), height: (n: number) => int(n), pct };
+    const pct = (r: number | null) => (r === null || !Number.isFinite(r) ? "—" : pctFmt(r * 100 < 1 && r > 0 ? Math.round(r * 1000) / 10 : Math.round(r * 100), lang));
+    return { lang, priv: ui.privacy, dpOf, amt, prose, dur, blocks: (n: number) => blk(n, lang), height: (n: number) => int(n, lang), pct };
   }, [t.lang, ui.privacy, p.amounts, p.durations]);
 }
 

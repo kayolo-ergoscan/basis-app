@@ -1,10 +1,11 @@
 // Number, hex and time formatting for the protocol X-rays (VISUAL §4.3), built on the kit's money helpers
-// (src/ui/engine/money.ts): thousands U+2009 + U+2060, minus U+2212, units after U+00A0, blocks first.
+// (src/ui/engine/money.ts): numbers in the page language (RU "1 240,00", EN "1,240.00"), minus U+2212, units after
+// U+00A0, blocks first.
 // The one addition: an X-ray never rounds a number it compares, so amounts get as many decimals as they need.
 // Pure functions: no DOM, usable in tests.
 
 import type { DenominationInfo } from "@/protocol";
-import { blk, blocksAndTime, humanTime, int as kitInt, ratioPct, units as kitUnits } from "@/ui/engine/money";
+import { blk, blocksAndTime, groupDigits as kitGroup, humanTime, int as kitInt, ratioPct, units as kitUnits } from "@/ui/engine/money";
 
 export const THIN = "\u2009\u2060";
 export const MINUS = "\u2212";
@@ -13,9 +14,9 @@ export const BLOCK_SECONDS = 120;
 
 export type VizLang = "en" | "ru";
 
-/** "1240000" → "1 240 000" with thin non-breaking separators. */
+/** "1240000" → "1,240,000" (EN) / "1 240 000" (RU, thin non-breaking separators). */
 export function groupDigits(s: string): string {
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, THIN);
+  return kitGroup(s);
 }
 
 export function fmtInt(n: number | bigint): string {

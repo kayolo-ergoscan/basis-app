@@ -30,7 +30,7 @@ export default {
     "chain.exit.redeem.short": "Redeem only",
     "chain.exit.refund+redeem-if-tracker.short": "Refund · needs a tracker",
     "chain.exit.locked.help": "Nobody can move these funds. The contract has no owner exit, and redemption cannot work.",
-    "chain.exit.refund.help": "Only the owner can take these funds back, through the refund: write R7, wait 43 ⁠200 blk ≈ 60 days, take what is left. Holders cannot redeem.",
+    "chain.exit.refund.help": "Only the owner can take these funds back, through the refund: write R7, wait 43,200 blk ≈ 60 days, take what is left. Holders cannot redeem.",
     "chain.exit.refund+redeem.help": "The tracker box still exists, so a note holder with proofs can redeem. The owner can also exit through the refund.",
     "chain.exit.redeem-if-tracker.help": "Redemption needs a tracker box that does not exist yet. The contract has no owner exit.",
     "chain.exit.redeem.help": "A note holder with proofs can redeem. The contract has no owner exit.",
@@ -51,10 +51,10 @@ export default {
     "chain.tracker.silent": "box age {blocks} blk · {approx}",
     "chain.tracker.keyNotHolder": "The key in R4 may differ from the address that holds the box, and it can change between boxes.",
 
-    "chain.emergency.open": "Emergency redeem is open: the tracker's newest box is older than 2 ⁠160 blk (≈ 3 days), so a redemption no longer needs its signature.",
+    "chain.emergency.open": "Emergency redeem is open: the tracker's newest box is older than 2,160 blk (≈ 3 days), so a redemption no longer needs its signature.",
     "chain.emergency.opensAt": "Emergency redeem opens at block {height} ({left} blk left).",
     "chain.refund.running": "Refund running: the owner can take what is left from block {height} ({left} blk left). Until then, redemptions work as before.",
-    "chain.refund.ready": "The 43 ⁠200-block refund wait is over. The owner can take what is left now.",
+    "chain.refund.ready": "The 43,200-block refund wait is over. The owner can take what is left now.",
     "chain.refund.none": "No refund started (R7 = 0).",
     "chain.refund.notInContract": "This contract has no owner refund.",
 
@@ -64,7 +64,7 @@ export default {
     "chain.contract.repo-only": "Only in the repository",
     "chain.contract.legacy.refundable": "Legacy contract: exploitable. Refund or migrate the funds.",
     "chain.contract.legacy.noExit": "Legacy contract: exploitable, and it has no owner exit.",
-    "chain.contract.msWindow": "This early version sets the emergency window as 604 ⁠800 ⁠000 ms instead of 2 ⁠160 blocks.",
+    "chain.contract.msWindow": "This early version sets the emergency window as 604,800,000 ms instead of 2,160 blocks.",
     "chain.fee.protocol": "Protocol fee: none (basis.es)",
 
     "chain.detector.none": "Watching the current contracts. No boxes there yet.",
@@ -79,7 +79,7 @@ export default {
     "chain.malformedOwner": "R4 is not a public key, so no note can be checked against this reserve.",
 
     "chain.receipt.trackerAge": "Tracker box age at redemption: {age} blk",
-    "chain.receipt.emergency": "Mined after the emergency window opened (tracker box older than 2 ⁠160 blk).",
+    "chain.receipt.emergency": "Mined after the emergency window opened (tracker box older than 2,160 blk).",
     "chain.receipt.amount": "{amount} from {owner}'s reserve to {receiver}",
 
     "chain.box.idle": "Paste a box id (64 hex characters).",
@@ -172,7 +172,7 @@ export default {
     "chain.tracker.unused.help": "NFT лежит в обычном кошельке и ни разу не был в боксе трекера.",
     "chain.tracker.honest": "Не может украсть · Может цензурировать",
     "chain.tracker.untrustedName": "Имя выбрал тот, кто выпустил NFT. Имя ничего не доказывает.",
-    "chain.tracker.silent": "возраст бокса {blocks} блк · {approx}",
+    "chain.tracker.silent": "возраст бокса {blocks} блоков · {approx}",
     "chain.tracker.keyNotHolder": "Ключ в R4 может не совпадать с адресом, на котором лежит бокс, и может меняться от бокса к боксу.",
 
     "chain.emergency.open": "Аварийное погашение открыто: новейшему боксу трекера больше 2 ⁠160 блоков (≈ 3 дня), поэтому погашению уже не нужна его подпись.",

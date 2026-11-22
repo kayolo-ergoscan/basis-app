@@ -132,7 +132,8 @@ const S: Record<string, Pair> = {
   "play.tracker.offline": ["Gone dark", "Пропал"],
   "play.tracker.omit": ["Leaving notes out", "Пропускает расписки"],
   "play.tracker.refuse": ["Refusing notes", "Отказывает в расписках"],
-  "play.tracker.ago": ["last commit {n} blk ago", "фиксация {n} бл. назад"],
+  // {n} comes with its unit: blk(age, lang) → "37 blk" / «37 блоков»
+  "play.tracker.ago": ["last commit {n} ago", "фиксация {n} назад"],
   "play.tracker.never": ["no commit yet", "фиксаций ещё не было"],
   "play.tracker.aria": ["Tracker {name}: {state}, {ago}", "Трекер {name}: {state}, {ago}"],
 
@@ -275,7 +276,6 @@ const S: Record<string, Pair> = {
   "play.tm.mark.tracker": ["Tracker state", "Состояние трекера"],
   "play.tm.mark.alert": ["Alert", "Оповещение"],
   "play.tm.mark.reject": ["Refusal", "Отказ"],
-  "play.tm.blocks": ["{n} blk", "{n} бл."],
 
   // ---------------- log / tx ----------------
   "play.feed.title": ["Log", "Журнал"],
@@ -428,7 +428,7 @@ const S: Record<string, Pair> = {
   "play.free.mine": ["Mine", "Майнить"],
   "play.free.mineN": ["+{n}", "+{n}"],
   "play.free.mined": ["{n} blocks mined: block {h}", "Намайнено блоков: {n}, блок {h}"],
-  "play.free.mineHelp": ["720 blk ≈ 1 day · +2 161 opens the emergency path: the contract needs a tracker box older than 2 160 blk (≈ 3 days)", "720 бл. ≈ 1 день · +2 161 открывает аварийный путь: контракту нужен бокс трекера старше 2 160 бл. (≈ 3 дня)"],
+  "play.free.mineHelp": ["720 blk ≈ 1 day · +2 161 opens the emergency path: the contract needs a tracker box older than 2 160 blk (≈ 3 days)", "720 блоков ≈ 1 день · +2 161 открывает аварийный путь: контракту нужен бокс трекера старше 2 160 блоков (≈ 3 дня)"],
   "play.free.findLoops": ["Find loops", "Найти кольца"],
   "play.free.noLoops": ["No loops right now.", "Колец сейчас нет."],
   "play.free.loop": ["{members} · {v}", "{members} · {v}"],

@@ -158,7 +158,7 @@ export function TrackerXL({ v, beats, genesis, blockMs, avl }: TrackerXLProps) {
               <div className="trk-beats-key t-small">
                 <span><i className="k-c" aria-hidden="true" />{t("tracker.beats.keyChange")}</span>
                 <span><i className="k-hb" aria-hidden="true" />{t("tracker.beats.keyHeartbeat")}</span>
-                <span className="dim">{win.bucket === 1 ? t("tracker.beats.slotBlock") : t("tracker.beats.slot", { n: int(win.bucket) })}</span>
+                <span className="dim">{win.bucket === 1 ? t("tracker.beats.slotBlock") : t.p("tracker.beats.slot", win.bucket, { n: int(win.bucket) })}</span>
               </div>
             </div>
 

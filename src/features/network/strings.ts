@@ -1,13 +1,14 @@
 // /network page strings (EN / RU). Loaded with the lazy page (Page.tsx calls addI18n), so they stay out of the main
-// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings use U+2009 U+2060 for
-// thousands and U+00A0 before units (VISUAL §4.3). Shared honest phrases come from @/content `copy`, not from here.
+// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings are in each language's
+// format: EN "2,160", RU "2 160" with U+2009 U+2060; U+00A0 before units (VISUAL §4.3). Shared honest phrases come
+// from @/content `copy`, not from here.
 import type { I18nBundle } from "@/app/types";
 
 const S = " ⁠"; // thin space + word joiner
 const NB = " ";
-const B2160 = `2${S}160${NB}blk`;
+const B2160 = `2,160${NB}blk`;
 const B2160RU = `2${S}160${NB}блоков`;
-const B43200 = `43${S}200${NB}blk`;
+const B43200 = `43,200${NB}blk`;
 const B43200RU = `43${S}200${NB}блоков`;
 
 export default {

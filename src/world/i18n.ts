@@ -141,7 +141,7 @@ const en = {
   "world.redeem.blocker.reserve-empty": "The reserve has nothing left to pay out.",
   "world.redeem.blocker.refund-pending": "The issuer announced a refund: redeem before it unlocks.",
   "world.redeem.blocker.tracker-offline": "The tracker is offline; the emergency path is open.",
-  "world.redeem.blocker.emergency-not-open": "The tracker is offline; the emergency path opens after 2 160 blocks of box age.",
+  "world.redeem.blocker.emergency-not-open": "The tracker is offline; the emergency path opens after 2,160 blocks of box age.",
   "world.redeem.blocker.policy": "The tracker's acceptance rules refuse this redemption (an older note first, or a policy limit).",
 
   // toasts (results of your commands)
@@ -164,7 +164,7 @@ const en = {
   "world.toast.redeem.ok": "Redeemed {amount} from {issuer}",
   "world.toast.redeem.okDetail": "The reserve contract passed all {checks} checks.",
   "world.toast.redeem.emergency": "Emergency redemption: {amount} from {issuer}",
-  "world.toast.redeem.emergencyDetail": "No tracker signature: the tracker box is older than 2 160 blocks.",
+  "world.toast.redeem.emergencyDetail": "No tracker signature: the tracker box is older than 2,160 blocks.",
   "world.toast.reserve.created": "Reserve opened with {amount}",
   "world.toast.reserve.createdDetail": "Bound to tracker {tracker}. Sandbox box, play money.",
   "world.toast.reserve.toppedUp": "Reserve topped up by {amount}",
@@ -185,7 +185,7 @@ const en = {
   "world.toast.contact.removed": "Contact removed",
   "world.toast.tracker.committed": "{tracker} committed digest {digest}…",
   "world.toast.tracker.offline": "{tracker} is offline",
-  "world.toast.tracker.offlineDetail": "Notes stop being witnessed. After 2 160 blocks of box age holders can redeem without it.",
+  "world.toast.tracker.offlineDetail": "Notes stop being witnessed. After 2,160 blocks of box age holders can redeem without it.",
   "world.toast.tracker.online": "{tracker} is back online",
   "world.toast.tracker.heartbeatOn": "{tracker} commits on every cycle (heartbeat)",
   "world.toast.tracker.heartbeatOff": "{tracker} skips unchanged digests",
@@ -273,7 +273,7 @@ const en = {
   "world.code.refundHeightValid": "Contract: the refund height (R7) is below the current height.",
   "world.code.refundNotStarted": "Contract: a refund is already announced.",
   "world.code.refundStarted": "Contract: no refund was announced.",
-  "world.code.refundPeriodOver": "Contract: the refund unlocks 43 200 blocks (about 60 days) after R7.",
+  "world.code.refundPeriodOver": "Contract: the refund unlocks 43,200 blocks (about 60 days) after R7.",
   "world.code.refundPreserved": "Contract: the refund height must stay as it is.",
   "world.code.tokenIdsPreserved": "Contract: the reserve tokens must stay.",
   "world.code.ergPreserved": "Contract: ERG cannot be taken out here.",
@@ -488,7 +488,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.redeem.blocker.reserve-empty": "В резерве не осталось средств для выплаты.",
   "world.redeem.blocker.refund-pending": "Эмитент объявил возврат: погасите до разблокировки.",
   "world.redeem.blocker.tracker-offline": "Трекер недоступен; аварийный путь открыт.",
-  "world.redeem.blocker.emergency-not-open": "Трекер недоступен; аварийный путь откроется, когда возраст бокса трекера превысит 2 160 блоков.",
+  "world.redeem.blocker.emergency-not-open": "Трекер недоступен; аварийный путь откроется, когда возраст бокса трекера превысит 2 ⁠160 блоков.",
   "world.redeem.blocker.policy": "Правила трекера не пропускают это погашение (сначала более старая расписка или лимит политики).",
 
   "world.toast.refused": "Не сделано",
@@ -510,7 +510,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.toast.redeem.ok": "Погашено {amount} у {issuer}",
   "world.toast.redeem.okDetail": "Контракт резерва прошёл все проверки: {checks}.",
   "world.toast.redeem.emergency": "Аварийное погашение: {amount} у {issuer}",
-  "world.toast.redeem.emergencyDetail": "Без подписи трекера: боксу трекера больше 2 160 блоков.",
+  "world.toast.redeem.emergencyDetail": "Без подписи трекера: боксу трекера больше 2 ⁠160 блоков.",
   "world.toast.reserve.created": "Резерв открыт: {amount}",
   "world.toast.reserve.createdDetail": "Привязан к трекеру {tracker}. Бокс в песочнице, игровые деньги.",
   "world.toast.reserve.toppedUp": "Резерв пополнен на {amount}",
@@ -531,7 +531,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.toast.contact.removed": "Контакт удалён",
   "world.toast.tracker.committed": "{tracker} опубликовал дайджест {digest}…",
   "world.toast.tracker.offline": "{tracker} недоступен",
-  "world.toast.tracker.offlineDetail": "Расписки больше не заверяются. Когда возраст бокса трекера превысит 2 160 блоков, держатели смогут погашать без трекера.",
+  "world.toast.tracker.offlineDetail": "Расписки больше не заверяются. Когда возраст бокса трекера превысит 2 ⁠160 блоков, держатели смогут погашать без трекера.",
   "world.toast.tracker.online": "{tracker} снова в сети",
   "world.toast.tracker.heartbeatOn": "{tracker} публикует в каждом цикле (heartbeat)",
   "world.toast.tracker.heartbeatOff": "{tracker} пропускает неизменные дайджесты",
@@ -600,7 +600,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.code.nothing-to-redeem": "По этой расписке погашать больше нечего.",
   "world.code.insufficient-collateral": "Резерв не может выплатить столько.",
   "world.code.insufficient-funds": "В кошельке недостаточно средств.",
-  "world.code.fee-funds": "Не хватает ERG на комиссию майнера 0.001 ERG.",
+  "world.code.fee-funds": "Не хватает ERG на комиссию майнера 0,001 ERG.",
   "world.code.reserve-closed": "Этот резерв закрыт.",
   "world.code.contract": "Контракт резерва отклонил транзакцию.",
   "world.code.not-a-cycle": "Эти долги не образуют цикл.",
@@ -617,7 +617,7 @@ const ru: Partial<Record<Key, string>> = {
   "world.code.refundHeightValid": "Контракт: высота возврата (R7) ниже текущей.",
   "world.code.refundNotStarted": "Контракт: возврат уже объявлен.",
   "world.code.refundStarted": "Контракт: возврат не объявлялся.",
-  "world.code.refundPeriodOver": "Контракт: возврат разблокируется через 43 200 блоков (около 60 дней) после R7.",
+  "world.code.refundPeriodOver": "Контракт: возврат разблокируется через 43 ⁠200 блоков (около 60 дней) после R7.",
   "world.code.refundPreserved": "Контракт: высота возврата должна остаться прежней.",
   "world.code.tokenIdsPreserved": "Контракт: токены резерва должны остаться.",
   "world.code.ergPreserved": "Контракт: здесь нельзя вывести ERG.",
@@ -741,21 +741,21 @@ function interp(s: string, params: Record<string, string | number> | undefined, 
     }
     if (k === "reason" && v.startsWith("world.")) return worldLookup(v, lang) ?? v;
     // heights, block counts and other plain integers read as grouped numbers (VISUAL §4.3): "1 643 257"
-    if (GROUPED.has(k) && /^\d{5,}$/.test(v)) return groupThousands(v);
+    if (GROUPED.has(k) && /^\d{5,}$/.test(v)) return groupThousands(v, lang);
     return v;
   });
 }
 
 /** Params a key needs that the world can supply itself (a page may still pass its own). */
-const DEFAULT_PARAMS: Record<string, () => Record<string, string>> = {
-  "world.join.about": () => ({ erg: `${fmtUnits(FAUCET_ERG, 9)}${NBSP}ERG`, suse: `${fmtUnits(FAUCET_SUSE, 3)}${NBSP}sUSE` }),
+const DEFAULT_PARAMS: Record<string, (lang: Lang) => Record<string, string>> = {
+  "world.join.about": (lang) => ({ erg: `${fmtUnits(FAUCET_ERG, 9, { lang })}${NBSP}ERG`, suse: `${fmtUnits(FAUCET_SUSE, 3, { lang })}${NBSP}sUSE` }),
 };
 
 /** Renders a `world.` key in `lang` with {param} interpolation (missing keys render as the key). */
 export function worldText(key: string, params?: Record<string, string | number>, lang: Lang = "en", o: WorldTextOptions = {}): string {
   const s = worldLookup(key, lang);
   const d = DEFAULT_PARAMS[key];
-  return s === undefined ? key : interp(s, d ? { ...d(), ...params } : params, lang, o);
+  return s === undefined ? key : interp(s, d ? { ...d(lang), ...params } : params, lang, o);
 }
 
 /** Plural form: key_one / key_few / key_many / key_other, then key; {n} is available. */

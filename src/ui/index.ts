@@ -22,8 +22,9 @@ export * from "./layout";
 export * from "./hooks";
 export * from "./settings";
 export {
-  money, int, units, erg, signed, pct, ratioPct, withUnit, blk, humanTime, blocksAndTime, short, groupHex, parseMoney, glyphCount,
-  THIN, NBSP, MINUS, ELLIPSIS, MIN_PER_BLOCK,
+  money, int, units, erg, signed, pct, ratioPct, withUnit, blk, blockWord, humanTime, blocksAndTime, short, groupHex, parseMoney,
+  plainNumber, glyphCount, groupDigits, decimalMark, numberLang, setNumberLang, THIN, NBSP, MINUS, ELLIPSIS, MIN_PER_BLOCK,
+  type FmtLang,
 } from "./engine/money";
 export { threeWords, wordsLine } from "./engine/words";
 export { keyHash, pairKey } from "./engine/seal";

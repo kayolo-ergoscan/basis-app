@@ -170,7 +170,7 @@ export function Controls({ v }: { v: TrackerView }) {
           <div className="trk-skip" role="group" aria-label={t("tracker.ctl.skip")}>
             {SKIPS.map((n) => (
               <Key key={n} size="sm" variant="quiet" disabled={!!busy} onClick={() => run(`skip${n}`, () => town.clock.mine(n))}>
-                {t("tracker.ctl.skip.key", { n: int(n) })}
+                {t.p("tracker.ctl.skip.key", n, { n: int(n) })}
               </Key>
             ))}
           </div>

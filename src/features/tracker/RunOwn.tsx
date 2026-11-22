@@ -115,7 +115,7 @@ function Runway() {
   const r = Math.max(0, Math.floor(parseMoney(red) ?? 0));
   const days = b === null ? null : runwayDays(b, perDayCommits, r);
   const perDay = (perDayCommits + r) * 0.001;
-  const fmt = (x: number) => (t.lang === "ru" ? money(x, 3).replace(".", ",") : money(x, 3));
+  const fmt = (x: number) => money(x, 3, t.lang);
   return (
     <div className="trk-runway" aria-label={t("tracker.run.fee.calc")} role="group">
       <div className="trk-runway-in">

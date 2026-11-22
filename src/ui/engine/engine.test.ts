@@ -1,11 +1,12 @@
 // Snapshot tests (VISUAL §17): the TS engine must draw byte-identical SVG to the style tile.
 // expected.json was produced by fixtures/make-expected.mjs from design/final/intaglio.js. Any drift bumps the algo version.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { sha256 } from "@noble/hashes/sha256";
 import expected from "./fixtures/expected.json";
 import {
-  blake2bN, blk, concat, demoKey, demoSig, erg, fromHex, groupHex, hex, humanTime, inksFor, int, keySeal, money, noteArt,
-  pairKey, pairSeal, parseMoney, pct, rng, sealParams, sealSVG, serialOf, short, signed, threeWords, threeWordsOfHash, units, utf8,
+  blake2bN, blk, blocksAndTime, concat, demoKey, demoSig, erg, fromHex, groupHex, hex, humanTime, inksFor, int, keySeal, money,
+  noteArt, numberLang, pairKey, pairSeal, parseMoney, pct, plainNumber, rng, sealParams, sealSVG, serialOf, setNumberLang, short,
+  signed, threeWords, threeWordsOfHash, units, utf8,
   BRAND_INKS, NOTE_ALGO, SEAL_ALGO, INKS,
 } from "./index";
 
@@ -68,10 +69,13 @@ describe("engine ≡ style tile (seal@1, note@1)", () => {
     expect(sha(sealSVG(blake2bN(utf8("basis"), 32), { kind: "pair", detail: 0.35, px: 30, inks: BRAND_INKS }))).toBe(exp.brand);
   });
 
-  it("money() equals the tile's formatter", () => {
+  it("money() equals the tile's formatter, in each language's separators", () => {
+    // the tile writes one format ("1 240.00"); since 22 Nov 2026 EN groups with "," and RU writes a decimal comma
     for (const [v, s] of Object.entries(exp.money)) {
       const n = Number(v);
-      expect(money(n, n < 0.01 && n > 0 ? 4 : 2)).toBe(s);
+      const dp = n < 0.01 && n > 0 ? 4 : 2;
+      expect(money(n, dp, "en")).toBe(s.replace(/\u2009\u2060/g, ","));
+      expect(money(n, dp, "ru")).toBe(s.replace(".", ","));
     }
   });
 });
@@ -104,27 +108,49 @@ describe("rng, inks, words", () => {
   });
 });
 
-describe("formatting (VISUAL §4.3)", () => {
-  const T = " ⁠";
-  it("thousands use U+2009 U+2060, minus is U+2212, units after U+00A0", () => {
-    expect(money(1240)).toBe(`1${T}240.00`);
+describe("formatting (VISUAL §4.3; numbers per language since 22 Nov 2026)", () => {
+  const T = "\u2009\u2060";
+  afterEach(() => setNumberLang("en"));
+  it("EN: thousands with a comma, a decimal point; minus is U+2212, units after U+00A0", () => {
+    expect(money(1240)).toBe("1,240.00");
     expect(money(-320)).toBe("−320.00");
-    expect(int(1921400)).toBe(`1${T}921${T}400`);
+    expect(int(1921400)).toBe("1,921,400");
     expect(signed(240, 2, "favour")).toBe("+240.00");
     expect(signed(320, 2, "owe")).toBe("−320.00");
-    expect(blk(2160)).toBe(`2${T}160 blk`);
-    expect(blk(37, "ru")).toBe("37 блк");
+    expect(blk(2160)).toBe("2,160\u00a0blk");
     expect(pct(132)).toBe(`132${T}%`);
     expect(pct(0.42)).toBe(`0.4${T}%`);
+    expect(erg(9_545_000_000n, 3)).toBe("9.545");
+  });
+  it("RU: thousands with U+2009 U+2060, a decimal comma, whole words for blocks (never «блк»)", () => {
+    const N = "\u00a0";
+    expect(money(1240, 2, "ru")).toBe(`1${T}240,00`);
+    expect(erg(9_545_000_000n, 3, "ru")).toBe("9,545");
+    expect(int(1922434, "ru")).toBe(`1${T}922${T}434`);
+    expect(pct(0.42, "ru")).toBe(`0,4${T}%`);
+    expect(signed(-1240.5, 2, "auto", "ru")).toBe(`−1${T}240,50`);
+    expect([1, 2, 5, 21, 37].map((n) => blk(n, "ru"))).toEqual([`1${N}блок`, `2${N}блока`, `5${N}блоков`, `21${N}блок`, `37${N}блоков`]);
+    expect(blk(2161, "ru")).toBe(`2${T}161${N}блок`);
+    expect(blk(2160, "ru")).toBe(`2${T}160${N}блоков`);
+    expect(blocksAndTime(2160, "ru")).toBe(`2${T}160${N}блоков · ≈${N}3${N}дня`);
+  });
+  it("the page language is the default: setNumberLang switches every formatter at once", () => {
+    const N = "\u00a0";
+    setNumberLang("ru");
+    expect(numberLang()).toBe("ru");
+    expect([money(1240), int(43200), erg(9_545_000_000n, 3), blk(37), humanTime(2160)]).toEqual([`1${T}240,00`, `43${T}200`, "9,545", `37${N}блоков`, `≈${N}3${N}дня`]);
+    setNumberLang("en");
+    expect([money(1240), int(43200), erg(9_545_000_000n, 3), blk(37), humanTime(2160)]).toEqual(["1,240.00", "43,200", "9.545", `37${N}blk`, `≈${N}3${N}days`]);
   });
   it("bigint units round half-up and stay exact", () => {
-    expect(erg(1_240_000_000_000n)).toBe(`1${T}240.00`);
+    expect(erg(1_240_000_000_000n)).toBe("1,240.00");
     expect(erg(1_000_000n)).toBe("0.00");
     expect(erg(5_000_000n)).toBe("0.01");
     expect(erg(1_000_000n, 3)).toBe("0.001");
-    expect(units(-1_234_567n, 3, 3)).toBe(`−1${T}234.567`);
+    expect(units(-1_234_567n, 3, 3)).toBe("−1,234.567");
     expect(units(12n, 0, 2)).toBe("12.00");
-    expect(erg(1_240_000_000_001n, 9)).toBe(`1${T}240.000000001`);
+    expect(erg(1_240_000_000_001n, 9)).toBe("1,240.000000001");
+    expect(erg(1_240_000_000_001n, 9, "ru")).toBe(`1${T}240,000000001`);
   });
   it("time is blocks first, then human time (1 block ≈ 2 min)", () => {
     const N = " ";
@@ -144,6 +170,19 @@ describe("formatting (VISUAL §4.3)", () => {
     expect(parseMoney("1 240.50")).toBe(1240.5);
     expect(parseMoney("12,5")).toBe(12.5);
     expect(parseMoney("abc")).toBeNull();
+  });
+  it("inputs read what the page writes, in either language", () => {
+    for (const l of ["en", "ru"] as const) {
+      expect(parseMoney(money(1240.5, 2, l))).toBe(1240.5);
+      expect(parseMoney(money(-1921400.25, 2, l))).toBe(-1921400.25);
+      expect(plainNumber(erg(9_545_000_000n, 3, l))).toBe("9.545");
+    }
+    expect(plainNumber("1,240.50")).toBe("1240.50");
+    expect(plainNumber("1 240,50")).toBe("1240.50");
+    expect(plainNumber("1.240,50")).toBe("1240.50");
+    expect(plainNumber("1,240,000")).toBe("1240000");
+    expect(plainNumber("12,5")).toBe("12.5");
+    expect(plainNumber("0.40")).toBe("0.40");
   });
 });
 
