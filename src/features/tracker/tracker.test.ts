@@ -5,6 +5,8 @@ import { F64, jsonLines, printJson, tokenizeJson, currentP2s } from "./mirror";
 import { avlFlags, bandOf, beatsOf, beatsWindow, BEATS, cycleWithDepth, LATE_BLOCKS, nextCycleAfter, registerParts, SILENT_BLOCKS } from "./model";
 import { commitsPerDay, runwayDays } from "./runway";
 import strings from "./strings";
+import runOwnSrc from "./RunOwn.tsx?raw";
+import { CLIENTS_HREF } from "@/content";
 
 describe("health bands", () => {
   it("moves from on time to emergency at the documented ages", () => {
@@ -125,5 +127,12 @@ describe("tracker strings", () => {
   it("never shows a bare hyphen as a minus before a number", () => {
     const hits = Object.entries({ ...en, ...ru }).filter(([, v]) => /(^|[\s(])-\d/.test(v)).map(([k]) => k);
     expect(hits).toEqual([]);
+  });
+  it("the Code card links to the ready-made programs on /learn/api#clients instead of repeating them", () => {
+    expect(CLIENTS_HREF).toBe("/learn/api#clients");
+    expect(en["tracker.run.repo.clients"]).toBe("What these programs do and what ErgoScan's tracker accepts");
+    expect(ru["tracker.run.repo.clients"]).toBe("Что умеют эти программы и что принимает трекер ErgoScan");
+    // the card keeps its line about the repository, and the link comes right after it
+    expect(runOwnSrc).toMatch(/\{t\("tracker\.run\.repo\.text"\)\}<\/p>\s*<p className="t-small">\s*<Link className="textlink" to=\{CLIENTS_HREF\}>\{t\("tracker\.run\.repo\.clients"\)\}<\/Link>/);
   });
 });

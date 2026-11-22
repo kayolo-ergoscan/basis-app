@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorerLink, useObservatory } from "@/chain";
-import { GIT_REF_SHORT, pick, sources, trust, type OpenIssue } from "@/content";
+import { CLIENTS_HREF, GIT_REF_SHORT, pick, sources, trust, type OpenIssue } from "@/content";
 import { AmountInput, Card, Col, CopyButton, Grid, Icon, int, Key, money, PageHead, parseMoney, Section, Seg, short, Tag } from "@/ui";
 import { commitsPerDay, runwayDays } from "./runway";
 import { HeadActions, md, useText } from "./parts";
@@ -320,6 +320,9 @@ function Aside({ done, onReset }: { done: number; onReset: () => void }) {
         footer={<Key href={repo.url} icon="github">{t("tracker.run.repo.open")}</Key>}
       >
         <p className="t-small">{t("tracker.run.repo.text")}</p>
+        <p className="t-small">
+          <Link className="textlink" to={CLIENTS_HREF}>{t("tracker.run.repo.clients")}</Link>
+        </p>
         <p className="t-small dim">{t("tracker.run.repo.ref", { ref: GIT_REF_SHORT })}</p>
         <ul className="trk-repo-links">
           {links.map(([k, url]) => (
