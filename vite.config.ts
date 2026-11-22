@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Vendor chunks (function form, so only modules that are really imported land in a chunk):
@@ -13,6 +13,22 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
+// Release guard: a text that still waits for facts carries the FILL marker ("[[" + "FILL", see
+// src/content/placeholders.test.ts). `vite build` refuses every app module that still holds it, so scripts/build.sh
+// fails until the text is written; the dev server shows the placeholder as it is.
+const SRC_DIR = "/root/basis/app/src/";
+const FILL_MARK = "[[" + "FILL";
+const refuseUnfilled: Plugin = {
+  name: "refuse-unfilled",
+  apply: "build",
+  transform(code, id) {
+    if (id.startsWith(SRC_DIR) && code.includes(FILL_MARK)) {
+      this.error(`src/${id.slice(SRC_DIR.length)} still holds a ${FILL_MARK}…]] placeholder: write the text before building`);
+    }
+    return null;
+  },
+};
+
 // Dev and preview:
 //   /v1/*          → the ErgoScan API contour (:4401), the same place Caddy sends it on basis.ergoscan.me;
 //   /api/tracker/* → our tracker's front (nginx on :3050), prefix stripped. The front adds the key itself, allows only
@@ -23,7 +39,7 @@ const proxy = {
 };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), refuseUnfilled],
   resolve: { alias: { "@": "/root/basis/app/src" } },
   server: { host: "127.0.0.1", proxy },
   preview: { host: "127.0.0.1", proxy },
