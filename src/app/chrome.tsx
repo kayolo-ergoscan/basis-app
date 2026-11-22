@@ -11,7 +11,8 @@ import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
 import { pulse, usePulse, type Pulse } from "./pulse";
-import { hrefOf, NAV, preload } from "./routes";
+import { hrefOf, linkOf, NAV, preload } from "./routes";
+import type { FeatureRoute } from "./types";
 import { useTheme } from "./theme";
 
 const NAV_ICON: Record<string, IconName> = { home: "story", play: "play", wallet: "wallet", network: "network", tracker: "tracker", learn: "learn" };
@@ -63,6 +64,13 @@ export function LangSeg({ className }: { className?: string }) {
   return <Seg ariaLabel={t("app.lang.aria")} className={className} value={lang} onChange={setLang} options={[{ value: "en", label: "EN", title: "English" }, { value: "ru", label: "RU", title: "Русский" }]} />;
 }
 
+/** A menu entry whose link is not its base (the wallet) stays lit on every page under the base. */
+const inRoute = (r: FeatureRoute, pathname: string): boolean => {
+  if (!r.href || r.path === "/") return false;
+  const base = hrefOf(r);
+  return pathname === base || pathname.startsWith(base + "/");
+};
+
 export function Nav() {
   const t = useT();
   const [menu, setMenu] = useState(false);
@@ -78,7 +86,7 @@ export function Nav() {
         </Link>
         <nav className="nav-links" aria-label={t("nav.primary")}>
           {NAV.map((r) => (
-            <NavLink key={r.id} to={hrefOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive ? "on" : undefined)}
+            <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive || inRoute(r, loc.pathname) ? "on" : undefined)}
               onMouseEnter={() => preload(r)} onFocus={() => preload(r)}>
               {t(r.nav!.labelKey)}
             </NavLink>
@@ -91,14 +99,14 @@ export function Nav() {
           <HeightChip />
           <ThemeSeg />
           <LangSeg className="hide-s" />
-          <Link className="key sm" to="/wallet">{t("app.openWallet")}</Link>
+          <Link className="key sm" to="/wallet/mainnet">{t("app.openWallet")}</Link>
           <button type="button" className="key sm quiet icon-only menu-k" onClick={() => setMenu(true)} aria-label={t("app.menu")} aria-expanded={menu}><Icon name="menu" /></button>
         </div>
       </div>
       <Sheet open={menu} onClose={() => setMenu(false)} title={<span className="cluster" style={{ "--gap": "10px" } as CSSProperties}><BrandSeal pulse={false} />Basis</span>} ariaLabel={t("app.menu")} width={380}>
         <nav className="menu-links" aria-label={t("nav.primary")}>
           {NAV.map((r) => (
-            <NavLink key={r.id} to={hrefOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive ? "on" : undefined)}>
+            <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive || inRoute(r, loc.pathname) ? "on" : undefined)}>
               <Icon name={iconOf(r.id, r.nav?.icon)} />{t(r.nav!.labelKey)}
             </NavLink>
           ))}

@@ -11,7 +11,7 @@ import { setUiSettings, useUiSettings } from "@/ui/settings";
 import { iconOf, MOD } from "./chrome";
 import { faqCommands, openCommandBar, score, setCommandOpener, setHelpOpener, useDynamicCommands, type Command, type FaqQuestion } from "./commands";
 import { getLang, setLang, useT } from "./lang";
-import { hrefOf, NAV, ROUTES } from "./routes";
+import { hrefOf, linkOf, NAV, ROUTES } from "./routes";
 import { toggleTheme } from "./theme";
 
 const HEX64 = /^[0-9a-fA-F]{64}$/;
@@ -49,7 +49,7 @@ export function Palette() {
   useEffect(() => { if (open) requestAnimationFrame(() => input.current?.focus()); }, [open]);
 
   const all = useMemo<Command[]>(() => {
-    const go: Command[] = NAV.map((r) => ({ id: "go." + r.id, label: t(r.nav!.labelKey), sub: hrefOf(r), to: hrefOf(r), group: "go", icon: iconOf(r.id, r.nav?.icon), keywords: r.id }));
+    const go: Command[] = NAV.map((r) => ({ id: "go." + r.id, label: t(r.nav!.labelKey), sub: linkOf(r), to: linkOf(r), group: "go", icon: iconOf(r.id, r.nav?.icon), keywords: r.id }));
     const feat: Command[] = ROUTES.flatMap((r) => (r.commands ?? []).map((c) => ({
       id: c.id, label: t(c.labelKey), sub: c.to, to: c.to, keywords: c.keywords, group: c.to.startsWith("/kit") ? ("dev" as const) : ("actions" as const), icon: iconOf(r.id, r.nav?.icon),
     })));
@@ -201,7 +201,7 @@ export function Shortcuts() {
         const go = (p: string) => { if (here === p || here.startsWith(p + "/")) return; nav(p); };
         const l = k.toLowerCase();
         if (l === "p") go("/play");
-        else if (l === "w") go("/wallet");
+        else if (l === "w") go("/wallet/mainnet");
         else if (l === "n") go("/network");
         else if (l === "l") go("/learn");
         else if (l === "t") toggleTheme();

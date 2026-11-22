@@ -21,8 +21,10 @@ export const ROUTES: FeatureRoute[] = Object.entries(mods)
 /** Nav entries sorted by order (0 Story … 5 Learn). */
 export const NAV = ROUTES.filter((r) => r.nav).sort((a, b) => a.nav!.order - b.nav!.order);
 
-/** The link target of a route ("/play/*" → "/play"). */
+/** The base of a route ("/play/*" → "/play"): what its pages start with. */
 export const hrefOf = (r: FeatureRoute) => r.path.replace(/\/\*$/, "") || "/";
+/** Where the menu links to: the route's own `href` (the wallet → its mainnet tab), else its base. */
+export const linkOf = (r: FeatureRoute) => r.href ?? hrefOf(r);
 
 const lazies = new Map<string, LazyExoticComponent<ComponentType>>();
 /** One React.lazy per feature (stable across renders). */

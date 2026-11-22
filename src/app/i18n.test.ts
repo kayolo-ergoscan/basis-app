@@ -24,9 +24,9 @@ describe("shell strings", () => {
     expect(plain(RU["app.banner"])).toBe("Неофициальный сайт от ErgoScan (не от Better Money Labs). Basis — эксперимент: в основной сети Ergo — только небольшие суммы.");
   });
 
-  it("names: «Главная», «Тёмная / Светлая», «Игровой кошелёк»", () => {
+  it("names: «Главная», «Тёмная / Светлая», «Кошелёк (бета)»", () => {
     expect([EN["nav.story"], RU["nav.story"]]).toEqual(["Home", "Главная"]);
     expect([EN["app.theme.night"], EN["app.theme.cotton"], RU["app.theme.night"], RU["app.theme.cotton"]]).toEqual(["Dark", "Light", "Тёмная", "Светлая"]);
-    expect([EN["app.openWallet"], RU["app.openWallet"]]).toEqual(["Sandbox wallet", "Игровой кошелёк"]);
+    expect([EN["app.openWallet"], RU["app.openWallet"]]).toEqual(["Wallet (beta)", "Кошелёк (бета)"]);
   });
 });

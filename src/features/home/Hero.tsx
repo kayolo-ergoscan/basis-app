@@ -195,7 +195,7 @@ export function Hero() {
           <p className="t-lede home-lede">{rich(t("home.lede"))}</p>
           <div className="home-cta">
             <Key variant="primary" size="lg" kbd="P" to="/play">{t("home.cta.play")}</Key>
-            <Key size="lg" to="/wallet">{t("home.cta.wallet")}</Key>
+            <Key size="lg" to="/wallet/mainnet">{t("home.cta.wallet")}</Key>
             <button type="button" className="textlink home-how" onClick={scrollToMoments}>{t("home.cta.how")} <span aria-hidden="true">↓</span></button>
             <Link className="textlink home-how" to={FAQ_HREF}>{t("home.cta.faq")} <span aria-hidden="true">→</span></Link>
           </div>

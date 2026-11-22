@@ -18,7 +18,7 @@ export const MODE_STRINGS = {
     "wallet.mode.aria": "Режим кошелька",
     "wallet.mode.sandbox": "Песочница",
     "wallet.mode.sandboxSub": "Трекер города · игровые деньги",
-    "wallet.mode.mainnet": "Mainnet",
+    "wallet.mode.mainnet": "Основная сеть",
     "wallet.mode.mainnetSub": "Бета · настоящие ERG",
   },
 };

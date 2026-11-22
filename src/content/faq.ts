@@ -174,13 +174,13 @@ export const faq: Faq[] = [
     id: "launched",
     q: t("Can I use real ERG yet?", "Можно ли уже с настоящими ERG?"),
     short: t(
-      "Not on this site: its wallet is a sandbox with play money. On Ergo mainnet, ErgoScan's tracker has run in beta since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.",
-      "Не на этом сайте: его кошелёк — песочница с игровыми деньгами. В основной сети Ergo трекер ErgoScan работает в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы.",
+      "Yes, in beta. Since [[FILL date-en]] this site's wallet works on Ergo mainnet with ErgoScan's tracker. The key stays only in your browser. Basis is experimental: use small amounts only.",
+      "Да, в бета-режиме. С [[FILL date-ru]] кошелёк этого сайта работает в основной сети Ergo вместе с трекером ErgoScan. Ключ хранится только в вашем браузере. Basis — эксперимент: используйте только небольшие суммы.",
     ),
     a: [
       t(
-        "This site does not move real ERG yet. Its wallet and the sandbox run on play money; the Network and Tracker pages only read Ergo mainnet.",
-        "Этот сайт пока не работает с настоящими ERG. Его кошелёк и песочница — на игровых деньгах, а страницы «Сеть» и «Трекер» только читают основную сеть Ergo.",
+        "The wallet's Mainnet tab holds one key for Ergo mainnet: with it you create a reserve, pay with notes and redeem the notes paid to you. Keep the backup file and the passphrase: without both, nobody can restore the key, not even us. The Sandbox tab and the Play section still run on play money.",
+        "Во вкладке «Основная сеть» кошелька — один ключ для основной сети Ergo: с ним вы создаёте резерв, платите расписками и погашаете расписки, выданные вам. Храните файл копии и пароль: без них ключ не восстановит никто, даже мы. Вкладка «Песочница» и раздел «Песочница» по-прежнему на игровых деньгах.",
       ),
       t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в mainnet Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
       t("Older contract versions hold the early test use: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions at the last snapshot.", "Под старыми версиями контракта — ранние тесты: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и 41 погашение на момент последнего снимка."),
@@ -188,6 +188,7 @@ export const faq: Faq[] = [
     ],
     tags: ["status"],
     links: [
+      { label: t("Open the wallet", "Открыть кошелёк"), to: "/wallet/mainnet" },
       { label: t("Open the network", "Открыть сеть"), to: "/network" },
       // CLIENTS_HREF (clients.ts), written out so this file stays light for the ⌘K bar (content.test checks it)
       { label: t("Ready-made programs", "Готовые программы"), to: "/learn/api#clients" },

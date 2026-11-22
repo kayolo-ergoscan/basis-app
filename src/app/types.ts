@@ -11,6 +11,8 @@ export interface FeatureRoute {
   path: string;
   /** Lazy page: () => import("./Page") with a default-exported component. The shell wraps it in <Suspense>. */
   load: () => Promise<{ default: ComponentType }>;
+  /** Where the menu and the ⌘K "go" entry link to, when it is not the path's base (the wallet opens its mainnet tab). */
+  href?: string;
   /** Top navigation entry; null = not in the nav (detail pages, dev pages). order: 0 Story, 1 Play, 2 Wallet, 3 Network, 4 Tracker, 5 Learn. */
   nav: { order: number; labelKey: string; icon?: string; mobile?: boolean } | null;
   /** Command palette entries (⌘K). Labels are i18n keys. */

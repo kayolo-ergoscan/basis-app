@@ -50,8 +50,8 @@ describe("home first screen", () => {
     expect(heroSrc).toContain('<Key variant="primary" size="lg" kbd="P" to="/play">{t("home.cta.play")}</Key>');
   });
 
-  it("names the wallet honestly: a sandbox wallet, never «Открыть кошелёк»", () => {
-    expect([EN["home.cta.wallet"], RU["home.cta.wallet"]]).toEqual(["Sandbox wallet", "Игровой кошелёк"]);
+  it("names the wallet honestly: the mainnet wallet in beta, never a bare «Открыть кошелёк»", () => {
+    expect([EN["home.cta.wallet"], RU["home.cta.wallet"]]).toEqual(["Wallet (beta)", "Кошелёк (бета)"]);
     for (const s of Object.values(EN)) expect(s).not.toMatch(/^Open (a )?wallet$/);
     for (const s of Object.values(RU)) expect(s).not.toMatch(/^Откр(ыть|ойте) кошел[её]к$/);
   });
@@ -82,12 +82,12 @@ describe("questions forward", () => {
     expect(HOME_FAQ.map(faqHref)).toEqual(["/learn/faq#q-lose-money", "/learn/faq#q-tracker-disappears", "/learn/faq#q-launched"]);
   });
 
-  it("the real-ERG answer is honest: not on this site, play money, an experiment", () => {
+  it("the real-ERG answer is honest: yes in beta, key in the browser, an experiment", () => {
     const f = faq.find((x) => x.id === "launched")!;
-    expect(plain(f.short.en)).toMatch(/^Not on this site: its wallet is a sandbox with play money\./);
-    expect(plain(f.short.ru)).toMatch(/^Не на этом сайте: его кошелёк — песочница с игровыми деньгами\./);
+    expect(plain(f.short.en)).toMatch(/^Yes, in beta\. Since .+ this site's wallet works on Ergo mainnet/);
+    expect(plain(f.short.ru)).toMatch(/^Да, в бета-режиме\. С .+ кошелёк этого сайта работает в основной сети Ergo/);
     expect(plain(f.short.en)).toMatch(/experimental: use small amounts only\.$/);
-    expect(f.links?.map((l) => l.to)).toEqual(["/network", CLIENTS_HREF]);
+    expect(f.links?.map((l) => l.to)).toEqual(["/wallet/mainnet", "/network", CLIENTS_HREF]);
   });
 });
 
