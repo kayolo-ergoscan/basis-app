@@ -247,6 +247,11 @@ describe("bilingual text", () => {
     expect(texts.length).toBeGreaterThan(800);
   });
 
+  it("includes the ready-made programs, so the copy guard and the typography checks cover them", () => {
+    for (const name of ["clientPrograms", "clients"]) expect(texts.some((f) => f.path.startsWith(name)), name).toBe(true);
+    expect(texts.filter((f) => f.path.startsWith("clients.")).length).toBeGreaterThanOrEqual(12);
+  });
+
   it("every EN and RU string is non-empty", () => {
     const empty = texts.filter((f) => !f.text.en.trim() || !f.text.ru.trim()).map((f) => f.path);
     expect(empty).toEqual([]);
@@ -374,6 +379,50 @@ describe("modules", () => {
     for (const g of groups) expect(eps.some((e) => e.group === g), g).toBe(true);
     expect(eps.filter((e) => e.role === "admin").map((e) => e.path)).toEqual(["/redeem/complete"]);
     expect(eps.filter((e) => e.role === "public").map((e) => e.path)).toEqual(["/"]);
+  });
+
+  it("ready-made programs: the three crates at the pinned commit, 3–5 points each, ErgoScan's tracker address", () => {
+    expect(C.clientPrograms.map((c) => c.name)).toEqual(["basis-cli", "basis-ui", "basis-mcp"]);
+    expect(C.clientPrograms.map((c) => c.crate)).toEqual(["crates/basis_cli", "crates/basis_app", "crates/basis_mcp"]);
+    for (const c of C.clientPrograms) {
+      // built like the links in sources.ts: the repo, the pinned commit, the path
+      expect(c.url, c.id).toBe(`https://github.com/BetterMoneyLabs/basis-tracker/tree/${C.GIT_REF}/${c.crate}`);
+      expect(c.does.length, c.id).toBeGreaterThanOrEqual(3);
+      expect(c.does.length, c.id).toBeLessThanOrEqual(5);
+    }
+    expect(C.ERGOSCAN_TRACKER_URL).toBe("https://basis.ergoscan.me/api/tracker");
+    expect(C.CLIENTS_HREF).toBe("/learn/api#clients");
+    // the 150/120/100 % warnings carry the shared "wallet policy, not contract rules" line
+    expect(C.clientPrograms.find((c) => c.id === "tui")?.note).toBe(C.copy.thresholdsArePolicy);
+  });
+
+  it("ready-made programs: what ErgoScan's tracker accepts and refuses, as catalogue routes", () => {
+    const route = (id: string) => {
+      const e = C.apiEndpoints.find((x) => x.id === id);
+      expect(e, id).toBeDefined();
+      return `${e!.method} ${e!.path}`;
+    };
+    const ids = (groups: { endpoints: string[] }[]) => groups.flatMap((g) => g.endpoints);
+    expect(ids(C.clients.accepted).map(route)).toEqual([
+      "GET /", "GET /tracker/state", "GET /tracker/latest-box-id", "GET /tracker/pending-tx",
+      "GET /config/reserve-contract-p2s", "GET /config/reserve-token", "GET /config/reserve-collateral",
+      "GET /reserves", "GET /reserves/{box_id}", "GET /reserves/issuer/{pk}",
+      "GET /key-status/{pk}", "GET /notes/issuer/{issuer}/recipient/{recipient}", "POST /notes/state",
+      "POST /notes",
+      "POST /reserves/create",
+    ]);
+    expect(ids(C.clients.refused).map(route)).toEqual([
+      "POST /redemption/build", "POST /redeem", "POST /redemption/prepare", "GET /tracker/proof",
+      "GET /notes/issuer/{pk}", "GET /notes/recipient/{pk}",
+      "GET /events",
+    ]);
+    // a family with no single entry: every /acceptance/* route of the catalogue
+    const families = C.clients.refused.flatMap((g: { paths?: string[] }) => g.paths ?? []);
+    expect(families).toEqual(["/acceptance/*"]);
+    expect(C.apiEndpoints.filter((e) => e.path.startsWith("/acceptance/")).length).toBe(3);
+    // nothing is both accepted and refused
+    const yes = new Set(ids(C.clients.accepted));
+    expect(ids(C.clients.refused).filter((x) => yes.has(x))).toEqual([]);
   });
 
   it("sources: first-party URLs only, every source in a group", () => {
