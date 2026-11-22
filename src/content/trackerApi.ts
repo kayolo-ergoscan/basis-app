@@ -123,7 +123,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     ],
     ergoscan: [
       t("Open. A note is accepted only when its issuer has exactly one active reserve under this tracker in that denomination.", "Открыт. Расписку примут, только если у её эмитента ровно один действующий резерв под этим трекером в этой валюте."),
-      t("Per issuer: at most 50 receivers and 120 updates an hour. New issuer → receiver pairs: at most 200 an hour for the whole tracker.", "На одного эмитента — не больше 50 получателей и 120 обновлений в час. Новых пар эмитент → получатель — не больше 200 в час на весь трекер."),
+      t("Per issuer: at most 50 receivers in all, and 120 updates an hour. New issuer → receiver pairs: at most 200 an hour for the whole tracker.", "На одного эмитента — не больше 50 получателей всего и не больше 120 обновлений в час. Новых пар эмитент → получатель — не больше 200 в час на весь трекер."),
     ],
   },
   {

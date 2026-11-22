@@ -189,6 +189,10 @@ use the background lane, at most every 30 min or when the tracker box moved.
   `isOurTestReserve(key)` matches only that exact key. `OurTestReserveTag` (`tag.tsx`) is the quiet tag shown next to
   that owner wherever reserves are listed: the console's reserves table, tape and key lookup; on Network, our tracker's
   reserves and events, the detector list, the reserves table, the overview cards and the reserve page.
+- `currentUse(detector)` says who uses the current contracts, from the detector's live list (no request of its own):
+  `test` while every box there is the test reserve, `others` with the count of unspent reserves of other owners, `null`
+  before a live check of both templates or while the list holds fewer boxes than a template has. Home's network door
+  ends with the matching sentence, or with a dated fact while it is `null`.
 - Hooks: `useOurTracker({ fees? })` → `OurView`, `useOursInCounts(obs)`, `useKeyLookup()`, `useAgo()`, `useNow()`.
   Tests: `ours/ours.test.ts`.
 

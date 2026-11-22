@@ -3,7 +3,7 @@
 // near the screen (it runs the resident bots and its clock).
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { rich, useLang, useT } from "@/app/lang";
-import { useHeight, useObservatory, useOursInCounts } from "@/chain";
+import { currentUse, useDetector, useHeight, useObservatory, useOursInCounts } from "@/chain";
 import { copy, pick } from "@/content";
 import { Icon, int, Key, KeySeal, Lamp, Section, Tag, units, withUnit } from "@/ui";
 import { balanceSheet, castName, FAUCET_ERG, FAUCET_SUSE, graphSnapshot, threeWordsText, useTown, useTownReady, useTownView, useWallet, YOU, type GraphSnapshot } from "@/world";
@@ -163,13 +163,26 @@ function MainnetStrip() {
   );
 }
 
+/** The network door's text: what the boxes are, then one sentence that stays true by itself, from the detector's live
+ *  list (no request of its own): "all test use" only while every box under the current contracts is ErgoScan's test
+ *  reserve, a count once other owners appear, and a dated fact while neither is known. */
+function useNetText(): string {
+  const t = useT();
+  const use = currentUse(useDetector());
+  const tail = use === null ? t("home.d.net.first")
+    : use.kind === "test" ? t("home.d.net.test")
+    : t.p(use.ours ? "home.d.net.othersOurs" : "home.d.net.others", use.n);
+  return `${t("home.d.net.p")} ${tail}`;
+}
+
 export function Doors() {
   const t = useT();
   const [ref, near] = useNear<HTMLDivElement>();
+  const netText = useNetText();
   const doors = [
     { id: "play", k: t("home.d.play.k"), title: t("home.d.play.t"), p: t("home.d.play.p"), go: t("home.d.play.go"), to: "/play", icon: "play" as const, kbd: "P", vis: near ? <TownGraph /> : null },
     { id: "wallet", k: t("home.d.wallet.k"), title: t("home.d.wallet.t"), p: t("home.d.wallet.p"), go: t("home.d.wallet.go"), to: "/wallet", icon: "wallet" as const, kbd: "W", vis: near ? <WalletPhone /> : null },
-    { id: "network", k: t("home.d.net.k"), title: t("home.d.net.t"), p: t("home.d.net.p"), go: t("home.d.net.go"), to: "/network", icon: "network" as const, kbd: "N", vis: <MainnetStrip /> },
+    { id: "network", k: t("home.d.net.k"), title: t("home.d.net.t"), p: netText, go: t("home.d.net.go"), to: "/network", icon: "network" as const, kbd: "N", vis: <MainnetStrip /> },
   ];
   return (
     <Section id="doors" className="home-doors" no={<>02 · {t("home.d.no")}</>} title={rich(t("home.d.title"))} lede={t("home.d.lede")}>

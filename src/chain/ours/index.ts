@@ -6,8 +6,8 @@ export {
   parseKeyStatus, parseCollateralConfig, quoteBigInts, readEnvelope,
 } from "./client";
 export type { TrackerAnswer, TrackerClient, TrackerClientConfig, TrackerErrorKind, TrackerFailure, TrackerSuccess, TrackerRequestLog } from "./client";
-export { ourView, oursExtra, isOurTestReserve, statusOf, reserveTotals, boundToUs, commitEvent, reserveEvents, agoParts } from "./model";
-export type { OurStatus, OurView, ReserveTotals } from "./model";
+export { ourView, oursExtra, isOurTestReserve, currentUse, statusOf, reserveTotals, boundToUs, commitEvent, reserveEvents, agoParts } from "./model";
+export type { CurrentUse, OurStatus, OurView, ReserveTotals } from "./model";
 export { ours, createOursStore, feesFromChain, feeFundsOf, FEES_PAGE, OURS_STORAGE_KEY } from "./store";
 export type { OursState, OursStore, OursStoreOptions, OursError, Snap } from "./store";
 export { useOurTracker, useOursInCounts, useKeyLookup, useNow, useAgo } from "./hooks";

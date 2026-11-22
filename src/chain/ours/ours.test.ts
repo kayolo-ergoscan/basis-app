@@ -5,9 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Pulse } from "@/app/pulse";
 import { createTrackerClient, parseKeyInput, parseReserves, quoteBigInts, type TrackerClient } from "./client";
 import { p2pkAddress } from "../decode";
-import { commitEvent, isOurTestReserve, oursExtra, ourView, reserveEvents, statusOf } from "./model";
+import { commitEvent, currentUse, isOurTestReserve, oursExtra, ourView, reserveEvents, statusOf } from "./model";
 import { createOursStore, feeFundsOf, OURS_STORAGE_KEY, type OursState } from "./store";
 import { OUR_TRACKER, OURS_POLL, STALE_AFTER_BLOCKS, type FeeFunds, type TrackedReserve, type TrackerState } from "./types";
+import type { DetectedBox, DetectorState } from "../types";
 
 const T0 = 1_800_000_000_000;
 const EMPTY = "4ec61f485b98eb87153f7c57db4f5ecd75556fddbc403b41acf8441fde8e160900";
@@ -418,5 +419,46 @@ describe("ErgoScan test reserve", () => {
     expect(isOurTestReserve(addr)).toBe(false);
     expect(isOurTestReserve(null)).toBe(false);
     expect(isOurTestReserve(undefined)).toBe(false);
+  });
+});
+
+describe("who uses the current contracts", () => {
+  const ERG = "6e7d", MULTI = "8699";
+  const OTHER = "03" + "ab".repeat(32);
+  const box = (id: string, owner: string | null, unspent: boolean, templateHash = ERG) =>
+    ({ boxId: id, templateHash, unspent, owner: owner ? { key: owner, addr: "9…" } : null }) as unknown as DetectedBox;
+  const det = (found: DetectedBox[], o: { erg?: number | null; multi?: number | null; checked?: boolean } = {}): DetectorState => {
+    const at = o.checked === false ? null : 1;
+    return {
+      watching: true,
+      templates: [
+        { hash: ERG, contractId: "erg", short: "6e7d", role: "current", total: o.erg === undefined ? found.length : o.erg, checkedHeight: at && 1922400, checkedAt: at },
+        { hash: MULTI, contractId: "multi", short: "8699", role: "current", total: o.multi ?? 0, checkedHeight: at && 1922400, checkedAt: at },
+      ],
+      found,
+      checkedHeight: at && 1922400,
+      checkedAt: at,
+    };
+  };
+  const ours = OUR_TRACKER.testReserveOwner;
+
+  it("is test use only while every box there is ErgoScan's test reserve, spent states included", () => {
+    expect(currentUse(det([box("a", ours, false), box("b", ours, true)]))).toEqual({ kind: "test" });
+    expect(currentUse(det([]))).toEqual({ kind: "test" });
+  });
+
+  it("counts the unspent reserves of other owners, and says whether the test reserve is still there", () => {
+    expect(currentUse(det([box("a", ours, true), box("b", OTHER, true), box("c", OTHER, false), box("d", null, true)]))).toEqual({ kind: "others", n: 2, ours: true });
+    expect(currentUse(det([box("a", ours, false), box("b", OTHER, true)]))).toEqual({ kind: "others", n: 1, ours: false });
+  });
+
+  it("is unknown before a live check, while the list misses boxes, or when only a spent box of another owner is seen", () => {
+    expect(currentUse(null)).toBeNull();
+    expect(currentUse({ watching: true, templates: [], found: [], checkedHeight: null, checkedAt: null })).toBeNull();
+    expect(currentUse(det([box("a", ours, true)], { checked: false }))).toBeNull();
+    expect(currentUse(det([box("a", ours, true)], { erg: 21 }))).toBeNull();
+    expect(currentUse(det([box("a", ours, true)], { multi: 1 }))).toBeNull();
+    expect(currentUse(det([box("a", ours, true)], { erg: null }))).toBeNull();
+    expect(currentUse(det([box("a", ours, true), box("b", OTHER, false)]))).toBeNull();
   });
 });

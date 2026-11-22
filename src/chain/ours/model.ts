@@ -1,7 +1,7 @@
 // src/chain/ours/model.ts — pure: what the pages show about our tracker, derived from the store's last answers, the
 // chain tip and the clock. No network, no React. Every value is null when its source is unknown ("—" on screen).
 import { emergencyClock } from "../decode";
-import type { EmergencyClock, Hex, Observatory } from "../types";
+import type { DetectorState, EmergencyClock, Hex, Observatory } from "../types";
 import { type FeeFunds, OUR_TRACKER, STALE_AFTER_BLOCKS, type OurEvent, type TrackedReserve, type TrackerState } from "./types";
 import type { OursState } from "./store";
 
@@ -88,6 +88,25 @@ export function statusOf(s: Pick<OursState, "stateError" | "fresh">, age: number
  *  (lowercase hex: the tracker client's normalizeKey, the chain decoder), so the whole key is compared as it is. */
 export function isOurTestReserve(ownerKey: string | null | undefined): boolean {
   return ownerKey === OUR_TRACKER.testReserveOwner;
+}
+
+/** Who uses the current contracts, from the detector's live list (it makes no request of its own). */
+export type CurrentUse =
+  | { kind: "test" }                                // every box there is ErgoScan's test reserve (spent states included)
+  | { kind: "others"; n: number; ours: boolean };   // n unspent reserves of other owners; ours: the test reserve is unspent
+
+/** null while that is not known: before the detector has checked both current templates live, or while its list holds
+ *  fewer boxes than a template has (it reads one page of each). A box with an unreadable owner counts as another owner. */
+export function currentUse(d: DetectorState | null | undefined): CurrentUse | null {
+  if (!d || d.templates.length === 0 || d.checkedAt == null) return null;
+  for (const x of d.templates) {
+    if (x.checkedAt == null || x.total == null) return null;
+    if (d.found.filter((b) => b.templateHash === x.hash).length < x.total) return null;
+  }
+  const mine = (b: DetectorState["found"][number]) => isOurTestReserve(b.owner?.key);
+  const others = d.found.filter((b) => b.unspent && !mine(b)).length;
+  if (others > 0) return { kind: "others", n: others, ours: d.found.some((b) => b.unspent && mine(b)) };
+  return d.found.every(mine) ? { kind: "test" } : null;
 }
 
 /** Our tracker's NFT was minted (block 1 922 275) after the snapshot the observatory is built from, so snapshot counts
