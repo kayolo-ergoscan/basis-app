@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, blk } from "@/ui";
+import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
   buildReserveCreation, checkReserveCreation, checkReservePayload, computeTxId, outputBoxes, parseReservePayload,
@@ -38,8 +38,8 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
         <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span></div>
       </div>
-      <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: blk(r.updatedHeight) })}</p>
-      {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: blk(r.refundHeight) })}</Callout>}
+      <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
+      {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: int(r.refundHeight) })}</Callout>}
       {cov !== null && cov < 100 && <Callout tone="alarm">{t("mw.res.under")}</Callout>}
       <p className="t-small mw-dim">{t("mw.res.lock")}</p>
       <p className="t-small mw-dim">{t("mw.res.later")}</p>
@@ -84,6 +84,9 @@ export function ReserveScreen() {
   const reserve = (res.value ?? [])[0] ?? null;
 
   const fail = (p: Partial<Extract<Phase, { k: "error" }>>) => setPhase({ k: "error", ...p });
+
+  /** Anything thrown on the way (a box that does not hash to its id, …) stops the flow in words, unsigned. */
+  const guard = (f: () => Promise<void>) => f().catch((e: unknown) => fail({ text: t("mw.err.shape"), rule: e instanceof Error ? e.message.slice(0, 300) : undefined }));
 
   /** Precheck → plan → the tracker's template → the transaction, checked. Nothing is signed here. */
   async function prepare() {
@@ -226,7 +229,7 @@ export function ReserveScreen() {
                         <span className="mw-reason">{t("mw.nothingSigned")}</span>
                       </Callout>
                     )}
-                    <Key variant="primary" block disabled={busy || amount === null || amount > cap || amount < RESERVE_MIN_NANOERG} onClick={() => void prepare()}>
+                    <Key variant="primary" block disabled={busy || amount === null || amount > cap || amount < RESERVE_MIN_NANOERG} onClick={() => void guard(prepare)}>
                       {busy ? t(`mw.res.working.${(phase as { step: string }).step}`) : t("mw.res.prepare")}
                     </Key>
                     <p className="t-small mw-dim">{t("mw.res.prepareHint")}</p>

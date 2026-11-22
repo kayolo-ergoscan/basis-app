@@ -3,7 +3,7 @@
 // progress ladder of one journal entry, with "Send again" (the same bytes) when nobody has seen it.
 import { useState } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Key, blk } from "@/ui";
+import { Callout, Key, int } from "@/ui";
 import { signP2pkTransaction, type ErgoBox, type UnsignedTx } from "@/mainnet/tx";
 import { depthAt } from "@/mainnet/flows";
 import type { JournalEntry, JournalMetaValue, MainnetVault } from "@/mainnet/vault";
@@ -45,7 +45,7 @@ export function entrySteps(e: JournalEntry, tip: number | null, t: (k: string, v
     { id: "signed", label: t("mw.track.signed"), state: st(0) },
     { id: "sent", label: t("mw.track.sent"), sub: e.sendAttempts > 1 ? t("mw.track.attempts", { n: e.sendAttempts }) : undefined, state: st(1) },
     { id: "mempool", label: t("mw.track.mempool"), state: st(2) },
-    { id: "d1", label: t("mw.track.depth1"), sub: e.inclusionHeight ? t("mw.track.inBlock", { h: blk(e.inclusionHeight) }) : undefined, state: st(3) },
+    { id: "d1", label: t("mw.track.depth1"), sub: e.inclusionHeight ? t("mw.track.inBlock", { h: int(e.inclusionHeight) }) : undefined, state: st(3) },
     { id: "d2", label: t("mw.track.depth2"), sub: e.state === "confirmed" ? t("mw.track.depthNow", { n: depth }) : undefined, state: e.state === "final" ? "done" : st(4) },
     ...extra,
   ];

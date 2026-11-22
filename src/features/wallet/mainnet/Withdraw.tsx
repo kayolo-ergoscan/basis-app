@@ -40,6 +40,8 @@ export function WithdrawScreen() {
   const recent = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine !== true && e.state !== "abandoned").slice(0, 3) : []), [entries, me]);
   const current = phase.k === "done" ? entries.find((e) => e.id === phase.id) ?? null : null;
 
+  const guard = (f: () => Promise<void>) => f().catch((e: unknown) => setPhase({ k: "error", text: t("mw.err.shape"), rule: e instanceof Error ? e.message.slice(0, 300) : undefined }));
+
   async function review() {
     if (!me || !dest || !dest.ok || destErr || amount === null) return;
     if (height === null) return setPhase({ k: "error", text: t("mw.res.noHeight") });
@@ -113,7 +115,7 @@ export function WithdrawScreen() {
                       {phase.rule && <span className="mw-reason">{t("mw.rule")} <code>{phase.rule}</code></span>}
                     </Callout>
                   )}
-                  <Key variant="primary" block disabled={phase.k === "working" || !dest?.ok || !!destErr || amount === null || amount <= 0n} onClick={() => void review()}>
+                  <Key variant="primary" block disabled={phase.k === "working" || !dest?.ok || !!destErr || amount === null || amount <= 0n} onClick={() => void guard(review)}>
                     {phase.k === "working" ? t("mw.wd.working") : t("mw.wd.review")}
                   </Key>
                 </div>

@@ -112,18 +112,21 @@ export default function MainnetWallet() {
     body = (
       <MwCtx.Provider value={ctx}>
         {hasKey && state.backedUp && <MwNav />}
+        {/* rendered under the feature's "/wallet/*": these paths are relative to /wallet */}
         <Routes>
-          <Route index element={hasKey && state.backedUp ? <HomeScreen /> : <StartScreen />} />
-          <Route path="setup" element={<StartScreen />} />
-          <Route path="fund" element={<FundScreen />} />
-          <Route path="reserve" element={<ReserveScreen />} />
-          <Route path="pay" element={<PayScreen />} />
-          <Route path="receive" element={<ReceiveScreen />} />
-          <Route path="redeem" element={<RedeemScreen />} />
-          <Route path="withdraw" element={<WithdrawScreen />} />
-          <Route path="activity" element={<ActivityScreen />} />
-          <Route path="settings" element={<SettingsScreen />} />
-          <Route path="*" element={<Navigate to="/wallet/mainnet" replace />} />
+          <Route path="mainnet">
+            <Route index element={hasKey && state.backedUp ? <HomeScreen /> : <StartScreen />} />
+            <Route path="setup" element={<StartScreen />} />
+            <Route path="fund" element={<FundScreen />} />
+            <Route path="reserve" element={<ReserveScreen />} />
+            <Route path="pay" element={<PayScreen />} />
+            <Route path="receive" element={<ReceiveScreen />} />
+            <Route path="redeem" element={<RedeemScreen />} />
+            <Route path="withdraw" element={<WithdrawScreen />} />
+            <Route path="activity" element={<ActivityScreen />} />
+            <Route path="settings" element={<SettingsScreen />} />
+            <Route path="*" element={<Navigate to="/wallet/mainnet" replace />} />
+          </Route>
         </Routes>
       </MwCtx.Provider>
     );

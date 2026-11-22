@@ -28,8 +28,9 @@ export const ergText = (nano: bigint, lang: string): string => {
   const dp = dpOf(nano);
   const neg = nano < 0n;
   const v = neg ? -nano : nano;
-  const s = (v / 1_000_000_000n).toString() + (dp ? (lang === "ru" ? "," : ".") + (v % 1_000_000_000n).toString().padStart(9, "0").slice(0, dp) : "");
-  return (neg ? "−" : "") + s.replace(/\B(?=(\d{3})+(?!\d))/g, " ⁠") + " ERG";
+  const whole = (v / 1_000_000_000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009\u2060");
+  const frac = dp ? (lang === "ru" ? "," : ".") + (v % 1_000_000_000n).toString().padStart(9, "0").slice(0, dp) : "";
+  return (neg ? "−" : "") + whole + frac + "\u00a0ERG";
 };
 
 /** A link to ergoscan.me for a transaction, box or address. */

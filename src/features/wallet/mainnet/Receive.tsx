@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, blk, short } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
 import { TRACKER_NFT, parseStoredNote } from "@/mainnet/tx";
 import { WATCH_POLLED, decodeReceipt, fragmentOf, noteView, parseErg, requestLink, unwatchIssuer, watchIssuer, type NoteReceipt, type NoteView, type WatchedIssuer } from "@/mainnet/flows";
 import { QrCode } from "../lib/qr";
@@ -57,7 +57,7 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
             <div className="mw-figure"><span className="label">{t("mw.recv.redeemed")}</span><b><Erg nano={v.redeemed} /></b></div>
             <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Erg nano={v.redeemableNow} tone={v.redeemableNow > 0n ? "up" : undefined} /></b></div>
           </div>
-          {v.stage === "committed" && v.confirmedHeight !== null && <p className="t-small mw-dim">{t("mw.recv.committedAt", { h: blk(v.confirmedHeight) })}</p>}
+          {v.stage === "committed" && v.confirmedHeight !== null && <p className="t-small mw-dim">{t("mw.recv.committedAt", { h: int(v.confirmedHeight) })}</p>}
           {v.stage !== "committed" && <p className="t-small">{t(`mw.recv.wait.${v.stage}`)} <TimeHint k="note" /></p>}
           {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: ergText(v.committed, t.lang) })}</p>}
         </>

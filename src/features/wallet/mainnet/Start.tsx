@@ -69,7 +69,7 @@ function NewPassphrase({ onSubmit, busy, label, extra }: { onSubmit: (p: string)
       <Field label={t("mw.pass.again")} error={mismatch ? t("mw.pass.mismatch") : undefined}>
         <TextInput type="password" autoComplete="new-password" value={p2} onChange={setP2} />
       </Field>
-      <Switch checked={ok} onChange={setOk} label={t("mw.start.understand")} help={t("mw.warn.key")} />
+      <Switch checked={ok} onChange={setOk} label={t("mw.start.understand")} />
       <Key variant="primary" type="submit" block disabled={!ready}>{busy ? t("mw.start.deriving") : label}</Key>
     </form>
   );

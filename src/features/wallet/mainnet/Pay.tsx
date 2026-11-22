@@ -102,6 +102,8 @@ export function PayScreen() {
   const add = parseErg(amountText);
   const toErr = toText.trim() && !key.ok ? t(`mw.pay.to.${key.reason}`) : key.ok && me && key.key === me.pub ? t("mw.pay.to.self") : null;
   const reserve = (res.value ?? [])[0] ?? null;
+  // notes_require_reserve: the tracker takes notes only from a key with exactly one active reserve under it
+  const noReserve = res.value !== null && (res.value.length !== 1 || res.value[0].refundHeight > 0);
   const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note").slice(0, 8) : []), [entries, me]);
   const current = phase.k === "done" ? entries.find((e) => e.id === phase.id) ?? null : null;
 
@@ -208,7 +210,7 @@ export function PayScreen() {
             <h1 className="t-h2">{t("mw.pay.h")}</h1>
             <p className="t-lede">{t("mw.pay.lede")}</p>
           </header>
-          {!reserve && res.value && (
+          {noReserve && (
             <Callout tone="alarm" title={t("mw.pay.noReserveT")}>
               <p>{t("mw.pay.noReserveB")}</p>
               <Key to="/wallet/mainnet/reserve" icon="coin">{t("mw.pay.toReserve")}</Key>
@@ -262,7 +264,7 @@ export function PayScreen() {
                       )}
                     </Callout>
                   )}
-                  <Key variant="primary" block disabled={phase.k === "working" || !key.ok || add === null || !!toErr} onClick={() => void review()}>
+                  <Key variant="primary" block disabled={phase.k === "working" || !key.ok || add === null || !!toErr || noReserve} onClick={() => void review()}>
                     {phase.k === "working" ? t("mw.pay.working") : t("mw.pay.review")}
                   </Key>
                 </div>
@@ -296,8 +298,10 @@ export function PayScreen() {
           </Card>
           {reserve && (
             <Card title={t("mw.pay.reserveT")}>
-              <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={reserve.collateral} /></b></div>
-              <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={reserve.debt} /></b></div>
+              <div className="mw-figs">
+                <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={reserve.collateral} /></b></div>
+                <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={reserve.debt} /></b></div>
+              </div>
             </Card>
           )}
           <Callout tone="calm" title={t("mw.honest.t")}>{t("mw.honest.b")}</Callout>

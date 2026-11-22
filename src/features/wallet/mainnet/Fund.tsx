@@ -3,7 +3,7 @@
 // not a reserve yet: creating the reserve is the next step.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, Lamp, blk } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Key, Lamp, int } from "@/ui";
 import { MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_MIN_NANOERG } from "@/mainnet/tx";
 import { balanceOf, ergPlain, parseErg, spendable } from "@/mainnet/flows";
 import { mempoolInflow } from "@/mainnet/net";
@@ -57,9 +57,10 @@ export function FundScreen() {
                   error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
                   <AmountInput value={amountText} onChange={setAmountText} />
                 </Field>
-                {need !== null && (
+                {need !== null && missing === 0n && <p className="t-body mw-send">{t("mw.fund.enough")}</p>}
+                {need !== null && missing > 0n && (
                   <p className="t-body mw-send">
-                    {t("mw.fund.send")} <b><Erg nano={missing > 0n ? missing : 0n} /></b>
+                    {t("mw.fund.send")} <b><Erg nano={missing} /></b>
                     <span className="t-small mw-dim"> · {t("mw.fund.sendWhy", { fee: ergText(T1_FEE_ALLOWANCE, t.lang), miner: ergText(MINER_FEE_NANOERG, t.lang) })}</span>
                   </p>
                 )}
@@ -73,7 +74,7 @@ export function FundScreen() {
                 <Steps label={t("mw.fund.watchT")} items={[
                   { id: "wait", label: t("mw.fund.s.wait"), sub: <TimeHint k="deposit" />, state: incoming.length || have > 0n ? "done" : "now" },
                   { id: "seen", label: t("mw.fund.s.seen"), sub: incoming[0] ? <ChainLink kind="tx" id={incoming[0].id} /> : undefined, state: incoming.length ? "now" : have > 0n ? "done" : "todo" },
-                  { id: "conf", label: t("mw.fund.s.confirmed"), sub: lastHeight ? t("mw.fund.atBlock", { h: blk(lastHeight) }) : undefined, state: have > 0n ? "done" : "todo" },
+                  { id: "conf", label: t("mw.fund.s.confirmed"), sub: lastHeight ? t("mw.fund.atBlock", { h: int(lastHeight) }) : undefined, state: have > 0n ? "done" : "todo" },
                   { id: "ready", label: t("mw.fund.s.ready"), sub: ready ? undefined : need !== null ? t("mw.fund.s.readyNeed", { need: ergText(need, t.lang) }) : undefined, state: ready ? "done" : "todo" },
                 ]} />
                 <div className="mw-figure">

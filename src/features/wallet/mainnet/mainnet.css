@@ -1,7 +1,10 @@
 /* The mainnet wallet (/wallet/mainnet/*): its own chunk, its own classes (mw-*). Kit tokens only; the same paper,
    metal and ink as the sandbox wallet, with the MAINNET seal and the metal accent where real ERG moves. */
 .mw-page { padding-top: clamp(16px, 2.2vw, 28px); }
-.mw-page :where(.mw-main, .mw-side, .mw-form, .mw-single) { min-width: 0; }
+.mw-page :where(.mw-main, .mw-side, .mw-form, .mw-single) { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.mw-page :where(.mw-main, .mw-side, .mw-single) > * { min-width: 0; }
+.mw-page .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.mw-page .seg::-webkit-scrollbar { display: none; }
 .mw-page :is(p, .t-small, li) > a:not(.key):not(.textlink):not(.mw-link) { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
 .mw-page button.textlink { border: 0; background: none; padding: 2px 0; cursor: pointer; border-radius: 4px; justify-self: start; }
 .mw-page button.textlink:focus-visible { box-shadow: var(--focus-halo); }
@@ -139,9 +142,8 @@
   .mw-top { align-items: stretch; }
   .mw-top-l { width: 100%; }
   .mw-top-l .wl-mode { width: 100%; }
-  .mw-nav { width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-  .mw-nav::-webkit-scrollbar { display: none; }
-  .mw-nav a { padding: 8px 11px; }
+  .mw-nav { width: 100%; }
+  .mw-nav a { padding: 8px 10px; flex: 1 1 auto; justify-content: center; }
   .mw-sheet { grid-template-columns: minmax(0, 1fr); }
   .mw-qr-wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; }
   .mw-qr svg { width: min(220px, 62vw); height: min(220px, 62vw); }

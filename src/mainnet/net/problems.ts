@@ -53,6 +53,8 @@ export function reasonOf(text: string): string {
 }
 
 const TX_ID = /\b([0-9a-f]{64})\b/i;
+/** The tracker names the redemption it waits for as "redemption <tx id>"; other 64-hex ids (a reserve) may come first. */
+const WAITING_TX = /redemption\s+([0-9a-fA-F]{64})\b/;
 
 /** The poll backoff after `failures` failed answers in a row: 30 s, 60 s, … 10 min (OURS_POLL). */
 export function backoffMs(failures: number): number {
@@ -77,7 +79,7 @@ export function problemOf(route: WalletRoute, a: RawAnswer, failures = 0): Probl
     return p("unavailable", { retryInMs: a.retryAfterMs ?? backoffMs(failures + 1) });
   }
   if (s === 409) {
-    if (route === "build" && /waiting for the\s+chain/i.test(reason)) return p("waiting-chain", { txId: (reason.match(TX_ID)?.[1] ?? "").toLowerCase() || null });
+    if (route === "build" && /waiting for the\s+chain/i.test(reason)) return p("waiting-chain", { txId: (reason.match(WAITING_TX)?.[1] ?? reason.match(TX_ID)?.[1] ?? "").toLowerCase() || null });
     if (route === "submit") return p("replaced");
     return p("conflict");
   }

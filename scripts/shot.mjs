@@ -1,8 +1,13 @@
 // Screenshot a page of the app. Always closes the browser.
-//   node scripts/shot.mjs <path-or-url> <out.png> [desktop|operator|phone|laptop|WxH] [--full] [--light] [--ru] [--wait=1500] [--click=<css>] [--eval=<js>]
+//   node scripts/shot.mjs <path-or-url> <out.png> [desktop|operator|phone|laptop|WxH] [--full] [--light] [--ru] [--wait=1500] [--click=<css>] [--eval=<js>] [--mock=<module.mjs>]
 // Paths are resolved against the shared dev server http://127.0.0.1:5180 (start it with scripts/dev.sh).
 // Prints JSON: page errors, console errors, failed requests, horizontal overflow (scrollWidth > viewport) — all must be empty/false.
+// Writes never leave a shot: every request that is not GET/HEAD/OPTIONS is aborted (listed under "blocked") unless the
+// --mock module answers it. A mock module may export setup(ctx, o) (routes, init scripts; before the page loads) and
+// steps(page, ctx, o) (after the load, before the screenshot); o = { val } reads more --name=value flags.
 import { chromium } from "playwright-core";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 const args = process.argv.slice(2);
 const pos = args.filter((a) => !a.startsWith("--"));
 const flag = (n) => args.find((a) => a === `--${n}` || a.startsWith(`--${n}=`));
@@ -18,6 +23,16 @@ try {
   const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: DPR, isMobile: mobile, hasTouch: mobile,
     colorScheme: flag("light") ? "light" : "dark", locale: flag("ru") ? "ru-RU" : "en-US" });
   if (flag("light") || flag("ru")) await ctx.addInitScript(([light, ru]) => { try { if (light) localStorage.setItem("basis.theme", "cotton"); if (ru) localStorage.setItem("basis.lang", "ru"); } catch {} }, [!!flag("light"), !!flag("ru")]);
+  const blocked = [];
+  await ctx.route("**/*", (r) => {
+    const m = r.request().method();
+    if (m === "GET" || m === "HEAD" || m === "OPTIONS") return r.fallback();
+    blocked.push(m + " " + r.request().url().slice(0, 160));
+    return r.abort("blockedbyclient");
+  });
+  const mockPath = val("mock");
+  const mock = mockPath ? await import(pathToFileURL(resolve(mockPath)).href) : null;
+  if (mock?.setup) await mock.setup(ctx, { val });
   const p = await ctx.newPage();
   const errs = [], failed = [];
   p.on("pageerror", (e) => errs.push("pageerror: " + e.message));
@@ -27,9 +42,10 @@ try {
   await p.goto(url, { waitUntil: "load", timeout: 60000 });
   await p.evaluate(() => document.fonts.ready);
   await p.waitForTimeout(+val("wait", 1500));
+  if (mock?.steps) await mock.steps(p, ctx, { val });
   const click = val("click"); if (click) { await p.click(click); await p.waitForTimeout(800); }
   const ev = val("eval"); if (ev) { await p.evaluate(ev); await p.waitForTimeout(800); }
   await p.screenshot({ path: out, fullPage: !!flag("full") });
   const m = await p.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: innerWidth, height: document.documentElement.scrollHeight, title: document.title }));
-  console.log(JSON.stringify({ out, url, viewport: `${W}x${H}@${DPR}`, overflowX: m.scrollWidth > m.innerWidth + 1, ...m, errors: errs, failed }));
+  console.log(JSON.stringify({ out, url, viewport: `${W}x${H}@${DPR}`, overflowX: m.scrollWidth > m.innerWidth + 1, ...m, errors: errs, failed, blocked }));
 } finally { await b.close(); }

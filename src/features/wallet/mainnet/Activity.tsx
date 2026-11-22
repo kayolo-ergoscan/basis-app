@@ -3,7 +3,7 @@
 // that was provably never sent). The journal lives in this browser only.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
-import { Card, Empty, Key, Lamp, Seg, blk, short, type LampState } from "@/ui";
+import { Card, Empty, Key, Lamp, Seg, short, type LampState, int } from "@/ui";
 import type { JournalEntry, JournalState } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
@@ -40,7 +40,7 @@ function Row({ e }: { e: JournalEntry }) {
             <EntryProgress vault={vault} entry={e} tip={height} />
           )}
           {e.kind === "redeem" && e.state === "signed" && <Key size="sm" onClick={() => void submitEntry(vault, e)}>{t("mw.red.submitAgain")}</Key>}
-          {e.txId && <p className="t-small">{t("mw.track.tx")} <ChainLink kind="tx" id={e.txId} />{e.inclusionHeight !== null && <> · {t("mw.track.inBlock", { h: blk(e.inclusionHeight) })}</>}</p>}
+          {e.txId && <p className="t-small">{t("mw.track.tx")} <ChainLink kind="tx" id={e.txId} />{e.inclusionHeight !== null && <> · {t("mw.track.inBlock", { h: int(e.inclusionHeight) })}</>}</p>}
           {e.error && <p className="t-small mw-dim">{t("mw.track.lastError")} <q>{e.error}</q></p>}
           <p className="t-small mw-dim">{t("mw.act.attempts", { n: e.sendAttempts })}</p>
         </div>

@@ -113,6 +113,8 @@ export function RedeemScreen() {
 
   const stop = (at: Stage, p: Omit<Extract<Phase, { k: "stop" }>, "k" | "at">) => setPhase({ k: "stop", at, ...p });
 
+  const guard = (f: () => Promise<void>) => f().catch((e: unknown) => stop("build", { text: t("mw.err.shape"), rule: e instanceof Error ? e.message.slice(0, 300) : undefined }));
+
   /** Everything up to the review; nothing here signs a transaction. */
   async function prepare(retry = 0) {
     if (!me || amount === null || !issuer) return;
@@ -297,7 +299,7 @@ export function RedeemScreen() {
                           {phase.l2?.eval && <ContractXray evaluation={phase.l2.eval} focus={phase.l2.rule ? [phase.l2.rule] : undefined} mode="compact" title={t("mw.red.xrayT")} />}
                         </>
                       )}
-                      <Key variant="primary" block disabled={!ok || phase.k === "working" || phase.k === "sending" || pending} onClick={() => void prepare()}>
+                      <Key variant="primary" block disabled={!ok || phase.k === "working" || phase.k === "sending" || pending} onClick={() => void guard(() => prepare())}>
                         {phase.k === "working" ? t(`mw.red.stage.${phase.at}`) : phase.k === "sending" ? t("mw.red.sending") : t("mw.red.prepare")}
                       </Key>
                       <p className="t-small mw-dim">{t("mw.red.prepareHint")}</p>

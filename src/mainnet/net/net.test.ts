@@ -36,6 +36,8 @@ describe("problems", () => {
   it("409: C8 waiting for the chain (with the tx), a replaced build on submit, the tracker's reason otherwise", () => {
     const c8 = problemOf("build", ans(409, env(`the reserve of issuer ${ME} in erg has redemption ${TX} waiting for the chain; build again once it is confirmed, or once it is dropped (about 10 minutes in no mempool)`)));
     expect(c8).toMatchObject({ kind: "waiting-chain", txId: TX });
+    const c8b = problemOf("build", ans(409, env(`reserve ${"7".repeat(64)} has redemption ${TX} waiting for the chain`)));
+    expect(c8b).toMatchObject({ kind: "waiting-chain", txId: TX });
     expect(problemOf("submit", ans(409, env("unknown build")))!.kind).toBe("replaced");
     expect(problemOf("notes", ans(409, env("issuer has no active reserve under this tracker")))).toMatchObject({ kind: "conflict", reason: "issuer has no active reserve under this tracker" });
   });
