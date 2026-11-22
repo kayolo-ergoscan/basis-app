@@ -1,5 +1,6 @@
-// /tracker: the sandbox town tracker T-01. Three pages share one frame:
-//   /tracker      the console (XL card, controls, ladder, digest timeline, proofs, events)
+// /tracker: the sandbox town tracker T-01, and ErgoScan's real tracker on mainnet. Three pages share one frame:
+//   /tracker      the console (XL card, controls, ladder, digest timeline, proofs, events); its switch leads to
+//   /tracker/mainnet  the same console for ErgoScan's tracker on Ergo mainnet, read-only (src/chain/ours)
 //   /tracker/run  running your own tracker (checklist, contracts, caveats)
 //   /tracker/api  the API mirror (what the reference server would answer for the town)
 // The console and the mirror need the sandbox engine, so they are their own lazy chunks; /run stays light.
@@ -18,6 +19,7 @@ const typeset = (d: Record<string, string>, lang: "en" | "ru") => Object.fromEnt
 addI18n({ en: typeset(strings.en, "en"), ru: typeset(strings.ru, "ru") });
 
 const Console = lazy(() => import("./Console"));
+const Mainnet = lazy(() => import("./Mainnet"));
 const ApiMirror = lazy(() => import("./ApiMirror"));
 
 function Wait() {
@@ -35,6 +37,7 @@ export default function TrackerPage() {
       <Suspense fallback={<Wait />}>
         <Routes>
           <Route index element={<Console />} />
+          <Route path="mainnet" element={<Mainnet />} />
           <Route path="run" element={<RunOwn />} />
           <Route path="api" element={<ApiMirror />} />
           <Route path="*" element={<Navigate to="/tracker" replace />} />
