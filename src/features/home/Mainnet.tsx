@@ -42,13 +42,14 @@ export function Mainnet() {
   }
 
   const T = obs.totals;
-  // the reserve figures and their footnote stand for one block: the live height once this tab has looked at the chain,
-  // the snapshot's block when the live layer failed before that, and no figures while the first look is on its way
+  // the reserve figures and their footnote stand for one block: the block of this tab's last live check (the same one
+  // the detector line beside them names), the snapshot's block when the live layer failed before that, and no figures
+  // while the first look is on its way
   const src = totalsSource(obs);
   const S = obs.snapshotTotals;
   const R = src === "snapshot"
     ? { boxes: S.reserveBoxes, unspent: S.unspent, nano: BigInt(S.unspentNano), tokens: Object.keys(S.unspentTokens).length > 0, height: obs.asOf.height }
-    : { boxes: T.reserveBoxes, unspent: T.unspent, nano: T.unspentNano, tokens: T.unspentTokens.length > 0, height: obs.height };
+    : { boxes: T.reserveBoxes, unspent: T.unspent, nano: T.unspentNano, tokens: T.unspentTokens.length > 0, height: obs.detector.checkedHeight ?? obs.height };
   const checking = src === "checking";
   const last = obs.records.lastActivity;
   // reserves = unspent boxes at the current contracts (a spent box is an earlier state of a reserve)
