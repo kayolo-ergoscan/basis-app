@@ -19,7 +19,8 @@ export {
 export type { Network, ParsedAddress, ParsedErgoTree, SigmaPropValue, TrackerLookup, ExitInput } from "./decode";
 export { createChainApi, chainApi, ChainApiError, paths, CHAIN_BUDGET } from "./api";
 export type { ChainApi, ChainApiConfig, ChainApiErrorKind, GetOptions, Lane, RequestLogEntry } from "./api";
-export { buildObservatory, interpretTx, boxDetail, liveBoxFromApi, contractIndex, contractOf, trackerLookup, liveTrackerLookup, emptyLive, decodeBeats, tokenAmount } from "./model";
+export { buildObservatory, interpretTx, boxDetail, liveBoxFromApi, contractIndex, contractOf, trackerLookup, liveTrackerLookup, emptyLive, decodeBeats, tokenAmount, totalsSource } from "./model";
+export type { TotalsSource } from "./model";
 export { chain, createChainStore, INTERVALS } from "./store";
 export type { ChainState, ChainStore, ChainStoreOptions, Fetched } from "./store";
 export { useHeight, getHeight, useObservatory, useChainStatus, useReserve, useTracker, useRedemption, useDetector, useBox } from "./hooks";

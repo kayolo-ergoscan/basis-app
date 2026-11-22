@@ -579,6 +579,22 @@ export function hostIndexView(seed: Seed, live: LiveData, unspent: ReserveView[]
   };
 }
 
+/** What the reserve totals on a page (unspent reserve boxes, the ERG in them) stand for, so that their "as of block"
+ *  label matches the numbers:
+ *   • "live": this tab has listed both current templates live and knows the chain height. Show obs.totals, labelled
+ *     with that live height (the same block the page shows as Ergo's height);
+ *   • "checking": that first live look is still on its way. Show no number and no empty-state sentence yet, so nothing
+ *     jumps and nothing is contradicted a second later;
+ *   • "snapshot": the live layer failed before it. Show the snapshot's own numbers (obs.snapshotTotals), labelled with
+ *     the snapshot's block. */
+export type TotalsSource = "live" | "checking" | "snapshot";
+export function totalsSource(obs: Pick<Observatory, "detector" | "heightLive" | "live">): TotalsSource {
+  const tpl = obs.detector.templates;
+  if (tpl.length > 0 && tpl.every((t) => t.checkedAt !== null) && obs.heightLive) return "live";
+  if (!obs.live.online || obs.live.lastError !== null) return "snapshot";
+  return "checking";
+}
+
 export function detectorState(seed: Seed, live: LiveData): DetectorState {
   const { byTemplate } = contractIndex(seed);
   const templates = [CURRENT_TEMPLATES.erg, CURRENT_TEMPLATES.multiToken].map((hash) => {

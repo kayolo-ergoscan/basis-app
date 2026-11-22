@@ -3,7 +3,7 @@
 // near the screen (it runs the resident bots and its clock).
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { rich, useLang, useT } from "@/app/lang";
-import { currentUse, useDetector, useHeight, useObservatory, useOursInCounts } from "@/chain";
+import { currentUse, totalsSource, useDetector, useHeight, useObservatory, useOursInCounts } from "@/chain";
 import { copy, pick } from "@/content";
 import { Icon, int, Key, KeySeal, Lamp, Section, Tag, units, withUnit } from "@/ui";
 import { balanceSheet, castName, FAUCET_ERG, FAUCET_SUSE, graphSnapshot, threeWordsText, useTown, useTownReady, useTownView, useWallet, YOU, type GraphSnapshot } from "@/world";
@@ -146,19 +146,25 @@ function MainnetStrip() {
   // ErgoScan's tracker (minted after the snapshot) counts once its API has named its box, as in "Trackers by status"
   const ours = useOursInCounts(obs);
   const live = obs ? obs.trackers.filter((x) => x.status === "live").length + (ours?.withBox ?? 0) : null;
+  // one block per card: live totals are labelled with the same height as the "Ergo height" cell, the snapshot's totals
+  // with the snapshot's block, and while the first live look is on its way there are no totals to label yet
+  const tip = h.height ?? obs?.height ?? null;
+  const src = obs ? totalsSource(obs) : "checking";
+  const snap = obs?.snapshotTotals;
   const cells: [string, ReactNode, string?][] = [
-    [t("home.d.net.block"), h.height != null ? int(h.height) : obs ? int(obs.height) : "—"],
-    [t("home.d.net.reserves"), obs ? int(obs.totals.unspent) : "—"],
-    [t("home.d.net.locked"), obs ? units(obs.totals.unspentNano, 9, 3) : "—"],
+    [t("home.d.net.block"), tip != null ? int(tip) : "—"],
+    [t("home.d.net.reserves"), !obs || src === "checking" ? "—" : src === "snapshot" ? int(snap!.unspent) : int(obs.totals.unspent)],
+    [t("home.d.net.locked"), !obs || src === "checking" ? "—" : units(src === "snapshot" ? BigInt(snap!.unspentNano) : obs.totals.unspentNano, 9, 3)],
     [t("home.d.net.trackers"), live != null ? int(live) : "—", ours?.withBox ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined],
   ];
+  const foot = !obs ? null : src === "live" ? pick(copy.asOfBlock(tip ?? obs.height), lang) : src === "snapshot" ? pick(copy.asOfBlock(obs.asOf.height), lang) : t("chain.checking");
   return (
     <div className="door-strip">
       <div className="ds-head"><Lamp state="live" size={8} /><b>MAINNET</b><Tag>{pick(copy.experimental, lang)}</Tag></div>
       <dl>
         {cells.map(([k, v, title]) => <div key={k} title={title}><dt className="label">{k}</dt><dd className="num">{v}</dd></div>)}
       </dl>
-      {obs && <p className="ds-foot mono">{pick(copy.asOfBlock(obs.asOf.height), lang)}</p>}
+      {foot && <p className="ds-foot mono" title={src === "snapshot" ? t("chain.live.seedOnly") : undefined}>{foot}</p>}
     </div>
   );
 }

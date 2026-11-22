@@ -41,6 +41,7 @@ export default {
     "chain.exit.refund+redeem-checking.short": "Refund · checking…",
     "chain.exit.redeem-checking.help": "Checking where the tracker NFT named in R6 is now. The contract has no owner exit.",
     "chain.exit.refund+redeem-checking.help": "The owner can exit through the refund. Checking where the tracker NFT named in R6 is now.",
+    "chain.checking": "Checking the network…",
 
     "chain.tracker.live": "Box unspent",
     "chain.tracker.stale": "Stale",
@@ -171,6 +172,7 @@ export default {
     "chain.exit.refund+redeem-checking.short": "Возврат · проверяем…",
     "chain.exit.redeem-checking.help": "Проверяем, где сейчас NFT трекера из R6. Выхода для владельца в контракте нет.",
     "chain.exit.refund+redeem-checking.help": "Владелец может выйти через возврат. Проверяем, где сейчас NFT трекера из R6.",
+    "chain.checking": "Проверяем сеть…",
 
     "chain.tracker.live": "Бокс не потрачен",
     "chain.tracker.stale": "Устарел",
