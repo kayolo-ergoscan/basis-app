@@ -1,15 +1,17 @@
-// home strings (placeholder, Wave A).
+// home: the title and command labels (eager). The page's own strings are in strings.ts (lazy, see Page.tsx).
 import type { I18nBundle } from "@/app/types";
 
 export default {
   en: {
     "home.title": "Offchain cash on Ergo",
-    "home.eyebrow": "OFFCHAIN CASH · SETTLES ON ERGO",
-    "home.lede": "Pay with your word. Redeem on Ergo. The full story page arrives in the next wave.",
+    "home.cmd.story": "Story: offchain cash on Ergo",
+    "home.cmd.moments": "Five moments of one note",
+    "home.cmd.mainnet": "Mainnet now: Basis on Ergo today",
   },
   ru: {
     "home.title": "Офчейн-деньги на Ergo",
-    "home.eyebrow": "ОФЧЕЙН-ДЕНЬГИ · РАСЧЁТ В ERGO",
-    "home.lede": "Платите словом. Погашайте на Ergo. Полная страница истории появится в следующей волне.",
+    "home.cmd.story": "История: офчейн-деньги на Ergo",
+    "home.cmd.moments": "Пять моментов одной расписки",
+    "home.cmd.mainnet": "Mainnet сейчас: Basis в Ergo сегодня",
   },
 } satisfies I18nBundle;
