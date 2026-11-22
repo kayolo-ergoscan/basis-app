@@ -4,7 +4,7 @@
 import { blake2b } from "@noble/hashes/blake2b";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes as nobleHexToBytes } from "@noble/hashes/utils";
-import { groupDigits } from "@/ui/engine/money";
+import { blockWord, groupDigits } from "@/ui/engine/money";
 import type {
   ApiAsset, ApiRegister, AvlTreeInfo, BasisRegisters, DecodedConstant, EmergencyClock, ExitAssessment, ExitClass,
   ExitReason, Hex, RefundClock, SeedAvl, TokenKind, TrackerStatus,
@@ -615,7 +615,7 @@ export function describeExit(a: Pick<ExitAssessment, "class" | "reason" | "refun
       case "tracker-live": {
         const e = a.emergency;
         const em = !e ? "" : e.open
-          ? (ru ? `; новейшему боксу трекера ${n(e.age)}\u00a0блк, больше ${n(EMERGENCY_BLOCKS)}\u00a0блк (≈\u00a03\u00a0дня), поэтому погашению уже не нужна его подпись` : `; the tracker's newest box is ${n(e.age)}\u00a0blk old, more than ${n(EMERGENCY_BLOCKS)}\u00a0blk (≈\u00a03\u00a0days), so a redemption no longer needs its signature`)
+          ? (ru ? `; новейшему боксу трекера ${n(e.age)}\u00a0${blockWord(e.age, "ru")}, больше ${n(EMERGENCY_BLOCKS)}\u00a0${blockWord(EMERGENCY_BLOCKS, "ru")} (≈\u00a03\u00a0дня), поэтому погашению уже не нужна его подпись` : `; the tracker's newest box is ${n(e.age)}\u00a0blk old, more than ${n(EMERGENCY_BLOCKS)}\u00a0blk (≈\u00a03\u00a0days), so a redemption no longer needs its signature`)
           : (ru ? `; без подписи трекера — с блока ${n(e.opensAt)}` : `; without the tracker's signature from block ${n(e.opensAt)}`);
         if (r.emptyTree) {
           return ru
