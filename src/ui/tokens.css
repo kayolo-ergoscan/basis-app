@@ -1,0 +1,63 @@
+/* Basis · INTAGLIO tokens — design/final/intaglio.css section 1, copied verbatim (VISUAL §3, §17).
+ * One deliberate edit, required by VISUAL.md (which wins over the tile): the three font stacks name the self-hosted
+ * Fontsource families first (VISUAL §4.1). Night = :root (data-theme="dark"), Cotton = :root[data-theme="light"].
+ * Components use these tokens only: no raw hex outside this file and src/ui/engine/inks.ts. */
+
+/* ============ 1. TOKENS ============ */
+:root, .theme-dark {
+  color-scheme: dark;
+  /* surfaces */
+  --bg: #0B0B0C; --bg-2: #101012; --surface: #141416; --surface-2: #1A1A1D; --well: #202024;
+  --rule: #2A2A2E; --rule-2: #3B3B40;
+  /* ink */
+  --ink: #F2EEE5; --ink-2: #BDB9AF; --ink-3: #96938B; --ink-4: #56565A;
+  /* paper: notes and seals are paper in both themes */
+  --paper: #F1E9D8; --paper-hi: #FAF5EA; --paper-ink: #17171A; --paper-ink-2: #4A463F; --paper-rule: #D6CBB4;
+  /* metal = on-chain backing (reserve, ERG, tokens, redeem) */
+  --metal: #D9B65F; --metal-hi: #F5E3A8; --metal-lo: #9E7B2C; --metal-ink: #E6C777; --metal-wash: rgba(217,182,95,.12);
+  --foil-metal: linear-gradient(118deg, #8E6B22 0%, #E8CF86 20%, #B48E36 42%, #F6E6AE 60%, #A07A2B 80%, #D8B862 100%);
+  --foil-text: linear-gradient(100deg, #C29A45 0%, #F4E1A4 28%, #CFA84F 52%, #F8E9BA 74%, #BE9440 100%);
+  /* light = proof (tracker commitment); only while the note is in the latest digest */
+  --holo: linear-gradient(118deg, #8FE3D4 0%, #A7B6FF 24%, #ECAEF0 48%, #F7D994 72%, #A9EFC6 90%, #8FE3D4 100%);
+  --holo-stale: linear-gradient(118deg, #8C8A85 0%, #C9C6BF 45%, #8C8A85 100%);
+  /* in your favour / alive */
+  --up: #5DD3AD; --up-wash: rgba(93,211,173,.12);
+  /* wrong / act now (never used for "you owe") */
+  --alarm: #FF6271; --alarm-fill: #D8344A; --on-alarm: #FFFFFF; --alarm-wash: rgba(255,98,113,.13);
+  /* keys (pressable hardware) */
+  --key-bg: #F2EEE5; --key-fg: #0B0B0C; --key-skirt: #8E897E; --key-hi: rgba(255,255,255,.7);
+  --key2-bg: #202024; --key2-fg: #F2EEE5; --key2-skirt: #040405; --key2-hi: rgba(255,255,255,.07);
+  /* shadow tint */
+  --shade: 0,0,0; --shadow-a: .55;
+  --hatch: repeating-linear-gradient(135deg, var(--ink-3) 0 1px, transparent 1px 5px);
+  --field-rgb: 217,182,95; --field-a: .085;
+  /* type */
+  --f-display: 'Noto Serif Display Variable', 'Noto Serif Display', Georgia, serif;
+  --f-ui: 'Geist Variable', 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --f-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, Menlo, monospace;
+  /* space (4-pt) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px; --s9: 48px; --s10: 64px; --s11: 96px; --s12: 128px;
+  /* radius: paper square, hardware round */
+  --r-paper: 4px; --r-note: 10px; --r-key: 10px; --r-sheet: 22px; --r-pill: 999px;
+  /* motion */
+  --ease-out: cubic-bezier(.16,.84,.24,1); --ease-io: cubic-bezier(.65,0,.35,1); --ease-press: cubic-bezier(.3,0,.5,1);
+  --t-press: 90ms; --t-fast: 160ms; --t-base: 240ms; --t-slow: 420ms; --t-roll: 900ms; --t-pulse: 1400ms;
+  --container: 1520px; --gutter: clamp(16px, 3.4vw, 64px);
+}
+:root[data-theme="light"], .theme-light {
+  color-scheme: light;
+  --bg: #F2EFE8; --bg-2: #ECE8DF; --surface: #FBFAF7; --surface-2: #F6F4EE; --well: #E7E3D9;
+  --rule: #DCD7CB; --rule-2: #C7C1B3;
+  --ink: #131315; --ink-2: #46464B; --ink-3: #626267; --ink-4: #ABA8A0;
+  --paper: #F6F0E2; --paper-hi: #FDFAF3;
+  --metal: #B48D30; --metal-hi: #E9D49A; --metal-lo: #8A6A1E; --metal-ink: #7A5C12; --metal-wash: rgba(180,141,48,.13);
+  --holo: linear-gradient(118deg, #6FD8C6 0%, #8E9FFF 24%, #E592EA 48%, #F2C76A 72%, #84E2AE 90%, #6FD8C6 100%);
+  --holo-stale: linear-gradient(118deg, #A9A7A1 0%, #DAD7D0 45%, #A9A7A1 100%);
+  --up: #12775B; --up-wash: rgba(18,119,91,.10);
+  --foil-text: linear-gradient(100deg, #6A4D0E 0%, #A47C22 30%, #74560F 55%, #AD872C 78%, #6A4D0E 100%);
+  --alarm: #C11F38; --alarm-fill: #D2283F; --alarm-wash: rgba(193,31,56,.09);
+  --key-bg: #131315; --key-fg: #FBFAF7; --key-skirt: #000000; --key-hi: rgba(255,255,255,.16);
+  --key2-bg: #FDFCFA; --key2-fg: #131315; --key2-skirt: #C2BCAE; --key2-hi: rgba(255,255,255,1);
+  --shade: 60,48,25; --shadow-a: .22;
+  --field-rgb: 19,19,21; --field-a: .07;
+}

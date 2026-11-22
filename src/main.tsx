@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@/ui/styles";
+import "@/app/shell.css";
+import "@/app/theme";
+import App from "@/app/App";
 
-function App() {
-  return <div style={{ padding: 48, fontFamily: "system-ui", color: "#efe6d2", background: "#07080b", minHeight: "100vh" }}>Basis — scaffold</div>;
-}
+if (new URLSearchParams(location.search).has("still")) document.documentElement.classList.add("still");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

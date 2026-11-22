@@ -1,0 +1,849 @@
+{
+ "source": "design/final/intaglio.js",
+ "algo": {
+  "seal": "seal@1",
+  "note": "note@1"
+ },
+ "keys": [
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "217437a4498adf59687aa9c598565a570ad46f95473faa5732e8220007aad92f",
+  "518bbb3027697cf8819299e7172efcc785a8d79fc0599eb903b1f13265f521ee",
+  "ba78d95b5a465a2e1137e3ac7b1e4919847e726f283b7ddc1738cccc958035c5",
+  "13ede43d0f5eb92eb291b8a1764bd386d16a954763a4f727a4e374f754266599",
+  "cff521924c9435c52d6bb7a260ff6bfd7aa36598e82828977f3e51cb14cafb34",
+  "d0a1b8c80185de10ec96ff7cbeae8dc88bda11c4040b10a2312ce22e0eb4b9b6",
+  "e1ac870ffef8db525e198c465fd9c2da11dba8679584b7d3f8f53a9c4e3eb511",
+  "88b1647d207487114785f8c54e27e268e0fd7b986f3d45bae1e93e9f364eea6e",
+  "7a2d6d6b55113c520d1677fdf573e17b22d8f79756da8eef6301095001029ef3",
+  "4ee9c926d0e1babe5321b18c6a23acd4205b986d1674c3a283e7cebef513c227",
+  "c8e239b55de50b4092b23e514a0d75cb073c9f444a221cb595d85d3ca197525c",
+  "a6b29ad7d672f09344352c817fa7a10ce53b9e8bfb3db1280e956249abb5bf5f",
+  "cfd12c4853a1de74f3ebaf387e01e4f35ddfde684a2bd06bca2a26cf908c2051"
+ ],
+ "demoKeys": {
+  "Alice": "025a63786ce9e560a15f86639165646f2accd03febfbcd9620de82d5f46f7d55cc",
+  "Bob": "02d9cd431da8e6d72062e9f6b43f455188235e49a2440ab220790195ca796a60b6",
+  "Carol": "03307d9b4dcdbe70d6d9676bfb5be62f57a1f11d556f3dabb34e5a227dea75cdc1",
+  "Dan": "03b28702006b56e44e681430930f388d4f22a9a6a17e5d4a7d495a20c4f43b7af9",
+  "Eve": "03257a8be136786311e92d7e93ebfe2d69ecb743de70094baf13dac2d6f9aa0bc3",
+  "render·ai": "027e5ef3d3c9d1e19dca13a246f71ecf2d50b2e3aa8f0329c8c48a1b2ea395f7ac",
+  "search·ai": "03e4dda4e17af7dafd2156b7c82fdd8cef0f4e737231c95ad91525be1d901e8829"
+ },
+ "hashes": {
+  "0:pair-1": "3201463ac991cb32a97537847a59569dd071e3904b6277b140bf39ed5a19400a",
+  "0:pair-.6": "50b7d61c975c891fb43f73dc49ca4b20100fa9dbcfb003128acde1b38107ae89",
+  "0:person": "99c475d59939ff40c60c450025c46352bc7e30dbd01e0f19c0e0c91cbbdc3fdc",
+  "0:agent": "b44fc2ed06d2898b3b8c7a2510122b6c2269f75fbdd6ba37ddc8b532e6f2c6fd",
+  "0:noteLite": "491644557e6be7bbaeb99f0aa80b1c7f92122c07fa268397f4b2b6e57e089dd1",
+  "0:noteFull": "017a6b273ebfef96db26588639271738e819156b09c4a1abe0288d896037355a",
+  "1:pair-1": "9375ac35984c9d8ae6a117e184244d9ffebcdaa743e2e231e614ad24c2746d8a",
+  "1:pair-.6": "fc571b50ab06168522ae1ab8d79e3eb8d52d5abdcb554e0cc6fc82bf6022c283",
+  "1:person": "80dc82afbded51152b72d40907ea8cb474af7b0d634943fb03195161133cb155",
+  "1:agent": "c747e06d77d4d08e8199b8e8cd6be140f385e9e74c41848e72810c58d786ae80",
+  "1:noteLite": "3882802eb9c371b0fe6a19d9408acbd294816c3793b806c3c84ae8429878b30a",
+  "1:noteFull": "53fe0d36a1c3a2a5208770c5ee145a0fc15e739504f56413db2c2c785d78ff5d",
+  "2:pair-1": "d6e4dd8f99218066bb9a1627491327afb016abc75b7bbb1e4cca82edc0228594",
+  "2:pair-.6": "e5f4eeee3813444b4fa016e30b9d484fe097ff8dffae3d944aca2dc1ed6eddbe",
+  "2:person": "25d6acb26a6d6118cde23199eef3dd6227226cf93e3a44676c1aac5ffd5e6b24",
+  "2:agent": "36a699370500e9fdd89e129d2a71171983c144a5ed0aa11b6824ed7c3a21b87e",
+  "2:noteLite": "ecbff7c6904eae608685a5ca62d4b55c63a725ae5f03d9a044795c773047f6df",
+  "2:noteFull": "f4adee693b8cab5d98fbef5c9c6a1de5f08e9a83ecfaebff000f3d171bc5616e",
+  "3:pair-1": "d6522d968d77998f042122585780faf9017ce3dce50433f70f92eb3ecd50679a",
+  "3:pair-.6": "73ad675cbe349320c1ce58be91f16a2ead5a8680fce7079cd5c3e5b25f69e65b",
+  "3:person": "65729936de230a5a3a8c2109a02a033d68e60c7d6bffa0f7ca48a37642cf639a",
+  "3:agent": "0021904b75d9b955167e8b430096c1af63dbc4370d58023ad0ce9cd57362dc19",
+  "3:noteLite": "95a1942e268ef5d666cbc379d443a8303a73820a9c272c8a73d84465895d5a84",
+  "3:noteFull": "7f78d3f2630096a38fda52880f9eb2c3e6a01ac9299f707f9bf0db131023eaa5",
+  "4:pair-1": "069fa5b92a05a7a0cda581fe542f7003b78e7c9b512f9c4812eb58ee7588be05",
+  "4:pair-.6": "b6f169186f88a0a620fcdefa8b14ace4d477847479129fe8d393afb9eaa6ecd4",
+  "4:person": "ada7846404440283052ff04f3b39099bc3dc899e4649bd9fa673c63c72fdb345",
+  "4:agent": "fffe777498427ddc25384519443b87ce4f1a7a0a88aef1ae1782a88ea7df478b",
+  "4:noteLite": "96c2f489ef7806a87484106d97cce49dbe40fe8d1e1748930edb4aaa36f94c60",
+  "4:noteFull": "8c9cfa888ad8dd6883b0bd2d4394aac3faf80bc58b4e9c895647d23177e9c2de",
+  "5:pair-1": "da766c57c689defdcefcf512c42f879b830b2744bc973633ad58f628a14b04c6",
+  "5:pair-.6": "e43ef5ea80318409d81346824cdc5d2e0b3dc4e739b34107e014262e8b48f63b",
+  "5:person": "6482daffe6e9e259a98d29a3b64eb270a08231ceed637f098b8c74e14665235a",
+  "5:agent": "687a67c8b0eb31942324c4b91c18f72bab23864dda508c119d156d71d507a294",
+  "5:noteLite": "77670289558da803e04026a293f668dfa975caa9fd2527fe0304137b07344570",
+  "5:noteFull": "7eb820649bcec5f8bba2968efd1e1dd63a23a861a89de0ddc997ae5e0284d472",
+  "6:pair-1": "bdfbda05b5409c48bd788ec2c31142c0d8e53bb769d2a6f95e4ebb668e5ffaab",
+  "6:pair-.6": "ee1d396a09ed31ca8ff91aa657bcfe2f14a45dcf5330c3464d762c616a954b05",
+  "6:person": "557ab45ba8af17e375ad758204448a6aec213dd0e849048698d49d8f45a1ad4b",
+  "6:agent": "1e2897492f59c07d68bb49e9814832c333cd49da05a4983326f8a1039f965faa",
+  "6:noteLite": "17de220a2c04a2b08c84d32f442b00c8e5713f07f64a3a48685e3ff80b9a3e15",
+  "6:noteFull": "f3f637c2c7eaf049b63456126fb3bb1edb25c88d32c783f46967bfd531b561e7",
+  "7:pair-1": "4db67f131cd5a24575706f7a1cc59298f51173b13d22d650a997daef559fcda0",
+  "7:pair-.6": "e103853049be1034c227f6892efe05af6a36e00067b44143c6c6e77ec94f349e",
+  "7:person": "7a8d0b0d4d8e736d6e6d6a3c727236de69d16e1c21c3b93613a4b86f34db508d",
+  "7:agent": "8dd7afdb5909e785ce9d5f3a878a325d772c1180c476030ba86d750849468122",
+  "7:noteLite": "0970eed5ba9b550e7d40c34992ffb22f52d248977debdcbb69df2efe7c006af0",
+  "7:noteFull": "59100b3e1d14c7bd64815e14c79cb99530c42b644cf0860464ec280197ae2613",
+  "8:pair-1": "e582e38510931eda254e2aecd1bf4a6a53d70d0cbe330970024372cd258c691c",
+  "8:pair-.6": "3a2f664ef61f0c9fcd3d2187d8b07f6aa8485c814078b111b6c8cc10da5253cc",
+  "8:person": "97b8f6aade41d1e636b248fb69c1e461d7f1048ed8a5b36bf7ae7e8c5a815b50",
+  "8:agent": "817c9dfbc48922e3e9db6698e1fc4670ce99e38b2a0cff8755d2d91d8693cfee",
+  "8:noteLite": "02aa98697cf3dd1d7f3c1cddd5dd211cfc0d0ed4c686840dd147ab3b5bdb7298",
+  "8:noteFull": "a89b63cc374a660833c9db477d36d71f70bc9bf2070adc53aaf8b57437d8f4c2",
+  "9:pair-1": "8d70cd2fa5b0db005c82b0a0edf0c509be749858b2ef355e161755e27a929edb",
+  "9:pair-.6": "5dc3383ef85bfad412621b5929694f8b41ad13bd2da6c9dfa8c85ccff9ec389b",
+  "9:person": "f6e4dd400934c9ced9c8bd9e49f9188ca65110e56df77e86822317acd140dc7a",
+  "9:agent": "dcd0d607007f67c581bcdc0273b4bc74f8b12d65b4f77d63a29b7adf1c7280c4",
+  "9:noteLite": "11f0e1b656b3beb272a226528df01a0d7f2bd49b5d8542192b9042d56e4e1be9",
+  "9:noteFull": "077a52aec31ca3fa1323ab136616fd50b4cbd5d05a8d5387a29c4f5b000227f2",
+  "10:pair-1": "82fc48937cdc45009bec3224ebae94cef2cc419772809989c388ad7cfd18cf45",
+  "10:pair-.6": "33bdd2801b1bd0315b7db13d1ae45c3efe024e6dec9f8122b6ec5e5ee12773a9",
+  "10:person": "094652585628b19ac0d5ab0bdb3d45624316da9c4563177b76032c40e3fca154",
+  "10:agent": "97202b620e4c528ed4457292f908301ec770bef3540803efad1e90e3144f5918",
+  "10:noteLite": "c10112397db71c09dddc1bdf0f592811fade0e12612f40079c31a0b30e989c7d",
+  "10:noteFull": "2e34b0166c1d6d03b952fe377370e34296b4a2e6c99f0b0967ce15d6af0ff82a",
+  "11:pair-1": "0502c26533170955869b835118d9f3c46553dfd764c76f182206e0c3cd4f53d7",
+  "11:pair-.6": "5214fa548647350aff7fdc2eb76d201589c10d5dc3a1155940099c3fd877e837",
+  "11:person": "809fa669f5c2aeb66f8f80af9bf879ea0cf186db364d539282591097492fabad",
+  "11:agent": "f4c164fc3b642863cf05a5b7e8d4a4e68ccff089aed26b3217020dd6c0be7357",
+  "11:noteLite": "16e7c174eb2e6a849ceece686f00fa50334b8c4c1ab9e6c31b2086391db7129f",
+  "11:noteFull": "27de7929c88d0d8e480c023c67a71bc86ad3b1f5ba6abb6a9245f70c11713853",
+  "12:pair-1": "c6790130a651e1448ebef5d78ff756c99ceb4809832879b88f096b6124d68e3d",
+  "12:pair-.6": "9896618c61e18ff09629bde9d1cb3b866571e1fb25d87388121a2492036826ca",
+  "12:person": "837f99f0f581e1c9d46db2de7ab3d70a9fb1fcc700fc3d53895c3476b102ef3a",
+  "12:agent": "c7ab6c6fb4ce65ef7a5cf7ba182059a8ab1994c32cea1de52388b6dcc6cf209e",
+  "12:noteLite": "220d11dcab173b5ccc47f8c96ed41ba7df28dfb216ad8b4b3109b13127dd4c55",
+  "12:noteFull": "72c5a7737d505acbf693483fbb7c1007010508ea03daffdc49adc3b41fe23391",
+  "13:pair-1": "397e1625f196c7d96867cacd6c4fb6e1850dc053424469d6e2dfaacab1fab98e",
+  "13:pair-.6": "937634fadb818bebdaa4b14f7cb7709c5a58ece43c0ed5e9b4e7f492039a68a2",
+  "13:person": "7fa5fbc97c99eb3ab67d5043bea3dd79cab076c2c7cf4d39395f9d3583a8dd5e",
+  "13:agent": "4a5016fa0ccb1276e8b772475a455f315073f388c50fb6c41fb5fd834cd525fe",
+  "13:noteLite": "91649e665fe188e2ccf6b524a8ed97d6d0a0b72f27bb2624ba5b086882a60839",
+  "13:noteFull": "031b0dec817cbb21c1d47ebc83e9652a85e1732c635ada25e871c7f54cd95f0f",
+  "14:pair-1": "7affb447dfc919023bff6ec45bdefee3890f6031d275668454d71a1a2c3f1811",
+  "14:pair-.6": "c8e0077db5169db7663cf869a3e08978307a29ad3b41b72883932d7f8ae93714",
+  "14:person": "9f0088ee93e138c5843f9501cf86ffb8b971489669ee522848e5e780ed3721d8",
+  "14:agent": "06b2c86881685b5592780214f30adbc6d81803458b953389c39ed73cc73feae5",
+  "14:noteLite": "e494f714f537dcb2c6687da7a06426986ef94819ed8f8c963b97aa947d27de6c",
+  "14:noteFull": "7ef01a51e8ae3fb4d2184087103869d18242ef39f4a1fb0b2ee3b4e5b039bf87",
+  "15:pair-1": "6341832e2ef23433cd26a6938275369ba079a757b3f0d204791fddb00cc9a3a1",
+  "15:pair-.6": "5941cdf6437f4c7ad98949b72a44caea8359b61e2a1560062a5af58f0157b456",
+  "15:person": "4b88e6be4e8dd07a5bce3f057c2dc307f6eb43a76552d6819e67c6639a44fab4",
+  "15:agent": "64f8f7f60736cbde726ef64556839e455f70eaabd92f948410d91f23171516b3",
+  "15:noteLite": "870d5cd4a566cd3354e4720b091a2e96ff0f0b9bea6e3acc28e81dc3235f9bc1",
+  "15:noteFull": "5fd71f6512e7e680bd96f414e6e9486553113116e898c55bfcf6a6accb5503b6"
+ },
+ "keySeals": {
+  "Alice": "7edabc8e5e63fd3703de14ed9e562e39572e74adc8aee42895b17263b7ca7a2c",
+  "Alice@56": "7d182aa9b5a48653020bbe3a35244517d531bc97ba4484585f559e52b606ab41",
+  "Bob": "e379acfe1a93744b5e4615a9b50ffd828a509e3ae4a3016d9e0140682349d800",
+  "Bob@56": "4ad8bf44a5b0ee6e82e35150ffa62da4d6be90fdd04e4000eaf83af72f30f56a",
+  "Carol": "04a0e9666c68e76b4f3bdbc29a666908b4b95d25f075d273601444b71bdf7b81",
+  "Carol@56": "10237264dc62deb9645ed724510cc9e101649c9bc1b3bb05675b8a1645a0e3bc",
+  "Dan": "a593b3e02346c17b6dbcad5a2db2cc5fea8b80efd23b3862cfbd76dad000d771",
+  "Dan@56": "e77ab4b463b9ceac6eefe0b63975a99fe454855972211e21353c909b95a5f6a8",
+  "Eve": "d703157715a7b991376cfe4e1364771a984201e2899ba7304a3c97adc738d853",
+  "Eve@56": "d9fbb713b31c53122ce6136ee28f7c39b0ed16de0193b62b90853d241058d9ce",
+  "render·ai": "01d1ad363610128c2454b3b2c36078ac619c72232ac706d72fa140a1776ae6d8",
+  "render·ai@56": "3abc0d37999b2745cf203a0fe12ce0a4b3119a9124cbd14d3eb0d3d29d2b7e99",
+  "search·ai": "1f23c775f0ffd8879e6ececd33d0b37cab91cd6bfa36397b690ba25e50bd8dac",
+  "search·ai@56": "659816607944c9300f8eeac82b398e0bd3fc281ce28bc31c1465206b5e2ad59b"
+ },
+ "brand": "7485abc58cf9da138bf246c8ce33652758be658dbec5ca33a45653aedc13d8a4",
+ "params": {
+  "0": {
+   "rope": {
+    "strands": 4,
+    "cycles": 71
+   },
+   "lathe": {
+    "n": 24,
+    "A": 6.230674413731322,
+    "copies": 9
+   },
+   "lace": {
+    "n": 56,
+    "A": 1.836888410523534,
+    "mm": 6,
+    "B": 4.422246543923393,
+    "copies": 7
+   },
+   "crown": {
+    "k": 24,
+    "copies": 9,
+    "p": 1.034188654460013
+   },
+   "crown2": {
+    "k": 8,
+    "copies": 6,
+    "p": 1.4000903301872312
+   },
+   "tro": [
+    11,
+    3
+   ],
+   "rot": 5.930543005686542,
+   "motif": "star",
+   "star": {
+    "k": 12,
+    "q": 1.7556213273201138,
+    "copies": 10
+   },
+   "ros": {
+    "n": 18,
+    "spread": 0.6382171889208257
+   }
+  },
+  "1": {
+   "rope": {
+    "strands": 3,
+    "cycles": 87
+   },
+   "lathe": {
+    "n": 16,
+    "A": 5.518525066459552,
+    "copies": 8
+   },
+   "lace": {
+    "n": 49,
+    "A": 1.7774940013419838,
+    "mm": 5,
+    "B": 4.556501477723941,
+    "copies": 9
+   },
+   "crown": {
+    "k": 14,
+    "copies": 11,
+    "p": 1.7739532645326108
+   },
+   "crown2": {
+    "k": 8,
+    "copies": 8,
+    "p": 2.0489155260846017
+   },
+   "tro": [
+    13,
+    4
+   ],
+   "rot": 4.324925938502327,
+   "motif": "rosette",
+   "star": {
+    "k": 12,
+    "q": 2.189202112960629,
+    "copies": 8
+   },
+   "ros": {
+    "n": 22,
+    "spread": 0.5696806793659925
+   }
+  },
+  "2": {
+   "rope": {
+    "strands": 3,
+    "cycles": 73
+   },
+   "lathe": {
+    "n": 28,
+    "A": 4.348326294729486,
+    "copies": 8
+   },
+   "lace": {
+    "n": 43,
+    "A": 1.96329913767986,
+    "mm": 8,
+    "B": 5.801232859026641,
+    "copies": 6
+   },
+   "crown": {
+    "k": 20,
+    "copies": 10,
+    "p": 1.464737354265526
+   },
+   "crown2": {
+    "k": 12,
+    "copies": 7,
+    "p": 2.11234169723466
+   },
+   "tro": [
+    13,
+    5
+   ],
+   "rot": 1.5809512984530845,
+   "motif": "star",
+   "star": {
+    "k": 7,
+    "q": 1.8196241839556024,
+    "copies": 11
+   },
+   "ros": {
+    "n": 15,
+    "spread": 0.6177584396954626
+   }
+  },
+  "3": {
+   "rope": {
+    "strands": 2,
+    "cycles": 96
+   },
+   "lathe": {
+    "n": 20,
+    "A": 4.667256897175685,
+    "copies": 11
+   },
+   "lace": {
+    "n": 43,
+    "A": 2.302096075983718,
+    "mm": 5,
+    "B": 5.384224819950759,
+    "copies": 8
+   },
+   "crown": {
+    "k": 10,
+    "copies": 11,
+    "p": 1.6689253078773618
+   },
+   "crown2": {
+    "k": 10,
+    "copies": 6,
+    "p": 1.6169429440051317
+   },
+   "tro": [
+    8,
+    3
+   ],
+   "rot": 4.252714074085465,
+   "motif": "crown",
+   "star": {
+    "k": 10,
+    "q": 1.9097204552264884,
+    "copies": 8
+   },
+   "ros": {
+    "n": 16,
+    "spread": 0.5621769105829298
+   }
+  },
+  "4": {
+   "rope": {
+    "strands": 3,
+    "cycles": 85
+   },
+   "lathe": {
+    "n": 28,
+    "A": 5.495521585270763,
+    "copies": 7
+   },
+   "lace": {
+    "n": 43,
+    "A": 1.6026322279591114,
+    "mm": 7,
+    "B": 4.626621164148673,
+    "copies": 6
+   },
+   "crown": {
+    "k": 12,
+    "copies": 10,
+    "p": 1.3094910578336567
+   },
+   "crown2": {
+    "k": 10,
+    "copies": 5,
+    "p": 2.2661589433439078
+   },
+   "tro": [
+    7,
+    3
+   ],
+   "rot": 3.550472399220975,
+   "motif": "crown",
+   "star": {
+    "k": 12,
+    "q": 2.3373426714213563,
+    "copies": 12
+   },
+   "ros": {
+    "n": 24,
+    "spread": 0.6097079922631383
+   }
+  },
+  "5": {
+   "rope": {
+    "strands": 4,
+    "cycles": 66
+   },
+   "lathe": {
+    "n": 28,
+    "A": 6.2165926863439385,
+    "copies": 8
+   },
+   "lace": {
+    "n": 56,
+    "A": 2.5977872867602856,
+    "mm": 10,
+    "B": 5.27629861747846,
+    "copies": 6
+   },
+   "crown": {
+    "k": 18,
+    "copies": 12,
+    "p": 0.8997259747236968
+   },
+   "crown2": {
+    "k": 8,
+    "copies": 7,
+    "p": 1.6328392188996075
+   },
+   "tro": [
+    10,
+    3
+   ],
+   "rot": 0.09089300059545359,
+   "motif": "rosette",
+   "star": {
+    "k": 11,
+    "q": 2.051422775373794,
+    "copies": 11
+   },
+   "ros": {
+    "n": 20,
+    "spread": 0.5891208764538169
+   }
+  },
+  "6": {
+   "rope": {
+    "strands": 3,
+    "cycles": 66
+   },
+   "lathe": {
+    "n": 29,
+    "A": 5.86615464668721,
+    "copies": 7
+   },
+   "lace": {
+    "n": 46,
+    "A": 1.7138058591168375,
+    "mm": 6,
+    "B": 4.530584573163651,
+    "copies": 6
+   },
+   "crown": {
+    "k": 18,
+    "copies": 8,
+    "p": 1.5561933482065797
+   },
+   "crown2": {
+    "k": 10,
+    "copies": 5,
+    "p": 1.7132837902754545
+   },
+   "tro": [
+    8,
+    3
+   ],
+   "rot": 0.6746954131206917,
+   "motif": "star",
+   "star": {
+    "k": 11,
+    "q": 2.3269547502044587,
+    "copies": 12
+   },
+   "ros": {
+    "n": 21,
+    "spread": 0.6347810385283083
+   }
+  },
+  "7": {
+   "rope": {
+    "strands": 3,
+    "cycles": 76
+   },
+   "lathe": {
+    "n": 19,
+    "A": 4.328751460509375,
+    "copies": 8
+   },
+   "lace": {
+    "n": 38,
+    "A": 2.273908941913396,
+    "mm": 5,
+    "B": 3.70481227315031,
+    "copies": 8
+   },
+   "crown": {
+    "k": 12,
+    "copies": 11,
+    "p": 0.8281593559775502
+   },
+   "crown2": {
+    "k": 6,
+    "copies": 8,
+    "p": 1.793656286224723
+   },
+   "tro": [
+    9,
+    2
+   ],
+   "rot": 3.805747481549947,
+   "motif": "star",
+   "star": {
+    "k": 10,
+    "q": 1.8451897090533749,
+    "copies": 12
+   },
+   "ros": {
+    "n": 23,
+    "spread": 0.6301048752479256
+   }
+  },
+  "8": {
+   "rope": {
+    "strands": 3,
+    "cycles": 72
+   },
+   "lathe": {
+    "n": 25,
+    "A": 5.797293618833646,
+    "copies": 10
+   },
+   "lace": {
+    "n": 44,
+    "A": 1.9066499081905932,
+    "mm": 8,
+    "B": 5.944690819247626,
+    "copies": 8
+   },
+   "crown": {
+    "k": 24,
+    "copies": 8,
+    "p": 1.3398256902117283
+   },
+   "crown2": {
+    "k": 10,
+    "copies": 8,
+    "p": 2.301942489668727
+   },
+   "tro": [
+    13,
+    5
+   ],
+   "rot": 4.99946400161733,
+   "motif": "rosette",
+   "star": {
+    "k": 7,
+    "q": 1.7152698063058778,
+    "copies": 9
+   },
+   "ros": {
+    "n": 15,
+    "spread": 0.6212568194884807
+   }
+  },
+  "9": {
+   "rope": {
+    "strands": 4,
+    "cycles": 83
+   },
+   "lathe": {
+    "n": 20,
+    "A": 4.855393453920261,
+    "copies": 9
+   },
+   "lace": {
+    "n": 46,
+    "A": 2.4372916460502894,
+    "mm": 6,
+    "B": 5.787719112355262,
+    "copies": 6
+   },
+   "crown": {
+    "k": 12,
+    "copies": 12,
+    "p": 0.977358582848683
+   },
+   "crown2": {
+    "k": 8,
+    "copies": 5,
+    "p": 2.0551373183727266
+   },
+   "tro": [
+    10,
+    3
+   ],
+   "rot": 1.9427347342653505,
+   "motif": "rosette",
+   "star": {
+    "k": 7,
+    "q": 2.112939720670693,
+    "copies": 12
+   },
+   "ros": {
+    "n": 24,
+    "spread": 0.5908408521208912
+   }
+  },
+  "10": {
+   "rope": {
+    "strands": 3,
+    "cycles": 76
+   },
+   "lathe": {
+    "n": 18,
+    "A": 4.447722157230601,
+    "copies": 11
+   },
+   "lace": {
+    "n": 51,
+    "A": 1.8002532470505686,
+    "mm": 7,
+    "B": 4.999121690285392,
+    "copies": 8
+   },
+   "crown": {
+    "k": 24,
+    "copies": 9,
+    "p": 1.4336164397653193
+   },
+   "crown2": {
+    "k": 8,
+    "copies": 7,
+    "p": 1.3202230579219758
+   },
+   "tro": [
+    11,
+    3
+   ],
+   "rot": 3.5815916072323266,
+   "motif": "star",
+   "star": {
+    "k": 9,
+    "q": 2.3212358526885506,
+    "copies": 12
+   },
+   "ros": {
+    "n": 21,
+    "spread": 0.6294429328572005
+   }
+  },
+  "11": {
+   "rope": {
+    "strands": 4,
+    "cycles": 84
+   },
+   "lathe": {
+    "n": 20,
+    "A": 6.221224280446768,
+    "copies": 8
+   },
+   "lace": {
+    "n": 32,
+    "A": 2.0938559462316335,
+    "mm": 12,
+    "B": 4.049887179513462,
+    "copies": 9
+   },
+   "crown": {
+    "k": 20,
+    "copies": 8,
+    "p": 1.0116221266333014
+   },
+   "crown2": {
+    "k": 6,
+    "copies": 8,
+    "p": 2.265646180137992
+   },
+   "tro": [
+    9,
+    2
+   ],
+   "rot": 5.302166806152731,
+   "motif": "star",
+   "star": {
+    "k": 12,
+    "q": 1.682707869121805,
+    "copies": 10
+   },
+   "ros": {
+    "n": 17,
+    "spread": 0.5211379313934594
+   }
+  },
+  "12": {
+   "rope": {
+    "strands": 4,
+    "cycles": 88
+   },
+   "lathe": {
+    "n": 27,
+    "A": 6.3041699466761205,
+    "copies": 11
+   },
+   "lace": {
+    "n": 43,
+    "A": 1.8234739733394236,
+    "mm": 5,
+    "B": 5.377241558395326,
+    "copies": 6
+   },
+   "crown": {
+    "k": 14,
+    "copies": 11,
+    "p": 1.728858143510297
+   },
+   "crown2": {
+    "k": 12,
+    "copies": 6,
+    "p": 1.8790623215027153
+   },
+   "tro": [
+    11,
+    3
+   ],
+   "rot": 4.343547118446358,
+   "motif": "star",
+   "star": {
+    "k": 7,
+    "q": 1.8874561613425613,
+    "copies": 10
+   },
+   "ros": {
+    "n": 22,
+    "spread": 0.6178204399626702
+   }
+  },
+  "13": {
+   "rope": {
+    "strands": 2,
+    "cycles": 82
+   },
+   "lathe": {
+    "n": 28,
+    "A": 5.768405963107944,
+    "copies": 7
+   },
+   "lace": {
+    "n": 43,
+    "A": 1.7843731526751072,
+    "mm": 8,
+    "B": 4.044617466512136,
+    "copies": 7
+   },
+   "crown": {
+    "k": 14,
+    "copies": 9,
+    "p": 0.8188815677538515
+   },
+   "crown2": {
+    "k": 12,
+    "copies": 8,
+    "p": 1.9269433594308794
+   },
+   "tro": [
+    12,
+    5
+   ],
+   "rot": 4.037346323177031,
+   "motif": "rosette",
+   "star": {
+    "k": 8,
+    "q": 2.0669232572894543,
+    "copies": 10
+   },
+   "ros": {
+    "n": 23,
+    "spread": 0.6136278848070651
+   }
+  },
+  "14": {
+   "rope": {
+    "strands": 2,
+    "cycles": 83
+   },
+   "lathe": {
+    "n": 29,
+    "A": 5.576340215373785,
+    "copies": 8
+   },
+   "lace": {
+    "n": 50,
+    "A": 1.7755212221760304,
+    "mm": 10,
+    "B": 4.549874859163538,
+    "copies": 7
+   },
+   "crown": {
+    "k": 20,
+    "copies": 8,
+    "p": 1.173625583248213
+   },
+   "crown2": {
+    "k": 6,
+    "copies": 6,
+    "p": 2.2066547999158503
+   },
+   "tro": [
+    9,
+    4
+   ],
+   "rot": 0.4057891161397722,
+   "motif": "crown",
+   "star": {
+    "k": 12,
+    "q": 2.2478870005114002,
+    "copies": 12
+   },
+   "ros": {
+    "n": 16,
+    "spread": 0.5949596215505153
+   }
+  },
+  "15": {
+   "rope": {
+    "strands": 4,
+    "cycles": 77
+   },
+   "lathe": {
+    "n": 23,
+    "A": 6.230182999139652,
+    "copies": 7
+   },
+   "lace": {
+    "n": 34,
+    "A": 1.7724180085584522,
+    "mm": 6,
+    "B": 3.5100413424661383,
+    "copies": 6
+   },
+   "crown": {
+    "k": 14,
+    "copies": 10,
+    "p": 1.1667134067509324
+   },
+   "crown2": {
+    "k": 12,
+    "copies": 8,
+    "p": 1.805108319595456
+   },
+   "tro": [
+    12,
+    5
+   ],
+   "rot": 2.2091341441043584,
+   "motif": "star",
+   "star": {
+    "k": 10,
+    "q": 2.004815881093964,
+    "copies": 9
+   },
+   "ros": {
+    "n": 20,
+    "spread": 0.6290907839313149
+   }
+  }
+ },
+ "money": {
+  "0": "0.00",
+  "1240": "1 ⁠240.00",
+  "1921400": "1 ⁠921 ⁠400.00",
+  "-320": "−320.00",
+  "0.0004": "0.0004",
+  "2575.76": "2 ⁠575.76",
+  "1000000000.005": "1 ⁠000 ⁠000 ⁠000.00",
+  "12.6042": "12.60"
+ }
+}

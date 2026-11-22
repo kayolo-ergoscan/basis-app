@@ -1,14 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0B0B0C" />
     <title>Basis — offchain cash on Ergo</title>
-    <meta name="description" content="Basis: peer-to-peer IOU cash on trust, backed by on-chain reserves on Ergo when you want. Wallet, live network, tracker console and a sandbox economy." />
+    <meta name="description" content="An independent interface to the Basis protocol: offchain IOU notes on Ergo, a sandbox economy with real cryptography and play money, a wallet, and a read-only view of mainnet. Basis has not launched on mainnet." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="/boot.js"></script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>Basis needs JavaScript: the sandbox runs the protocol in your browser.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

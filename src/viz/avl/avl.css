@@ -1,0 +1,56 @@
+/* AVL+ proof viewer, tree view and digest glyph. */
+.vz-glyph-wrap { display: inline-grid; place-items: center; flex: none; border-radius: 50%; border: 1.5px solid var(--rule-2); background: var(--surface); }
+.vz-glyph-wrap.holo { border: 2px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--holo) border-box; }
+.vz-glyph-wrap.stale { border: 2px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--holo-stale) border-box; }
+.vz-glyph-wrap.ping { animation: vz-glyph-ping 1.2s var(--ease-out) 1; }
+@keyframes vz-glyph-ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 40%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+.vz-glyph { display: block; }
+.vz-glyph .frame { fill: none; stroke: var(--rule); stroke-width: .8; }
+.vz-glyph .ring { fill: none; stroke: var(--ink-3); stroke-width: .6; }
+.vz-glyph .spoke { stroke: var(--ink-3); stroke-width: .55; }
+.vz-glyph .outline { fill: color-mix(in srgb, var(--ink) 6%, transparent); stroke: var(--ink); stroke-width: 1.1; stroke-linejoin: round; transition: d var(--t-slow) var(--ease-out); }
+.vz-glyph-wrap.stale .vz-glyph .outline { stroke: var(--ink-3); }
+
+.vz-avl-digest { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.vz-avl-digest-t { display: grid; gap: 4px; min-width: 0; }
+.vz-avl-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font: 400 12px/1.4 var(--f-mono); max-height: 320px; overflow: auto; }
+.vz-avl-parts li { display: grid; grid-template-columns: 7.5em minmax(0, 12em) minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+.vz-avl-parts .o { color: var(--ink-3); }
+.vz-avl-parts .d { overflow-wrap: anywhere; }
+@container (max-width: 600px) { .vz-avl-parts li { grid-template-columns: 6.5em minmax(0, 1fr); } .vz-avl-parts .d { grid-column: 1 / -1; } }
+.vz-avl-run { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.vz-avl-run > li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 10px; align-items: start; font: 400 13.5px/1.45 var(--f-ui); color: var(--ink-2); }
+.vz-avl-run > li .vz-lamp { margin-top: 3px; }
+.vz-avl-run > li.s-fail { color: var(--alarm); }
+.vz-avl-root { display: grid; gap: 8px; min-width: 0; }
+.vz-avl-root .cmp { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.vz-avl-root .row { display: flex; gap: 8px; align-items: baseline; font: 400 12.5px/1.6 var(--f-mono); color: var(--ink-2); }
+.vz-avl-root .row .lbl { min-width: 7em; color: var(--ink-3); font-family: var(--f-ui); font-size: 12px; }
+.vz-avl-root code.bad { color: var(--alarm); }
+.vz-avl-root .mt { font: 600 11px/1 var(--f-mono); letter-spacing: .1em; padding: 5px 8px; border-radius: 3px; border: 1px solid currentColor; }
+.vz-avl-root .mt.ok { color: var(--up); }
+.vz-avl-root .mt.bad { color: var(--alarm); }
+
+.vz-avlt .vz-head { align-items: center; }
+.vz-avl-dhex { font: 400 12px/1 var(--f-mono); color: var(--ink-3); }
+.vz-avl-drawing { overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--rule); border-radius: var(--r-paper); background: var(--bg-2); padding: 6px 0; }
+.vz-avl-drawing svg { display: block; margin: 0 auto; }
+.vz-avl-drawing .edge { stroke: var(--rule-2); stroke-width: 1; }
+.vz-avl-drawing .inode circle { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1; }
+.vz-avl-drawing .inode text { font: 500 8.5px/1 var(--f-mono); fill: var(--ink-2); }
+.vz-avl-drawing .pnode rect { fill: var(--well); stroke: var(--rule-2); stroke-dasharray: 2 2; }
+.vz-avl-drawing .leaf rect { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1; }
+.vz-avl-drawing .leaf .k { font: 600 9.5px/1 var(--f-ui); fill: var(--ink); }
+.vz-avl-drawing .leaf .v { font: 400 8px/1 var(--f-mono); fill: var(--ink-3); }
+.vz-avl-drawing .leaf.sentinel rect { stroke-dasharray: 3 2; fill: transparent; }
+.vz-avl-drawing .leaf.sentinel .k { fill: var(--ink-3); font-weight: 500; }
+.vz-avl-drawing .leaf.fresh rect { stroke: var(--up); stroke-width: 1.8; }
+.vz-avl-drawing .leaf.hl rect { stroke: var(--ink); stroke-width: 2; }
+.vz-avl-entries { width: 100%; border-collapse: collapse; font: 400 13px/1.4 var(--f-ui); }
+.vz-avl-entries th { text-align: left; font: 500 10.5px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule); }
+.vz-avl-entries td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); vertical-align: top; overflow-wrap: anywhere; }
+.vz-avl-entries td .nm { color: var(--ink); font-weight: 600; }
+.vz-avl-entries td code { font-size: 11.5px; }
+.vz-avl-entries tr.fresh td { background: var(--up-wash); }
+.vz-avl-entries tr.hl td { box-shadow: inset 0 -1px 0 var(--ink-3); }
+@container (max-width: 600px) { .vz-avl-entries .col-b { display: none; } }

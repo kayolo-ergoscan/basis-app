@@ -1,0 +1,53 @@
+/* StatusLadder and ExitClocks. */
+.vz-rungs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.vz-rung { position: relative; display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; padding: 0 18px 0 0; color: var(--ink-3); min-width: 0; }
+.vz-rung .lamp { display: flex; align-items: center; height: 18px; position: relative; }
+.vz-rung .lamp::after { content: ""; position: absolute; left: 22px; right: 4px; top: 50%; height: 1px; background: var(--rule-2); }
+.vz-rung:last-child .lamp::after { display: none; }
+.vz-rung.done .lamp::after { background: var(--ink-3); }
+.vz-rung .nm { font: 600 15px/1.3 var(--f-ui); color: var(--ink-3); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.vz-rung.done .nm { color: var(--ink-2); }
+.vz-rung.now .nm { color: var(--ink); }
+.vz-rung .here { font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 3px; padding: 3px 5px; }
+.vz-rung .sub { font: 400 13px/1.45 var(--f-ui); color: var(--ink-3); }
+.vz-rung.now .sub { color: var(--ink-2); }
+.vz-rung .gap { font: 400 11.5px/1.3 var(--f-mono); color: var(--ink-3); }
+.vz-ladder.compact .vz-rung { grid-template-rows: auto auto auto; }
+.vz-ladder-eta { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--rule); }
+.vz-ladder-eta .eta { font: 500 13.5px/1.4 var(--f-mono); color: var(--ink); }
+.vz-ladder-eta .redeem { font: 400 13.5px/1.4 var(--f-ui); color: var(--ink-3); }
+.vz-ladder-eta .redeem.yes { color: var(--ink); font-weight: 600; }
+@container (max-width: 560px) {
+  .vz-rungs { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .vz-rung { grid-template-columns: 18px minmax(0, 1fr); grid-template-rows: none; column-gap: 10px; row-gap: 4px; padding: 0; }
+  .vz-rung .lamp { grid-row: 1; grid-column: 1; }
+  .vz-rung .lamp::after { left: 50%; right: auto; top: 22px; width: 1px; height: calc(100% + 14px); }
+  .vz-rung .nm, .vz-rung .sub, .vz-rung .gap { grid-column: 2; }
+}
+
+.vz-clocks-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+@container (min-width: 700px) { .vz-clocks-grid:not(.one) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.vz-clock { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.vz-clock-h { font: 600 15px/1.3 var(--f-ui); color: var(--ink); }
+.vz-clock-dial { width: 168px; max-width: 60%; }
+.vz-clock-line { margin: 0; font: 400 13.5px/1.45 var(--f-ui); color: var(--ink-2); }
+.vz-clock-line.strong { color: var(--ink); font-weight: 600; }
+.vz-clock-line.calm { color: var(--ink-3); }
+.vz-clock.em.open .vz-clock-line.strong { color: var(--alarm); }
+.vz-dial { display: block; width: 100%; height: auto; }
+.vz-dial .face { fill: var(--surface); stroke: var(--rule-2); stroke-width: 1; }
+.vz-dial.open .face { fill: color-mix(in srgb, var(--alarm) 16%, var(--surface)); }
+.vz-dial .z-late { fill: none; stroke: var(--ink-3); stroke-width: 3; stroke-dasharray: 3 2.5; }
+.vz-dial .z-silent { fill: none; stroke: var(--alarm); stroke-opacity: .35; stroke-width: 3; }
+.vz-dial .tk { stroke: var(--ink-4); stroke-width: .6; }
+.vz-dial .tk.major { stroke: var(--ink-3); stroke-width: 1; }
+.vz-dial .hand { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.vz-dial.open .hand { stroke: var(--alarm); }
+.vz-dial .hub { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; }
+.vz-dial .rd { font: 500 9px/1 var(--f-mono); fill: var(--ink); }
+.vz-dial .rd2 { font: 500 6.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-3); }
+.vz-exitbar { position: relative; height: 10px; border-radius: 2px; background: var(--hatch), var(--well); background-size: auto; border: 1px solid var(--rule); overflow: visible; margin-top: 6px; }
+.vz-exitbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); border-radius: 2px 0 0 2px; transition: width var(--t-slow) var(--ease-out); }
+.vz-exitbar .needle { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--ink); transition: left var(--t-slow) var(--ease-out); }
+.vz-clock.ex.open .vz-exitbar .fill { background: var(--ink-2); }
+.vz-exitbar-l { display: flex; justify-content: space-between; gap: 8px; font: 400 11.5px/1.3 var(--f-mono); color: var(--ink-3); flex-wrap: wrap; }

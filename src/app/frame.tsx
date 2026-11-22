@@ -1,0 +1,123 @@
+// Route frame: an error boundary per route, Suspense with loading-by-engraving, document.title from titleKey,
+// scroll restoration, the 404 with a torn note.
+import { Component, Suspense, useEffect, useLayoutEffect, useRef, type ErrorInfo, type ReactNode } from "react";
+import { Link, useLocation, useNavigationType } from "react-router-dom";
+import { Key } from "@/ui/components/Key";
+import { TornNote } from "@/ui/components/Note";
+import { ErrorState, PageLoading } from "@/ui/components/states";
+import { openCommandBar } from "./commands";
+import { translate, useT } from "./lang";
+import { pageOf } from "./routes";
+import type { FeatureRoute } from "./types";
+
+const SUFFIX = " · Basis";
+export function useTitle(text: string | null | undefined) {
+  useEffect(() => { document.title = text ? text + SUFFIX : translate("app.title"); }, [text]);
+}
+
+interface EBState { error: Error | null }
+/** Catches a render error inside one route; the rest of the shell keeps working. */
+export class RouteErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, EBState> {
+  state: EBState = { error: null };
+  static getDerivedStateFromError(error: Error): EBState { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("[route error]", error, info.componentStack); }
+  componentDidUpdate(prev: { resetKey?: string }) { if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null }); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return <RouteError error={this.state.error} onRetry={() => this.setState({ error: null })} />;
+  }
+}
+function RouteError({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const t = useT();
+  return (
+    <div className="container page">
+      <ErrorState title={t("app.err.title")} text={t("app.err.text")} onRetry={onRetry} retryLabel={t("app.err.retry")} detail={import.meta.env.DEV ? String(error?.stack || error) : String(error?.message || error)}>
+        <Key size="sm" variant="quiet" to="/">{t("app.err.home")}</Key>
+      </ErrorState>
+    </div>
+  );
+}
+
+/** One feature page: boundary → Suspense → page, plus its document title. */
+export function RouteFrame({ route }: { route: FeatureRoute }) {
+  const t = useT();
+  const { pathname } = useLocation();
+  const Page = pageOf(route);
+  const key = route.titleKey ?? route.nav?.labelKey;
+  useTitle(key ? t(key) : null);
+  return (
+    <RouteErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<PageLoading label={t("app.loading")} />}>
+        <div className="route-in"><Page /></div>
+      </Suspense>
+    </RouteErrorBoundary>
+  );
+}
+
+/** 404: a torn note, the path, and two ways out. */
+export function NotFound() {
+  const t = useT();
+  const { pathname } = useLocation();
+  useTitle(t("app.404.doc"));
+  return (
+    <div className="container nf route-in">
+      <TornNote seed={pathname}>
+        <span className="nf-txt">404</span>
+      </TornNote>
+      <div>
+        <div className="label">404</div>
+        <h1 className="t-h1" style={{ marginTop: 14 }}>{t("app.404.title")}</h1>
+        <p className="t-lede" style={{ marginTop: 18 }}>{t("app.404.text", { path: pathname })}</p>
+        <div className="acts">
+          <Key variant="primary" to="/">{t("app.404.home")}</Key>
+          <Key onClick={() => openCommandBar()} icon="search">{t("app.404.cmdk")}</Key>
+        </div>
+        <p className="t-small" style={{ marginTop: 18 }}><Link className="link" to="/learn">{t("nav.learn")}</Link> · <Link className="link" to="/play">{t("nav.play")}</Link></p>
+      </div>
+    </div>
+  );
+}
+
+const POS_KEY = "basis.scroll";
+const readPos = (): Record<string, number> => { try { return JSON.parse(sessionStorage.getItem(POS_KEY) || "{}"); } catch { return {}; } };
+/** New pages start at the top (or at #hash); Back/Forward restores where you were. */
+export function ScrollManager() {
+  const loc = useLocation();
+  const type = useNavigationType();
+  const keyRef = useRef(loc.key);
+  useEffect(() => { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; }, []);
+  useEffect(() => {
+    let raf = 0;
+    const save = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const all = readPos();
+        all[keyRef.current] = window.scrollY;
+        const keys = Object.keys(all);
+        if (keys.length > 60) delete all[keys[0]];
+        try { sessionStorage.setItem(POS_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+      });
+    };
+    addEventListener("scroll", save, { passive: true });
+    return () => { removeEventListener("scroll", save); cancelAnimationFrame(raf); };
+  }, []);
+  useLayoutEffect(() => {
+    keyRef.current = loc.key;
+    // A #hash wins (links, first load, native anchors); then Back/Forward restores; new pages start at the top.
+    if (loc.hash) {
+      const id = decodeURIComponent(loc.hash.slice(1));
+      const go = () => document.getElementById(id)?.scrollIntoView();
+      requestAnimationFrame(go); const t1 = setTimeout(go, 350), t2 = setTimeout(go, 900);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+    if (type === "POP") {
+      const y = readPos()[loc.key];
+      if (y == null) return;
+      const go = () => window.scrollTo(0, y);
+      go(); requestAnimationFrame(go); const tm = setTimeout(go, 350);
+      return () => clearTimeout(tm);
+    }
+    window.scrollTo(0, 0);
+  }, [loc.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}

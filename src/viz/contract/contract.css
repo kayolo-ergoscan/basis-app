@@ -1,0 +1,66 @@
+/* ContractXray. Mono 13 px source on a hairline sheet; lamps in the gutter; one alarm wash for the failed rule. */
+
+.vz-cx-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; min-width: 0; }
+@container (min-width: 900px) {
+  .vz-cx-grid { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); }
+  .vz-cx-side { border-left: 1px solid var(--rule); }
+  .vz-cx-code { max-height: 640px; }
+}
+.vz-cx-codewrap { min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.vz-cx-code { background: var(--bg-2); max-height: 460px; overflow: auto; overscroll-behavior: contain; padding: 8px 0 12px; font: 400 13px/1.6 var(--f-mono); color: var(--ink-2); scrollbar-width: thin; }
+.vz-cx-code:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.vz-ln { display: grid; grid-template-columns: 3.4em 20px minmax(0, 1fr); align-items: start; padding-right: 12px; cursor: default; position: relative; }
+.vz-ln .no { text-align: right; padding-right: 8px; color: var(--ink-4); user-select: none; font-size: 12px; line-height: 1.75; }
+.vz-ln .mk { display: flex; align-items: center; justify-content: center; height: 1.6em; }
+.vz-ln .tick { display: block; width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); }
+.vz-ln code { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font: inherit; color: inherit; tab-size: 4; }
+.vz-ln code .kw { font-weight: 600; color: var(--ink); }
+.vz-ln code .bi { font-weight: 500; color: var(--ink); }
+.vz-ln code .cm, .vz-ln.c code { color: var(--ink-3); }
+.vz-ln:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.vz-ln.off { opacity: .42; }
+.vz-ln.act { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.vz-ln.act::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--ink-2); }
+.vz-ln.act.bad { background: var(--alarm-wash); }
+.vz-ln.act.bad::before { background: var(--alarm); }
+.vz-ln.act.bad .no { color: var(--alarm); }
+.vz-ln.badrule::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, var(--alarm) 60%, transparent); }
+.vz-ln.extra { box-shadow: inset 0 0 0 1px var(--ink-3); }
+.vz-ln.sel { box-shadow: inset 0 0 0 1px var(--ink-2); }
+.vz-fold { display: grid; grid-template-columns: 3.4em 20px minmax(0, 1fr); width: 100%; border: 0; background: transparent; text-align: left; padding: 2px 12px 2px 0; cursor: pointer; color: var(--ink-3); font: 400 12px/1.6 var(--f-mono); border-top: 1px dashed var(--rule); border-bottom: 1px dashed var(--rule); margin: 2px 0; }
+.vz-fold .no { text-align: right; padding-right: 8px; color: var(--ink-4); }
+.vz-fold .mk { text-align: center; }
+.vz-fold:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.vz-cx-src { padding: 8px 16px; border-top: 1px solid var(--rule); font: 400 11px/1.4 var(--f-mono); color: var(--ink-3); letter-spacing: .02em; overflow-wrap: anywhere; }
+
+.vz-cx-side { padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; border-top: 1px solid var(--rule); }
+@container (min-width: 900px) { .vz-cx-side { border-top: 0; } }
+.vz-cx-checkshead { margin-top: 2px; }
+.vz-cx-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.vz-cx-check { width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 2.6em; align-items: center; column-gap: 10px; row-gap: 2px; text-align: left; border: 0; background: transparent; cursor: pointer; padding: 7px 8px; border-radius: 6px; color: var(--ink-2); font: 400 13.5px/1.35 var(--f-ui); }
+.vz-cx-check:hover { background: var(--surface-2); color: var(--ink); }
+.vz-cx-check.on { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.vz-cx-check.focus .nm { text-decoration: none; box-shadow: inset 0 -1px 0 var(--ink-3); }
+.vz-cx-check .nm { min-width: 0; }
+.vz-cx-check .oc { font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.vz-cx-check .ln { font: 400 11px/1 var(--f-mono); color: var(--ink-4); text-align: right; }
+.vz-cx-check .fd { grid-column: 2 / -1; font: 400 12px/1.45 var(--f-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.vz-cx-check.s-pass .oc { color: var(--up); }
+.vz-cx-check.s-fail, .vz-cx-check.s-throws { color: var(--ink); }
+.vz-cx-check.s-fail .oc, .vz-cx-check.s-throws .oc { color: var(--alarm); }
+.vz-cx-check.s-fail .fd, .vz-cx-check.s-throws .fd { color: var(--alarm); }
+.vz-cx-check.s-skip { color: var(--ink-3); }
+.vz-cx-check.s-idle { color: var(--ink-3); }
+.vz-cx-check.s-current { color: var(--ink); }
+@media (pointer: coarse) { .vz-cx-check { padding: 10px 8px; } }
+
+.vz-cx-note { border-top: 1px solid var(--rule); padding-top: 12px; display: grid; gap: 10px; min-width: 0; }
+.vz-cx-ann { display: grid; gap: 4px; }
+.vz-cx-ann-t { display: flex; align-items: center; gap: 8px; font: 600 13.5px/1.35 var(--f-ui); color: var(--ink); }
+.vz-cx-ann-f { margin: 0; font: 400 12.5px/1.45 var(--f-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.vz-cx-ann-f.bad { color: var(--alarm); }
+.vz-cx .vz-verdict-d.mono { font-family: var(--f-mono); font-size: 12.5px; color: var(--alarm); }
+.vz-cx-ann.ctx { border-top: 1px solid var(--rule); padding-top: 10px; }
+.vz-cx-ann-t .lns { font: 400 11px/1 var(--f-mono); color: var(--ink-3); margin-left: 6px; }
+.vz-cx-ann-w { margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--ink-3); font: 400 13px/1.45 var(--f-ui); color: var(--ink-2); }
+.vz-cx-ann code, .vz-cx-ann-w code { font: 400 .92em/1 var(--f-mono); color: var(--ink); }

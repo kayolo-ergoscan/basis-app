@@ -1,0 +1,9 @@
+/* /lab/viz layout only; every panel styles itself (src/viz). */
+.vizlab .vl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vizlab .vl-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 18px 0 8px; }
+.vizlab .vl-note { font: 400 13.5px/1.45 var(--f-ui); color: var(--ink-3); }
+.vizlab .vl-note.err { color: var(--alarm); }
+.vizlab .vl-stack { display: grid; gap: 20px; min-width: 0; align-content: start; }
+.vizlab .vl-two { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); min-width: 0; align-items: start; }
+@media (min-width: 1180px) { .vizlab .vl-two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.vizlab .vl-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; min-width: 0; }
