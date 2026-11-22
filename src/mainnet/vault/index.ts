@@ -9,7 +9,7 @@ export { MainnetJournal, buildScope, noteScope, blocksNewT1, isOpenState, JOURNA
 export type { JournalEntry, JournalFilter, JournalKind, JournalMeta, JournalMetaValue, JournalPatch, JournalRecordInput, JournalState } from "./journal";
 export { VaultError, isVaultError, type VaultErrorCode, type ErrorDetail } from "./errors";
 export { checkPassphrase, normalizePassphrase, type PassphraseCheck, type PassphraseIssue } from "./passphrase";
-export { HOW_TO_DECRYPT, parseBackup, backupFilename, type BackupContact, type BackupExtras, type BackupFile } from "./backup";
+export { HOW_TO_DECRYPT, parseBackup, backupFilename, type BackupContact, type BackupExtras, type BackupFile, type SealedExtras } from "./backup";
 export { TRACKER_PUBLIC_KEY, isPublicKeyHex, type Hex } from "./keys";
 export type { KeyRecord, KeySource } from "./record";
 export type { Persistence } from "./persist";

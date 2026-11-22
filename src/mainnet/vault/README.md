@@ -48,9 +48,9 @@ For `damaged`, `backedUp` says whether that record had a verified backup.
 | Call | What it does | Throws |
 | --- | --- | --- |
 | `create(passphrase)` → `{ state, persisted }` | A new random key. The vault is unlocked afterwards (so the backup can be downloaded at once) and not backed up | `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
-| `exportBackup({ extras? })` → `{ filename, json }` | The backup file of the unlocked key. Offer it as a download (`application/json`) | `locked`, `bad-input` (extras) |
+| `exportBackup({ extras? })` → `{ filename, json }` | The backup file of the unlocked key, with the watched issuers and contacts sealed inside. Offer it as a download (`application/json`) | `locked`, `bad-input` (extras) |
 | `verifyBackup(fileText, passphrase)` → state | The user loads the file again and types the passphrase. A match sets `backedUpAt`. Works locked or unlocked | `bad-backup`, `backup-other-key`, `wrong-passphrase`, `no-key`, `damaged` |
-| `restoreFromBackup(fileText, passphrase, { takeOver? })` → `{ state, alreadyPresent, extras, persisted }` | Restores into a browser without a key; unlocked and backed up afterwards. The same key already here: the file only counts as a verified backup (`alreadyPresent`) | `bad-backup`, `wrong-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
+| `restoreFromBackup(fileText, passphrase, { takeOver? })` → `{ state, alreadyPresent, extras, extrasUnreadable, persisted }` | Restores into a browser without a key; unlocked and backed up afterwards. The same key already here: the file only counts as a verified backup (`alreadyPresent`). `extras` are decrypted and returned as untrusted input; `extrasUnreadable` means the file has extras that do not open (the key restores without them) | `bad-backup`, `wrong-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
 | `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
 | `unlock(passphrase, { takeOver? })` → state | Opens the session in this tab. When it is already open, it still checks the passphrase | `no-key`, `damaged`, `wrong-passphrase`, `locked-elsewhere`, `tracker-key-refused`, `locked` (lock() came first) |
 | `lock(reason = "manual")` (sync) | Drops the session and releases the Web Lock. It never throws | |
@@ -60,8 +60,8 @@ For `damaged`, `backedUp` says whether that record had a verified backup.
 
 A typical new key: `checkPassphrase` (meter) → `create` → `exportBackup` (download) → `verifyBackup` (the user loads the
 file back) → only then the Fund screen. `importHex` needs the same two backup steps. `parseBackup(text,
-VAULT.KDF_ITERATIONS)` reads a file without a passphrase, for a preview (`pub`, `address`, `createdAt`). It throws
-`bad-backup`.
+VAULT.KDF_ITERATIONS)` reads a file without a passphrase, for a preview (`pub`, `address`, `createdAt`; the extras
+stay sealed). It throws `bad-backup`.
 
 Passphrase: `checkPassphrase(p)` → `{ ok, length, strength 0–4, issues }`, where `issues` holds `too-short`,
 `one-kind`, `repeats`, `sequence` or `common` (codes only). The hard rule is 12 code points after NFKC; the strength is a
@@ -223,7 +223,8 @@ factor is `damaged`.
 **Backup file:**
 ```
 { format: "basis-mainnet-key-backup", v: 1, network: "mainnet", pub, address, kdf, cipher, ct,
-  createdAt /* ISO */, howToDecrypt, extras? }
+  createdAt /* ISO */, howToDecrypt,
+  extras?: { cipher: { name: "AES-GCM", iv, tagLength: 128, aad: "basis-mainnet-key-backup/v1|<pub>|extras" }, ct } }
 ```
 
 - **Encryption:** the same salt and work factor as the record, a fresh IV, and additional data
@@ -232,10 +233,15 @@ factor is `damaged`.
   decrypts with the recipe alone.
 - **Filename:** `basis-mainnet-key-<pub[2..10]>-<YYYY-MM-DD>.json`; at most 256 KiB.
 - **What is refused:** a sandbox backup, another network, and a work factor below 600 000.
-- **`extras` (`{ watchedIssuers?, contacts?: { pub, name? }[] }`):**
-  - At most 100 issuers, 200 contacts and 64-character names.
-  - Encryption does not cover them: a reader drops bad entries and cuts the lists to the limits.
+- **`extras`:** the watched issuers and contacts (`{ watchedIssuers?, contacts?: { pub, name? }[] }`).
+  - They are sealed, so a found file shows nobody's counterparties. They are the JSON (UTF-8) under the same key as
+    `ct`, with their own IV and the additional data above: `howToDecrypt` works for them with `extras.cipher` and
+    `extras.ct`.
+  - At most 100 issuers, 200 contacts and 64-character names; the plaintext is at most 128 KiB.
+  - After decryption, bad entries are dropped and the lists are cut to the limits.
   - Restore returns them as untrusted input, so show them before using them.
+  - Extras that do not decrypt or parse (changed bytes, another format) give `extrasUnreadable: true`, and the key
+    still restores. `parseBackup` gives `extras: null` for an envelope it cannot read.
 
 ## Errors
 

@@ -2,7 +2,7 @@
 // backup file. The parameters travel with the ciphertext, so the work factor can be raised later.
 import { p2pkAddress } from "../../chain/decode";
 import { fromB64 } from "./bytes";
-import { BACKUP_AAD_PREFIX, CT_BYTES, IV_BYTES, KDF_MAX_ITERATIONS, KEY_AAD_PREFIX, KEY_FORMAT, NETWORK } from "./constants";
+import { BACKUP_AAD_PREFIX, BACKUP_EXTRAS_AAD_SUFFIX, CT_BYTES, IV_BYTES, KDF_MAX_ITERATIONS, KEY_AAD_PREFIX, KEY_FORMAT, NETWORK } from "./constants";
 import { isPublicKeyHex, type Hex } from "./keys";
 
 export interface KdfParams {
@@ -44,6 +44,7 @@ export interface KeyRecord {
 
 export const keyAad = (pub: Hex): string => KEY_AAD_PREFIX + pub;
 export const backupAad = (pub: Hex): string => BACKUP_AAD_PREFIX + pub;
+export const extrasAad = (pub: Hex): string => BACKUP_AAD_PREFIX + pub + BACKUP_EXTRAS_AAD_SUFFIX;
 
 export const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isTime = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;

@@ -9,7 +9,7 @@ import { BACKUP_FORMAT, KDF_MAX_ITERATIONS, KEY_FORMAT } from "../constants";
 import { isVaultError } from "../errors";
 import { isPublicKeyHex, randomSecret, secretFromHex } from "../keys";
 import { checkPassphrase, normalizePassphrase } from "../passphrase";
-import { addressOf, backupAad, keyAad, parseKeyRecord } from "../record";
+import { addressOf, backupAad, extrasAad, keyAad, parseKeyRecord } from "../record";
 import { b64, randomPub } from "./helpers";
 
 const syncCode = (fn: () => unknown): string => {
@@ -277,6 +277,25 @@ describe("stored record and backup file parsers", () => {
     // a weaker work factor is fine for a vault that accepts it (tests), never above the ceiling
     expect(syncCode(() => parseBackup(JSON.stringify({ ...f, kdf: { ...f.kdf, iterations: 1000 } }), 1000))).toBe("ok");
     expect(backupFilename(pub, Date.UTC(2026, 10, 22, 23, 59))).toBe(`basis-mainnet-key-${pub.slice(2, 10)}-2026-11-22.json`);
+  });
+
+  it("sealed extras: a well-formed envelope is kept; a malformed one becomes null and the key still parses", () => {
+    const f = file();
+    const sealed = { cipher: { name: "AES-GCM", iv: b64(rand(12)), tagLength: 128, aad: extrasAad(pub) }, ct: b64(rand(64)) };
+    expect(extrasAad(pub)).toBe(`basis-mainnet-key-backup/v1|${pub}|extras`);
+    expect(parseBackup(JSON.stringify({ ...f, extras: sealed }), 600_000).extras).toEqual(sealed);
+    expect(parseBackup(JSON.stringify(f), 600_000).extras).toBeUndefined();
+    const malformed: unknown[] = [
+      { watchedIssuers: [randomPub()] },
+      { ...sealed, cipher: { ...sealed.cipher, aad: backupAad(pub) } },
+      { ...sealed, cipher: { ...sealed.cipher, iv: b64(rand(8)) } },
+      { ...sealed, ct: b64(rand(8)) },
+      { ...sealed, ct: "not base64!" },
+      { ...sealed, ct: toB64(new Uint8Array(128 * 1024 + 17)) }, // over the plaintext limit
+      "x",
+      null,
+    ];
+    for (const [i, x] of malformed.entries()) expect(parseBackup(JSON.stringify({ ...f, extras: x }), 600_000).extras, `case ${i}`).toBeNull();
   });
 
   it("extras: strict for a new file, lenient (dropped, cut to the limits) for a file being read", () => {

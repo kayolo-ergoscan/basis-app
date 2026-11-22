@@ -11,6 +11,12 @@ import { openVault } from "../vault";
 import { FakeBrowser, OTHER_PASS, PASS, TEST_ITERATIONS } from "./fakes";
 import { b64, backUp, code, flipB64, openTab, randomPub, revealHex, settle, SIGN_LOCK_NAME, storedRecord, unb64 } from "./helpers";
 
+/** The AES key a backup file's passphrase derives (WebCrypto, independent of the vault's code). */
+async function passKey(f: { kdf: { salt: string; iterations: number } }, pass: string): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass.normalize("NFKC")), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: unb64(f.kdf.salt), iterations: f.kdf.iterations }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
 const G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"; // public key of the test scalar 1
 const ONE = "00".repeat(31) + "01";
 
@@ -227,22 +233,75 @@ describe("mainnet vault: backup file", () => {
     for (const x of [v, w, t]) x.close();
   });
 
-  it("carries watched issuers and contacts; a malformed entry is refused on export and dropped on restore", async () => {
+  it("seals watched issuers and contacts inside the file: none of their text is in the file's plaintext", async () => {
     const b = new FakeBrowser();
     const v = await openTab(b);
     await v.create(PASS);
     const issuer = randomPub();
+    const friend = randomPub();
+    const name = "Zoë Quartermain";
     expect(await code(v.exportBackup({ extras: { watchedIssuers: ["nope"] } }))).toBe("bad-input");
-    const { json } = await v.exportBackup({ extras: { watchedIssuers: [issuer, issuer], contacts: [{ pub: issuer, name: "  Café\u0007  " }] } });
+    const { json } = await v.exportBackup({ extras: { watchedIssuers: [issuer, issuer], contacts: [{ pub: friend, name: `  ${name}\u0007  ` }] } });
+    for (const text of [issuer, friend, issuer.slice(2), friend.slice(2, 40), issuer.toUpperCase(), name, "Quartermain", "watchedIssuers", "contacts"]) {
+      expect(json.includes(text), text).toBe(false);
+    }
     const f = JSON.parse(json);
-    expect(f.extras).toEqual({ watchedIssuers: [issuer], contacts: [{ pub: issuer, name: "Café" }] });
-    f.extras.watchedIssuers.push("zz");
-    f.extras.contacts.push({ pub: "02" + "zz".repeat(32) }, { pub: randomPub(), name: 7 });
+    expect(Object.keys(f.extras).sort()).toEqual(["cipher", "ct"]);
+    expect(f.extras.cipher).toMatchObject({ name: "AES-GCM", tagLength: 128, aad: `basis-mainnet-key-backup/v1|${f.pub}|extras` });
+    expect(f.extras.cipher.iv).not.toBe(f.cipher.iv);
+    // the file's own recipe opens them too: the same key, their own IV and additional data
+    const key = await passKey(f, PASS);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(f.extras.cipher.iv), additionalData: new TextEncoder().encode(f.extras.cipher.aad) }, key, unb64(f.extras.ct));
+    expect(JSON.parse(new TextDecoder().decode(plain))).toEqual({ watchedIssuers: [issuer], contacts: [{ pub: friend, name }] });
+    // a restore decrypts them (cleaned on export: one issuer, the name trimmed); the same key again returns them too
     const w = await openTab(new FakeBrowser());
-    const r = await w.restoreFromBackup(JSON.stringify(f), PASS);
-    expect(r.extras).toEqual({ watchedIssuers: [issuer], contacts: [{ pub: issuer, name: "Café" }] });
+    const r = await w.restoreFromBackup(json, PASS);
+    expect(r).toMatchObject({ alreadyPresent: false, extrasUnreadable: false, extras: { watchedIssuers: [issuer], contacts: [{ pub: friend, name }] } });
+    expect(await w.restoreFromBackup(json, PASS)).toMatchObject({ alreadyPresent: true, extrasUnreadable: false, extras: r.extras });
+    // no extras: no field; a file without extras restores with none
+    const bare = (await v.exportBackup()).json;
+    expect(JSON.parse(bare).extras).toBeUndefined();
+    expect(await w.restoreFromBackup(bare, PASS)).toMatchObject({ extras: null, extrasUnreadable: false });
     v.close();
     w.close();
+  });
+
+  it("after decryption malformed entries are dropped; extras that do not open are reported, and the key still restores", async () => {
+    const home = new FakeBrowser();
+    const v = await openTab(home);
+    await v.create(PASS);
+    const issuer = randomPub();
+    const f = JSON.parse((await v.exportBackup({ extras: { watchedIssuers: [issuer] } })).json);
+    v.close();
+    const key = await passKey(f, PASS);
+    /** Seals our own text as another tool could; the envelope always names the extras' additional data. */
+    const sealText = async (text: string, aad: string = f.extras.cipher.aad) => {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(aad) }, key, new TextEncoder().encode(text)));
+      return { cipher: { name: "AES-GCM", iv: b64(iv), tagLength: 128, aad: f.extras.cipher.aad }, ct: b64(ct) };
+    };
+    const restore = async (extras: unknown) => {
+      const w = await openTab(new FakeBrowser());
+      const r = await w.restoreFromBackup(JSON.stringify({ ...f, extras }), PASS);
+      w.close();
+      return r;
+    };
+    const messy = JSON.stringify({
+      watchedIssuers: [issuer, "zz", issuer],
+      contacts: [{ pub: issuer, name: " Café\u0007" }, { pub: `02${"zz".repeat(32)}` }, { pub: randomPub(), name: 7 }],
+    });
+    expect(await restore(await sealText(messy))).toMatchObject({ extrasUnreadable: false, extras: { watchedIssuers: [issuer], contacts: [{ pub: issuer, name: "Café" }] } });
+    const unreadable: unknown[] = [
+      { ...f.extras, ct: flipB64(f.extras.ct) }, // a changed byte
+      await sealText(messy, f.cipher.aad), // sealed under the key's additional data
+      await sealText("not json"),
+      await sealText(JSON.stringify(["a list"])),
+      { watchedIssuers: [issuer] }, // lists in the clear: not a format this app reads
+      { cipher: f.extras.cipher }, // no ciphertext
+    ];
+    for (const [i, x] of unreadable.entries()) {
+      expect(await restore(x), `case ${i}`).toMatchObject({ extras: null, extrasUnreadable: true, alreadyPresent: false, state: { status: "unlocked", backedUp: true, key: { pub: f.pub } } });
+    }
   });
 
   it("never reads a sandbox backup; the vault's code never touches localStorage, src/world or the console", async () => {

@@ -17,6 +17,8 @@ export const BACKUP_FORMAT = "basis-mainnet-key-backup";
 /** AES-GCM additional data: the prefix plus the 33-byte public key in hex. */
 export const KEY_AAD_PREFIX = "basis-mainnet-key/v1|";
 export const BACKUP_AAD_PREFIX = "basis-mainnet-key-backup/v1|";
+/** The backup's extras are sealed under the same key with their own additional data: the backup's, plus this. */
+export const BACKUP_EXTRAS_AAD_SUFFIX = "|extras";
 
 /** PBKDF2-HMAC-SHA256 work factor for new keys, and the lowest a record or a backup file may carry. */
 export const KDF_ITERATIONS = 600_000;
@@ -41,3 +43,5 @@ export const CHANNEL_NAME = "basis-mainnet-vault";
 
 /** Largest backup file the parser reads. */
 export const MAX_BACKUP_TEXT = 256 * 1024;
+/** Largest plaintext of a backup's sealed extras (100 issuers and 200 named contacts fit with room to spare). */
+export const MAX_EXTRAS_BYTES = 128 * 1024;

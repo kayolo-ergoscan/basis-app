@@ -7,7 +7,7 @@
 // only way out of this module. Fully separate from the sandbox key (src/world/identity.ts): other database, formats,
 // additional data, lock and channel names; nothing here imports src/world.
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import { backupFilename, checkExtras, HOW_TO_DECRYPT, parseBackup, type BackupExtras, type BackupFile } from "./backup";
+import { backupFilename, checkExtras, HOW_TO_DECRYPT, openExtras, parseBackup, sealExtras, type BackupExtras, type BackupFile, type OpenedExtras } from "./backup";
 import { fromB64, holdsSecret, sameBytes, toB64, wipe } from "./bytes";
 import {
   BACKUP_FORMAT, CHANNEL_NAME, CT_BYTES, DB_NAME, HIDDEN_LOCK_MS, IDLE_LOCK_MS, IV_BYTES, KDF_ITERATIONS, KEY_FORMAT,
@@ -89,8 +89,11 @@ export interface RestoreResult {
   state: VaultState;
   /** The same key was already here: the file only counted as a verified backup. */
   alreadyPresent: boolean;
-  /** Watched issuers and contacts from the file: untrusted input, show them before using them. */
+  /** Watched issuers and contacts, decrypted from the file, malformed entries dropped: untrusted input, show them before
+   *  using them. Null when the file has none, or they are unreadable. */
   extras: BackupExtras | null;
+  /** The file has extras that do not decrypt or parse; the key was restored without them. */
+  extrasUnreadable: boolean;
   persisted: Persistence;
 }
 
@@ -331,7 +334,8 @@ export class MainnetVault {
 
   /**
    * The encrypted backup file for the unlocked key (same passphrase and salt as the stored record, a fresh IV, the backup
-   * additional data). The UI offers it as a download, then asks for it back through verifyBackup().
+   * additional data). The extras are sealed under the same key with their own IV and additional data. The UI offers the
+   * file as a download, then asks for it back through verifyBackup().
    */
   async exportBackup(opts: { extras?: BackupExtras } = {}): Promise<BackupExport> {
     const { crypto } = this.#need();
@@ -357,7 +361,7 @@ export class MainnetVault {
           createdAt: new Date(rec.createdAt).toISOString(),
           howToDecrypt: HOW_TO_DECRYPT,
         };
-        if (extras) file.extras = extras;
+        if (extras) file.extras = await sealExtras(crypto.subtle, s.key, this.#random(IV_BYTES), rec.pub, extras);
         this.#activity();
         return { filename: backupFilename(rec.pub, this.#env.now()), json: JSON.stringify(file, null, 2) };
       } finally {
@@ -396,11 +400,11 @@ export class MainnetVault {
     const persistP = requestPersist(this.#env.storage);
     return this.#exclusive(async () => {
       const stored = await this.#load();
-      const extras = file.extras ?? null;
       if (stored.kind === "ok" && stored.rec.pub === file.pub) {
-        await this.#proveFile(crypto, file, passphrase);
+        const key = await this.#proveFile(crypto, file, passphrase);
         const state = await this.#markBackedUp(db, file.pub);
-        return { state, alreadyPresent: true, extras, persisted: await persistP };
+        const x = await openExtras(crypto.subtle, key, file.extras);
+        return { state, alreadyPresent: true, extras: x.extras, extrasUnreadable: x.unreadable, persisted: await persistP };
       }
       if (stored.kind !== "none") {
         this.#publish(stored);
@@ -409,12 +413,14 @@ export class MainnetVault {
       const epoch = this.#epoch;
       const lease = await this.#acquire(opts.takeOver === true);
       let started = false;
+      let x: OpenedExtras = { extras: null, unreadable: false };
       try {
         const salt = fromB64(file.kdf.salt) as Uint8Array;
         const key = await deriveKey(crypto.subtle, passphrase, salt, file.kdf.iterations);
         const secret = await unseal(crypto.subtle, key, fromB64(file.cipher.iv) as Uint8Array, file.cipher.aad, fromB64(file.ct) as Uint8Array);
         const iv = this.#random(IV_BYTES);
         const ct = await this.#resealChecked(crypto, secret, file.pub, key, iv);
+        x = await openExtras(crypto.subtle, key, file.extras);
         const now = this.#env.now();
         const made = Date.parse(file.createdAt);
         const rec = this.#newRecord(file.pub, salt, file.kdf.iterations, iv, ct, Number.isSafeInteger(made) && made >= 0 ? made : now, now, "backup");
@@ -427,7 +433,7 @@ export class MainnetVault {
       }
       const persisted = await persistP;
       this.#set({ persisted });
-      return { state: this.#state, alreadyPresent: false, extras, persisted };
+      return { state: this.#state, alreadyPresent: false, extras: x.extras, extrasUnreadable: x.unreadable, persisted };
     });
   }
 
@@ -755,8 +761,8 @@ export class MainnetVault {
     return key;
   }
 
-  /** Proves a backup file decrypts, with this passphrase, to the key it names. */
-  async #proveFile(crypto: CryptoLike, file: BackupFile, passphrase: string): Promise<void> {
+  /** Proves a backup file decrypts, with this passphrase, to the key it names. Returns the derived AES key. */
+  async #proveFile(crypto: CryptoLike, file: BackupFile, passphrase: string): Promise<CryptoKey> {
     const key = await deriveKey(crypto.subtle, passphrase, fromB64(file.kdf.salt) as Uint8Array, file.kdf.iterations);
     const secret = await unseal(crypto.subtle, key, fromB64(file.cipher.iv) as Uint8Array, file.cipher.aad, fromB64(file.ct) as Uint8Array);
     try {
@@ -764,6 +770,7 @@ export class MainnetVault {
     } finally {
       wipe(secret);
     }
+    return key;
   }
 
   /** The stored record behind a session; locks when it changed or vanished (another tab, cleared site data). */
