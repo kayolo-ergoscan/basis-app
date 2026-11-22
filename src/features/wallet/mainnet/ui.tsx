@@ -39,8 +39,11 @@ export function ChainLink({ kind, id, children }: { kind: "tx" | "box" | "addres
 }
 
 /** A problem in the words of design §6.3, with the server's own reason as plain text (never HTML). */
-export function ProblemText({ p, what }: { p: Problem; what?: "create" | "build" | "submit" | "note" | "broadcast" | "read" }) {
+/** A problem in words, with the server's own text under it. `reasonOnly`: only that text, when the caller has
+ *  already said what the answer means (a redemption in doubt: "replaced" would wrongly say nothing was sent). */
+export function ProblemText({ p, what, reasonOnly }: { p: Problem; what?: "create" | "build" | "submit" | "note" | "broadcast" | "read"; reasonOnly?: boolean }) {
   const t = useT();
+  if (reasonOnly) return p.reason ? <span className="mw-problem"><span className="mw-reason">{t("mw.err.says")} <q>{p.reason}</q></span></span> : null;
   const secs = p.retryInMs !== null ? Math.max(1, Math.ceil(p.retryInMs / 1000)) : null;
   let text: string;
   switch (p.kind) {
