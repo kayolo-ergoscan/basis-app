@@ -26,3 +26,5 @@ export { useHeight, getHeight, useObservatory, useChainStatus, useReserve, useTr
 export type { HeightState, ReserveResult, TrackerResult, RedemptionResult, BoxResult } from "./hooks";
 export { explorer, explorerLink, EXPLORER_ORIGIN } from "./links";
 export type { ExplorerKind } from "./links";
+// our tracker on mainnet (read-only, `/api/tracker/*`)
+export * from "./ours";

@@ -13,12 +13,20 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-// Dev: /v1 goes to the ErgoScan API contour (:4401), the same place Caddy sends it on basis.ergoscan.me.
+// Dev and preview:
+//   /v1/*          → the ErgoScan API contour (:4401), the same place Caddy sends it on basis.ergoscan.me;
+//   /api/tracker/* → our tracker's front (nginx on :3050), prefix stripped. The front adds the key itself, allows only
+//                    the public read routes and limits each IP; the app never talks to the tracker (:3048) directly.
+const proxy = {
+  "/v1": { target: "http://127.0.0.1:4401", changeOrigin: false },
+  "/api/tracker/": { target: "http://127.0.0.1:3050", changeOrigin: false, rewrite: (p: string) => p.replace(/^\/api\/tracker/, "") || "/" },
+};
+
 export default defineConfig({
   plugins: [react()],
   resolve: { alias: { "@": "/root/basis/app/src" } },
-  server: { host: "127.0.0.1", proxy: { "/v1": { target: "http://127.0.0.1:4401", changeOrigin: false } } },
-  preview: { host: "127.0.0.1", proxy: { "/v1": { target: "http://127.0.0.1:4401", changeOrigin: false } } },
+  server: { host: "127.0.0.1", proxy },
+  preview: { host: "127.0.0.1", proxy },
   build: {
     outDir: "dist",
     assetsDir: "assets",

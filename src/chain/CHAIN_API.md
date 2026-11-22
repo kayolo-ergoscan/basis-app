@@ -16,6 +16,7 @@ Pages import from `@/chain` only (`index.ts`); nothing else in the app calls `/v
 | `i18n.ts` | `chain.*` strings, EN + RU (honest-copy keys, see the end) |
 | `links.ts` | explorer links (ergoscan.me only) |
 | `dev/probe.html` | dev-only page, `http://127.0.0.1:5180/src/chain/dev/probe.html` (not a route, not built) |
+| `ours/` | ErgoScan's own tracker, read-only, through `/api/tracker/*` (section "Our tracker" below) |
 
 ## Seed (what ships with the app)
 
@@ -127,14 +128,57 @@ to 60 s, set `heightReserve: 2` and src/chain gets 4 per block with no other cha
 | `/boxes/byTokenId/{id}?limit=&offset=` | 84 ms | 30 KB (9 boxes) | history; order not guaranteed (sort by `creationHeight` yourself) |
 | `/boxes/unspent/byErgoTreeTemplateHash/{hash}?limit=1` | 39–46 ms | 16 KB | `{items, total, offset, limit, hasMore, nextCursor: "height:boxId", source: "index"}`, explorer-shape items, newest first |
 | same, `?limit=50` (pB9o, 19 boxes) | 57 ms | 301 KB | only after the signature changed; next page: `&cursor={nextCursor}` |
-| `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 5 ms | 95 B | detector; empty today for both current templates |
+| `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 5 ms | 95 B | detector; both current templates were empty until the first ERG reserve at block 1 922 312 |
 | `/transactions/{id}` | 56–111 ms | 33.5 KB | `{id, inclusionHeight, timestamp, inputs[full boxes + spendingProof], dataInputs[full boxes], outputs, size}` |
 | `/mempool/transactions/byAddress/{P2S}` | 4–7 ms | 67 B | `{items, total}` |
 | `/tokens/{id}` | 168–213 ms | 2.6 KB | `emissionAmount` is a JSON **number** (1e18 loses precision): use the seed's token data |
+| `/addresses/{addr}/balance/confirmed` | 6–29 ms (via the dev proxy) | 244 B | `{nanoErgs: string, tokens[]}`; our tracker's fee funds (`/balance` alone is 404) |
 | `/defi/basis` | 91–131 ms | 11.7 KB | `{tipHeight, reserveCount, ergLockedNano: string, trackerCount, reserves[{boxId, …}], source}` |
 
 `regHex()` and `liveBoxFromApi()` accept both register shapes. Ids go through `encodeURIComponent`. Amounts stay
 strings until `BigInt()`.
+
+## Our tracker (`ours/`, read-only)
+
+ErgoScan's Basis tracker on mainnet: NFT `f5178dc4…e3f29f`, minted at block 1 922 275 (tx `0841b442…`), address
+`9gMR2W…hW3W` (`OUR_TRACKER` in `ours/types.ts`). The browser reaches it only at the same-origin path `/api/tracker/*`:
+in dev, vite strips the prefix and proxies to the nginx front on 127.0.0.1:3050, which adds the key; in production
+Caddy does the same (`handle_path /api/tracker/* { reverse_proxy 127.0.0.1:3050 }`). No key ever reaches the browser.
+
+| route (`/api/tracker` + …) | used for | cadence |
+| --- | --- | --- |
+| `/tracker/state` | status, box, committed and live digest, height, commit in flight | 30 s while the tab is visible |
+| `/reserves` | reserves whose R6 is our NFT, totals | 120 s while the tab is visible |
+| `/key-status/{pk}` | key lookup on `/tracker/mainnet` | on demand, one at a time |
+| `/config/reserve-collateral` | client method only | not polled |
+
+Fee funds come from `/v1/addresses/{address}/balance/confirmed` through `api.ts` (they count in the per-block budget):
+the first read of a visit uses the interactive lane, later reads the background lane, at most every 30 min or when the
+tracker box moved. The total includes the 0.001 ERG in the tracker box itself.
+
+- `client.ts`: one FIFO queue per visitor, ≥ 1 s between the starts of tracker requests (polls and lookups); 10 s
+  timeout; `credentials: "omit"`, `cache: "no-store"`. Envelope `{success, data, error}`. u64 amounts are quoted
+  before `JSON.parse` and become `bigint`. Ratio 999 999 means "no debt" → `null`; `collateralization_ratio` is
+  collateral / debt (2.0 = 200 %). Failures: 404 `notFound`, 429 `rate` (Retry-After honoured), 502/503/504
+  `unavailable`, `timeout`, `network`, `shape`; an invalid key is refused before any request.
+- `/reserves` carries `total_debt` and `collateralization_ratio`, but this tracker version does not compute them (debt
+  stays 0, the ratio comes back null: upstream `specs/PRODUCTION_READINESS_AUDIT.md` item 6; seen on 22 Nov: 0 in the
+  list while `/key-status` said 0.3 ERG). Pages never show them; the reserves tables link to the key lookup, which
+  computes debt from notes.
+- `store.ts`: polls nothing while the tab is hidden or no page watches (ref-counted `acquire()`). Backoff after a
+  failure: 30 s × 2^(n−1), at most 10 min, +0–20 % jitter, never shorter than Retry-After; key lookups are refused while
+  a 429 backoff runs. The last good answers are saved in localStorage `basis.ours.v1` (≤ 256 KB) and shown as a saved
+  answer with its age until a fresh one arrives.
+- `model.ts`: status `connecting` (no answer yet), `live` (box at most 750 blocks old: the 720-block heartbeat plus 30
+  of slack), `stale` (older), `unreachable` (the last state request failed; a 429 after an answer keeps the answer).
+  Totals never mix ERG and tokens.
+- Events (the MAINNET tape on `/tracker/mainnet` and the Network page): a commit when the confirmed box or digest
+  changes (same digest = heartbeat), a reserve when a new owner + denomination bound to our NFT appears. The first
+  answer of a visit and saved answers are the baseline, never events. One pulse per new commit
+  (`pulse.commit({ source: "mainnet", trackerId: nft, … })`), not repeated if the bus already has it.
+- The seed (block 1 921 849) predates the NFT: the Network strip and list add it once until the seed is regenerated,
+  and `/network/tracker/<our nft>` is served from the tracker API, not from the chain store.
+- Hooks: `useOurTracker()` → `OurView`, `useKeyLookup()`, `useAgo()`, `useNow()`. Tests: `ours/ours.test.ts`.
 
 ## How to add an endpoint
 
