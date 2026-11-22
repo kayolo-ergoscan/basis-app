@@ -10,6 +10,9 @@
 //   front.note-r3-pair.json                 GET /notes/issuer/0233…1207/recipient/0214…7cd8 (after R3)
 //   extensions.json  the reserve input's context extension of R1–R3 in serialization order (/v1 has none): the
 //                    canary logs of the submitted runs, cross-checked with the node's indexer.
+//   r3-dryrun-unsigned-tx.txt  the `unsigned_tx` of R3's dry-run build as the canary printed it ("exactly as the
+//                    tracker built it"), pretty-printed: real field names, order and values, but not the raw answer
+//                    bytes, so it is a shape fixture, not a span fixture. Same build as R3 but the tracker's #6 nonce.
 import { asArray, asHex, asObject, asSafeInt, parseJson, required } from "../json";
 import { boxFromV1, txFromV1, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type SignedTx, type UnsignedTx, type V1Transaction } from "../model";
 import { unsignedOf } from "../serialize";
@@ -20,10 +23,14 @@ import r1Text from "./r1.tx.json?raw";
 import r2Text from "./r2.tx.json?raw";
 import r3ReserveText from "./r3.reserve-in.box.json?raw";
 import r3TrackerText from "./r3.tracker.box.json?raw";
+import r3DryrunUnsignedText from "./r3-dryrun-unsigned-tx.txt?raw";
 import r3Text from "./r3.tx.json?raw";
 import t1Text from "./t1.tx.json?raw";
 
 export const TEXT = { t1: t1Text, r1: r1Text, r2: r2Text, r3: r3Text, r3ReserveIn: r3ReserveText, r3Tracker: r3TrackerText, frontP2s: frontP2sText, frontNote: frontNoteText, extensions: extensionsText };
+
+/** R3's dry-run `unsigned_tx` (shape only: whitespace is the canary's, not the tracker's). */
+export const R3_DRYRUN_UNSIGNED_TEXT: string = r3DryrunUnsignedText;
 
 export const ISSUER_A = "023316d27ad52bd767e5e97e2ecba3f0dbc2f92095875f918fcaa95ae6711b1207";
 export const RECEIVER_B = "02148f7e4215d2545a5814f687cf759ced024aab71d90c7bf9c93fef3f9abc7cd8";

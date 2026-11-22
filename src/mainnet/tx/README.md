@@ -2,7 +2,7 @@
 
 This module turns tracker answers and `/v1` boxes into checked bytes, and then into signed transactions. It covers design §1, §2.3, §3.1–3.5 and §8.4 (`/root/basis/qa/wallet-mainnet-design.md`).
 
-It does **no network, no storage and no DOM.** The UI layer does those things:
+It does **no network, no storage and no DOM.** The one exception is the dev-only `saveDevFixture` (see "Raw answers from the canary"). The UI layer does those things:
 - fetches through the existing FIFO;
 - keeps the key in the vault;
 - shows the review screens.
@@ -33,9 +33,10 @@ Import from `src/mainnet/tx` (the `index.ts` barrel). Inside the repo, use **rel
 | `messages.ts` | `noteMessage` (80 B), `buildRequestMessage` (131 B ERG, 198 B token), `signBasis`, `verifyBasis` (Basis Schnorr, not ProveDlog) |
 | `redemption.ts` | Redemption: `parseStoredNote`, `checkNoteForRedemption`, `signedBuildRequest`, `parseBuildResponse`, **`checkRedemption` (L1)**, `signRedemption`, `spliceRedemptionProof`, `redemptionSubmitBody`, `parseSubmitResponse`, `TrackerRefusal` |
 | `contract.ts` | **L2**: `loadContractAvl`, `checkRedemptionContract`, `checkReserveContract` |
-| `p2pk.ts` | T1 and Withdraw: `selectCoins`, `planReserveCreation`, `parseReservePayload`, `checkReservePayload`, `buildReserveCreation`, `checkReserveCreation`, `buildWithdraw`, `checkWithdraw`, `signP2pkTransaction`, `verifyP2pkTransaction` |
+| `p2pk.ts` | T1 and Withdraw: `selectCoins`, `planReserveCreation`, `parseReservePayload`, `checkReservePayload`, `buildReserveCreation`, `checkReserveCreation`, `buildWithdraw`, `checkWithdraw`, `signP2pkTransaction`, `verifyP2pkTransaction`, `P2PK_MAX_INPUTS` |
+| `devfixture.ts` | **Dev builds only.** `saveDevFixture(name, text)` saves a raw tracker answer to `/root/basis/qa/fixtures/` during the closed wallet canary (see "Raw answers from the canary"). `devFixtureHandler` is the dev server's half, wired in `vite.config.ts`. |
 | `testkit.ts` | **Tests and UI fixtures only, never in production code.** `syntheticRedemption()`, `trackerBuildResponse()`, `trackerRefusal()`, `p2pkBox()`, `secretBytes()` |
-| `fixtures/` | Mainnet JSON, saved byte for byte (see `fixtures/chain.ts`), plus R3's rebuilt build answer (`fixtures/r3-build.ts`) |
+| `fixtures/` | Mainnet JSON, saved byte for byte (see `fixtures/chain.ts`), R3's rebuilt build answer (`fixtures/r3-build.ts`), and R3's dry-run `unsigned_tx` as the canary printed it (a shape fixture, not a span fixture) |
 
 Secrets are always **32-byte `Uint8Array`s**. The vault hands them in, and nothing here keeps them.
 
@@ -138,14 +139,58 @@ const { txId, nodeJson } = tx.signP2pkTransaction(t1, plan.inputs, secret);  // 
 - **Boxes:** pass confirmed, unspent boxes at P2PK(owner) from `/v1/boxes/unspent/byAddress/{addr}`. Every box is hashed against its id, and a box that does not hash makes selection throw.
 - **Coin choice:** token-free boxes come first, largest first. Tokens always reach the change output.
 - **Dust:** dust below 0.001 ERG is added to the reserve. When that would pass `cap`, the amount is lowered instead, so that the change is exactly 0.001 ERG; read the final `plan.amount`.
-- **Output order:** `[reserve, change?, fee]` (design §2.2). Mainnet T1 was built by the canary as `[reserve, fee, change]`. Our builder reproduces T1's reserve box byte for byte, and gives T1's id in T1's order (`p2pk.test.ts`).
+- **Output order:** `[reserve, change?, fee]` (design §2.2), and `checkReserveCreation` refuses any other layout. The tracker admits a reserve by its owner's P2PK input (`has_owner_p2pk_input`, basis_store `ergo_scanner.rs` at 6113b8d), not by the output order; confirmed 2026-11-22. Mainnet T1 was built by the canary as `[reserve, fee, change]`. Our builder reproduces T1's reserve box byte for byte, and gives T1's id in T1's order (`p2pk.test.ts`).
 - **Amount limits (D5):** `cap` defaults to 1 ERG (`RESERVE_DEFAULT_CAP_NANOERG`). Pass up to `RESERVE_HARD_CAP_NANOERG` (10 ERG) only after the explicit "I understand". The floor is 0.1 ERG.
+
+**Too many small boxes: offer "Combine small boxes".** Coin selection has no input limit, but the broadcast route takes at most 16 KB of node JSON (D1). Past that, `signP2pkTransaction` throws ("…broadcast limit: spend fewer boxes") before anything is journaled or sent. Do not show this as an error. Offer to combine small boxes with a Withdraw to the owner's own address, then make T1 from the combined box:
+- **When:** offer it when `plan.inputs.length > P2PK_MAX_INPUTS`, which you know before calling the tracker, or when signing throws that error.
+- **Batch size:** `P2PK_MAX_INPUTS` (50) inputs always fit, for T1 and for a Withdraw to a P2PK address, even with 15 token types in the change (`p2pk.test.ts`, at the largest values). A Withdraw to someone else that trips the guard gets the same offer.
+
+```ts
+const batch = smallTokenFreeBoxes.slice(0, tx.P2PK_MAX_INPUTS);
+const sum = batch.reduce((a, b) => a + b.value, 0n);
+const fee = tx.MINER_FEE_NANOERG;
+const combine = tx.buildWithdraw({ owner, inputs: batch, to: tx.p2pkAddress(owner), amount: sum - fee, fee, height: tip });
+// checkWithdraw → signP2pkTransaction → journal → broadcast, as for any Withdraw.
+// After it confirms, re-read the unspent boxes and run planReserveCreation again.
+```
+
+- **Repeat** while the plan still needs more than `P2PK_MAX_INPUTS` boxes. Each round costs one miner fee; show that.
+- **Token boxes** may join a batch. Their tokens stay in the change, which needs at least 0.001 ERG, so send `sum - fee - MIN_BOX_NANOERG`. The builder throws if there is no room for the change.
 
 ## Withdraw
 
 `buildWithdraw({ owner, inputs, to, amount, fee, height })` gives `[destination, change?, fee]`. `checkWithdraw` checks it, then `signP2pkTransaction` signs it.
 - **`to`:** a mainnet P2PK or P2S address. The reserve contract, the fee contract, P2SH and testnet addresses are refused.
 - **Tokens** stay with the owner, in the change output.
+
+## Raw answers from the canary (dev only)
+
+The span tests (`json.test.ts`, the splice in `redemption.test.ts`) run on answers that `testkit.ts` rebuilds from the chain. `fixtures/r3-dryrun-unsigned-tx.txt` is the tracker's own `unsigned_tx` from R3's dry run. It has real field names, order and values, but it was pretty-printed by the canary, so it is a **shape fixture, not a raw-span fixture** (`dryrun.test.ts`). The first raw answer will come from the closed wallet canary run, through this hook.
+
+1. **Start the dev server with the hook:** `BASIS_DEV_FIXTURES=1 npx vite`. It listens on 127.0.0.1 only. Open it on this machine or through an SSH tunnel, not through a public name.
+2. **Save the answer** right after reading it, before parsing it:
+
+   ```ts
+   const text = await res.text();
+   void tx.saveDevFixture(`wallet-canary-redemption-build-${Date.now()}.json`, text);
+   const build = tx.parseBuildResponse(text);
+   ```
+
+   Save other answers (`/reserves/create`, `/redemption/submit`) the same way, each under its own name.
+
+The rules:
+- **Production never posts.** `saveDevFixture` returns `"off"` in every `vite build`, because `import.meta.env.DEV` is false there. It never throws and never blocks the flow. It returns `"saved"`, `"exists"`, `"off"` or `"failed"`.
+- **The server half runs only in dev.** It is the `basis-dev-fixtures` plugin in `vite.config.ts`, active only for `vite` serve with `BASIS_DEV_FIXTURES=1`, never in a build, a preview or vitest.
+- **New files only.** If the name exists, the result is `"exists"` and the file stays as it was. Names use lowercase letters, digits and hyphens, then `.json` or `.txt`. At most 256 KB.
+- **Same machine only.** The server accepts a POST only if it carries the `x-basis-dev-fixture` header and comes from a same-machine origin: `http://127.0.0.1`, `localhost` or `[::1]`, any port.
+- **Tracker answers only.** They are public chain data. Never save anything from the vault.
+
+Once a build answer is saved, it becomes the raw-span golden. Test it for:
+- the span round-trip;
+- the tracker's fingerprint, SHA-256 of the `unsigned_tx` span;
+- L1 and L2;
+- the splice of the submitted proof.
 
 ## Errors to expect
 
@@ -178,6 +223,18 @@ const { txId, nodeJson } = tx.signP2pkTransaction(t1, plan.inputs, secret);  // 
   - L2 passes on R1, R2 and R3 with the proofs verified;
   - the replay (R2 without #7) fails;
   - tampered copies fail.
-- **`p2pk.test.ts`:** the T1 payload (13 mutations), T1 against the chain, the T1 checks, dust and the cap, tokens, Withdraw, and the 16 KB guard.
+- **`p2pk.test.ts`:** the T1 payload (13 mutations), T1 against the chain, the T1 checks, dust and the cap, tokens, Withdraw, the 16 KB guard, and `P2PK_MAX_INPUTS` inputs fitting under it.
+- **`dryrun.test.ts`:** the tracker's own `unsigned_tx` (R3's dry run):
+  - it reads with our parser: one input, one data input, outputs 550000000 / 99000000 / 1000000, keys in Scala order 0,5,1,6,2,7,3,8,4;
+  - without whitespace, it equals the test kit's text byte for byte: field names, order and number format;
+  - it is R3 except for #6, the tracker's signature, which has a fresh nonce on every build;
+  - wrapped in a build answer, it passes L1 and L2.
+- **`devfixture.test.ts`:** both halves of the canary hook: names, sizes, the header, the origin, and no overwrite.
+
+**Beyond the design, confirmed 2026-11-22:**
+- the creation-height window;
+- the `recipient_address` check;
+- L2's whole-tree and total cross-checks;
+- dust at the cap lowers the amount.
 
 For UI work without the network, `syntheticRedemption({ first })` gives a build that passes L1, with known keys (secrets 2, 3 and 5), and `parts` you can mutate. Its AVL proofs are placeholders, so L2 refuses it. For a build that passes both L1 and L2, use `fixtures/r3-build.ts`; it cannot be signed, because the receiver key is not here.

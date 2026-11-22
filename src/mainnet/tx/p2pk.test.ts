@@ -11,8 +11,8 @@ import { ISSUER_A, RECEIVER_B, T1 } from "./fixtures/chain";
 import { parseJson, utf8Length } from "./json";
 import { nodeTxFromJson, type UnsignedTx } from "./model";
 import {
-  buildReserveCreation, buildWithdraw, checkReserveCreation, checkReservePayload, checkWithdraw, parseReservePayload, planReserveCreation, reserveRegisters, selectCoins,
-  signP2pkTransaction, verifyP2pkTransaction,
+  buildReserveCreation, buildWithdraw, checkReserveCreation, checkReservePayload, checkWithdraw, P2PK_MAX_INPUTS, parseReservePayload, planReserveCreation, reserveRegisters,
+  selectCoins, signP2pkTransaction, verifyP2pkTransaction,
 } from "./p2pk";
 import { computeTxId, serializeCandidate } from "./serialize";
 import { secretBytes, p2pkBox, trackerRefusal } from "./testkit";
@@ -185,6 +185,18 @@ describe("coins, signing and broadcast JSON (synthetic key)", () => {
     const sweep = buildWithdraw({ owner: me.pubHex, inputs: free, to, amount: 300_000_000n - FEE, fee: FEE, height });
     expect(sweep.outputs.length).toBe(2);
     expect(checkWithdraw(sweep, free, { owner: me.pubHex, to, amount: 300_000_000n - FEE, fee: FEE })).toEqual({ ok: true });
+  });
+
+  it(`${P2PK_MAX_INPUTS} inputs always fit the broadcast route, for T1 and for a Withdraw to P2PK, with 15 token types`, () => {
+    // The largest JSON: 19-digit token amounts, a 17-digit change (more than all ERG there is), the 10 ERG cap, 2M fee.
+    const tokens = Array.from({ length: 15 }, (_, i) => ({ tokenId: i.toString(16).padStart(2, "0").repeat(32), amount: (1n << 62n) + BigInt(i) }));
+    const big = 90_000_000n * ERG;
+    const inputs = Array.from({ length: P2PK_MAX_INPUTS }, (_, i) => p2pkBox(me.pubHex, i === 0 ? big : 100_000_000n, { index: i, tokens: i === 0 ? tokens : [] }));
+    const total = inputs.reduce((a, b) => a + b.value, 0n);
+    const t1 = buildReserveCreation({ owner: me.pubHex, inputs, amount: 10n * ERG, fee: 2_000_000n, height });
+    expect(String(t1.outputs[1].value).length).toBe(17);
+    const wd = buildWithdraw({ owner: me.pubHex, inputs, to: p2pkAddress(me.pubHex), amount: total / 2n, fee: 2_000_000n, height });
+    for (const tx of [t1, wd]) expect(utf8Length(signP2pkTransaction(tx, inputs, secret).nodeJson)).toBeLessThanOrEqual(BROADCAST_BODY_MAX_BYTES);
   });
 
   it("refuses to sign what the broadcast route would not take (16 KB)", () => {

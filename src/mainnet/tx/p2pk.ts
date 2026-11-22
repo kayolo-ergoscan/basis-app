@@ -57,6 +57,14 @@ export function mergedTokens(boxes: readonly { tokens: Token[] }[]): Token[] {
 
 // ─── coin selection ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Inputs a P2PK transaction can always have and still fit the 16 KB broadcast route: T1 (with its 764-byte reserve
+ * output) or a Withdraw to a P2PK address, with up to 15 token types in the change (tested at the largest values).
+ * When a selection needs more, or signing trips the 16 KB guard, combine small boxes first: a Withdraw to P2PK(owner)
+ * of at most this many boxes (README).
+ */
+export const P2PK_MAX_INPUTS = 50;
+
 export interface Selection {
   inputs: ErgoBox[];
   /** ERG left after `need`: 0, or at least MIN_BOX_NANOERG unless `dust` says otherwise. */
