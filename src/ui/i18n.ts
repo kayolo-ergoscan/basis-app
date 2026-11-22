@@ -54,6 +54,7 @@ const en = {
 
   "ui.key.again": "Press again to confirm",
   "ui.key.twice": "2 presses",
+  "ui.key.secs": "{v} s",
   "ui.key.holdHint": "Press and hold for {s} to confirm. Releasing early cancels.",
   "ui.key.confirmHint": "Press once, then press again to confirm.",
 
@@ -226,6 +227,7 @@ const ru: Record<string, string> = {
 
   "ui.key.again": "Нажмите ещё раз для подтверждения",
   "ui.key.twice": "2 нажатия",
+  "ui.key.secs": "{v} с",
   "ui.key.holdHint": "Нажмите и держите {s}, чтобы подтвердить. Если отпустить раньше — отмена.",
   "ui.key.confirmHint": "Нажмите один раз, затем ещё раз для подтверждения.",
 

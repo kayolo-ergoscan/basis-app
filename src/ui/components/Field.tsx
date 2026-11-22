@@ -1,7 +1,7 @@
 // Inputs (VISUAL §12.4): Field (label + control + help line), AmountInput (leading +, value, unit, Max), TextInput,
 // KeyField (counterparty: seal S, name, three words; pasting a 33-byte key resolves in place). Focus shows on the
 // whole field; errors are an alarm outline plus words that say what to do (no shaking, no modal).
-import { cloneElement, isValidElement, useId, useMemo, type InputHTMLAttributes, type ReactElement, type ReactNode } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, type InputHTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useT } from "@/app/lang";
 import { isHex } from "../engine/bytes";
 import { short } from "../engine/money";
@@ -87,22 +87,29 @@ export function KeyField({ value, onChange, resolve, invalid, placeholder, ...re
     if (isHex(v, 33) && (v.startsWith("02") || v.startsWith("03"))) return { name: t("ui.keyField.unknown"), pk: v.toLowerCase(), agent: false };
     return null;
   }, [v, resolve, t]);
+  // clearing a resolved contact brings the text input back: keep the keyboard focus on it
+  const inputRef = useRef<HTMLInputElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => { if (!hit && refocus.current) { refocus.current = false; inputRef.current?.focus(); } });
   if (hit) {
     return (
       <div className={["input", invalid && "err"].filter(Boolean).join(" ")} style={{ gap: 12 }}>
         <KeySeal pk={hit.pk} agent={hit.agent} size="sm" />
-        <span style={{ font: "600 16px var(--f-ui)", whiteSpace: "nowrap" }}>{hit.name}</span>
-        {hit.agent && <AgentTag small />}
-        <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={hit.pk}>
-          {threeWords(hit.pk).join(" · ")} · {short(hit.pk, 4, 4)}
-        </span>
-        <button type="button" className="key sm quiet icon-only" onClick={() => onChange("")} aria-label={t("ui.keyField.clear")}><Icon name="close" size={16} /></button>
+        {/* <output> is labelable: the Field label and help still point at the resolved value */}
+        <output id={rest.id} aria-describedby={rest["aria-describedby"]} style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+          <span style={{ font: "600 16px var(--f-ui)", whiteSpace: "nowrap" }}>{hit.name}</span>
+          {hit.agent && <AgentTag small />}
+          <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={hit.pk}>
+            {threeWords(hit.pk).join(" · ")} · {short(hit.pk, 4, 4)}
+          </span>
+        </output>
+        <button type="button" className="key sm quiet icon-only" onClick={() => { refocus.current = true; onChange(""); }} aria-label={t("ui.keyField.clear")}><Icon name="close" size={16} /></button>
       </div>
     );
   }
   return (
     <div className={["input", "mono", invalid && "err"].filter(Boolean).join(" ")}>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? t("ui.keyField.placeholder")} spellCheck={false} autoComplete="off" aria-invalid={invalid || undefined} {...rest} />
+      <input ref={inputRef} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? t("ui.keyField.placeholder")} spellCheck={false} autoComplete="off" aria-invalid={invalid || undefined} {...rest} />
     </div>
   );
 }

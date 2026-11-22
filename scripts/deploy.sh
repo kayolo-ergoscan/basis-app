@@ -7,7 +7,11 @@ set -euo pipefail
 [ "${SKIP_BUILD:-0}" = 1 ] || /root/basis/app/scripts/build.sh
 ts=$(date -u +%Y%m%d-%H%M%S)
 mkdir -p /opt/basis/releases
+# copy under the build lock so a concurrent scripts/build.sh (vite empties dist first) can never be half-copied
+exec 9>/root/basis/.build.lock
+flock -w 1200 9
 cp -a /root/basis/app/dist "/opt/basis/releases/$ts"
+flock -u 9
 [ -f "/opt/basis/releases/$ts/index.html" ] || { echo "no index.html in the build"; exit 1; }
 prev=$(readlink -f /opt/basis/www || true)
 if [ -n "$prev" ] && [ -d "$prev/assets" ]; then cp -an "$prev/assets/." "/opt/basis/releases/$ts/assets/" 2>/dev/null || true; fi

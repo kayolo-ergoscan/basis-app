@@ -129,7 +129,7 @@ function HoldKey({ ms, confirmPress, variant, size, block, tall, className, styl
   };
   useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(armT.current); }, []);
 
-  const secsText = `${(ms / 1000).toFixed(1)} s`;
+  const secsText = t("ui.key.secs", { v: (ms / 1000).toFixed(1) });
   const label = confirmPress && armed ? t("ui.key.again") : children;
   const handlers = confirmPress
     ? {

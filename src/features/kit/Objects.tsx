@@ -6,7 +6,7 @@ import {
   AgentTag, AmountInput, BackedTrustBar, Bytes, CapBar, Callout, Checks, Chip, CopyButton, CoverageMeter, CoverageTag, Countdown, Digest,
   Faces, FaceTabs, Field, GrowthPreview, Hex, Honest, Kbd, Key, KeyField, KeySeal, Lamp, Ledger, MiniCap, Note, NoteStack, NoteStub, NoteThumb,
   Num, Odometer, OdoLedger, Popover, Section, Seg, Sheet, Switch, Tabs, Tag, Tape, Tear, TextInput, TornNote, TrackerTile,
-  be, int, money, parseMoney, setUiSettings, short, signed, threeWords, toast, useLens, useUiSettings,
+  be, blk, int, money, parseMoney, setUiSettings, short, signed, threeWords, toast, useLens, useUiSettings,
   type LampState, type NoteState,
 } from "@/ui";
 import { NOTE_BC, NOTE_AB, NOTE_EB, DIGEST, KEY_AB, KEY_AB_HEX, PK, SIGS_AB, TRACKER_NFT, WALLET_ROWS, isAgent } from "./data";
@@ -100,7 +100,7 @@ function History() {
             <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
               <span className="check"><Lamp state="committed" /><b>{t("ui.checks.signed")}</b> Alice <span className="mono">· sig {short(SIGS_AB.sigA, 4, 3)} · 65 B</span></span>
               <span className="check"><Lamp state="committed" /><b>{t("ui.checks.witnessed")}</b> T-01 <span className="mono">· {t("kit.hist.cosig")}</span></span>
-              <span className="check"><Lamp state="committed" /><b>{t("kit.hist.inDigest")}</b> <span className="mono">· 9f3c…e1 · 37 blk</span></span>
+              <span className="check"><Lamp state="committed" /><b>{t("kit.hist.inDigest")}</b> <span className="mono">· 9f3c…e1 · {blk(37, t.lang)}</span></span>
             </div>
           </div>
         }
@@ -257,8 +257,8 @@ function ChipsCard() {
       <div className="card"><div className="card-b" style={{ display: "grid", gap: 18 }}>
         <div className="kit-row">
           <Chip lamp="live" label="Ergo" value={int(1921860)} />
-          <Chip lamp="committed" label="T-01" value="37 blk" />
-          <Chip lamp="stale" label="T-02" value="812 blk" />
+          <Chip lamp="committed" label="T-01" value={blk(37, t.lang)} />
+          <Chip lamp="stale" label="T-02" value={blk(812, t.lang)} />
           <Chip lamp="signed" label={t("kit.sandbox")} />
         </div>
         <div className="kit-row">
