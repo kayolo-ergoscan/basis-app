@@ -1,0 +1,130 @@
+{
+  "R1": {
+    "txId": "72a41040dd0f8999bba988ab03ff27c93d31a44d1a5b6e93e324167bad1a4f8e",
+    "inclusionHeight": 1922325,
+    "input0BoxId": "d0b189fe021d7a5a57940f07df8ffede8db84086a83be9419df4864617467b14",
+    "extensionSerializationOrder": [
+      {
+        "key": 0,
+        "value": "0200"
+      },
+      {
+        "key": 5,
+        "value": "0e46020000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000004"
+      },
+      {
+        "key": 1,
+        "value": "0702148f7e4215d2545a5814f687cf759ced024aab71d90c7bf9c93fef3f9abc7cd8"
+      },
+      {
+        "key": 6,
+        "value": "0e410396cc55e6c1f55f62435475548776ebe8b187d681461fb8cff860d23232eced7f082c0e346bd7198f9d2ddae31825c1e239ceee2ce083bf76523b27cbac2344c8"
+      },
+      {
+        "key": 2,
+        "value": "0e4102092b557fbf577c8767a3958603cbde5c28f572118586bf6dd12a15e6b0ba6040341c77bdc76934480e34270f3c0c95ee4190498b1233879afe174c3245fac67c"
+      },
+      {
+        "key": 3,
+        "value": "05808c8d9e02"
+      },
+      {
+        "key": 8,
+        "value": "0e71039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000080000000011e1a300000400"
+      },
+      {
+        "key": 4,
+        "value": "05aebeebb4c068"
+      }
+    ],
+    "source": "basis_canary log of the submitted run (order as signed and accepted); values cross-checked with the node's /blockchain/transaction/byId"
+  },
+  "R2": {
+    "txId": "cb4b9f3bb7669ba75efdf59d19dcb0baab65fb1c225ae5a6ecc0e081429b01ad",
+    "inclusionHeight": 1922336,
+    "input0BoxId": "450d5ff6c31bda68e9db3ad323550b904576e1e9138fbc19d74d8a47cde18eaf",
+    "extensionSerializationOrder": [
+      {
+        "key": 0,
+        "value": "0200"
+      },
+      {
+        "key": 5,
+        "value": "0e79039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000010000001a2034d6f970000000005f5e100000400"
+      },
+      {
+        "key": 1,
+        "value": "0702148f7e4215d2545a5814f687cf759ced024aab71d90c7bf9c93fef3f9abc7cd8"
+      },
+      {
+        "key": 6,
+        "value": "0e41037c39b9e64e381cdb170b90852da67b8f0d74ccd31c25ff31469046e12c12966e14723386268bd19d6c77dece65140c76daad27c05b87573a43f341fddfa0a08a"
+      },
+      {
+        "key": 2,
+        "value": "0e4103db30283aa666466c9ff322abb2d69a7d796d131e947a76d2d9f2bc8490130062044590cac049c013bf67f7a050867d55cb15c55e3e0bbf4081b06f4fc818cd24"
+      },
+      {
+        "key": 7,
+        "value": "0e79039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000010000001a2034d6f970000000005f5e100000400"
+      },
+      {
+        "key": 3,
+        "value": "058094ebdc03"
+      },
+      {
+        "key": 8,
+        "value": "0e71039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000008000000001dcd6500000400"
+      },
+      {
+        "key": 4,
+        "value": "058883ccb6c068"
+      }
+    ],
+    "source": "basis_canary log of the submitted run (order as signed and accepted); values cross-checked with the node's /blockchain/transaction/byId"
+  },
+  "R3": {
+    "txId": "e7c18808d210ec87df2bece213fc6dc448e3292bf98d4ec737ee70eeb18ba520",
+    "inclusionHeight": 1922369,
+    "input0BoxId": "b05b94a2c7df8cf7ffb3c1b3663b6658a86a52c51340e70fa9c4785251e511b1",
+    "extensionSerializationOrder": [
+      {
+        "key": 0,
+        "value": "0200"
+      },
+      {
+        "key": 5,
+        "value": "0e79039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000010000001a2036980c40000000014dc9380000400"
+      },
+      {
+        "key": 1,
+        "value": "0702148f7e4215d2545a5814f687cf759ced024aab71d90c7bf9c93fef3f9abc7cd8"
+      },
+      {
+        "key": 6,
+        "value": "0e4103ae2cb57bb61182143249b8fe12c83a6ca1c523cda48ae3c65336f500c85928df0584d0f834f3d91208028b906c33c3c9d07d92f529d5328d7f946f7a48e4523f"
+      },
+      {
+        "key": 2,
+        "value": "0e4102be923cb90b7c1cb73d8c7a0b9d1d8dc402d06d238126a8ae6018beac3c65d5891eee93778face4fca1d48073c6794135ad550c2b3c7f836ea4c9c64bee33b790"
+      },
+      {
+        "key": 7,
+        "value": "0e79039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000010000001a2036980c40000000014dc9380000400"
+      },
+      {
+        "key": 3,
+        "value": "0580989abc04"
+      },
+      {
+        "key": 8,
+        "value": "0e71039a2ce9145979d593e72671d0e92d80278775478eb91eb40d6d059e55d5db57b8029ac9b72dde2cfdfa3084fb5f39510aa10b88d5b59bac355ef0e8240c8cbd459fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000080000000023c34600000400"
+      },
+      {
+        "key": 4,
+        "value": "05bc8ce7bac068"
+      }
+    ],
+    "source": "basis_canary log of the submitted run (order as signed and accepted); values cross-checked with the node's /blockchain/transaction/byId"
+  }
+}
