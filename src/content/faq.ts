@@ -177,7 +177,7 @@ export const faq: Faq[] = [
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
     tags: ["status"],
-    links: [{ label: t("Mainnet observatory", "Обсерватория mainnet"), to: "/network" }],
+    links: [{ label: t("Open the network", "Открыть сеть"), to: "/network" }],
     sources: ["bt-15", "f5368-1", "tg-1675", "bt-spec-compiled"],
   },
   {
