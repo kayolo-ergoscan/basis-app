@@ -293,7 +293,7 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               ...(r.issues.length ? [[t("network.rv.issues"), <span className="nw-issues">{r.issues.map((i) => <code key={i}>{i}</code>)}</span>] as [ReactNode, ReactNode]] : []),
             ]} />
           </Block>
-          <TopUpClosed />
+          <TopUpClosed current={!!r.contract?.current} />
         </aside>
       </div>
     </>

@@ -322,14 +322,15 @@ export function exitSub(obs: Observatory, cls: ExitClass, lang: Lang): string {
   return parts.join(" · ");
 }
 
-/** The one metal key of the view, disabled: topping up a legacy test reserve would lock real money. */
-export function TopUpClosed() {
+/** The one metal key of the view, disabled: the site has no top-up yet. On a current-contract reserve page it says who
+ *  may top up (basis.es action #1: anyone, ≥ 0.1 ERG, no signature); elsewhere, why the legacy test reserves should not be. */
+export function TopUpClosed({ current = false }: { current?: boolean }) {
   const t = useT();
   const lang = t.lang as Lang;
   return (
     <div className="nw-topup">
       <Key variant="metal" icon="coin" disabled aria-disabled="true" aria-describedby="nw-topup-why">{t("network.topup.key")}</Key>
-      <p id="nw-topup-why"><b>{pick(copy.topUpClosed, lang)}</b> {t("network.topup.why")}</p>
+      <p id="nw-topup-why"><b>{pick(copy.topUpClosed, lang)}</b> {t(current ? "network.topup.whyCurrent" : "network.topup.why")}</p>
     </div>
   );
 }

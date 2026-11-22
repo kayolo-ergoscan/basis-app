@@ -67,8 +67,8 @@ export const copy = {
   ),
   currentContractsEmpty: t("No reserve under the current contracts yet.", "Под текущими контрактами резервов пока нет."),
   topUpClosed: t(
-    "Top up opens when a reserve under the current contract exists.",
-    "Пополнение станет доступно, когда появится резерв под текущим контрактом.",
+    "Top-up is not on this site yet.",
+    "Пополнения на этом сайте пока нет.",
   ),
   legacyBadge: t("legacy contract", "старый контракт"),
 
