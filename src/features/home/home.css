@@ -132,7 +132,14 @@
 .home-mgrid p { margin: 0; font: 400 14.5px/1.5 var(--f-ui); color: var(--ink-2); }
 .home-mgrid p b { color: var(--ink); font-weight: 600; }
 .home-mgrid p code { font: 400 .9em/1 var(--f-mono); color: var(--ink); background: var(--well); padding: 1px 4px; border-radius: 3px; }
-.home-mgrid .fact { margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--rule-2); font: 400 11.5px/1.45 var(--f-mono); color: var(--ink-3); }
+.home-mgrid .fact-d { margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--rule-2); }
+.home-mgrid .fact-d > summary { cursor: pointer; list-style: none; font: 500 12.5px/1.4 var(--f-ui); color: var(--ink-3); width: fit-content; border-radius: 4px; }
+.home-mgrid .fact-d > summary::-webkit-details-marker { display: none; }
+.home-mgrid .fact-d > summary::after { content: " +"; font-family: var(--f-mono); }
+.home-mgrid .fact-d[open] > summary::after { content: " −"; }
+.home-mgrid .fact-d > summary:hover { color: var(--ink); }
+.home-mgrid .fact-d > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.home-mgrid .fact { margin-top: 8px; font: 400 11.5px/1.45 var(--f-mono); color: var(--ink-3); }
 .home-mgrid .m-ch { font-size: 13px; color: var(--ink-3); }
 .home-mgrid .m-ch:hover { color: var(--ink); }
 .mini-act { display: grid; gap: 10px; justify-items: start; align-content: start; }
@@ -141,7 +148,7 @@
   @media (min-width: 641px) {
     .home-mgrid { row-gap: 0; }
     .home-mgrid .moment { display: grid; grid-row: span 7; grid-template-rows: subgrid; row-gap: 14px; align-content: start; }
-    .home-mgrid .moment > .fact { margin-top: 0; }
+    .home-mgrid .moment > .fact-d { margin-top: 0; }
     .home-mgrid .moment > .m-ch { justify-self: start; align-self: start; }
   }
 }

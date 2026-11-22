@@ -1,9 +1,10 @@
 // Home strings: both languages, the copy rules (PRODUCT §1), and the first screen a newcomer reads — what it is and why
 // in two sentences, one main button «Начать здесь»/Start here to the sandbox, the sandbox wallet named honestly.
 import { describe, expect, it } from "vitest";
-import { CLIENTS_HREF, faq } from "@/content";
+import { CLIENTS_HREF, faq, moments } from "@/content";
 import { FAQ_HREF, faqHref, HOME_FAQ } from "./Faq";
 import heroSrc from "./Hero.tsx?raw";
+import momentsSrc from "./Moments.tsx?raw";
 import pageSrc from "./Page.tsx?raw";
 import spectrumSrc from "./Spectrum.tsx?raw";
 import i18n from "./i18n";
@@ -87,5 +88,21 @@ describe("questions forward", () => {
     expect(plain(f.short.ru)).toMatch(/^Не на этом сайте: его кошелёк — песочница с игровыми деньгами\./);
     expect(plain(f.short.en)).toMatch(/experimental: use small amounts only\.$/);
     expect(f.links?.map((l) => l.to)).toEqual(["/network", CLIENTS_HREF]);
+  });
+});
+
+describe("five moments", () => {
+  it("the protocol formulas sit under «Подробнее для разработчиков»/For developers, folded (М8)", () => {
+    expect(momentsSrc).toMatch(/<details className="fact-d">\s*<summary>\{t\("home\.m\.dev"\)\}<\/summary>\s*<div className="fact">/);
+    expect(momentsSrc).not.toMatch(/<details className="fact-d" open/);
+    expect([EN["home.m.dev"], RU["home.m.dev"]]).toEqual(["For developers", "Подробнее для разработчиков"]);
+  });
+
+  it("each moment is two sentences, and «Доверие» says what the digest proves and what it does not", () => {
+    const sentences = (s: string) => plain(s).split(/(?<=[.!?])\s+/).filter(Boolean);
+    for (const m of moments) for (const lang of ["en", "ru"] as const) expect([m.id, lang, sentences(m.text[lang]).length]).toEqual([m.id, lang, 2]);
+    const trust = moments.find((m) => m.id === "trust")!;
+    expect(plain(trust.text.ru)).toBe("Раз в несколько минут трекер записывает в Ergo короткий отпечаток всех расписок — дайджест. По нему любой проверит, что расписка учтена, но не то, хватит ли у должника денег.");
+    expect(plain(trust.text.en)).toBe("Every few minutes the tracker writes a short fingerprint of all notes to Ergo: the digest. Anyone can use it to check that a note is counted, but not whether the payer can pay.");
   });
 });

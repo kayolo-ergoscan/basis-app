@@ -62,8 +62,8 @@ export const copy = {
     ),
   asOfBlock: (h: number): Text => t(`as of block ${height(h)}`, `на блоке ${height(h)}`),
   mainnetHonest: t(
-    "Basis on mainnet is still experimental. The early test reserves sit under older contract versions; ErgoScan's tracker has run in beta since 22 November 2026, and reserves under the current contracts can bind to it.",
-    "Basis в mainnet пока экспериментальный. Ранние тестовые резервы лежат под старыми версиями контракта; трекер ErgoScan работает в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами.",
+    "On Ergo mainnet, Basis is still an experiment. The early test reserves here are on older contract versions. Since 22 November 2026, ErgoScan's tracker has run in beta, and reserves on the current contracts can connect to it.",
+    "В основной сети Basis пока эксперимент. Ранние тестовые резервы здесь — на старых версиях контракта. С 22 ноября 2026 года работает трекер ErgoScan (бета): к нему можно подключать резервы на текущих контрактах.",
   ),
   currentContractsEmpty: t("No reserve under the current contracts yet.", "Под текущими контрактами резервов пока нет."),
   topUpClosed: t(

@@ -118,6 +118,7 @@ export default {
     "home.m.redeem.empty": "Nothing left to redeem against this note.",
     "home.m.redeem.alt": "Bob tears {v} off the note and takes it from Alice's reserve.",
     "home.m.chapter": "Read more",
+    "home.m.dev": "For developers",
 
     // 02 doors
     "home.d.no": "Doors",
@@ -186,7 +187,7 @@ export default {
     "home.n.ergoscan": "on ergoscan.me",
 
     // spectrum + personas
-    "home.s.no": "Line → Metal",
+    "home.s.no": "On trust → Backed",
     "home.s.pick": "Where a note sits",
     "home.s.policy": "Policy",
     "home.s.chain": "On chain",
@@ -320,6 +321,7 @@ export default {
     "home.m.redeem.empty": "По этой расписке погашать больше нечего.",
     "home.m.redeem.alt": "Боб отрывает от расписки {v} и забирает их из резерва Алисы.",
     "home.m.chapter": "Читать подробнее",
+    "home.m.dev": "Подробнее для разработчиков",
 
     "home.d.no": "Двери",
     "home.d.title": "Три двери. *Выбирайте любую.*",
@@ -396,7 +398,7 @@ export default {
     "home.n.go": "Открыть сеть",
     "home.n.ergoscan": "на ergoscan.me",
 
-    "home.s.no": "Линия → Металл",
+    "home.s.no": "На доверии → С резервом",
     "home.s.pick": "Где находится расписка",
     "home.s.policy": "Политика",
     "home.s.chain": "В блокчейне",
