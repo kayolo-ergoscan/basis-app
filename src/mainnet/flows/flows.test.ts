@@ -6,12 +6,16 @@ import { bytesToHex } from "../../protocol/bytes";
 import {
   MINER_FEE_NANOERG, P2PK_MAX_INPUTS, RESERVE_TREE_HEX, TRACKER_NFT, checkReserveCreation, checkWithdraw, noteMessage, p2pkAddress, p2pkTree,
   parseStoredNote, publicKeyOf, reserveAddress, verifyBasis, buildReserveCreation, parseJson, checkRedemption, parseBuildResponse, redemptionSubmitBody, signRedemption,
+  type StoredNote,
 } from "../tx";
+import type { JournalEntry, JournalState } from "../vault";
 import { p2pkBox, secretBytes, syntheticRedemption } from "../tx/testkit";
 import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
-import { coverage, needsPassphrase, noteBody, noteTimestamp, pairStateOf, signNote } from "./notes";
+import {
+  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, needsPassphrase, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
+} from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf } from "./redeem";
 import { depthAt, nextTrackState } from "./track";
@@ -100,6 +104,78 @@ describe("notes", () => {
     expect(needsPassphrase(250_000_000n, 1_000_000_000n)).toBe(false);
     expect(needsPassphrase(250_000_001n, 1_000_000_000n)).toBe(true);
     expect(needsPassphrase(1n, 0n)).toBe(true);
+  });
+});
+
+describe("the pair's previous note, before a new one is signed on top of it", () => {
+  const NOW = T0;
+  const stored = (o: Partial<StoredNote> = {}, signedTotal?: bigint): StoredNote => {
+    const total = o.amountCollected ?? 500_000_000n;
+    const ts = o.timestamp ?? BigInt(NOW - 60_000);
+    const sig = signNote(SK_A, { issuer: A, recipient: B, total: signedTotal ?? total, timestamp: ts }).signature;
+    return { issuer: A, recipient: B, amountCollected: total, amountRedeemed: 100_000_000n, timestamp: ts, signature: sig, trackerNft: TRACKER_NFT, denomination: "erg", confirmation: null, ...o };
+  };
+  const want = (accepted = 0n) => ({ issuer: A, recipient: B, accepted, serverNowMs: NOW });
+  let n = 0;
+  const entry = (state: JournalState, total: bigint, o: { attempts?: number; to?: string; pub?: string; sig?: string; ts?: bigint } = {}): JournalEntry => {
+    n++;
+    return {
+      v: 1, id: `e${n}`, kind: "note", pub: o.pub ?? A, state, txId: null, signedRaw: "{}", unsignedRaw: null, inputs: [], createdAt: n, updatedAt: n,
+      sendAttempts: o.attempts ?? 1, firstSendAt: null, lastSendAt: null, lastHeight: null, inclusionHeight: null, error: null, retiredAt: null,
+      meta: { to: o.to ?? B, total: total.toString(), ts: String(o.ts ?? BigInt(NOW - 1000 + n)), sig: o.sig ?? "ab".repeat(65), status: "draft" },
+    };
+  };
+
+  it("a note of this key passes, with what it says; none is fine only when the journal knows of no accepted one", () => {
+    const s = stored();
+    expect(checkPreviousNote(s, want())).toEqual({ ok: true, prev: { total: 500_000_000n, redeemed: 100_000_000n, timestamp: s.timestamp, signature: s.signature } });
+    expect(checkPreviousNote(null, want())).toEqual({ ok: true, prev: null });
+    expect(checkPreviousNote(null, want(1n))).toMatchObject({ ok: false, rule: "prev-missing" });
+  });
+
+  it("an inflated total, a foreign or broken signature, another tracker, another pair or token: refused", () => {
+    // the attack of P0-1: the tracker raises amount_collected, the signature is still the one over the real total
+    expect(checkPreviousNote(stored({ amountCollected: 50_000_000_000n }, 1_000_000_000n), want())).toMatchObject({ ok: false, rule: "prev-signature" });
+    const otherKey = signNote(SK_B, { issuer: B, recipient: A, total: 500_000_000n, timestamp: BigInt(NOW - 60_000) }).signature;
+    expect(checkPreviousNote(stored({ signature: otherKey }), want())).toMatchObject({ ok: false, rule: "prev-signature" });
+    expect(checkPreviousNote(stored({ signature: "00".repeat(65) }), want())).toMatchObject({ ok: false, rule: "prev-signature" });
+    expect(checkPreviousNote(stored({ timestamp: BigInt(NOW - 59_000) }, undefined), want()).ok).toBe(true);
+    const moved = stored();
+    expect(checkPreviousNote({ ...moved, timestamp: moved.timestamp + 1n }, want())).toMatchObject({ ok: false, rule: "prev-signature" });
+    expect(checkPreviousNote(stored({ trackerNft: "11".repeat(32) }), want())).toMatchObject({ ok: false, rule: "prev-tracker" });
+    expect(checkPreviousNote(stored({ denomination: "token" }), want())).toMatchObject({ ok: false, rule: "prev-denomination" });
+    expect(checkPreviousNote(stored({ recipient: A }), want())).toMatchObject({ ok: false, rule: "prev-pair" });
+    expect(checkPreviousNote(stored(), { ...want(), issuer: B })).toMatchObject({ ok: false, rule: "prev-pair" });
+  });
+
+  it("dated after the tracker's clock (beyond the margin) or older than what the tracker took from this browser: refused", () => {
+    expect(checkPreviousNote(stored({ timestamp: BigInt(NOW + PREV_NOTE_AHEAD_MS) }), want()).ok).toBe(true);
+    expect(checkPreviousNote(stored({ timestamp: BigInt(NOW + PREV_NOTE_AHEAD_MS + 1) }), want())).toMatchObject({ ok: false, rule: "prev-ahead" });
+    expect(checkPreviousNote(stored(), want(500_000_000n)).ok).toBe(true);
+    expect(checkPreviousNote(stored(), want(500_000_001n))).toMatchObject({ ok: false, rule: "prev-older" });
+  });
+
+  it("the journal: accepted = the highest sent, committed or final total; uncertain = sent once without an answer", () => {
+    const list = [
+      entry("final", 300_000_000n), entry("sent", 500_000_000n), entry("failed", 900_000_000n), entry("abandoned", 950_000_000n),
+      entry("signed", 800_000_000n, { attempts: 0 }), entry("signed", 700_000_000n), entry("signed", 750_000_000n),
+      entry("confirmed", 990_000_000n, { to: "02" + "77".repeat(32) }), entry("sent", 999_000_000n, { pub: B }),
+    ];
+    const pj = pairJournalOf(list, A, B);
+    expect(pj.accepted).toBe(500_000_000n);
+    expect(pj.uncertain.map((e) => e.meta.total)).toEqual(["750000000", "700000000"]);
+    expect(pairJournalOf([], A, B)).toEqual({ accepted: 0n, uncertain: [] });
+    expect(noteEntryFields({ ...list[0], meta: { to: B, total: "1e9", ts: "1", sig: "x" } })).toBeNull();
+  });
+
+  it("a stored note is a recorded one only with the same total, timestamp and signature", () => {
+    const s = stored();
+    const e = entry("signed", s.amountCollected, { ts: s.timestamp, sig: s.signature });
+    expect(storedIsEntry(s, e)).toBe(true);
+    expect(storedIsEntry({ ...s, amountCollected: s.amountCollected + 1n }, e)).toBe(false);
+    expect(storedIsEntry({ ...s, timestamp: s.timestamp + 1n }, e)).toBe(false);
+    expect(storedIsEntry({ ...s, signature: "cd".repeat(65) }, e)).toBe(false);
+    expect(storedIsEntry({ ...s, recipient: A }, e)).toBe(false);
   });
 });
 

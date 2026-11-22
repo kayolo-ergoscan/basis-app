@@ -2,7 +2,8 @@
 // tracker accepts (after the pair's last note, not after its own clock), the signature over the 80-byte message and the
 // `POST /notes` body as a string. Coverage and the passphrase rule are wallet policy, not contract rules.
 import { bytesToHex } from "../../protocol/bytes";
-import { TRACKER_NFT, jsonString, noteMessage, signBasis, type StoredNote } from "../tx";
+import { TRACKER_NFT, jsonString, noteMessage, signBasis, verifyBasis, type StoredNote } from "../tx";
+import type { JournalEntry } from "../vault";
 import type { NoteReceipt } from "./receipt";
 
 /** The note's state at the tracker before this one: what the pair already owes, and the last timestamp. */
@@ -55,3 +56,85 @@ export function coverage(collateral: bigint, outstanding: bigint): number | null
 
 /** Design §4.2: ask for the passphrase again when one signature promises more than 25 % of the reserve. */
 export const needsPassphrase = (added: bigint, reserve: bigint): boolean => reserve <= 0n || added * 4n > reserve;
+
+// ─── the pair's previous note (keys review P0-1, money review P1-1) ──────────────────────────────
+
+/** A previous note may be dated at most this much after our reading of the tracker's clock: the tracker refuses any
+ *  note later than its own clock, and our reading runs up to 1 s behind it, plus the answer's travel time. */
+export const PREV_NOTE_AHEAD_MS = 5_000;
+
+/** A note entry's fields as Pay records them (meta.to, total, ts, sig), or null for an entry without them. */
+export function noteEntryFields(e: JournalEntry): { to: string; total: bigint; timestamp: bigint; signature: string } | null {
+  const m = e.meta;
+  if (e.kind !== "note" || typeof m.to !== "string" || typeof m.total !== "string" || typeof m.ts !== "string" || typeof m.sig !== "string") return null;
+  if (!/^\d{1,19}$/.test(m.total) || !/^\d{1,19}$/.test(m.ts)) return null;
+  return { to: m.to, total: BigInt(m.total), timestamp: BigInt(m.ts), signature: m.sig };
+}
+
+/** What this browser's journal knows of one pair (issuer → recipient). */
+export interface PairJournal {
+  /** The highest total of a note the tracker took (sent, in a commit, committed): it must show at least this. */
+  accepted: bigint;
+  /** Notes sent at least once without an answer (still "signed"): they may be at the tracker. Newest first. */
+  uncertain: JournalEntry[];
+}
+
+export function pairJournalOf(entries: readonly JournalEntry[], issuer: string, recipient: string): PairJournal {
+  let accepted = 0n;
+  const uncertain: JournalEntry[] = [];
+  for (const e of entries) {
+    if (e.pub !== issuer) continue;
+    const f = noteEntryFields(e);
+    if (!f || f.to !== recipient) continue;
+    if (e.state === "sent" || e.state === "mempool" || e.state === "confirmed" || e.state === "final") {
+      if (f.total > accepted) accepted = f.total;
+    } else if (e.state === "signed" && e.sendAttempts > 0) uncertain.push(e);
+  }
+  uncertain.sort((a, b) => b.createdAt - a.createdAt);
+  return { accepted, uncertain };
+}
+
+/** True when the tracker's stored note is exactly this recorded note: same pair, total, timestamp and signature. */
+export function storedIsEntry(n: StoredNote, e: JournalEntry): boolean {
+  const f = noteEntryFields(e);
+  return !!f && n.issuer === e.pub && n.recipient === f.to && n.amountCollected === f.total && n.timestamp === f.timestamp && n.signature === f.signature;
+}
+
+export type PrevNoteRule = "prev-pair" | "prev-denomination" | "prev-tracker" | "prev-signature" | "prev-ahead" | "prev-older" | "prev-missing";
+
+/** The previous note, checked: its total, what was redeemed of it, its timestamp and its signature. */
+export interface CheckedPrev extends PairState { signature: string }
+
+export type PrevNoteCheck = { ok: true; prev: CheckedPrev | null } | { ok: false; rule: PrevNoteRule; message: string };
+
+/**
+ * Before a new note is signed on top of the pair's previous one: the tracker's answer must be a note of this key (its
+ * signature over the 80-byte message verifies), ERG, bound to our tracker's NFT, dated no later than the tracker's
+ * clock, and not older than the newest note the tracker took from this browser (`accepted`, from the journal). A pair
+ * without a note is fine only when the journal knows of no accepted one. Then "note so far" is a fact, not a claim:
+ * the tracker cannot make this key sign a total it never promised.
+ */
+export function checkPreviousNote(note: StoredNote | null, want: { issuer: string; recipient: string; accepted: bigint; serverNowMs: number }): PrevNoteCheck {
+  if (note === null) {
+    return want.accepted > 0n
+      ? { ok: false, rule: "prev-missing", message: `the tracker shows no note for this pair, but it took one of ${want.accepted} nanoERG from this browser` }
+      : { ok: true, prev: null };
+  }
+  if (note.issuer !== want.issuer || note.recipient !== want.recipient) return { ok: false, rule: "prev-pair", message: "the tracker answered for another pair of keys" };
+  if (note.denomination !== "erg") return { ok: false, rule: "prev-denomination", message: `the note is in ${note.denomination}, not ERG` };
+  if (note.trackerNft !== TRACKER_NFT) return { ok: false, rule: "prev-tracker", message: `the note is bound to tracker NFT ${note.trackerNft}` };
+  let signed = false;
+  try {
+    const message = noteMessage({ issuer: note.issuer, recipient: note.recipient, totalDebt: note.amountCollected, timestamp: note.timestamp, trackerNft: TRACKER_NFT });
+    signed = verifyBasis(note.issuer, message, note.signature);
+  } catch {
+    signed = false;
+  }
+  if (!signed) return { ok: false, rule: "prev-signature", message: `the stored signature does not cover total ${note.amountCollected} at timestamp ${note.timestamp} under this key` };
+  const latest = BigInt(Math.max(0, Math.floor(want.serverNowMs))) + BigInt(PREV_NOTE_AHEAD_MS);
+  if (note.timestamp > latest) return { ok: false, rule: "prev-ahead", message: `the note is dated ${note.timestamp}, after the tracker's clock (about ${Math.floor(want.serverNowMs)})` };
+  if (note.amountCollected < want.accepted) {
+    return { ok: false, rule: "prev-older", message: `the tracker shows total ${note.amountCollected}, below ${want.accepted} it took from this browser` };
+  }
+  return { ok: true, prev: { total: note.amountCollected, redeemed: note.amountRedeemed, timestamp: note.timestamp, signature: note.signature } };
+}
