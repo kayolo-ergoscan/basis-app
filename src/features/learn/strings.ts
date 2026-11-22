@@ -419,6 +419,14 @@ const en: Record<string, string> = {
   "learn.api.codes": "Status codes",
   "learn.api.limits": "Limits",
   "learn.api.clear": "Clear the filter",
+  "learn.api.s.clients": "Ready-made *programs.*",
+  "learn.api.cl.addr": "ErgoScan's tracker address for them",
+  "learn.api.cl.copy": "Copy the address",
+  "learn.api.cl.with": "With ErgoScan's tracker",
+  "learn.api.cl.yes": "Accepted",
+  "learn.api.cl.no": "Not accepted",
+  "learn.api.cl.code": "Code: {crate} at commit {ref}",
+  "learn.api.cl.routes": "What ErgoScan's tracker accepts from them",
 
   // ---------- history ----------
   "learn.hi.asOf": "As of {date}",
@@ -897,6 +905,14 @@ const ru: Record<string, string> = {
   "learn.api.codes": "Коды ответа",
   "learn.api.limits": "Лимиты",
   "learn.api.clear": "Сбросить фильтр",
+  "learn.api.s.clients": "Готовые *программы.*",
+  "learn.api.cl.addr": "Адрес трекера ErgoScan для них",
+  "learn.api.cl.copy": "Скопировать адрес",
+  "learn.api.cl.with": "С трекером ErgoScan",
+  "learn.api.cl.yes": "Принимается",
+  "learn.api.cl.no": "Не принимается",
+  "learn.api.cl.code": "Код: {crate} на коммите {ref}",
+  "learn.api.cl.routes": "Что трекер ErgoScan принимает от них",
 
   // ---------- history ----------
   "learn.hi.asOf": "На {date}",

@@ -74,7 +74,7 @@ export const clientPrograms: ClientProgram[] = [
     does: [
       t("Accounts, issuing and receiving notes", "Аккаунты, выпуск и получение расписок"),
       t("Creating and watching reserves", "Создание резервов и наблюдение за ними"),
-      t("Redeeming, and the acceptance policy", "Погашение и политика приёма"),
+      t("Redeeming and the acceptance policy", "Погашение и политика приёма"),
       t("A main menu with assets, liabilities, net position and reserve coverage", "Главное меню: активы, обязательства, чистая позиция и покрытие резервом"),
       t("Warnings below 150 %, 120 % and 100 % coverage", "Предупреждения при покрытии ниже 150 %, 120 % и 100 %"),
     ],
@@ -140,8 +140,8 @@ export const clients = {
       title: t("Creating a reserve", "Создание резерва"),
       endpoints: ["reserves-create"],
       text: t(
-        "The tracker returns a payment request, and the program sends it to your own Ergo node's wallet (`node_url` and `node_api_key` in cli.toml). That wallet must be the reserve owner's, so you need your own node with a wallet.",
-        "Трекер возвращает платёжный запрос, а программа отправляет его в кошелёк вашего узла Ergo (`node_url` и `node_api_key` в cli.toml). Этот кошелёк должен принадлежать владельцу резерва, так что нужен свой узел с кошельком.",
+        "The tracker returns a payment request, and the program sends it to your own Ergo node's wallet (`node_url` and `node_api_key` in `cli.toml`). That wallet must be the reserve owner's, so you need your own node with a wallet.",
+        "Трекер возвращает платёжный запрос, а программа отправляет его в кошелёк вашего узла Ergo (`node_url` и `node_api_key` в `cli.toml`). Этот кошелёк должен принадлежать владельцу резерва, так что нужен свой узел с кошельком.",
       ),
     },
   ] satisfies ClientRouteGroup[],

@@ -1,10 +1,12 @@
-// /learn/api — the reference tracker's HTTP API (content trackerApi.ts): basics (envelope, auth, codes, limits), the
-// traps, and every endpoint grouped, searchable, deep-linkable (#ep-<id>), with request/response examples.
+// /learn/api — the reference tracker's HTTP API (content trackerApi.ts): first the ready-made programs that already
+// speak it and what ErgoScan's tracker accepts from them (#clients, ApiClients.tsx), then the basics (envelope, auth,
+// codes, limits), the traps, and every endpoint grouped, searchable, deep-linkable (#ep-<id>), with examples.
 import { useEffect, useMemo, useState } from "react";
 import { rich, useT } from "@/app";
 import { Callout, CopyButton, Icon, Key, TextInput, int } from "@/ui";
 import { apiEndpoints, apiGroups, pick, trackerApi, type ApiEndpoint } from "@/content";
 import { BookHead, Pager, Sec, SourceLinks, inline, plainTitle, useBookSections } from "../layout";
+import { ApiClients, CLIENTS_SECTION } from "./ApiClients";
 
 /** A one-line JSON body longer than a panel reads better indented; anything else (GET lines, shaped text) stays as written. */
 function pretty(x: string): string {
@@ -29,6 +31,7 @@ export default function ApiPage() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
   useBookSections([
+    { id: CLIENTS_SECTION, label: plainTitle(t("learn.api.s.clients")) },
     { id: "basics", label: plainTitle(t("learn.api.s.basics")) },
     { id: "gotchas", label: plainTitle(t("learn.api.s.gotchas")) },
     { id: "endpoints", label: plainTitle(t("learn.api.s.endpoints")) },
@@ -44,7 +47,9 @@ export default function ApiPage() {
     <article>
       <BookHead id="api" lede={P(trackerApi.lede)} meta={<span className="label">{t.p("learn.ix.count.api", apiEndpoints.length)}</span>} />
 
-      <Sec id="basics" first title={rich(t("learn.api.s.basics"))}>
+      <ApiClients />
+
+      <Sec id="basics" title={rich(t("learn.api.s.basics"))}>
         <Callout tone="calm" className="lrn-callout">{P(trackerApi.noPublicTracker)} {P(trackerApi.illustrative)}</Callout>
         <div className="api-ref cols" style={{ marginTop: 20 }}>
           <div>
