@@ -1,7 +1,8 @@
 // src/chain/ours — our Basis tracker on Ergo mainnet (ErgoScan, beta since 2026-11-22), read-only.
 // Shapes of its public API (`/api/tracker/*`, same origin: Caddy in production, the Vite proxy in dev, both in front of
-// the nginx front that adds the key, allows only the public read routes and limits each IP) and the parsed models the
-// pages use. Amounts are exact bigints; the API sends them as JSON numbers, so the client quotes them before parsing.
+// the nginx front that adds the key, opens only the routes it lists and limits each IP; since phase 2 that includes the
+// note and redemption routes, which this client does not call) and the parsed models the pages use. Amounts are exact
+// bigints; the API sends them as JSON numbers, so the client quotes them before parsing.
 import type { Hex } from "../types";
 
 /** Facts about the tracker we run, all checkable on the chain (mint and first box are in TRACKER.md and on Ergo). */

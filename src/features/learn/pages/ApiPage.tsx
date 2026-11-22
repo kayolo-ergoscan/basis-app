@@ -37,7 +37,7 @@ export default function ApiPage() {
   const shown = useMemo(() => {
     const n = norm(q.trim());
     if (!n) return apiEndpoints;
-    return apiEndpoints.filter((e) => norm([e.method, e.path, e.id, e.purpose.en, e.purpose.ru, e.group, e.role].join(" ")).includes(n));
+    return apiEndpoints.filter((e) => norm([e.method, e.path, e.id, e.purpose.en, e.purpose.ru, e.group, e.role, e.ergoscan ? "ergoscan" : ""].join(" ")).includes(n));
   }, [q]);
 
   return (
@@ -146,6 +146,14 @@ function Endpoint({ e, open }: { e: ApiEndpoint; open: boolean }) {
       </summary>
       {isOpen && (
         <div className="api-body">
+          {e.ergoscan && e.ergoscan.length > 0 && (
+            <div>
+              <span className="label">{t("learn.api.ours")}</span>
+              <div className="api-ours" style={{ marginTop: 8 }}>
+                {e.ergoscan.map((x, i) => <p key={i}>{inline(P(x))}</p>)}
+              </div>
+            </div>
+          )}
           {e.query && e.query.length > 0 && (
             <div><span className="label">{t("learn.api.query")}</span> <span className="mono t-small">{e.query.join(" · ")}</span></div>
           )}

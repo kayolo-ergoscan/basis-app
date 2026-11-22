@@ -69,7 +69,7 @@ Term       { id, group, en, ru, alsoEN?, alsoRU?, def: Text, code?, see?: string
 HistoryEvent { id, date "YYYY-MM-DD"|"YYYY-MM", precision, era, kind, title, text, milestone?, sources, chain?: ChainRef[], people? }
 OpenIssue  { id, title, status, since, text, impact, items?, sources }                       // trust.openIssues
 TrustItem  { id, text, detail?, by: "contract"|"tracker"|"wallet"|"social"|"nobody", lines?: LineRef[], sources }
-ApiEndpoint { n, id, method, path, query?, role, group, purpose, request?, response, status?, errors?: {status, message, when?}[], gotchas?, legacy? }
+ApiEndpoint { n, id, method, path, query?, role, group, purpose, request?, response, status?, errors?: {status, message, when?}[], gotchas?, legacy?, ergoscan? }
 Annotation { id, from, to, titleEN, titleRU, textEN, textRU, kind, section: "doc"|"code", action?, checks?, warningEN?, warningRU? }
 ```
 

@@ -50,6 +50,8 @@ export interface ApiEndpoint {
   gotchas?: Text[];
   /** Kept for older clients; a new client should not use it. */
   legacy?: boolean;
+  /** ErgoScan's tracker on mainnet (beta) opens this write route: its status and its own rules there. */
+  ergoscan?: Text[];
 }
 
 export interface ApiGroup {
@@ -118,6 +120,10 @@ export const apiEndpoints: ApiEndpoint[] = [
       t("The same total with a newer timestamp is accepted.", "Тот же итог с более новой меткой времени принимается."),
       t("No collateral, policy, limit or consent check happens here. A receiver's protection is their own wallet policy.", "Здесь не проверяются ни обеспечение, ни политика, ни лимит, ни согласие. Защита получателя — политика его собственного кошелька."),
       t("A browser clock that runs ahead gets \"Future timestamp\". Use the current time minus a small margin.", "Если часы браузера спешат, будет «Future timestamp». Берите текущее время с небольшим запасом назад."),
+    ],
+    ergoscan: [
+      t("Open. A note is accepted only when its issuer has exactly one active reserve under this tracker in that denomination.", "Открыт. Расписку примут, только если у её эмитента ровно один действующий резерв под этим трекером в этой валюте."),
+      t("Per issuer: at most 50 receivers and 120 updates an hour. New issuer → receiver pairs: at most 200 an hour for the whole tracker.", "На одного эмитента — не больше 50 получателей и 120 обновлений в час. Новых пар эмитент → получатель — не больше 200 в час на весь трекер."),
     ],
   },
   {
@@ -468,6 +474,11 @@ export const apiEndpoints: ApiEndpoint[] = [
       t("A missing field is refused with a plain-text 422, outside the JSON envelope.", "Если поля не хватает, ответ — 422 обычным текстом, вне JSON-конверта."),
       t("`emergency: true` skips the tracker's policy checks and leaves #6 empty; the contract accepts that only after 2 160 blocks of tracker-box age.", "`emergency: true` пропускает проверки политики трекера и оставляет #6 пустым; контракт примет это только после 2 160 блоков возраста бокса трекера."),
     ],
+    ergoscan: [
+      t("Open. The receiver signs every build request (message `basis-build-v1`, 131 bytes for ERG). Its timestamp must be within ±120 s of the tracker's clock and later than that receiver's previous one.", "Открыт. Каждый запрос на сборку подписывает получатель (сообщение `basis-build-v1`, 131 байт для ERG). Его метка времени должна быть в пределах ±120 с от часов трекера и позже предыдущей метки этого получателя."),
+      t("For ERG reserves the miner fee comes out of the payout, and the transaction spends only the reserve.", "Для резервов в ERG комиссия майнера вычитается из выплаты, и транзакция тратит только резерв."),
+      t("At most 30 builds an hour per receiver and 12 an hour per pair.", "Не больше 30 сборок в час на получателя и 12 в час на пару."),
+    ],
   },
   {
     n: 29, id: "redemption-submit", method: "POST", path: "/redemption/submit", role: "write", group: "redemption",
@@ -493,6 +504,9 @@ export const apiEndpoints: ApiEndpoint[] = [
       t("The build entry is consumed before validation. Any failure, even a typo, needs a fresh build, which counts against the hourly limit.", "Запись о сборке удаляется до проверки. Любая ошибка, даже опечатка, требует новой сборки, а она идёт в часовой лимит."),
       t("The four last fields are ignored but still required.", "Последние четыре поля не используются, но обязательны."),
     ],
+    ergoscan: [
+      t("Open. Send the exact `unsigned_tx` the build returned, together with the signed transaction.", "Открыт. Отправьте ровно тот `unsigned_tx`, который вернула сборка, вместе с подписанной транзакцией."),
+    ],
   },
   {
     n: 30, id: "tracker-signature", method: "POST", path: "/tracker/signature", role: "write", group: "redemption",
@@ -505,6 +519,9 @@ export const apiEndpoints: ApiEndpoint[] = [
       { status: 409, message: "No tracked reserve found for issuer X in denomination D; refusing to sign a redemption the acceptance policy cannot evaluate" },
     ],
     gotchas: [t("The policy check assumes you redeem the whole outstanding amount.", "Проверка политики исходит из того, что вы погашаете весь непогашенный остаток.")],
+    ergoscan: [
+      t("Open, for notes this tracker has stored. Requests with `emergency: true` are refused.", "Открыт для расписок, сохранённых у этого трекера. Запросы с `emergency: true` он отклоняет."),
+    ],
   },
 
   // ---- legacy ----
@@ -568,8 +585,8 @@ export const trackerApi = {
     "Примеры условные: hex-значения сокращены, суммы указаны в минимальных единицах (nanoERG для ERG).",
   ),
   noPublicTracker: t(
-    "ErgoScan's tracker on mainnet (beta) opens only its public read routes, and this site reads them for the Mainnet console. To try every call, run the reference server yourself.",
-    "Трекер ErgoScan в mainnet (бета) открывает только публичные маршруты чтения, и этот сайт читает их для консоли основной сети. Чтобы попробовать все запросы, запустите эталонный сервер сами.",
+    "ErgoScan's tracker on mainnet (beta) opens its public read routes and the routes that take notes and redemptions: POST /notes, POST /tracker/signature, POST /redemption/build and POST /redemption/submit. Its own rules for these four are listed under each of them. The Mainnet console on this site only reads: it signs nothing and sends nothing to the tracker. To try every call, run the reference server yourself.",
+    "Трекер ErgoScan в mainnet (бета) открывает публичные маршруты чтения и маршруты, которые принимают расписки и погашения: POST /notes, POST /tracker/signature, POST /redemption/build и POST /redemption/submit. Его собственные правила для этих четырёх указаны у каждого из них. Консоль основной сети на этом сайте только читает: она ничего не подписывает и ничего не отправляет трекеру. Чтобы попробовать все запросы, запустите эталонный сервер сами.",
   ),
   envelope: {
     title: t("Response envelope", "Конверт ответа"),
