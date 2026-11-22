@@ -8,9 +8,9 @@ const en = {
   "tracker.nav.console": "Console",
   "tracker.nav.run": "Run your own",
   "tracker.nav.api": "API mirror",
-  "tracker.h1": "Tracker *console*",
+  "tracker.h1": "Practice *tracker*",
   "tracker.lede":
-    "Mira runs T-01 for the sandbox town. It witnesses every note, commits one digest per cycle and co-signs redemptions. Watch it work, switch it off, make it censor, and check any proof yourself.",
+    "This is the sandbox's practice tracker; the money is play money. A tracker is a server that confirms notes, regularly writes their fingerprint to Ergo and signs payouts. Switch it off or make it refuse, and see what happens to the money. ErgoScan's real tracker is on the Mainnet tab.",
   "tracker.sandboxLine": "Sandbox: play money, a simulated chain, real cryptography.",
   "tracker.loading": "Opening the town…",
   "tracker.follower": "The town runs in another tab; this one mirrors it and sends your actions there.",
@@ -512,9 +512,9 @@ const ru: Record<Key, string> & Record<string, string> = {
   "tracker.nav.console": "Консоль",
   "tracker.nav.run": "Свой трекер",
   "tracker.nav.api": "Зеркало API",
-  "tracker.h1": "Консоль *трекера*",
+  "tracker.h1": "Учебный *трекер*",
   "tracker.lede":
-    "Мира ведёт трекер T-01 для города-песочницы. Он заверяет каждую расписку, раз в цикл фиксирует один дайджест и подписывает погашения. Смотрите, как он работает, выключайте его, заставляйте цензурировать — и проверяйте любое доказательство сами.",
+    "Это учебный трекер песочницы, деньги игровые. Трекер — сервер, который подтверждает расписки, регулярно записывает их отпечаток в Ergo и подписывает выплаты. Выключите его или заставьте отказывать — и посмотрите, что станет с деньгами. Настоящий трекер ErgoScan — на вкладке «Основная сеть».",
   "tracker.sandboxLine": "Песочница: игровые деньги, смоделированная цепочка, настоящая криптография.",
   "tracker.loading": "Город открывается…",
   "tracker.follower": "Город работает в другой вкладке; эта показывает его копию и передаёт туда ваши действия.",

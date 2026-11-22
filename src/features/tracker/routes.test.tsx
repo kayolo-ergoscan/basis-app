@@ -95,6 +95,13 @@ for (const lang of ["en", "ru"] as Lang[]) {
       expect(linkTo(html, TRACKER_HOME)).not.toContain("aria-current");
     });
 
+    it("the practice page says it is a practice tracker with play money, and where the real one is", () => {
+      const plain = (x: string) => x.replace(/[\u00a0\u2009\u2060]/g, " ").replace(/ {2,}/g, " ");
+      expect(plain(T("tracker.h1"))).toBe(lang === "ru" ? "Учебный *трекер*" : "Practice *tracker*");
+      expect(plain(T("tracker.lede"))).toMatch(lang === "ru" ? /^Это учебный трекер песочницы, деньги игровые\..*на вкладке «Основная сеть»\.$/ : /^This is the sandbox's practice tracker; the money is play money\..*on the Mainnet tab\.$/);
+      expect(T("tracker.lede")).toContain(T("tracker.mode.main") === "Mainnet" ? "Mainnet" : "Основная сеть");
+    });
+
     it("the console tab of the sub-nav is on for both modes and opens mainnet", () => {
       setLang(lang);
       for (const at of [TRACKER_HOME, TRACKER_PRACTICE]) {
