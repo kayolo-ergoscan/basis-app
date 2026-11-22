@@ -91,13 +91,15 @@ progress. The design expects 0.5–1.5 s on phones.
 - **`passphrase`:** asks for the passphrase again, which runs one derivation. The vault enforces when (§4.2, keys
   review P1-2, `policy.ts`):
   - `t1` (a reserve creation moves the whole reserve) and `export-hex`: always;
-  - `withdraw`: unless every output of the signed transaction pays this key's own P2PK tree or the miner fee (Combine,
-    a cancel back to the key); `signToJournal` checks the signed bytes and drops them when the rule is broken;
+  - `withdraw`: unless every output of the signed transaction pays this key's own P2PK tree or the miner-fee tree, and
+    the fee outputs add up to at most `MINER_FEE_NANOERG` (Combine, a cancel back to the key); `signToJournal` reads the
+    signed bytes with the strict parser and drops them when the rule is broken;
   - `note`: when the notes signed since the passphrase was last typed (the unlock counts, so does any use with
     `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
     read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
     the pair's previous note, which must be this key's (its signature is checked);
-  - `redeem`, `build-request`: never (a redemption pays only this key).
+  - `redeem`, `build-request`: never. A redemption pays only this key: `signToJournal("redeem")` refuses (`bad-input`)
+    signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`].
 
   A direct `withSecret` for `t1`, `withdraw` or `note` always needs `passphrase` (the vault cannot see what such a
   callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule

@@ -1,15 +1,16 @@
 // When the vault asks for the passphrase again (design §4.2; keys review P1-2; operator decision 2, 22 Nov 2026). The
 // vault enforces it itself, so no screen can sign around it:
 //   • t1 (a reserve creation moves the whole reserve) and export-hex: always;
-//   • withdraw: whenever the transaction pays anything but this key's own address and the miner fee (combining small
-//     boxes, or cancelling a stuck transaction, back to the key itself needs none);
+//   • withdraw: whenever the transaction pays anything but this key's own address and at most the wallet's miner fee
+//     (combining small boxes, or cancelling a stuck transaction, back to the key itself needs none);
 //   • note: when the notes signed since the last passphrase entry, this one included, promise more than 25 % of the
 //     reserve's value read on chain (/v1, never the tracker's figure). A note promises its increment: the new total
 //     minus the pair's previous total, which must be a note of this key (its signature is checked here);
-//   • redeem and build-request: never (a redemption pays only this key).
+//   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below).
 // "Since the last passphrase entry" = since the session opened (an unlock is a passphrase entry) or since the last use
 // of the key with the passphrase typed again. The count lives in the session only.
-import { FEE_TREE_HEX, TRACKER_NFT } from "../tx/constants";
+import { FEE_TREE_HEX, MINER_FEE_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, TRACKER_NFT } from "../tx/constants";
+import { asArray, asObject, asString, asU64, member, parseJson, type JsonObject } from "../tx/json";
 import { noteMessage, verifyBasis } from "../tx/messages";
 import { VaultError } from "./errors";
 import { isObject } from "./record";
@@ -96,37 +97,69 @@ export function notePolicy(issuer: Hex, intent: NoteIntent, promised: ReadonlyMa
   return { added: total - prevTotal, since, after, reserveValue, passphrase: notePassphraseNeeded(after, reserveValue) };
 }
 
-/** The signed `POST /notes` body must be the declared note of this key (read without losing a digit of the amount). */
-export function checkNoteBody(signedRaw: string, issuer: Hex, intent: NoteIntent): void {
-  let j: unknown;
+/** The top-level object of a signed text, read with the strict parser (exact u64s, duplicate keys refused), or null. */
+function strictObject(text: string): JsonObject | null {
   try {
-    j = JSON.parse(signedRaw);
+    return asObject(parseJson(text), "signed");
   } catch {
-    throw bad("the signed note is not JSON");
-  }
-  const amount = /"amount"\s*:\s*(\d{1,19})\s*[,}]/.exec(signedRaw)?.[1];
-  if (
-    !isObject(j) ||
-    j.issuer_pubkey !== issuer ||
-    j.recipient_pubkey !== intent.recipient ||
-    j.denomination !== "erg" ||
-    j.tracker_nft_id !== TRACKER_NFT ||
-    amount === undefined ||
-    BigInt(amount) !== intent.total
-  ) {
-    throw bad("the signed note is not the declared one");
+    return null;
   }
 }
 
-/** True when every output of a signed P2PK transaction (node JSON) pays this key's own address or the miner fee. */
-export function paysOnlyOwnKey(signedRaw: string, pub: Hex): boolean {
-  let j: unknown;
+/** The signed `POST /notes` body must be the declared note of this key: its top-level fields, the amount exact. */
+export function checkNoteBody(signedRaw: string, issuer: Hex, intent: NoteIntent): void {
+  const o = strictObject(signedRaw);
+  if (!o) throw bad("the signed note is not JSON");
+  let ok = false;
   try {
-    j = JSON.parse(signedRaw);
+    ok =
+      asString(member(o, "issuer_pubkey"), "issuer_pubkey") === issuer &&
+      asString(member(o, "recipient_pubkey"), "recipient_pubkey") === intent.recipient &&
+      asString(member(o, "denomination"), "denomination") === "erg" &&
+      asString(member(o, "tracker_nft_id"), "tracker_nft_id") === TRACKER_NFT &&
+      asU64(member(o, "amount"), "amount") === intent.total;
   } catch {
-    return false;
+    ok = false;
   }
-  if (!isObject(j) || !Array.isArray(j.outputs) || j.outputs.length === 0) return false;
+  if (!ok) throw bad("the signed note is not the declared one");
+}
+
+/** The outputs of a signed transaction (node JSON): tree and exact value, or null when it cannot be read. */
+function outputsOf(signedRaw: string): { tree: string; value: bigint }[] | null {
+  const o = strictObject(signedRaw);
+  if (!o) return null;
+  try {
+    return asArray(member(o, "outputs"), "outputs").items.map((x, i) => {
+      const b = asObject(x, `outputs[${i}]`);
+      return { tree: asString(member(b, "ergoTree"), `outputs[${i}].ergoTree`), value: asU64(member(b, "value"), `outputs[${i}].value`) };
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when a signed P2PK transaction (node JSON) pays only this key's own address, plus at most the wallet's miner
+ * fee (MINER_FEE_NANOERG, what Withdraw, Combine and Cancel pay): a "withdraw" that does not needs the passphrase.
+ */
+export function paysOnlyOwnKey(signedRaw: string, pub: Hex): boolean {
+  const outs = outputsOf(signedRaw);
+  if (!outs || outs.length === 0) return false;
   const own = `0008cd${pub}`;
-  return j.outputs.every((o) => isObject(o) && (o.ergoTree === own || o.ergoTree === FEE_TREE_HEX));
+  let fee = 0n;
+  for (const o of outs) {
+    if (o.tree === FEE_TREE_HEX) fee += o.value;
+    else if (o.tree !== own) return false;
+  }
+  return fee <= MINER_FEE_NANOERG;
+}
+
+/**
+ * True when a signed redemption pays this key: exactly [the reserve's continuation, P2PK(this key), the miner fee of at
+ * most REDEEM_MAX_FEE_NANOERG], as the wallet's own checks require before it signs (tx/redemption.ts L1).
+ */
+export function redemptionPaysOwnKey(signedRaw: string, pub: Hex): boolean {
+  const outs = outputsOf(signedRaw);
+  return !!outs && outs.length === 3 && outs[0].tree === RESERVE_TREE_HEX && outs[1].tree === `0008cd${pub}` &&
+    outs[2].tree === FEE_TREE_HEX && outs[2].value <= REDEEM_MAX_FEE_NANOERG;
 }

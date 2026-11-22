@@ -4,13 +4,13 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { describe, expect, it } from "vitest";
-import { FEE_TREE_HEX, TRACKER_NFT, p2pkTree } from "../../tx/constants";
+import { FEE_TREE_HEX, RESERVE_TREE_HEX, TRACKER_NFT, p2pkTree } from "../../tx/constants";
 import { p2pkAddress } from "../../tx/address";
 import { signP2pkTransaction } from "../../tx/p2pk";
 import { p2pkBox } from "../../tx/testkit";
 import { planCombine, planWithdraw } from "../../flows/coins";
 import { signNote } from "../../flows/notes";
-import { checkNoteBody, notePolicy, paysOnlyOwnKey, type NoteIntent } from "../policy";
+import { checkNoteBody, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, type NoteIntent } from "../policy";
 import type { MainnetVault } from "../vault";
 import { FakeBrowser, OTHER_PASS, PASS } from "./fakes";
 import { backUp, code, openTab, randomPub } from "./helpers";
@@ -44,7 +44,8 @@ const intent = (to: string, total: bigint, reserveValue: bigint, prev: NoteInten
 /** A previous note of ME, signed for real (the tracker would store exactly this). */
 const prevOf = (to: string, total: bigint, ts: bigint) => ({ total, timestamp: ts, signature: signNote(SK, { issuer: ME, recipient: to, total, timestamp: ts }).signature });
 
-const txJson = (trees: string[], id = "ab".repeat(32)) => JSON.stringify({ id, inputs: [], dataInputs: [], outputs: trees.map((ergoTree) => ({ value: 1000000, ergoTree, assets: [], additionalRegisters: {}, creationHeight: 1 })) });
+const txJson = (trees: string[], id = "ab".repeat(32), values: (string | number)[] = []) =>
+  `{"id":"${id}","inputs":[],"dataInputs":[],"outputs":[${trees.map((ergoTree, i) => `{"value":${values[i] ?? 1000000},"ergoTree":"${ergoTree}","assets":[],"additionalRegisters":{},"creationHeight":1}`).join(",")}]}`;
 
 describe("mainnet vault: the passphrase rules", () => {
   it("a reserve creation always needs the passphrase; t1, withdraw and note need it through withSecret too", async () => {
@@ -97,6 +98,34 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(p2pkTree(ME)).toBe(own);
     expect(paysOnlyOwnKey(txJson([own]), ME)).toBe(true);
     expect(paysOnlyOwnKey(txJson([own.toUpperCase()]), ME)).toBe(false);
+    // the miner fee is at most the wallet's own (1 000 000 nanoERG) in all: everything to the fee tree needs it
+    expect(paysOnlyOwnKey(txJson([own, FEE_TREE_HEX], undefined, [5, 1000001]), ME)).toBe(false);
+    expect(paysOnlyOwnKey(txJson([own, FEE_TREE_HEX, FEE_TREE_HEX], undefined, [5, 600000, 600000]), ME)).toBe(false);
+    expect(paysOnlyOwnKey(txJson([FEE_TREE_HEX], undefined, ["18446744073709551615"]), ME)).toBe(false);
+    expect(paysOnlyOwnKey(txJson([own, FEE_TREE_HEX], undefined, [9007199254740993, 1000000]), ME)).toBe(true);
+    expect(paysOnlyOwnKey(txJson([own, FEE_TREE_HEX], undefined, [5, 1000000]).replace(`"inputs"`, `"outputs":[],"inputs"`), ME)).toBe(false); // duplicate key
+    const toFee = (() => {
+      const id = "ee".repeat(32);
+      return () => ({ txId: id, signedRaw: txJson([own, FEE_TREE_HEX], id, [1000, 68_000_000]), inputs: ["dd".repeat(32)] });
+    })();
+    const sent = await v.journal.list({ kind: "withdraw" });
+    expect(await code(v.signToJournal("withdraw", toFee))).toBe("passphrase-required");
+    expect(await v.journal.list({ kind: "withdraw" })).toHaveLength(sent.length);
+    v.close();
+  });
+
+  it("a redemption must pay this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]", async () => {
+    const { v } = await ready();
+    const own = `0008cd${ME}`;
+    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX]), ME)).toBe(true);
+    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX]), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], undefined, [1, 1, 1000001]), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX]), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(txJson([own, RESERVE_TREE_HEX, FEE_TREE_HEX]), ME)).toBe(false);
+    const r = (trees: string[], id: string) => () => ({ txId: id, signedRaw: txJson(trees, id), unsignedRaw: "{}", inputs: ["dd".repeat(32)] });
+    expect(await code(v.signToJournal("redeem", r([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], "a1".repeat(32))))).toBe("bad-input");
+    expect(await v.journal.list({ kind: "redeem" })).toEqual([]);
+    expect((await v.signToJournal("redeem", r([RESERVE_TREE_HEX, own, FEE_TREE_HEX], "a2".repeat(32)))).state).toBe("signed");
     v.close();
   });
 
@@ -171,5 +200,11 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(() => checkNoteBody(s.body, ME, intent(to, 8n, 1n))).toThrow();
     expect(() => checkNoteBody(s.body.replace(TRACKER_NFT, "00".repeat(32)), ME, intent(to, 7n, 1n))).toThrow();
     expect(() => checkNoteBody(s.body, randomPub(), intent(to, 7n, 1n))).toThrow();
+    // only the top-level amount counts: a nested "amount" before it, or a second one, never passes for another total
+    const nested = s.body.replace("{", `{"x":{"amount":8},`);
+    expect(() => checkNoteBody(nested, ME, intent(to, 8n, 1n))).toThrow();
+    expect(() => checkNoteBody(nested, ME, intent(to, 7n, 1n))).not.toThrow();
+    expect(() => checkNoteBody(s.body.replace("{", `{"amount":8,`), ME, intent(to, 8n, 1n))).toThrow();
+    expect(() => checkNoteBody(s.body.replace("{", `{"amount":8,`), ME, intent(to, 7n, 1n))).toThrow();
   });
 });

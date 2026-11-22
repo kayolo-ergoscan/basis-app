@@ -22,7 +22,7 @@ import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } 
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
-import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, type NoteIntent, type NotePolicy, type PairPromise } from "./policy";
+import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, type NoteIntent, type NotePolicy, type PairPromise } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
@@ -608,8 +608,8 @@ export class MainnetVault {
    * Write-ahead signing: signs with `fn` (which returns the journal fields: txId, signedRaw, inputs …) and records the
    * result before anyone can send it. When the journal refuses (a second T1, say), the signed bytes are dropped. A T1 is
    * also checked against the journal before the key is touched. The passphrase rules (policy.ts) are enforced here:
-   * t1 always; a withdrawal that pays anything but this key and the miner fee; a note over the 25 % budget. A note
-   * needs `opts.note`, and the signed body must be that note.
+   * t1 always; a withdrawal that pays anything but this key and at most the wallet's miner fee; a note over the 25 %
+   * budget. A note needs `opts.note`, and the signed body must be that note; a redemption must pay this key.
    */
   async signToJournal(kind: JournalKind, fn: SecretCallback<Omit<JournalRecordInput, "kind" | "pub">>, opts: SecretOptions = {}): Promise<JournalEntry> {
     const pub = this.#session?.pub;
@@ -631,7 +631,8 @@ export class MainnetVault {
       },
       after(part, s, typed) {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
-        if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address needs the passphrase", "withdraw-foreign");
+        if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
+        if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
         if (kind === "note") {
           checkNoteBody(part.signedRaw, s.pub, intent);
           if (!typed) s.promised.set(intent.recipient, nextPromise(s.promised, intent.recipient, intent.prev?.total ?? 0n, intent.total));

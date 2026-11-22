@@ -71,7 +71,7 @@ describe("mainnet vault: the secret never leaves", () => {
     results.push(await v.withSecret("build-request", (s) => bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes())));
     const txId = "ab".repeat(32);
     const own = `0008cd${bytesToHex(secp256k1.getPublicKey(sk, true))}`;
-    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, proof: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()), outputs: [{ ergoTree: own }] }), inputs: ["cd".repeat(32)] })));
+    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, proof: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()), outputs: [{ value: 1000, ergoTree: own }] }), inputs: ["cd".repeat(32)] })));
     // more refusals: locked, weak, malformed, a second key, another tab
     v.lock();
     await attempt(v.withSecret("t1", () => 1));
