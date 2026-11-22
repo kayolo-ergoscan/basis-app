@@ -1,6 +1,6 @@
 // Decoders on real mainnet fixtures from the seed (scripts/make-seed.mjs ← research/data/onchain.json).
 import { describe, expect, it } from "vitest";
-import { decodeRegister } from "@/protocol/registers";
+import { decodeRegister } from "@/protocol/registerCodec";
 import seedJson from "./seed.json";
 import type { Seed } from "./types";
 import {

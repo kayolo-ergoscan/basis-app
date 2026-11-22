@@ -12,7 +12,8 @@
 // The verifier is passed in; the global sandbox AVL backend is never switched. `loadContractAvl()` loads avl.wasm
 // once (lazily: it is only needed on the redemption review).
 import type { AvlBackend } from "../../protocol/avl";
-import { decodeRegister, encodeAvlTree, encodeCollByte, encodeLong, type AvlTreeRegister } from "../../protocol/registers";
+import { decodeRegister, encodeAvlTree } from "../../protocol/registerCodec";
+import { encodeCollByte, encodeLong, type AvlTreeRegister } from "../../protocol/registers";
 import { evaluateReserveSpend, type ContextVar, type RegisterValue, type ReserveCheckId, type ReserveEval, type ScriptId, type SimBox, type SimTx } from "../../protocol/reserve";
 import { FEE_TREE_HEX, RESERVE_TREE_HEX, p2pkKeyOfTree } from "./constants";
 import { REGISTER_NAMES, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type UnsignedTx } from "./model";

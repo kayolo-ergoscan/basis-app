@@ -3,9 +3,11 @@
 // polls; src/chain/ours/queue.ts). Answers that are echoed back or checked byte for byte stay text: nothing here
 // re-stringifies a tracker answer. Bodies the front would refuse are refused here, before any request.
 import {
-  createRawClient, parseKeyStatus, parseReserves, parseState, quoteBigInts, readEnvelope, requestQueue, trackerClient,
-  type KeyStatus, type Priority, type RawAnswer, type RawClient, type ServerClock, type TrackedReserve, type TrackerState,
+  parseKeyStatus, parseReserves, parseState, quoteBigInts, readEnvelope, requestQueue,
+  type KeyStatus, type Priority, type TrackedReserve, type TrackerState,
 } from "../../chain/ours";
+import type { ServerClock } from "../../chain/ours/clock";
+import { createRawClient, type RawAnswer, type RawClient } from "../../chain/ours/raw";
 import { boxFromV1, parseJson, saveDevFixture, utf8Length, type ErgoBox, type JsonNode } from "../tx";
 import { localProblem, problemOf, type Problem, type WalletRoute } from "./problems";
 
@@ -263,12 +265,14 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
   };
 }
 
-/** The app's wallet network: the shared tracker client (its clock) and a /v1 reader on the same queue. */
+/** The app's wallet network: a raw client for the tracker front (its clock) and one for /v1, both on the app's one
+ *  start queue, shared with the app-wide tracker client's polls. */
 let shared: WalletNet | null = null;
 export function walletNet(): WalletNet {
   if (!shared) {
+    const tracker = createRawClient({ base: "/api/tracker", queue: requestQueue });
     const v1 = createRawClient({ base: "/v1", queue: requestQueue });
-    shared = createWalletNet({ tracker: trackerClient, v1, saveFixture: (n, t) => { void saveDevFixture(n, t); } });
+    shared = createWalletNet({ tracker, v1, saveFixture: (n, t) => { void saveDevFixture(n, t); } });
   }
   return shared;
 }

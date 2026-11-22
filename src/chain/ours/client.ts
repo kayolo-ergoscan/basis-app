@@ -4,16 +4,14 @@
 // Rules:
 //   • at most one request per second: every request start waits for its slot, FIFO, ≥ minGapMs after the previous one
 //     (polls, key lookups and the mainnet wallet share one queue, queue.ts; a user action goes ahead of waiting polls);
-//   • every answer's `Date` header feeds the tracker clock estimate (clock.ts, wallet design §6.6);
-//   • `raw()` is the wallet's way in (GET and POST, the answer as text, never re-stringified): the wallet reads the
-//     status and the body itself (src/mainnet/net);
+//   • the mainnet wallet does not use this client: its raw GET/POST and the tracker clock (raw.ts, clock.ts) share the
+//     queue and stay out of the first load;
 //   • a timeout per request (AbortController);
 //   • no retries here: the store decides when to ask again and backs off on 429, 503 and every other failure;
 //   • the answer is parsed into a typed model or refused as "shape": a field the app cannot read is never guessed;
 //   • u64 amounts arrive as JSON numbers; they are quoted before JSON.parse, so a bigint never passes through a float.
 import { parseAddress } from "../decode";
 import type { Hex } from "../types";
-import { createServerClock, type ServerClock } from "./clock";
 import { createStartQueue, requestQueue, type Priority, type StartQueue } from "./queue";
 import {
   NO_DEBT_RATIO, OURS_POLL,
@@ -43,26 +41,11 @@ export interface TrackerClientConfig {
   now: () => number;
   /** The start queue (default: one of its own; the app-wide client shares `requestQueue`). */
   queue: StartQueue;
-  /** The tracker clock estimate fed by every answer (default: one of its own). */
-  clock: ServerClock;
 }
 
 export interface TrackerRequestLog { route: string; status: number | string; ms: number; at: number }
 
 export interface RequestOptions { signal?: AbortSignal; priority?: Priority }
-
-export interface RawOptions {
-  method?: "GET" | "POST";
-  /** POST body, sent byte for byte as `application/json`. */
-  body?: string;
-  priority?: Priority;
-  signal?: AbortSignal;
-  timeoutMs?: number;
-}
-/** A raw answer: any HTTP status counts as an answer; only a request that got none is a failure. */
-export type RawAnswer =
-  | { ok: true; status: number; text: string; retryAfterMs: number | null; sentAt: number; receivedAt: number }
-  | { ok: false; kind: "timeout" | "network" | "aborted"; message: string; sentAt: number | null };
 
 export interface TrackerClient {
   readonly config: Readonly<TrackerClientConfig>;
@@ -70,10 +53,6 @@ export interface TrackerClient {
   reserves(o?: RequestOptions): Promise<TrackerAnswer<ReservesAnswer>>;
   keyStatus(pk: string, o?: RequestOptions): Promise<TrackerAnswer<KeyStatus>>;
   collateralConfig(o?: RequestOptions): Promise<TrackerAnswer<CollateralConfig>>;
-  /** Any front route, GET or POST, through the same queue; the answer as text with its status (wallet). */
-  raw(route: string, o?: RawOptions): Promise<RawAnswer>;
-  /** The tracker clock estimate (every answer's `Date`). */
-  readonly clock: ServerClock;
   /** Requests sent so far (every one counts, failed or not). */
   requests(): number;
   /** The last 30 requests. */
@@ -226,7 +205,7 @@ export function readEnvelope(text: string, bigKeys: readonly string[]): { ok: tr
   return { ok: true, data: env.data };
 }
 
-const retryAfter = (res: Response): number | null => {
+export const retryAfter = (res: Response): number | null => {
   const v = res.headers?.get?.("retry-after");
   if (!v) return null;
   const s = Number(v);
@@ -246,7 +225,6 @@ export function createTrackerClient(partial: Partial<TrackerClientConfig> = {}):
   const cfg: TrackerClientConfig = {
     ...base,
     queue: partial.queue ?? createStartQueue(base.minGapMs, base.now),
-    clock: partial.clock ?? createServerClock(base.now),
   };
   let count = 0;
   const ring: TrackerRequestLog[] = [];
@@ -285,7 +263,6 @@ export function createTrackerClient(partial: Partial<TrackerClientConfig> = {}):
         return fail(timedOut ? "timeout" : "network", e instanceof Error ? e.message : String(e), res.status);
       }
       note(res.status);
-      cfg.clock.sample(res.headers?.get?.("date"), t0, cfg.now());
       if (!res.ok) {
         // the front and the tracker answer errors as JSON {success: false, error}; keep its words for the detail line
         const env = readEnvelope(text, []);
@@ -302,50 +279,8 @@ export function createTrackerClient(partial: Partial<TrackerClientConfig> = {}):
     }
   }
 
-  async function raw(route: string, o: RawOptions = {}): Promise<RawAnswer> {
-    const method = o.method ?? "GET";
-    try { await slot(o.signal, o.priority); } catch { return { ok: false, kind: "aborted", message: "aborted", sentAt: null }; }
-    count++;
-    const ctrl = new AbortController();
-    const onAbort = () => ctrl.abort();
-    o.signal?.addEventListener("abort", onAbort, { once: true });
-    let timedOut = false;
-    const limit = o.timeoutMs ?? cfg.timeoutMs;
-    const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, limit);
-    const t0 = cfg.now();
-    const note = (status: number | string) => {
-      ring.push({ route: method === "GET" ? route : `${method} ${route}`, status, ms: cfg.now() - t0, at: t0 });
-      if (ring.length > 30) ring.shift();
-    };
-    const failed = (e: unknown): RawAnswer => {
-      note(timedOut ? "timeout" : o.signal?.aborted ? "aborted" : "network");
-      if (timedOut) return { ok: false, kind: "timeout", message: `no answer in ${Math.round(limit / 1000)} s`, sentAt: t0 };
-      if (o.signal?.aborted) return { ok: false, kind: "aborted", message: "aborted", sentAt: t0 };
-      return { ok: false, kind: "network", message: e instanceof Error ? e.message : String(e), sentAt: t0 };
-    };
-    try {
-      let res: Response;
-      try {
-        const headers: Record<string, string> = { Accept: "application/json" };
-        if (method === "POST") headers["Content-Type"] = "application/json";
-        res = await cfg.fetchImpl(cfg.base + route, { method, signal: ctrl.signal, headers, body: method === "POST" ? o.body ?? "" : undefined, credentials: "omit", cache: "no-store" });
-      } catch (e) { return failed(e); }
-      let text: string;
-      try { text = await res.text(); } catch (e) { return failed(e); }
-      const t1 = cfg.now();
-      note(res.status);
-      cfg.clock.sample(res.headers?.get?.("date"), t0, t1);
-      return { ok: true, status: res.status, text, retryAfterMs: retryAfter(res), sentAt: t0, receivedAt: t1 };
-    } finally {
-      clearTimeout(timer);
-      o.signal?.removeEventListener("abort", onAbort);
-    }
-  }
-
   return {
     config: cfg,
-    clock: cfg.clock,
-    raw,
     state: (o) => request("/tracker/state", parseState, o),
     reserves: (o) => request("/reserves", parseReserves, { ...o, bigKeys: ["collateral_amount", "total_debt"] }),
     keyStatus: async (pk, o) => {
@@ -359,16 +294,5 @@ export function createTrackerClient(partial: Partial<TrackerClientConfig> = {}):
   };
 }
 
-/** Only `raw()` (and its log) of a client: the mainnet wallet's /v1 reads go through the same queue this way, with a
- *  clock of their own (the ErgoScan API's `Date` says nothing about the tracker's clock). */
-export type RawClient = Pick<TrackerClient, "raw" | "clock" | "requests" | "log" | "config">;
-export function createRawClient(partial: Partial<TrackerClientConfig> & { base: string }): RawClient {
-  const c = createTrackerClient(partial);
-  return { raw: c.raw, clock: c.clock, requests: c.requests, log: c.log, config: c.config };
-}
-
-/** The tracker clock as the app-wide client sees it (every answer of the front feeds it). */
-export const serverClock: ServerClock = createServerClock();
-
 /** The app-wide client (same origin `/api/tracker`, the shared queue). Tests make their own with createTrackerClient({ fetchImpl, … }). */
-export const trackerClient: TrackerClient = createTrackerClient({ queue: requestQueue, clock: serverClock });
+export const trackerClient: TrackerClient = createTrackerClient({ queue: requestQueue });

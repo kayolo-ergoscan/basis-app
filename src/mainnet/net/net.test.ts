@@ -1,7 +1,8 @@
 // The wallet's network layer with fake raw clients: problems named as design §6.3 wants, bodies the front would
 // refuse never sent, answers kept as text, /v1 pages read strictly. Nothing leaves the process.
 import { describe, expect, it } from "vitest";
-import { createServerClock, type RawAnswer, type RawOptions } from "../../chain/ours";
+import { createServerClock } from "../../chain/ours/clock";
+import type { RawAnswer, RawOptions } from "../../chain/ours/raw";
 import { p2pkTree } from "../tx";
 import { p2pkBox } from "../tx/testkit";
 import { TEXT } from "../tx/fixtures/chain";

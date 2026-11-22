@@ -1,9 +1,10 @@
 // The shared start queue (one request per second, user actions first), the tracker clock from `Date` headers, and the
-// client's raw GET/POST (the wallet's way in). fetch is a fake; nothing leaves the process.
+// raw GET/POST client (the wallet's way in, raw.ts). fetch is a fake; nothing leaves the process.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServerClock } from "./clock";
 import { createTrackerClient } from "./client";
 import { createStartQueue } from "./queue";
+import { createRawClient } from "./raw";
 
 const T0 = 1_800_000_000_000;
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); });
@@ -97,7 +98,7 @@ describe("raw requests", () => {
 
   it("POSTs the body byte for byte, returns any status as an answer, samples the clock", async () => {
     const f = fake([{ status: 409, body: `{"success":false,"data":null,"error":"x"}`, date: new Date(T0 + 5000).toUTCString() }]);
-    const c = createTrackerClient({ fetchImpl: f.impl, now: () => Date.now() });
+    const c = createRawClient({ base: "/api/tracker", fetchImpl: f.impl, now: () => Date.now() });
     const body = `{"b":1,"a":2}`;
     const a = await c.raw("/notes", { method: "POST", body, priority: "user" });
     expect(a).toMatchObject({ ok: true, status: 409, text: `{"success":false,"data":null,"error":"x"}` });
@@ -108,15 +109,17 @@ describe("raw requests", () => {
     expect(c.log().at(-1)).toMatchObject({ route: "POST /notes", status: 409 });
   });
 
-  it("shares the queue with the typed reads and reports a timeout as no answer", async () => {
+  it("shares the queue with the app-wide client's typed reads and reports a timeout as no answer", async () => {
     const calls: number[] = [];
     const impl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls.push(Date.now());
       return new Promise<Response>((_res, rej) => init?.signal?.addEventListener("abort", () => rej(new DOMException("aborted", "AbortError"))));
     }) as unknown as typeof fetch;
-    const c = createTrackerClient({ fetchImpl: impl, now: () => Date.now(), timeoutMs: 3000 });
+    const queue = createStartQueue(1000, () => Date.now());
+    const c = createTrackerClient({ fetchImpl: impl, now: () => Date.now(), timeoutMs: 3000, queue });
+    const r = createRawClient({ base: "/api/tracker", fetchImpl: impl, now: () => Date.now(), timeoutMs: 3000, queue });
     const p1 = c.state();
-    const p2 = c.raw("/tracker/pending-tx");
+    const p2 = r.raw("/tracker/pending-tx");
     await vi.advanceTimersByTimeAsync(5000);
     expect(await p2).toMatchObject({ ok: false, kind: "timeout" });
     expect((await p1).ok).toBe(false);

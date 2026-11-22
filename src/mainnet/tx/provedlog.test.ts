@@ -2,11 +2,13 @@
 // tracker's fee inputs of R1–R2 verify over our bytesToSign; our own proofs verify and tampering breaks them.
 import { describe, expect, it } from "vitest";
 import { secp256k1 } from "@noble/curves/secp256k1";
+import { hmac } from "@noble/hashes/hmac";
+import { sha256 } from "@noble/hashes/sha256";
 import { bigToBytes, blake2b256, bytesToHex, concatBytes, hexToBytes } from "../../protocol/bytes";
 import { keyPairFromSecret } from "../../protocol/keys";
 import { p2pkKeyOfTree } from "./constants";
 import { ALL, ISSUER_A, R1, R2, R3, RECEIVER_B, T1 } from "./fixtures/chain";
-import { PROOF_BYTES, proveDlog, provedlogChallenge, publicKeyOf, verifyDlog } from "./provedlog";
+import { PROOF_BYTES, hmacSha256, proveDlog, provedlogChallenge, publicKeyOf, verifyDlog } from "./provedlog";
 import { bytesToSign } from "./serialize";
 
 describe("on-chain proofs verify", () => {
@@ -104,5 +106,25 @@ describe("our proofs", () => {
     const preimage = concatBytes(hexToBytes("010027100108cd"), hexToBytes(RECEIVER_B), hexToBytes("73000021"), a, msg);
     expect(bytesToHex(blake2b256(preimage).subarray(0, 24))).toBe(bytesToHex(c));
     expect(bytesToHex(provedlogChallenge(hexToBytes(RECEIVER_B), a, msg))).toBe(bytesToHex(c));
+  });
+});
+
+describe("the nonce HMAC", () => {
+  it("matches RFC 4231 (cases 1, 2, 6: short key, text key, key longer than a block)", () => {
+    expect(bytesToHex(hmacSha256(new Uint8Array(20).fill(0x0b), new TextEncoder().encode("Hi There"))))
+      .toBe("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");
+    expect(bytesToHex(hmacSha256(new TextEncoder().encode("Jefe"), new TextEncoder().encode("what do ya want for nothing?"))))
+      .toBe("5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+    expect(bytesToHex(hmacSha256(new Uint8Array(131).fill(0xaa), new TextEncoder().encode("Test Using Larger Than Block-Size Key - Hash Key First"))))
+      .toBe("60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
+  });
+  it("matches noble's hmac on keys and messages of every length around the block", () => {
+    for (const kl of [0, 1, 31, 32, 63, 64, 65, 128]) {
+      for (const ml of [0, 1, 55, 56, 64, 119, 200]) {
+        const key = Uint8Array.from({ length: kl }, (_, i) => (i * 7 + kl) & 0xff);
+        const msg = Uint8Array.from({ length: ml }, (_, i) => (i * 13 + ml) & 0xff);
+        expect(bytesToHex(hmacSha256(key, msg))).toBe(bytesToHex(hmac(sha256, key, msg)));
+      }
+    }
   });
 });

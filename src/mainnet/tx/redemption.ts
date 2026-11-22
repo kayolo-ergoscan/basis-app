@@ -8,7 +8,8 @@
 //   const signed = signRedemption(l1, secret);                    // ProveDlog, self-verified, spliced, re-checked
 //   const body = redemptionSubmitBody(l1, signed);                // POST /redemption/submit
 import { bytesToHex, equalBytes, hexToBytes } from "../../protocol/bytes";
-import { decodeRegister, encodeCollByte, encodeLong, vlqDecode } from "../../protocol/registers";
+import { decodeRegister } from "../../protocol/registerCodec";
+import { encodeCollByte, encodeLong, vlqDecode } from "../../protocol/registers";
 import { p2pkAddress } from "./address";
 import {
   FEE_PAID_BY_RECIPIENT, FEE_TREE_HEX, MIN_BOX_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, SUBMIT_BODY_MAX_BYTES, TRACKER_NFT, TRACKER_PK,

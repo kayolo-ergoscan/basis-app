@@ -44,7 +44,7 @@ import { Economy, erg, runScenario, ScenarioRun, TimeMachine, useAvlBackend, ERG
 | `contractSignatureHolds(pub, msg, sig)` | The contract's exact view: `a = decodePoint(sig[0..33])`, `z = byteArrayToBigInt(sig[33..])` (to the end, any length). It can throw where `verify` would only return false. It also accepts signatures the tracker refuses: a sign-extended 66-byte `a ‖ 00 ‖ z`, or a `z` or `e` with the top bit set (read as negative, and `exp` reduces mod n). Only `verify` applies the 65-byte and retry rules. |
 | `contractBigInt(bytes)`, `contractDecodePoint(bytes)` | `byteArrayToBigInt` is `new BigInteger(bytes).to256BitValueExact`: any non-empty length, signed, value in [−2^255, 2^255 − 1]. Outside that range, or when empty, it throws `ContractThrow`. `decodePoint` takes exactly 33 bytes; a 0x00 prefix gives the identity point. |
 | `explain(pub, msg, sig)` | `SignatureXray` for the Learn and X-ray views: every step and check with its bytes. |
-| `encodeGroupElement`, `encodeCollByte`, `encodeLong`, `encodeAvlTree`, `decodeRegister`, `basisAvlRegister(digest)` | Register hex exactly as it appears on chain. |
+| `encodeGroupElement`, `encodeCollByte`, `encodeLong`, `basisAvlRegister(digest)` | Register hex exactly as it appears on chain. `decodeRegister`, `encodeAvlTree` (any AvlTree) and `unzigzag64` are in `registerCodec.ts`, imported by path, not from this index: only the mainnet wallet uses them, and this index is in the first load. |
 | `EMPTY_AVL_DIGEST_HEX` | `4ec61f48…160900`. |
 
 **Performance note.** noble 1.7.0's `multiplyUnsafe` is wrong on windowed points. The engine therefore uses `multiply` for G and for cached keys (see `warmPublicKey`). Do not "optimise" it back.

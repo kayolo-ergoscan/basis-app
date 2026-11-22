@@ -18,7 +18,6 @@
 //
 // noble 1.7.0: `multiplyUnsafe` is wrong on windowed points (see protocol/schnorr.ts), so only `multiply` is used.
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { hmac } from "@noble/hashes/hmac";
 import { sha256 } from "@noble/hashes/sha256";
 import { bigToBytes, blake2b256, bytesToBig, concatBytes, equalBytes, hexToBytes, utf8 } from "../../protocol/bytes";
 
@@ -32,6 +31,27 @@ export const CHALLENGE_BYTES = 24;
 const FS_PREFIX = hexToBytes("010027100108cd");
 const FS_POSTFIX = hexToBytes("73000021");
 const NONCE_TAG = utf8("ergo-provedlog-v1");
+
+/**
+ * HMAC-SHA256 (RFC 2104) on noble's sha256. Not `@noble/hashes/hmac`: that module is in the first load's graph (the
+ * shell's curve code imports it), so using it here would put its code in the first load; this stays in the wallet's
+ * lazy chunk. Checked against RFC 4231 and noble's hmac in provedlog.test.ts.
+ */
+export function hmacSha256(key: Uint8Array, message: Uint8Array): Uint8Array {
+  const block = new Uint8Array(64);
+  block.set(key.length > 64 ? sha256(key) : key);
+  const inner = sha256.create();
+  const outer = sha256.create();
+  for (let i = 0; i < 64; i++) block[i] ^= 0x36;
+  inner.update(block);
+  for (let i = 0; i < 64; i++) block[i] ^= 0x36 ^ 0x5c;
+  outer.update(block);
+  block.fill(0);
+  const ih = inner.update(message).digest();
+  const out = outer.update(ih).digest();
+  ih.fill(0);
+  return out;
+}
 
 /** The challenge c for key `pk` and commitment `a` (both 33 bytes) over `message`. */
 export function provedlogChallenge(pk: Uint8Array, a: Uint8Array, message: Uint8Array): Uint8Array {
@@ -90,7 +110,7 @@ export function proveDlog(message: Uint8Array, secret: Uint8Array, opts: ProveOp
   for (let attempt = 0; attempt < 4; attempt++) {
     const rnd = opts.entropy ?? secp256k1.utils.randomPrivateKey();
     if (rnd.length !== 32) throw new Error("entropy must be 32 bytes");
-    const r = bytesToBig(hmac(sha256, secret, concatBytes(NONCE_TAG, message, rnd))) % N;
+    const r = bytesToBig(hmacSha256(secret, concatBytes(NONCE_TAG, message, rnd))) % N;
     if (r === 0n) {
       if (opts.entropy) throw new Error("degenerate nonce");
       continue;

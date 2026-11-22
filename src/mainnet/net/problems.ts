@@ -1,7 +1,7 @@
 // What went wrong with one request, in the words the wallet needs (design §6.3). Every answer of the front is read
 // here: the status, the tracker's own reason (cut to 300 characters, always shown as plain text), and for a 429 when
 // to try again. Nothing here retries: polls back off (`backoffMs`), user actions show the wait and a "Try again".
-import type { RawAnswer } from "../../chain/ours";
+import type { RawAnswer } from "../../chain/ours/raw";
 import { OURS_POLL } from "../../chain/ours";
 
 export type ProblemKind =
