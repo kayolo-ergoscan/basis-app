@@ -84,8 +84,8 @@ describe("questions forward", () => {
 
   it("the real-ERG answer is honest: yes in beta, key in the browser, an experiment", () => {
     const f = faq.find((x) => x.id === "launched")!;
-    expect(plain(f.short.en)).toMatch(/^Yes, in beta\. Since .+ this site's wallet works on Ergo mainnet/);
-    expect(plain(f.short.ru)).toMatch(/^Да, в бета-режиме\. С .+ кошелёк этого сайта работает в основной сети Ergo/);
+    expect(plain(f.short.en)).toMatch(/^Yes, in beta\. Since 22 November 2026, this site['’]s wallet has worked on Ergo mainnet/);
+    expect(plain(f.short.ru)).toMatch(/^Да, в бета-режиме\. С 22 ноября 2026 года кошелёк этого сайта работает в основной сети Ergo/);
     expect(plain(f.short.en)).toMatch(/experimental: use small amounts only\.$/);
     expect(f.links?.map((l) => l.to)).toEqual(["/wallet/mainnet", "/network", CLIENTS_HREF]);
   });

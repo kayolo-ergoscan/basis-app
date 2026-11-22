@@ -174,8 +174,8 @@ export const faq: Faq[] = [
     id: "launched",
     q: t("Can I use real ERG yet?", "Можно ли уже с настоящими ERG?"),
     short: t(
-      "Yes, in beta. Since [[FILL date-en]] this site's wallet works on Ergo mainnet with ErgoScan's tracker. The key stays only in your browser. Basis is experimental: use small amounts only.",
-      "Да, в бета-режиме. С [[FILL date-ru]] кошелёк этого сайта работает в основной сети Ergo вместе с трекером ErgoScan. Ключ хранится только в вашем браузере. Basis — эксперимент: используйте только небольшие суммы.",
+      "Yes, in beta. Since 22 November 2026, this site's wallet has worked on Ergo mainnet with ErgoScan's tracker. The key stays only in your browser. Basis is experimental: use small amounts only.",
+      "Да, в бета-режиме. С 22 ноября 2026 года кошелёк этого сайта работает в основной сети Ergo вместе с трекером ErgoScan. Ключ хранится только в вашем браузере. Basis — эксперимент: используйте только небольшие суммы.",
     ),
     a: [
       t(
