@@ -58,7 +58,8 @@ export function Mainnet() {
   const ergStr = units(R.nano, 9, 3);
   const stats = [
     { k: t("home.n.boxes"), v: checking ? "—" : int(R.boxes), sub: checking ? "" : t("home.n.unspent", { n: int(R.unspent) }) },
-    { k: t("home.n.locked"), v: checking ? "—" : ergStr, sub: !checking && R.tokens ? t("home.n.tokens") : "", metal: true },
+    // while checking, the placeholder takes the plain figure style: a lone dash in the gold display face reads as a rule
+    { k: t("home.n.locked"), v: checking ? "—" : ergStr, sub: !checking && R.tokens ? t("home.n.tokens") : "", metal: !checking },
     { k: t("home.n.redemptions"), v: int(T.redemptions), sub: t("home.n.redeemed", { v: units(T.redeemedNano, 9, 2) }) },
     { k: t("home.n.trackers"), v: int(totalTrackers), sub: pick(copy.trackerLine, lang), title: ours ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined },
   ];
