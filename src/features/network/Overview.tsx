@@ -174,7 +174,7 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
             <dd><span className="v t-money">{ergs(BigInt(S.unspentNano))}</span><span className="u">ERG</span></dd>
             <dd className="s">{asOfSnap}</dd>
           </>) : (<>
-            <dd><span className="v t-money">—</span></dd>
+            <dd><span className="v num">—</span></dd>
             <dd className="s">{t("chain.checking")}</dd>
           </>)}
         </div>
