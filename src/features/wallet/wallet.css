@@ -437,6 +437,8 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 .wl-onb-h { max-width: 11em; }
 .wl-onb-h em { color: var(--ink-2); }
 .wl-onb-lede { margin-top: clamp(16px, 1.8vw, 24px); }
+.wl-onb-why { margin: 12px 0 0; font: 400 14.5px/1.5 var(--f-ui); color: var(--ink-2); max-width: 52ch; }
+.wl-onb-where { margin: 0 0 clamp(12px, 1.4vw, 18px); font: 500 14.5px/1.5 var(--f-ui); color: var(--ink); max-width: 52ch; }
 .wl-onb-body { display: grid; gap: 18px; min-width: 0; padding: 24px; border-radius: var(--r-paper); background: var(--surface); border: 1px solid var(--rule); box-shadow: 0 30px 60px -40px rgba(var(--shade), .55); }
 .wl-onb-body .seg { flex-wrap: wrap; }
 .wl-town { margin: clamp(28px, 3.6vw, 48px) 0 0; display: grid; gap: 14px; }

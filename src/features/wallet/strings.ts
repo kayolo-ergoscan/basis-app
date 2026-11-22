@@ -637,6 +637,12 @@ const en: Dict = {
 
   // onboarding
   "wallet.onb.steps": "Step {n} of 3",
+  "wallet.onb.why": "Regular Ergo wallets can't sign notes yet —",
+  "wallet.onb.whyLink": "why?",
+  "wallet.onb.where.notes": "Your notes will be here once you have a sandbox key.",
+  "wallet.onb.where.reserve": "Your sandbox reserve will be here once you have a sandbox key.",
+  "wallet.onb.where.settings": "Your key and settings will be here once you have a sandbox key.",
+  "wallet.onb.where.other": "This part of the wallet opens once you have a sandbox key.",
   "wallet.onb.h.0": "Your key for the",
   "wallet.onb.em.0": "sandbox town.",
   "wallet.onb.lede.0": "One key signs your notes. It stays in this browser; the town around it is a simulation with real cryptography and play money.",
@@ -1325,6 +1331,12 @@ const ru: Partial<Dict> = {
   "wallet.set.resetYes": "Сбросить — удерживайте",
 
   "wallet.onb.steps": "Шаг {n} из 3",
+  "wallet.onb.why": "Обычные кошельки Ergo пока не подписывают расписки —",
+  "wallet.onb.whyLink": "почему?",
+  "wallet.onb.where.notes": "Здесь будут ваши расписки, когда у вас появится игровой ключ.",
+  "wallet.onb.where.reserve": "Здесь будет ваш резерв в песочнице, когда у вас появится игровой ключ.",
+  "wallet.onb.where.settings": "Здесь будут ваш ключ и настройки, когда у вас появится игровой ключ.",
+  "wallet.onb.where.other": "Этот раздел кошелька откроется, когда у вас появится игровой ключ.",
   "wallet.onb.h.0": "Ваш ключ для",
   "wallet.onb.em.0": "города-песочницы.",
   "wallet.onb.lede.0": "Один ключ подписывает ваши расписки. Он остаётся в этом браузере; город вокруг — симуляция с настоящей криптографией и игровыми деньгами.",

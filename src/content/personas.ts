@@ -92,7 +92,7 @@ export const personas: Persona[] = [
       "Один итог на каждого человека, лимит, который вы задаёте сами, индикатор покрытия и погашение в Ergo, когда есть резерв.",
     ),
     caveat: t("Without a reserve, a note rests on trust alone.", "Без резерва расписка держится только на доверии."),
-    start: { label: t("Open the sandbox wallet", "Открыть кошелёк в песочнице"), to: "/wallet" },
+    start: { label: t("Open the sandbox wallet", "Открыть игровой кошелёк"), to: "/wallet" },
     scenario: "village-lets",
     sources: ["tg-1317"],
   },

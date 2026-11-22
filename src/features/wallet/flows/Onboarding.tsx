@@ -2,6 +2,7 @@
 // encrypted backup (passphrase ≥ 8, words 2 and 3 typed back, or a skip with a warning) → join the town (50 play
 // ERG) → the home with a three-hint tour. Says plainly: sandbox key, play money, do not send real ERG to it.
 import { useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { useTheme } from "@/app/theme";
 import { Callout, Field, GuillocheField, Key, KeySeal, Seg, TextInput } from "@/ui";
@@ -15,8 +16,20 @@ type KeyMode = "create" | "hex" | "file";
 
 const errCode = (e: unknown): string => (e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "unknown");
 
+/** The FAQ answer the onboarding's "why?" opens: why ordinary Ergo wallets cannot sign notes. */
+export const WHY_NO_WALLET_HREF = "/learn/faq#q-nautilus";
+
+/** Without a key every wallet tab shows the onboarding; this names what the tab will hold (null on /wallet itself). */
+export function whereKey(pathname: string): string | null {
+  const p = pathname.replace(/\/+$/, "");
+  if (p === "/wallet" || !p.startsWith("/wallet/")) return null;
+  const sub = p.slice("/wallet/".length).split("/")[0];
+  return sub === "notes" || sub === "reserve" || sub === "settings" ? `wallet.onb.where.${sub}` : "wallet.onb.where.other";
+}
+
 export function Onboarding() {
   const t = useT();
+  const where = whereKey(useLocation().pathname);
   const { identity } = useWallet();
   const joined = useTown((s) => s.joined);
   const p = usePrefs();
@@ -31,11 +44,17 @@ export function Onboarding() {
           <SandboxTag />
           <StepDots n={3} at={step} label={t("wallet.onb.steps", { n: step + 1 })} />
         </div>
+        {where && <p className="wl-onb-where">{t(where)}</p>}
         <h1 className="t-h1 wl-onb-h">
           {t(`wallet.onb.h.${step}`)}
           <em> {t(`wallet.onb.em.${step}`)}</em>
         </h1>
         <p className="t-lede wl-onb-lede">{t(`wallet.onb.lede.${step}`)}</p>
+        {step === 0 && (
+          <p className="wl-onb-why">
+            {t("wallet.onb.why")} <Link className="textlink" to={WHY_NO_WALLET_HREF}>{t("wallet.onb.whyLink")}</Link>
+          </p>
+        )}
       </div>
       <div className="wl-onb-body">
         {step === 0 && <StepKey />}
