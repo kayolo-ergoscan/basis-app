@@ -1,4 +1,4 @@
-// /learn/how — ten short chapters from content (howItWorks.ts), each with one working figure, the protocol fact
+// /learn/how — ten short steps from content (howItWorks.ts), each with one working figure, the protocol fact
 // with its contract lines, "try it" scenarios, words and sources.
 import type { ReactNode } from "react";
 import { useT } from "@/app";

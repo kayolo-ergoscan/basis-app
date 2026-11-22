@@ -66,9 +66,15 @@ export interface TownGenesisOptions {
   seed?: string;
   /** Wall time of the genesis block (ms). Default: a fixed instant (deterministic). */
   genesisTimeMs?: bigint;
+  /** Default: SANDBOX_GENESIS_HEIGHT. */
   genesisHeight?: number;
   avl?: AvlBackend;
 }
+
+/** First block of every sandbox chain the site builds (town, /play runs, Home, Learn labs). Ergo mainnet is near
+ *  block 2 000 000, so sandbox blocks counted from 1 are never mistaken for real Ergo blocks. The engine's own
+ *  default (DEFAULT_GENESIS_HEIGHT, 1 600 000) stays for its tests; a stored town keeps the height it was built with. */
+export const SANDBOX_GENESIS_HEIGHT = 1;
 
 /** 2026-11-01T00:00:00Z — default genesis time (tests, deterministic builds). */
 export const DEFAULT_TOWN_GENESIS_MS = 1_793_491_200_000n;
@@ -96,7 +102,7 @@ export function cafePolicy(pubs: { regulars: Hex[]; newcomers: Hex[] }): Accepta
 
 /** Builds the town economy with its genesis history. Pure and deterministic. */
 export function buildTown(o: TownGenesisOptions = {}): Economy {
-  const eco = new Economy({ seed: o.seed ?? TOWN_SEED, genesisTimeMs: o.genesisTimeMs ?? DEFAULT_TOWN_GENESIS_MS, genesisHeight: o.genesisHeight, avl: o.avl });
+  const eco = new Economy({ seed: o.seed ?? TOWN_SEED, genesisTimeMs: o.genesisTimeMs ?? DEFAULT_TOWN_GENESIS_MS, genesisHeight: o.genesisHeight ?? SANDBOX_GENESIS_HEIGHT, avl: o.avl });
   eco.addDenomination(SUSE);
   for (const r of RESIDENTS) {
     eco.addParticipant({ id: r.id, name: r.name, kind: r.kind, avatarSeed: `town/${r.id}`, erg: r.erg, tokens: r.suse ? [[SUSE_ID, r.suse]] : [], meta: { about: r.about } });

@@ -1,13 +1,14 @@
 // /network page strings (EN / RU). Loaded with the lazy page (Page.tsx calls addI18n), so they stay out of the main
-// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings use U+2009 U+2060 for
-// thousands and U+00A0 before units (VISUAL §4.3). Shared honest phrases come from @/content `copy`, not from here.
+// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings are in each language's
+// format: EN "2,160", RU "2 160" with U+2009 U+2060; U+00A0 before units (VISUAL §4.3). Shared honest phrases come
+// from @/content `copy`, not from here.
 import type { I18nBundle } from "@/app/types";
 
 const S = " ⁠"; // thin space + word joiner
 const NB = " ";
-const B2160 = `2${S}160${NB}blk`;
+const B2160 = `2,160${NB}blk`;
 const B2160RU = `2${S}160${NB}блоков`;
-const B43200 = `43${S}200${NB}blk`;
+const B43200 = `43,200${NB}blk`;
 const B43200RU = `43${S}200${NB}блоков`;
 
 export default {
@@ -92,7 +93,7 @@ export default {
     "network.trk.noBox": "No tracker box",
     "network.trk.emOpen": "Emergency redeem open since block {h}",
     "network.trk.emOpens": "Emergency redeem opens at block {h}, in {left}",
-    "network.em.idle": `Box age, not uptime: the tracker server posts a new box only when something changed, so an honest but idle tracker also opens this window after ${B2160} of quiet.`,
+    "network.em.idle": `The window opens on time, not on failure. If a tracker has written nothing to Ergo for about 3${NB}days (${B2160}), even just because there were no payments, holders can redeem the last recorded totals without its signature.`,
     "network.trk.reserves": "reserves: {n}",
     "network.trk.served": "redemptions: {n}",
     "network.trk.burnedAt": "Burned at block {h}",
@@ -258,7 +259,9 @@ export default {
     // trackers list
     "network.tl.eyebrow": "MAINNET · TRACKERS",
     "network.tl.h1": "Trackers, *read from their boxes.*",
-    "network.tl.lede": "A tracker NFT travels from box to box. Each tracker box names a key in R4 and commits a digest of notes in R5. These are the {n} NFTs that reserves name or that ever sat in a tracker box.",
+    "network.tl.lede": "Every tracker has its own NFT — that is how the chain recognises it. Here are all {n}: trackers that have written to Ergo, and ones that reserves only point to so far.",
+    "network.tl.tech": "Details",
+    "network.tl.techText": "A tracker NFT travels from box to box. Each tracker box names a key in R4 and commits a digest of notes in R5.",
     "network.tl.lanes": "Box history",
     "network.tl.lanesSub": "Every readable tracker box on one block axis. Tall marks are new digests; short marks re-post the same digest.",
     "network.tl.lg.commit": "new digest",
@@ -650,7 +653,7 @@ export default {
     "network.trk.noBox": "Бокса трекера нет",
     "network.trk.emOpen": "Аварийное погашение открыто с блока {h}",
     "network.trk.emOpens": "Аварийное погашение откроется на блоке {h}, через {left}",
-    "network.em.idle": `Считается возраст бокса, а не «онлайн»: сервер трекера публикует новый бокс, только когда что-то изменилось, поэтому и честный, но простаивающий трекер открывает это окно после ${B2160RU} тишины.`,
+    "network.em.idle": `Окно открывается по времени, а не по поломке. Если трекер около 3${NB}дней (${B2160RU}) ничего не записывал в${NB}Ergo${NB}— даже просто потому, что не было платежей,${NB}— держатели могут погасить последние записанные итоги без его подписи.`,
     "network.trk.reserves": "резервов: {n}",
     "network.trk.served": "погашений: {n}",
     "network.trk.burnedAt": "Сожжён на блоке {h}",
@@ -813,7 +816,9 @@ export default {
 
     "network.tl.eyebrow": "ОСНОВНАЯ СЕТЬ · ТРЕКЕРЫ",
     "network.tl.h1": "Трекеры — *по их боксам.*",
-    "network.tl.lede": "NFT трекера переходит из бокса в бокс. Каждый бокс трекера называет ключ в R4 и фиксирует дайджест расписок в R5. Здесь все NFT, которые называют резервы или которые хоть раз были в боксе трекера: {n}.",
+    "network.tl.lede": "У каждого трекера есть свой NFT — по нему трекер узнают в блокчейне. Здесь все {n}: и трекеры, которые уже записывали данные в Ergo, и те, на которые пока только ссылаются резервы.",
+    "network.tl.tech": "Подробнее",
+    "network.tl.techText": "NFT трекера переходит из бокса в бокс. Каждый бокс трекера называет ключ в R4 и фиксирует дайджест расписок в R5.",
     "network.tl.lanes": "История боксов",
     "network.tl.lanesSub": "Каждый читаемый бокс трекера на одной оси блоков. Высокие отметки — новые дайджесты, короткие — повтор того же дайджеста.",
     "network.tl.lg.commit": "новый дайджест",

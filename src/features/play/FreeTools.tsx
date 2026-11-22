@@ -5,7 +5,7 @@ import { cloneElement, isValidElement, useId, useMemo, useState, type ReactEleme
 import type { Lang } from "@/app/types";
 import type { TFn } from "@/app";
 import { defaultCollateralPolicy, type DebtCycle, type DenomId, type Economy, type ParticipantKind, type ReserveEval, type SimTx } from "@/protocol";
-import { Key, Seg, int, toast } from "@/ui";
+import { Key, Seg, int, plainNumber, toast } from "@/ui";
 import { POLICY_PRESETS, SUSE, policyFromPreset, redemptionPreview, worldLookup, type RunController } from "@/world";
 import { denomInfoOf, displayName, fmtAmt, parseUnits } from "./model";
 
@@ -614,7 +614,7 @@ export function FreeTools({ run, eco, t, lang, past, onLive, onFork, onXray }: P
             error={rdErr}
             help={pv ? (pv.maxAmount > 0n ? t("play.free.canRedeem", { v: `${fmtAmt(pv.maxAmount, rdU.decimals)} ${rdU.symbol}` }) : pv.blockers.slice(0, 1).map((b) => worldLookup(`world.redeem.blocker.${b}`, lang) ?? b).join("")) : undefined}
           >
-            <Amount value={rdAmt} onChange={setRdAmt} unit={rdU.symbol} max={pv && pv.maxAmount > 0n ? { label: t("play.free.max"), onMax: () => setRdAmt(fmtAmt(pv.maxAmount, rdU.decimals).replace(/[   ⁠]/g, "").replace(",", ".")) } : undefined} />
+            <Amount value={rdAmt} onChange={setRdAmt} unit={rdU.symbol} max={pv && pv.maxAmount > 0n ? { label: t("play.free.max"), onMax: () => setRdAmt(plainNumber(fmtAmt(pv.maxAmount, rdU.decimals))) } : undefined} />
           </Field>
           <div className="pl-acts">
             <Key size="sm" variant="metal" hold onAct={doRedeem}>

@@ -48,7 +48,7 @@ export function Timeline({ rows, total, height, minDepth, selected, onSelect, on
       render: (r) => (
         <span className="trk-tl-block">
           <span className="num">{int(r.height)}</span>
-          <span className="t-small dim">{height - r.height === 0 ? t("tracker.tl.now") : t("tracker.tl.ago", { n: int(height - r.height) })}</span>
+          <span className="t-small dim">{height - r.height === 0 ? t("tracker.tl.now") : t.p("tracker.tl.ago", height - r.height, { n: int(height - r.height) })}</span>
         </span>
       ),
     },

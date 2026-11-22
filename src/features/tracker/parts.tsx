@@ -31,13 +31,23 @@ export function useText() {
   return useCallback((x: Text) => md(pick(x, t.lang)), [t.lang]);
 }
 
-/** The three tracker pages. The console has two modes (simulation, mainnet); both are "Console". */
+/** ErgoScan's tracker on mainnet: the menu's «Трекер» opens it, and so do /tracker and unknown /tracker addresses. */
+export const TRACKER_HOME = "/tracker/mainnet";
+/** The sandbox town's tracker T-01 (play money): the console's second tab, «Учебный»/Practice. */
+export const TRACKER_PRACTICE = "/tracker/practice";
+
+/** Where /tracker (or an unknown /tracker address) goes, with its query and hash. */
+export function trackerHomeOf(search = "", hash = ""): string {
+  return TRACKER_HOME + search + hash;
+}
+
+/** The three tracker pages. The console has two modes (mainnet, practice); both are "Console". */
 export function SubNav() {
   const t = useT();
   const { pathname } = useLocation();
   const p = pathname.replace(/\/+$/, "") || "/";
   const items: [string, string, boolean][] = [
-    ["/tracker", "tracker.nav.console", p === "/tracker" || p === "/tracker/mainnet"],
+    [TRACKER_HOME, "tracker.nav.console", p === "/tracker" || p === TRACKER_HOME || p === TRACKER_PRACTICE],
     ["/tracker/run", "tracker.nav.run", p === "/tracker/run"],
     ["/tracker/api", "tracker.nav.api", p === "/tracker/api"],
   ];
@@ -52,12 +62,12 @@ export function SubNav() {
   );
 }
 
-/** The console's switch: the sandbox town's tracker, or ErgoScan's real tracker on mainnet (read-only). */
+/** The console's switch: ErgoScan's real tracker on mainnet (read-only) first, then the sandbox town's practice tracker. */
 export function ModeSwitch({ mode }: { mode: "sim" | "main" }) {
   const t = useT();
   const items = [
-    { id: "sim", to: "/tracker", label: t("tracker.mode.sim"), sub: t("tracker.mode.simSub"), glyph: "◌" },
-    { id: "main", to: "/tracker/mainnet", label: t("tracker.mode.main"), sub: t("tracker.mode.mainSub"), glyph: "◆" },
+    { id: "main", to: TRACKER_HOME, label: t("tracker.mode.main"), sub: t("tracker.mode.mainSub"), glyph: "◆" },
+    { id: "sim", to: TRACKER_PRACTICE, label: t("tracker.mode.sim"), sub: t("tracker.mode.simSub"), glyph: "◌" },
   ] as const;
   return (
     <nav className="trk-mode" aria-label={t("tracker.mode.aria")}>

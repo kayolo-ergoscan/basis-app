@@ -19,7 +19,7 @@ import {
   type StepResult,
 } from "@/protocol";
 import type { RunController } from "@/world";
-import { int, pct, units } from "@/ui";
+import { blk, int, pct, plainNumber, units } from "@/ui";
 import strings, { RU_NAMES } from "./strings";
 
 // ------------------------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ export function denomInfoOf(eco: Economy, denom: DenomId): { symbol: string; dec
 
 /** Parses "1.5" or "1,5" (spaces allowed) into base units; null when invalid or not positive. */
 export function parseUnits(text: string, decimals: number): bigint | null {
-  const s = text.replace(/[\s ⁠ ]/g, "").replace(",", ".");
+  const s = plainNumber(text);
   if (!/^\d+(\.\d+)?$/.test(s)) return null;
   const [i, f = ""] = s.split(".");
   if (f.length > decimals) return null;
@@ -417,7 +417,7 @@ export function buildStage(eco: Economy, denom: DenomId, W: number, H: number, l
     const off = tl.length === 1 ? 0 : (i - (tl.length - 1) / 2) * (narrow ? Math.min(W * 0.3, 130) : Math.min(W * 0.2, 230));
     const tr: StageTracker = { id: t.id, name: displayName(eco, t.id, lang), x: cx + off, y: cy, online: t.online, censor: t.censorship.mode, age, band: trackerBandOf(age, t.emergencyOpen(height)), notes: t.notes.size, s: 1, lab: narrow ? "state" : tl.length > 1 || (small && !dense) ? "two" : "one", wrap: narrow && tl.length > 1, labW: 0 };
     const state = words[`play.tracker.${trackerStateOf(tr)}`] ?? "";
-    const ago = age === null ? (words["play.tracker.never"] ?? "") : (words["play.tracker.ago"] ?? "").replace("{n}", int(age));
+    const ago = age === null ? (words["play.tracker.never"] ?? "") : (words["play.tracker.ago"] ?? "").replace("{n}", blk(age, lang));
     const split = tr.wrap && state.length > 16 ? splitMid(state) : null;
     const lines = tr.lab === "one" ? [`${state} · ${ago}`] : tr.lab === "two" ? [state, ago] : split ?? [state];
     tr.labW = Math.max(tr.name.length * 7.8, ...lines.map((l) => l.replace(/\u2060/g, "").length * 6.7));

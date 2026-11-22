@@ -65,8 +65,8 @@ export const moments: Moment[] = [
     numeral: "III",
     title: t("Trust", "Доверие"),
     text: t(
-      "Every few minutes the tracker writes one digest of all notes into its box on Ergo. Anyone can check a note against it, but a match proves what was committed, not that the issuer can pay.",
-      "Каждые несколько минут трекер записывает в свой бокс в Ergo один дайджест всех расписок. Любой может сверить с ним расписку, но совпадение доказывает только факт фиксации, а не платёжеспособность эмитента.",
+      "Every few minutes the tracker writes a short fingerprint of all notes to Ergo: the digest. Anyone can use it to check that a note is counted, but not whether the payer can pay.",
+      "Раз в несколько минут трекер записывает в Ergo короткий отпечаток всех расписок — дайджест. По нему любой проверит, что расписка учтена, но не то, хватит ли у должника денег.",
     ),
     fact: fact("R5 = AVL+ digest · every 600 s · confirmed at depth 2", "R5 = дайджест AVL+ · раз в 600 с · подтверждено на глубине 2"),
     mini: "digest-pulse",

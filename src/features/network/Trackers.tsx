@@ -34,6 +34,10 @@ export function TrackersList({ obs }: { obs: Observatory }) {
           <div className="eyebrow label">{t("network.tl.eyebrow")}</div>
           <h1 className="t-h1">{rich(t("network.tl.h1"))}</h1>
           <p className="t-lede">{t("network.tl.lede", { n: list.length + ours })}</p>
+          <details className="nw-tech">
+            <summary>{t("network.tl.tech")}</summary>
+            <p className="t-small">{t("network.tl.techText")}</p>
+          </details>
         </div>
         <AsOf h={obs.height} live={obs.heightLive} />
       </header>
@@ -47,7 +51,9 @@ export function TrackersList({ obs }: { obs: Observatory }) {
         <TrackerLanes obs={obs} trackers={list} clock={clock} />
       </Block>
       <Block label={t("network.tl.cards")} aside={<span className="label num">{list.length}</span>}>
-        <div className="nw-tgrid">{panels.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} />)}</div>
+        <div className="nw-tgrid">{panels.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} idle={false} />)}</div>
+        {/* the emergency window's one explanation, once under the cards instead of in each (§5 #12) */}
+        {list.some((tr) => tr.lastTrackerBox?.unspent && (tr.status === "live" || tr.status === "stale")) && <p className="nw-em-idle nw-em-idle-once">{t("network.em.idle")}</p>}
       </Block>
     </>
   );

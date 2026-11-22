@@ -1,9 +1,11 @@
 // The hero (VISUAL §13 Home): copy on the left; on the right the note stack signed live in this page by the
 // story economy, with the numbered callouts and their dashed leaders, the checks row and the live strip.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { Link } from "react-router-dom";
 import { useLang, useT, rich } from "@/app/lang";
 import { copy, pick } from "@/content";
 import { Checks, GuillocheField, Key, Lamp, NoteStack, prefersReducedMotion, short, money, int, type NoteProps } from "@/ui";
+import { FAQ_HREF } from "./Faq";
 import { LiveStrip } from "./LiveStrip";
 import { STORY, storyKeys, TRACKER_ID, TRACKER_NAME } from "./story";
 import { phaseAtLeast, useStory, type Phase } from "./useStory";
@@ -195,6 +197,7 @@ export function Hero() {
             <Key variant="primary" size="lg" kbd="P" to="/play">{t("home.cta.play")}</Key>
             <Key size="lg" to="/wallet">{t("home.cta.wallet")}</Key>
             <button type="button" className="textlink home-how" onClick={scrollToMoments}>{t("home.cta.how")} <span aria-hidden="true">↓</span></button>
+            <Link className="textlink home-how" to={FAQ_HREF}>{t("home.cta.faq")} <span aria-hidden="true">→</span></Link>
           </div>
           <ul className="home-materials" aria-label={t("home.mat.aria")}>
             <li><i className="msw line" aria-hidden="true" /><b>{t("home.mat.line")}</b><span>{t("home.mat.line.sub")}</span></li>

@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { isDenomId, type DenomId } from "@/protocol";
-import { AmountInput, Callout, CopyButton, Field, Key, Lamp, Seg, Tag, TextInput } from "@/ui";
+import { AmountInput, Callout, CopyButton, Field, Key, Lamp, plainNumber, Seg, Tag, TextInput } from "@/ui";
 import { parseAmount, REQUEST_LIMITS, town, TOWN_TRACKER, useClock, useTown, useTownView, YOU, type PaymentRequest } from "@/world";
 import { useFmt, useNameOf, useOutcomeToast, useWT } from "../lib/hooks";
-import { makePayLink, parsePayLink, resolveParty, unitOf, type Unit } from "../lib/model";
+import { makePayLink, parsePayLink, plainAmount, resolveParty, unitOf, type Unit } from "../lib/model";
 import { QrCode } from "../lib/qr";
 import { Frame, PartySeal } from "../parts/bits";
 
@@ -36,7 +36,7 @@ export function RequestFlow({ page }: { page: boolean }) {
 
   const create = async () => {
     if (!youPub || !value || value <= 0n) return;
-    const link = makePayLink(window.location.origin, { to: youPub, amount: amount.trim().replace(",", "."), denom, memo: memo.trim() || undefined, tracker: TOWN_TRACKER });
+    const link = makePayLink(window.location.origin, { to: youPub, amount: plainAmount(value, unit.decimals), denom, memo: memo.trim() || undefined, tracker: TOWN_TRACKER });
     if (!from) {
       setMade({ link });
       return;
@@ -220,6 +220,9 @@ export function ScanFlow({ page }: { page: boolean }) {
     },
     [ok?.denom],
   );
+  // the link's amount ("1.25") in the page's number format («1,25»), with every decimal the link has
+  const scanned = ok?.amount && unit ? parseAmount(ok.amount, { id: unit.id, symbol: unit.symbol, decimals: unit.decimals }) : null;
+  const scannedDp = unit ? Math.min(unit.decimals, Math.max(Math.min(2, unit.decimals), (plainNumber(ok?.amount ?? "").split(".")[1] ?? "").length)) : 2;
 
   useEffect(() => {
     if (cam !== "on") return;
@@ -304,7 +307,7 @@ export function ScanFlow({ page }: { page: boolean }) {
               </div>
               {ok.amount ? (
                 <div className="t-money wl-scan-amt">
-                  {ok.amount.replace(",", ".")}
+                  {scanned !== null ? f.amt(scanned, unit, { reveal: true, dp: scannedDp }) : ok.amount}
                   <span className="u-unit">{unit.symbol}</span>
                 </div>
               ) : (

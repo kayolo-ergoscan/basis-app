@@ -1,6 +1,7 @@
 // Formatting for mainnet data (VISUAL §4.3). Amounts are exact bigints from @/chain; they go through the ui `units()`
-// helper (thin-space groups, U+2212 minus). Mainnet test amounts are tiny (0.001–1 ERG), so a fixed 2 dp would print
-// "0.00" for a 0.003 ERG reserve: `dpFor` keeps at least 2 decimals and adds more only when the value needs them.
+// helper (numbers in the page language: RU "8,995", EN "8.995"; U+2212 minus). Mainnet test amounts are tiny
+// (0.001–1 ERG), so a fixed 2 dp would print "0.00" for a 0.003 ERG reserve: `dpFor` keeps at least 2 decimals and
+// adds more only when the value needs them.
 import { blk, humanTime, int, short, units, NBSP } from "@/ui";
 import { parseAddress, type Hex, type TokenAmount, type TokenKind } from "@/chain";
 import type { Lang } from "@/app/types";
@@ -20,7 +21,8 @@ export function dpFor(raw: bigint, decimals: number, min = 2): number {
 export const amount = (raw: bigint, decimals: number, min = 2): string => units(raw, decimals, dpFor(raw, decimals, min));
 export const ergs = (nano: bigint, min = 2): string => amount(nano, 9, min);
 
-/** Russian prose keeps a decimal comma (CONTENT_API §1); figures in cards and tables keep the dot. */
+/** Russian prose keeps a decimal comma (CONTENT_API §1). The formatters write it themselves since 22 Nov 2026 (cards
+ *  and tables too); this stays for numbers that reach prose some other way. */
 export const proseNum = (s: string, lang: Lang): string => (lang === "ru" ? s.replace(/(\d)\.(\d)/g, "$1,$2") : s);
 
 /** Unit label of a token, told apart by id (never by name): the look-alike is always marked as a test token. */

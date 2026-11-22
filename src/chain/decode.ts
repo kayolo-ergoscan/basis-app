@@ -4,6 +4,7 @@
 import { blake2b } from "@noble/hashes/blake2b";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes as nobleHexToBytes } from "@noble/hashes/utils";
+import { groupDigits } from "@/ui/engine/money";
 import type {
   ApiAsset, ApiRegister, AvlTreeInfo, BasisRegisters, DecodedConstant, EmergencyClock, ExitAssessment, ExitClass,
   ExitReason, Hex, RefundClock, SeedAvl, TokenKind, TrackerStatus,
@@ -39,8 +40,8 @@ export const isHex = (s: unknown, bytes?: number): s is string =>
 /** VISUAL §4.3 hex: first 4 + "…" + last 4 ("02d9…60b6"); `n` changes both halves. */
 export const shortHex = (h: string | null | undefined, n = 4): string => (!h ? "—" : h.length <= 2 * n + 1 ? h : `${h.slice(0, n)}…${h.slice(-n)}`);
 
-/** VISUAL §4.3 integer: thousands separated by a thin space + word joiner (U+2009 U+2060): 43 200. */
-export const fmtInt = (n: number | bigint): string => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009\u2060");
+/** VISUAL §4.3 integer in the page language: "43,200" (EN) / "43 200" (RU, thin space + word joiner U+2009 U+2060). */
+export const fmtInt = (n: number | bigint): string => groupDigits(n.toString());
 
 export function blake2b256(...parts: Uint8Array[]): Uint8Array {
   const h = blake2b.create({ dkLen: 32 });

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { Economy, ERGO_AVL_WASM, eventsFromJson, eventsToJson, SIMULATED_AVL, setAvlBackend, useAvlBackend, type AvlBackend } from "@/protocol";
-import { buildTown, SUSE_ID, TOWN_TRACKER, GENESIS_HISTORY_BLOCKS } from "../town/genesis";
+import { buildTown, SUSE_ID, TOWN_TRACKER, GENESIS_HISTORY_BLOCKS, SANDBOX_GENESIS_HEIGHT } from "../town/genesis";
+import { buildEmptyWorld, buildSmallWorld } from "../runs";
 
 let wasm: AvlBackend;
 beforeAll(async () => {
@@ -23,6 +24,10 @@ describe("town genesis", () => {
   it("has the promised shape: healthy, thin and pure-credit issuers, both denominations, all statuses", () => {
     const eco = buildTown({ avl: wasm });
     expect(eco.clock.height - eco.clock.genesisHeight).toBe(GENESIS_HISTORY_BLOCKS);
+    // sandbox blocks are counted from 1, so they never look like real Ergo blocks (≈ 1.9 M)
+    expect(SANDBOX_GENESIS_HEIGHT).toBe(1);
+    expect(eco.clock.genesisHeight).toBe(SANDBOX_GENESIS_HEIGHT);
+    for (const w of [buildSmallWorld("h", wasm), buildEmptyWorld("h", wasm)]) expect(w.clock.genesisHeight).toBe(SANDBOX_GENESIS_HEIGHT);
     const alice = eco.coverage("alice", "erg");
     const bakery = eco.coverage("bakery", "erg");
     const dan = eco.coverage("dan", "erg");

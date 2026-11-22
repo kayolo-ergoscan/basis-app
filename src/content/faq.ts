@@ -156,12 +156,15 @@ export const faq: Faq[] = [
   {
     id: "nautilus",
     q: t("Why can't Nautilus sign notes?", "Почему Nautilus не может подписывать расписки?"),
-    short: t("A note needs a raw Schnorr signature over 80 bytes, and Ergo wallets sign only transactions.", "Расписке нужна «сырая» подпись Шнорра над 80 байтами, а кошельки Ergo подписывают только транзакции."),
+    short: t(
+      "Ergo wallets sign only transactions, and a note is not a transaction: it is a signature over the debt total in a format wallets don't support yet.",
+      "Кошельки Ergo подписывают только транзакции, а расписка — не транзакция: это подпись под суммой долга в формате, который кошельки пока не поддерживают.",
+    ),
     a: [
-      t("Nautilus and other Ergo wallets connect to sites through the EIP-12 standard. It signs transactions and their inputs, not arbitrary messages.", "Nautilus и другие кошельки Ergo подключаются к сайтам по стандарту EIP-12. Он подписывает транзакции и их входы, а не произвольные сообщения."),
-      t("A note is not a transaction. It is a 65-byte Schnorr signature over the 80-byte message, with its own nonce rule: the top byte of e and of z must be below 0x80.", "Расписка — не транзакция. Это 65-байтная подпись Шнорра над 80-байтным сообщением со своим правилом для нонса: старший байт e и z должен быть меньше 0x80."),
-      t("So today a note needs a key the app controls. In this sandbox that is a play key in your browser.", "Поэтому сейчас для расписки нужен ключ, которым управляет приложение. В этой песочнице это игровой ключ в вашем браузере."),
-      t("Topping up a reserve is an ordinary transaction, which such wallets can sign.", "Пополнение резерва — обычная транзакция, такие кошельки могут её подписать."),
+      t("Ergo wallets connect to sites through the EIP-12 standard. It signs transactions and their inputs, not arbitrary messages.", "Кошельки Ergo подключаются к сайтам по стандарту EIP-12. Он подписывает транзакции и их входы, а не произвольные сообщения."),
+      t("A note is not a transaction: it is a signature over the debt total in a special format, and wallets don't support it yet. The Signature X-ray shows its bytes.", "Расписка — не транзакция, а подпись под суммой долга в особом формате, и кошельки его пока не поддерживают. Её байты показывает «Рентген подписи»."),
+      t("So notes are signed by a key inside the app. In this sandbox that is a play key in your browser.", "Поэтому расписки подписывает ключ внутри приложения. В этой песочнице это игровой ключ в вашем браузере."),
+      t("You can top up a reserve with a regular wallet: that is an ordinary transaction.", "Пополнить резерв можно и обычным кошельком: это обычная транзакция."),
     ],
     tags: ["wallet"],
     links: [{ label: t("Signature X-ray", "Рентген подписи"), to: "/learn/signature" }],
@@ -169,15 +172,26 @@ export const faq: Faq[] = [
   },
   {
     id: "launched",
-    q: t("Is Basis running on mainnet yet?", "Basis уже работает в mainnet?"),
-    short: t("In beta, and only in part. ErgoScan's tracker has run on mainnet since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.", "В бета-режиме и пока лишь частично. Трекер ErgoScan работает в mainnet с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы."),
+    q: t("Can I use real ERG yet?", "Можно ли уже с настоящими ERG?"),
+    short: t(
+      "Not on this site: its wallet is a sandbox with play money. On Ergo mainnet, ErgoScan's tracker has run in beta since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.",
+      "Не на этом сайте: его кошелёк — песочница с игровыми деньгами. В основной сети Ergo трекер ErgoScan работает в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы.",
+    ),
     a: [
+      t(
+        "This site does not move real ERG yet. Its wallet and the sandbox run on play money; the Network and Tracker pages only read Ergo mainnet.",
+        "Этот сайт пока не работает с настоящими ERG. Его кошелёк и песочница — на игровых деньгах, а страницы «Сеть» и «Трекер» только читают основную сеть Ergo.",
+      ),
       t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в mainnet Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
       t("Older contract versions hold the early test use: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions at the last snapshot.", "Под старыми версиями контракта — ранние тесты: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и 41 погашение на момент последнего снимка."),
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
     tags: ["status"],
-    links: [{ label: t("Mainnet observatory", "Обсерватория mainnet"), to: "/network" }],
+    links: [
+      { label: t("Open the network", "Открыть сеть"), to: "/network" },
+      // CLIENTS_HREF (clients.ts), written out so this file stays light for the ⌘K bar (content.test checks it)
+      { label: t("Ready-made programs", "Готовые программы"), to: "/learn/api#clients" },
+    ],
     sources: ["bt-15", "f5368-1", "tg-1675", "bt-spec-compiled"],
   },
   {

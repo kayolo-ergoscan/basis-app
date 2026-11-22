@@ -242,6 +242,32 @@ describe("reasons", () => {
   });
 });
 
+describe("plain words first (UX review, 22 Nov 2026)", () => {
+  const plain = (s: string) => s.replace(/[\u00a0\u2009\u2060\u202f]/g, " ").replace(/ {2,}/g, " ");
+  it("the wallet question answers in words; the bytes stay on the Signature X-ray, and no wallet product is named in the answer", () => {
+    const f = C.faq.find((x) => x.id === "nautilus")!;
+    for (const lang of ["en", "ru"] as const) {
+      const all = [f.short[lang], ...f.a.map((p) => p[lang])].join(" ");
+      expect(all).not.toMatch(/Nautilus|0x80|65-?\s?(byte|байт)|nonce|нонс/);
+    }
+    expect(plain(f.short.ru)).toBe("Кошельки Ergo подписывают только транзакции, а расписка — не транзакция: это подпись под суммой долга в формате, который кошельки пока не поддерживают.");
+    expect(f.links?.map((l) => l.to)).toContain("/learn/signature");
+  });
+
+  it("the trust status keeps its facts: the beta tracker date, the current contracts' dates, the review", () => {
+    const s = plain(C.trust.status.text.en);
+    for (const x of ["22 November 2026", "25 and 27 October 2026", "29 October 2026", "not ready for a public launch"]) expect(s).toContain(x);
+    const r = plain(C.trust.status.text.ru);
+    for (const x of ["22 ноября 2026", "25 и 27 октября 2026", "29 октября 2026", "к публичному запуску ещё не готовы"]) expect(r).toContain(x);
+  });
+
+  it("the glossary says what a digest is before its bytes", () => {
+    const g = C.glossary.find((x) => x.id === "digest")!;
+    expect(plain(g.def.en)).toMatch(/^A short fingerprint of all of a tracker['’]s notes\..*Technically 33 bytes/);
+    expect(plain(g.def.ru)).toMatch(/^Короткий отпечаток всех расписок трекера\..*Технически — 33 байта/);
+  });
+});
+
 describe("bilingual text", () => {
   it("found a meaningful number of strings", () => {
     expect(texts.length).toBeGreaterThan(800);

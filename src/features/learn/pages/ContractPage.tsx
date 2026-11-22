@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { rich, useT } from "@/app";
-import { Icon, Key, Seg, Tabs, money, useIsPhone, withUnit, prefersReducedMotion } from "@/ui";
+import { Icon, int, Key, Seg, Tabs, money, useIsPhone, withUnit, prefersReducedMotion } from "@/ui";
 import { ContractXray, expectedChecks } from "@/viz";
 import type { ReserveCheckId } from "@/protocol";
 import {
@@ -155,7 +155,7 @@ export default function ContractPage() {
             : run && verdict ? (
               <>
                 <span className={verdict.ok ? "v-ok" : "v-no"}>{verdict.text}</span>
-                <span className="mono" style={{ fontSize: 12 }}>{t("learn.cx.ran", { h: run.height.toLocaleString("en-US").replace(/,/g, " ⁠"), b: t(avl?.real ? "viz.backend.wasm" : "viz.backend.simulated") })}</span>
+                <span className="mono" style={{ fontSize: 12 }}>{t("learn.cx.ran", { h: int(run.height), b: t(avl?.real ? "viz.backend.wasm" : "viz.backend.simulated") })}</span>
               </>
             ) : range ? <span>{t("learn.cx.lines", { a: range[0], b: range[1] })}</span>
               : <span>{avl ? t("learn.cx.noRun") : t("learn.engine")}</span>}

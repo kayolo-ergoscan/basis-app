@@ -1,11 +1,12 @@
 // Shared shapes and typography for src/content. No React here: pages import these modules and render them.
 //
 // Every human-readable string is a `Text` ({ en, ru }). Build it with `t()` so both languages get the house
-// typography (VISUAL §4.3): thin space + word joiner as the thousands separator ("43 200"), NBSP between a number
-// and its unit ("0.1 ERG", "60 дней"), NBSP before an em dash, curly quotes in EN and «ёлочки» in RU.
+// typography (VISUAL §4.3): numbers in the language's own format (operator, 22 Nov 2026: EN "43,200", RU "43 200"
+// with a thin space + word joiner), NBSP between a number and its unit ("0.1 ERG", "60 дней"), NBSP before an em
+// dash, curly quotes in EN and «ёлочки» in RU. Decimals are written by hand: "0.1 ERG" in EN, «0,1 ERG» in RU.
 //
 // Authoring shorthand understood by `typo()`:
-//   "43 200"      → digits grouped with U+2009 U+2060 (never breaks)
+//   "43 200"      → digits grouped: "43,200" in EN, U+2009 U+2060 in RU (never breaks)
 //   "150 %"       → U+2009 U+2060 before the percent sign
 //   "3 days"      → NBSP between a number and the next word
 //   "~"           → an explicit NBSP where the automatic rules do not reach
@@ -42,8 +43,9 @@ export interface TypoOptions {
 export function typo(input: string, lang: Lang, o: TypoOptions = {}): string {
   const quotes = o.quotes ?? true;
   let s = input.replace(/~/g, NBSP).replace(/\.\.\./g, "…");
-  // thousands: "1 750 639" → grouped with THIN (repeat for long numbers)
-  for (let i = 0; i < 4; i++) s = s.replace(/(\d) (\d{3})(?!\d)/g, `$1${THIN}$2`);
+  // thousands: "1 750 639" (a space, or a hand-set thin space) → "1,750,639" in EN, grouped with THIN in RU
+  const group = lang === "en" ? "," : THIN;
+  for (let i = 0; i < 4; i++) s = s.replace(/(\d)(?: |\u2009\u2060?)(\d{3})(?!\d)/g, `$1${group}$2`);
   // percent
   s = s.replace(/(\d)[  ]%/g, `$1${THIN}%`);
   // number + following word, unit or ≈

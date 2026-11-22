@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { ERGO_AVL_WASM, eventsToJson, listScenarios, runScenario, setAvlBackend, useAvlBackend, type AvlBackend, type ScenarioId } from "@/protocol";
-import { createFreeRun, createRun, importRun, RunController, RunImportError } from "../runs";
+import { createFreeRun, createRun, importRun, RunController, RunImportError, SCENARIO_ECONOMY } from "../runs";
+import { SANDBOX_GENESIS_HEIGHT } from "../town/genesis";
 import { describeEvent } from "../feed";
 import { ensureAvl } from "../avl";
 
@@ -17,8 +18,9 @@ const ids = listScenarios().map((s) => s.id as ScenarioId);
 describe("scenario runs", () => {
   it("step() mirrors the engine: same log and state hash as runScenario, every outcome ok", async () => {
     for (const id of ids) {
-      const engine = runScenario(id);
+      const engine = runScenario(id, { economy: SCENARIO_ECONOMY });
       const run = await createRun(id);
+      expect(run.eco.clock.genesisHeight, id).toBe(SANDBOX_GENESIS_HEIGHT);
       await run.runAll();
       expect(run.results.map((r) => r.outcome.ok)).toEqual(engine.results.map((r) => r.outcome.ok));
       expect(run.results.every((r) => r.outcome.ok), id).toBe(true);

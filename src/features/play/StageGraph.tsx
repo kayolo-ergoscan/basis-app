@@ -5,7 +5,7 @@
 import { memo, startTransition, useEffect, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent, type PointerEvent as RPointerEvent } from "react";
 import type { TFn } from "@/app";
 import type { DenomId } from "@/protocol";
-import { Icon, int, pct, signed, Table, type Column } from "@/ui";
+import { blk, Icon, int, pct, signed, Table, type Column } from "@/ui";
 import { keySeed, sealUrl } from "@/ui/engine/raster";
 import { coverPct, fmtAmt, labelShift, splitMid, trackerStateOf, type StageEdge, type StageModel, type StageNode, type StageTracker } from "./model";
 
@@ -526,7 +526,7 @@ const NodeShape = memo(function NodeShape({
 function Lighthouse({ tr, beam, sel, t, onPick, onKey, scale, plate }: { tr: StageTracker; beam: number; sel: boolean; t: TFn; onPick: () => void; onKey: (ev: RKeyboardEvent) => void; scale: number; plate: boolean }) {
   const state = trackerStateOf(tr);
   const lit = tr.online && (tr.band === "ontime" || tr.band === "none");
-  const ago = tr.age === null ? t("play.tracker.never") : t("play.tracker.ago", { n: int(tr.age) });
+  const ago = tr.age === null ? t("play.tracker.never") : t("play.tracker.ago", { n: blk(tr.age, t.lang) });
   const stateText = t(`play.tracker.${state}`);
   const line2 = tr.lab === "one" ? `${stateText} · ${ago}` : stateText;
   const split = tr.wrap && line2.length > 16 ? splitMid(line2) : null;

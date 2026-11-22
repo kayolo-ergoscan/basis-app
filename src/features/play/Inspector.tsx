@@ -506,7 +506,8 @@ function ReservePanel({ eco, id, t, lang, free, past, act, onSelect }: Props & {
           <div>
             <div className="t-h4">{t("play.ins.r.title", { name: owner })}</div>
             <div className="mono dim pl-mini">
-              {r.contract === "basis-token" ? "basis-token.es" : "basis.es"} · {short(r.box?.boxId ?? r.history[0]?.boxId ?? "", 6, 4)} · {tr ? displayName(eco, tr.id, lang) : "—"}
+              {/* the contract, the box and the tracker R6 binds it to: the details the scenario steps leave out */}
+              {r.contract === "basis-token" ? "basis-token.es" : "basis.es"} · {short(r.box?.boxId ?? r.history[0]?.boxId ?? "", 6, 4)} · R6 → {tr ? displayName(eco, tr.id, lang) : "—"}
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT, useTitle } from "@/app";
-import { CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, ratioPct, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
+import { blockWord, CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, ratioPct, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
 import {
   p2pkAddress,
@@ -84,7 +84,8 @@ function OurFigures({ v }: { v: OurView }) {
       </div>
       <div className={cx("fig", em?.open && "open")}>
         <dt>{t("network.ours.window")}</dt>
-        <dd><span className="v num">{em ? (em.open ? t("network.ours.windowOpen") : blocks(em.blocksLeft, lang)) : DASH}</span></dd>
+        {/* the count big, its word small like ERG beside an amount: «2 037 блоков» fits a phone column */}
+        <dd><span className="v num">{em ? (em.open ? t("network.ours.windowOpen") : fmtH(em.blocksLeft)) : DASH}</span>{em && !em.open && <span className="u plain">{blockWord(em.blocksLeft, lang)}</span>}</dd>
         <dd className="s">{em ? t(em.open ? "network.ours.windowOpenAt" : "network.ours.windowAt", { h: fmtH(em.opensAt) }) : DASH}</dd>
       </div>
       <div className="fig">

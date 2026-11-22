@@ -5,7 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { TFn } from "@/app";
 import type { EconomyEvent, StepResult } from "@/protocol";
-import { Icon, Tag, int } from "@/ui";
+import { blk, Icon, Tag, int } from "@/ui";
 import { scenarioList, type RunController, type RunStepInfo } from "@/world";
 import { refusalsIn } from "./model";
 
@@ -158,7 +158,7 @@ export const Rail = memo(function Rail({ run, scenario, forkOf, st, t, version, 
                       <p className={`pl-verdict ${r.outcome.ok ? "ok" : "fail"}`} title={r.outcome.ok ? t("play.rail.ok") : t("play.rail.fail")}>
                         <span className="sr-only">{r.outcome.ok ? t("play.rail.ok") : t("play.rail.fail")}</span>
                         <span aria-hidden="true">{r.outcome.ok ? "✓ " : "✗ "}{r.outcome.ok ? t("play.rail.okShort") : t("play.rail.failShort")}</span>
-                        {r.minedBlocks > 0 && <span className="mono dim"> · {t("play.tm.blocks", { n: int(r.minedBlocks) })}</span>}
+                        {r.minedBlocks > 0 && <span className="mono dim"> · {blk(r.minedBlocks, t.lang)}</span>}
                       </p>
                     )}
                     {r && !r.outcome.ok && r.outcome.detail && <p className="pl-step-detail mono">{t("play.rail.engine")}: {r.outcome.detail}</p>}
