@@ -154,3 +154,5 @@
   .mw-pair-h { grid-template-columns: auto minmax(0, 1fr); }
   .mw-pair-h .lamp-wrap, .mw-pair-h > :last-child:not(.mw-pair-who) { grid-column: 1 / -1; }
 }
+.mw-dest { display: grid; gap: 6px; padding: 12px 14px; border-radius: 10px; background: var(--well); }
+.mw-dest code { font-size: 13px; line-height: 1.5; color: var(--ink); }

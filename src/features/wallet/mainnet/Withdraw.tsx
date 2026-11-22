@@ -4,7 +4,7 @@
 // journal, broadcast, depth 2. The reserve itself is not withdrawn here: that is the refund, later.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, Field, Key, TextInput } from "@/ui";
+import { AmountInput, Callout, Card, Field, Key, TextInput, short } from "@/ui";
 import { MINER_FEE_NANOERG, checkWithdraw, computeTxId, type UnsignedTx, type ErgoBox } from "@/mainnet/tx";
 import { checkDestination, ergPlain, isBroadcastLimit, maxWithdraw, parseErg, planWithdraw, spendable } from "@/mainnet/flows";
 import { isVaultError } from "@/mainnet/vault";
@@ -90,11 +90,16 @@ export function WithdrawScreen() {
                 <div className="mw-form">
                   <TxReview tx={phase.tx} inputs={phase.inputs} signers={[me!.pub]} height={phase.tip + 1} txId={phase.txId}
                     rows={[
-                      { label: t("mw.wd.rowTo"), sub: <span className="mono mw-break">{phase.to}</span>, value: <Erg nano={phase.sent} /> },
+                      { label: t("mw.wd.rowTo"), sub: short(phase.to, 6, 6), value: <Erg nano={phase.sent} /> },
                       ...(phase.change > 0n ? [{ label: t("mw.res.rowChange"), value: <Erg nano={phase.change} /> }] : []),
                       { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> },
                     ]}
                     sum={{ label: t("mw.res.rowSpent", { n: phase.inputs.length }), value: <Erg nano={phase.inputs.reduce((s, b) => s + b.value, 0n)} /> }} />
+                  <div className="mw-dest">
+                    <span className="label">{t("mw.wd.destFull")}</span>
+                    <code className="mono mw-break">{phase.to}</code>
+                    <span className="t-small mw-dim">{t("mw.wd.destCheck")}</span>
+                  </div>
                   <Field label={t("mw.pay.passAgain")} help={t("mw.wd.passWhy")}>
                     <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
                   </Field>
