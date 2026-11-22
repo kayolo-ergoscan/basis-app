@@ -3,7 +3,7 @@
 // are confirmed and unspent per /v1; boxes that an open journal entry or a mempool transaction spends are left out.
 import {
   MINER_FEE_NANOERG, MIN_BOX_NANOERG, P2PK_MAX_INPUTS, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, RESERVE_TREE_HEX, buildWithdraw, mergedTokens,
-  parseAddress, planReserveCreation, selectCoins, treeOfAddress, FEE_TREE_HEX, type ErgoBox, type ReservePlan, type UnsignedTx,
+  p2pkTree, parseAddress, planReserveCreation, reserveAddress, selectCoins, treeOfAddress, FEE_TREE_HEX, type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "../tx";
 import type { MempoolTx, UnspentBox } from "../net";
 
@@ -62,9 +62,28 @@ export function planT1(boxes: readonly ErgoBox[], owner: string, amount: bigint,
 export const t1CreateBody = (plan: ReservePlan, owner: string): string =>
   `{"nft_id":"${plan.nftId}","owner_pubkey":"${owner}","erg_amount":${plan.amount}}`;
 
-/** A pending transaction in the mempool that creates a box under the reserve contract (T1 precheck, §2.2). */
-export const mempoolCreatesReserve = (mempool: readonly MempoolTx[]): MempoolTx | null =>
-  mempool.find((tx) => tx.outputs.some((o) => o.ergoTree === RESERVE_TREE_HEX)) ?? null;
+/**
+ * A pending transaction in the mempool that creates a reserve of this key (T1 precheck, §2.2). A redemption paying
+ * this key, or a top-up, also lists an output under the reserve contract: someone else's reserve (canary 22 Nov
+ * 2026). So a reserve output counts only when its R4 is 07‖owner, if the answer carries registers; without them,
+ * only when the transaction spends at least one of this key's boxes and no box of the reserve contract (redemptions
+ * and top-ups spend an existing reserve, a T1 spends only the owner's boxes).
+ */
+export function mempoolCreatesReserve(mempool: readonly MempoolTx[], me: { pub: string; address: string }): MempoolTx | null {
+  const r4 = `07${me.pub}`;
+  const own = p2pkTree(me.pub);
+  const reserveAddr = reserveAddress();
+  return mempool.find((tx) => {
+    const outs = tx.outputs.filter((o) => o.ergoTree === RESERVE_TREE_HEX);
+    if (outs.length === 0) return false;
+    if (outs.some((o) => o.r4 === r4)) return true;
+    if (outs.every((o) => o.r4 !== undefined)) return false; // registers given, none is this key's
+    const ins = tx.inputs ?? [];
+    const spendsReserve = ins.some((i) => i.ergoTree === RESERVE_TREE_HEX || i.address === reserveAddr);
+    const spendsMine = ins.some((i) => i.ergoTree === own || i.address === me.address);
+    return !spendsReserve && spendsMine;
+  }) ?? null;
+}
 
 // ─── Withdraw ───────────────────────────────────────────────────────────────────────────────────
 

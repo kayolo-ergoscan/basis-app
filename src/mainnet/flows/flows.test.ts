@@ -262,8 +262,25 @@ describe("coins", () => {
     expect(planT1(many, A, 150_000_000n, MINER_FEE_NANOERG, 1_000_000_000n)).toMatchObject({ ok: false, why: "too-many-boxes" });
     const combine = planCombine(many, A, p2pkAddress(A), 1922310);
     expect(combine).toMatchObject({ ok: true, count: P2PK_MAX_INPUTS, sent: 50n * 3_000_000n - MINER_FEE_NANOERG });
-    expect(mempoolCreatesReserve([{ id: "a", spends: [], outputs: [{ ergoTree: RESERVE_TREE_HEX, address: null, value: 1n }] }])?.id).toBe("a");
-    expect(mempoolCreatesReserve([{ id: "a", spends: [], outputs: [{ ergoTree: p2pkTree(A), address: null, value: 1n }] }])).toBeNull();
+    expect(mempoolCreatesReserve([{ id: "a", spends: [], outputs: [{ ergoTree: p2pkTree(A), address: null, value: 1n }] }], { pub: A, address: p2pkAddress(A) })).toBeNull();
+  });
+
+  it("T1 precheck: a mempool reserve is this key's only by its R4, or by spending this key's boxes and no reserve (canary 22 Nov)", () => {
+    const me = { pub: B, address: p2pkAddress(B) };
+    const res = (r4?: string | null) => ({ ergoTree: RESERVE_TREE_HEX, address: reserveAddress(), value: 640_000_000n, ...(r4 === undefined ? {} : { r4 }) });
+    const pay = { ergoTree: p2pkTree(B), address: p2pkAddress(B), value: 19_000_000n };
+    const reserveIn = { boxId: "a1".repeat(32), ergoTree: RESERVE_TREE_HEX, address: reserveAddress() };
+    const mineIn = { boxId: "b1".repeat(32), ergoTree: p2pkTree(B), address: p2pkAddress(B) };
+    // the live case: B redeemed 0.02 ERG from A's reserve; the new reserve box is A's (R4 = 07‖A)
+    const redemption = { id: "r", spends: [reserveIn.boxId], inputs: [reserveIn], outputs: [res(`07${A}`), pay] };
+    expect(mempoolCreatesReserve([redemption], me)).toBeNull();
+    expect(mempoolCreatesReserve([{ ...redemption, outputs: [res(), pay] }], me)).toBeNull(); // no registers: it spends a reserve
+    // B's own T1: found by R4, or, without registers, by spending B's boxes and no reserve
+    const t1 = { id: "t", spends: [mineIn.boxId], inputs: [mineIn], outputs: [res(`07${B}`), pay] };
+    expect(mempoolCreatesReserve([redemption, t1], me)?.id).toBe("t");
+    expect(mempoolCreatesReserve([{ ...t1, outputs: [res(), pay] }], me)?.id).toBe("t");
+    expect(mempoolCreatesReserve([{ ...t1, outputs: [res(null), pay] }], me)).toBeNull(); // registers given, no R4
+    expect(mempoolCreatesReserve([{ ...t1, inputs: undefined, outputs: [res(), pay] }], me)).toBeNull(); // nothing proves it is B's
   });
 
   it("Cancel a refused transaction: one of its own boxes back to the key, the smallest that pays the fee, tokens kept", () => {

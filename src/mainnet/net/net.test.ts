@@ -155,6 +155,12 @@ describe("wallet routes", () => {
     expect(await net.txStatus(TX)).toEqual({ ok: true, value: { inclusionHeight: 1922314, confirmations: 3 } });
     expect(await net.txStatus(TX)).toEqual({ ok: true, value: null });
     expect(parseMempool(`{"items":[{"id":"zz"}]}`)).toBeNull();
+    // inputs keep their tree and address; R4 in both explorer shapes; no registers = unknown
+    const regs = parseMempool(`{"items":[{"id":"${TX}","inputs":[{"boxId":"${"11".repeat(32)}","ergoTree":"ABCD","address":"9a"}],"outputs":[` +
+      `{"value":1,"ergoTree":"00","additionalRegisters":{"R4":"07${ME}"}},{"value":2,"ergoTree":"01","additionalRegisters":{"R4":{"serializedValue":"07AB"}}},` +
+      `{"value":3,"ergoTree":"02","additionalRegisters":{}},{"value":4,"ergoTree":"03"}]}]}`)!;
+    expect(regs[0].inputs).toEqual([{ boxId: "11".repeat(32), ergoTree: "abcd", address: "9a" }]);
+    expect(regs[0].outputs.map((o) => o.r4)).toEqual([`07${ME}`, "07ab", null, undefined]);
   });
 
   it("reserves on chain: the pinned contract under its template, R4 = the owner, R6 = our NFT, ids checked", async () => {

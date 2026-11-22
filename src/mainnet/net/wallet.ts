@@ -39,8 +39,15 @@ export interface UnspentList {
   skipped: number;
 }
 
-export interface MempoolOutput { ergoTree: string | null; address: string | null; value: bigint }
-export interface MempoolTx { id: string; spends: string[]; outputs: MempoolOutput[] }
+export interface MempoolOutput {
+  ergoTree: string | null; address: string | null; value: bigint;
+  /** R4 as serialized hex when the answer carries the output's registers; null when it carries them without R4;
+   *  undefined when it carries no registers at all. */
+  r4?: string | null;
+}
+/** What a mempool transaction spends, when the answer says (the box's tree and address). */
+export interface MempoolInput { boxId: string; ergoTree: string | null; address: string | null }
+export interface MempoolTx { id: string; spends: string[]; outputs: MempoolOutput[]; inputs?: MempoolInput[] }
 
 export interface TxStatus { inclusionHeight: number; confirmations: number }
 
@@ -94,7 +101,14 @@ const bigOf = (v: unknown): bigint | null =>
   typeof v === "string" && /^\d{1,19}$/.test(v) ? BigInt(v) : typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? BigInt(v) : null;
 const intOf = (v: unknown): number | null => (typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : null);
 
-/** `/v1/mempool/transactions/byAddress/{a}` items: ids, spent boxes and outputs (values exact). */
+/** A register as the explorer shape gives it: serialized hex, or { serializedValue }; null when absent or not hex. */
+function registerHex(v: unknown): string | null {
+  const s = typeof v === "string" ? v : isObj(v) && typeof v.serializedValue === "string" ? v.serializedValue : null;
+  return s !== null && /^(?:[0-9a-fA-F]{2})+$/.test(s) ? s.toLowerCase() : null;
+}
+
+/** `/v1/mempool/transactions/byAddress/{a}` items: ids, spent boxes (with their tree and address when given) and
+ *  outputs (values exact; R4 when the answer carries registers). */
 export function parseMempool(text: string): MempoolTx[] | null {
   let j: unknown;
   try { j = JSON.parse(quoteBigInts(text, ["value"])); } catch { return null; }
@@ -102,15 +116,23 @@ export function parseMempool(text: string): MempoolTx[] | null {
   const out: MempoolTx[] = [];
   for (const it of j.items) {
     if (!isObj(it) || typeof it.id !== "string" || !HEX64.test(it.id.toLowerCase())) return null;
-    const spends = Array.isArray(it.inputs) ? it.inputs.filter(isObj).map((i) => (typeof i.boxId === "string" ? i.boxId.toLowerCase() : "")).filter((x) => HEX64.test(x)) : [];
+    const inputs: MempoolInput[] = Array.isArray(it.inputs)
+      ? it.inputs.filter(isObj).map((i) => ({
+        boxId: typeof i.boxId === "string" ? i.boxId.toLowerCase() : "",
+        ergoTree: typeof i.ergoTree === "string" ? i.ergoTree.toLowerCase() : null,
+        address: typeof i.address === "string" ? i.address : null,
+      })).filter((i) => HEX64.test(i.boxId))
+      : [];
+    const spends = inputs.map((i) => i.boxId);
     const outputs = Array.isArray(it.outputs)
-      ? it.outputs.filter(isObj).map((o) => ({
+      ? it.outputs.filter(isObj).map((o): MempoolOutput => ({
         ergoTree: typeof o.ergoTree === "string" ? o.ergoTree.toLowerCase() : null,
         address: typeof o.address === "string" ? o.address : null,
         value: bigOf(o.value) ?? 0n,
+        ...(isObj(o.additionalRegisters) ? { r4: registerHex(o.additionalRegisters.R4) } : {}),
       }))
       : [];
-    out.push({ id: it.id.toLowerCase(), spends, outputs });
+    out.push({ id: it.id.toLowerCase(), spends, outputs, inputs });
   }
   return out;
 }
