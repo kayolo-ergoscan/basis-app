@@ -185,6 +185,19 @@ const subWatch = (f: () => void) => {
   return () => { watchSubs.delete(f); if (typeof window !== "undefined") window.removeEventListener("storage", onStorage); };
 };
 
+/** Drops this key's watched issuers from this browser (with the key, on wipe: keys review P2-8). */
+export function forgetWatchList(pub: string): void {
+  const all = parseWatchStore(readWatch());
+  delete all[pub];
+  const next = Object.keys(all).length ? JSON.stringify(all) : null;
+  watchText = next;
+  try {
+    if (next === null) localStorage.removeItem(WATCH_STORAGE_KEY);
+    else localStorage.setItem(WATCH_STORAGE_KEY, next);
+  } catch { /* private mode: nothing kept */ }
+  for (const f of [...watchSubs]) f();
+}
+
 export function useWatchList(me: string | null): [WatchedIssuer[], (fn: (l: WatchedIssuer[]) => WatchedIssuer[]) => void] {
   const text = useSyncExternalStore(subWatch, readWatch, () => null);
   const list = useMemo(() => (me ? parseWatchStore(text)[me] ?? [] : []), [text, me]);

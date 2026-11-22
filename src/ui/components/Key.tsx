@@ -79,6 +79,9 @@ export const Key = forwardRef<HTMLButtonElement, KeyProps>(function Key(
   );
 });
 
+/** In confirm-press mode, a second press sooner than this after the first is ignored (a double-click). */
+export const CONFIRM_GAP_MS = 500;
+
 interface HoldKeyProps {
   ms: number; confirmPress: boolean; variant: KeyVariant; size: string; block?: boolean; tall?: boolean; className?: string; style?: CSSProperties;
   disabled?: boolean; fill: string; onAct?: () => void; secs: boolean; icon?: IconName; kbd?: string; children?: ReactNode;
@@ -91,6 +94,7 @@ function HoldKey({ ms, confirmPress, variant, size, block, tall, className, styl
   const done = useRef(false);
   const [armed, setArmed] = useState(false);
   const armT = useRef<ReturnType<typeof setTimeout>>();
+  const armedAt = useRef(0);
   const setRef = useCallback((el: HTMLButtonElement | null) => {
     ref.current = el;
     if (typeof fwd === "function") fwd(el); else if (fwd) fwd.current = el;
@@ -136,7 +140,9 @@ function HoldKey({ ms, confirmPress, variant, size, block, tall, className, styl
     ? {
         onClick: () => {
           if (disabled) return;
-          if (!armed) { setArmed(true); clearTimeout(armT.current); armT.current = setTimeout(() => setArmed(false), 4000); return; }
+          if (!armed) { setArmed(true); armedAt.current = performance.now(); clearTimeout(armT.current); armT.current = setTimeout(() => setArmed(false), 4000); return; }
+          // a double-click is not a confirmation: the second press counts only after half a second (keys review P2-9)
+          if (performance.now() - armedAt.current < CONFIRM_GAP_MS) return;
           clearTimeout(armT.current);
           setArmed(false);
           onAct?.();

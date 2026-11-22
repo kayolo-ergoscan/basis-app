@@ -693,6 +693,7 @@ const en: Dict = {
   // errors from the key store
   "wallet.err.exists": "This browser already holds a key.",
   "wallet.err.invalid-hex": "Expected 64 hex characters.",
+  "wallet.err.mainnet-key": "This is the mainnet key of this browser. The sandbox keeps its key as plain text, so a key for real ERG is never imported here.",
   "wallet.err.out-of-range": "This number is not a valid secp256k1 key.",
   "wallet.err.bad-backup": "This file is not a Basis sandbox backup.",
   "wallet.err.wrong-passphrase": "Wrong passphrase.",
@@ -1386,6 +1387,7 @@ const ru: Partial<Dict> = {
 
   "wallet.err.exists": "В этом браузере уже есть ключ.",
   "wallet.err.invalid-hex": "Нужно 64 шестнадцатеричных символа.",
+  "wallet.err.mainnet-key": "Это ключ основной сети в этом браузере. Песочница хранит ключ открытым текстом, поэтому ключ для настоящих ERG сюда не импортируется.",
   "wallet.err.out-of-range": "Это число не подходит как ключ secp256k1.",
   "wallet.err.bad-backup": "Это не файл резервной копии песочницы Basis.",
   "wallet.err.wrong-passphrase": "Неверный пароль.",

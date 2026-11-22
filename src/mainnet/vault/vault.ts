@@ -467,6 +467,8 @@ export class MainnetVault {
     try {
       pub = bytesToHex(publicKeyOf(secret));
       refuseTrackerKey(pub);
+      // the sandbox key lies in localStorage as plain hex: it is never a mainnet key (keys review P2-7)
+      if (this.#env.sandboxPub?.() === pub) throw new VaultError("sandbox-key-refused", "this is the sandbox key of this browser: its secret is kept as plain text, so it is never used for real funds");
     } catch (e) {
       wipe(secret);
       throw e;

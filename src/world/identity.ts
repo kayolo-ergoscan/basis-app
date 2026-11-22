@@ -8,6 +8,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { bytesToBig, bytesToHex, CURVE_N, hexToBytes, keyPairFromSecret, secretToHex, utf8, type Hex, type KeyPair } from "@/protocol";
 import { fingerprint, threeWords } from "./words";
+import { mainnetPubInBrowser } from "@/mainnet/key-markers";
 
 export const SANDBOX_KEY_LABEL = "SANDBOX KEY · play money only · never use for real funds";
 export const WALLET_STORAGE_KEY = "basis.world.wallet.v1";
@@ -62,7 +63,7 @@ export interface EncryptedBackup {
 
 export class WalletError extends Error {
   constructor(
-    readonly code: "exists" | "invalid-hex" | "out-of-range" | "bad-backup" | "wrong-passphrase" | "no-identity" | "no-crypto" | "weak-passphrase",
+    readonly code: "exists" | "invalid-hex" | "out-of-range" | "bad-backup" | "wrong-passphrase" | "no-identity" | "no-crypto" | "weak-passphrase" | "mainnet-key",
     message: string,
   ) {
     super(message);
@@ -239,6 +240,9 @@ export class SandboxWallet {
   /** Imports a 64-hex secret. Throws "exists" unless `replace`. */
   importHex(hex: string, o: { name?: string; replace?: boolean; source?: SandboxKeyRecord["source"] } = {}): WalletIdentity {
     const secretHex = normalizeSecretHex(hex);
+    // the mainnet key never goes into localStorage as plain hex (keys review P2-7)
+    const mainnet = mainnetPubInBrowser();
+    if (mainnet !== null && keyPairFromSecret(secretHex).pubHex === mainnet) throw new WalletError("mainnet-key", "this is the mainnet key of this browser: a sandbox key is kept as plain text, so it is never imported here");
     if (this.record && !o.replace && this.record.secretHex !== secretHex) throw new WalletError("exists", "a different sandbox key already exists in this browser");
     if (this.record?.secretHex === secretHex) {
       // the same key again: keep its history; only a new name or a verified backup changes the record

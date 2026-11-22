@@ -26,6 +26,10 @@ export interface NoteArtOptions {
   sigT?: string;
 }
 
+/** Text inside the SVG markup (rendered with innerHTML): `&<>"'` escaped (keys review P2-10). */
+export const escapeXml = (v: string): string =>
+  v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
 export function noteArt(key: Uint8Array, o: NoteArtOptions = {}): string {
   const ink = o.inks || inksFor(key), A = ink.a.c, B = ink.b.c, At = ink.a.t;
   const R = rng(key.slice(8));
@@ -73,7 +77,7 @@ export function noteArt(key: Uint8Array, o: NoteArtOptions = {}): string {
   // microprint ring around the seal (the real pair key, readable with the loupe)
   if (!lite && o.micro) {
     P.push(`<path id="${id}r" d="M ${sc.x} ${sc.y - 160} a 160 160 0 1 1 -0.1 0" fill="none"/>`);
-    P.push(`<text font-family="Geist Mono, monospace" font-size="3.6" fill="${A}" opacity=".9" letter-spacing=".15"><textPath href="#${id}r">${o.micro}</textPath></text>`);
+    P.push(`<text font-family="Geist Mono, monospace" font-size="3.6" fill="${A}" opacity=".9" letter-spacing=".15"><textPath href="#${id}r">${escapeXml(o.micro)}</textPath></text>`);
   }
   // signatures
   if (o.sigA) P.push(`<path d="${autograph(70, 357, 140, 15, fromHex(o.sigA.slice(2, 34)))}" fill="none" stroke="${A}" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`);

@@ -67,6 +67,12 @@ describe("receipts and requests", () => {
     expect(decodeReceipt(j({ ...base, i: "04" + "11".repeat(32) }))).toEqual({ ok: false, reason: "keys" });
     expect(decodeReceipt("!!!")).toEqual({ ok: false, reason: "format" });
     expect(decodeReceipt(j({ ...base, a: 3 }))).toEqual({ ok: false, reason: "format" });
+    // a timestamp no Date can show is refused before anything renders it (keys P2-4), even when signed for real
+    const far = signNote(SK_A, { issuer: A, recipient: B, total: 1n, timestamp: 8_640_000_000_000_001n });
+    expect(decodeReceipt(j({ ...base, a: "1", ts: "8640000000000001", s: far.signature }))).toEqual({ ok: false, reason: "format" });
+    const last = signNote(SK_A, { issuer: A, recipient: B, total: 1n, timestamp: 8_640_000_000_000_000n });
+    const ok = decodeReceipt(j({ ...base, a: "1", ts: "8640000000000000", s: last.signature }));
+    expect(ok.ok && new Date(Number(ok.receipt.timestamp)).toISOString()).toBe("+275760-09-13T00:00:00.000Z");
   });
 
   it("a payment request names a key, maybe an amount, and only our tracker", () => {
