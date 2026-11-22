@@ -405,7 +405,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     request: `GET /tracker/proof?issuer_pubkey=${A}&recipient_pubkey=${B}&denomination=erg`,
     response: `{ "success": true, "data": { "key": "6f1d…c2", "value": "000000009502f900", "proof": "0a77…e4", "total_debt": 2500000000, "tracker_state_digest": "4ec6…1f09" }, "error": null }`,
     errors: [{ status: 404, message: "Debt record not found: <e>" }],
-    gotchas: [t("Built from the live tree. It verifies against the on-chain digest only when the local and confirmed digests are equal; check that before saving it for an emergency exit.", "Строится по живому дереву. С дайджестом в блокчейне оно сходится, только если локальный и подтверждённый дайджесты равны; проверьте это, прежде чем сохранять его для аварийного выхода.")],
+    gotchas: [t("Built from the live tree. It verifies against the on-chain digest only when its own `tracker_state_digest` equals the confirmed digest (`confirmed_digest` in /tracker/state, the tracker box's R5). Check that before you save it for an emergency exit.", "Строится по живому дереву. С дайджестом в блокчейне оно сходится, только если его собственный `tracker_state_digest` равен подтверждённому дайджесту (`confirmed_digest` в /tracker/state, он же R5 бокса трекера). Проверьте это, прежде чем сохранять его для аварийного выхода.")],
   },
   {
     n: 26, id: "reserve-proof", method: "GET", path: "/reserve/proof", query: ["issuer_pubkey", "recipient_pubkey", "amount", "timestamp", "denomination"], role: "read", group: "proofs",
