@@ -9,6 +9,9 @@ export const OUR_TRACKER = {
   nft: "f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f",
   /** P2PK address of the tracker key: holds the tracker box and the commit-fee funds. */
   address: "9gMR2WENikwx6iwdLY6VYxPjff2gLZGScweKg53gXp31cR8hW3W",
+  /** The tracker's public key (the address above, decoded; also R4 of the tracker box). Its secret is the server's
+   *  signing key and pays the commit fees: it never lives in a browser, so the mainnet vault refuses it as a wallet key. */
+  key: "02f17d2d625b7f40f2b1a0ffb5d45fa35be371984ac3a6590945c28c28b99b5fc8",
   mintTx: "0841b4425b8b54fb33faf31983e1ade474774a000b96faf4302b0b26db697969",
   mintHeight: 1_922_275,
   firstBox: "2af09409e39799eb39e90f3c126d7a0dd2cfa98743d25cc2076fcbabe87ca345",
