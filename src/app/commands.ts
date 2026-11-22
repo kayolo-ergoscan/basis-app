@@ -25,7 +25,7 @@ export interface Command {
 export interface FaqQuestion { id: string; q: { en: string; ru: string }; short: { en: string; ru: string } }
 
 /** FAQ questions as commands (→ /learn/faq#q-<id>, which opens that answer): the label is the question in the reader's
- *  language; both languages and the short answer are search words, so «Nautilus» or «потерять» find their answer. */
+ *  language; both languages and the short answer are search words, so «кошельки» or «потерять» find their answer. */
 export function faqCommands(list: readonly FaqQuestion[], lang: "en" | "ru"): Command[] {
   return list.map((f) => ({
     id: "faq." + f.id,

@@ -1,5 +1,5 @@
 // The ⌘K bar answers questions: every FAQ question is a command (→ /learn/faq#q-<id>, which opens that answer) in the
-// «Вопросы»/Questions group, found by the words people type in either language («Nautilus», «потерять», "real ERG").
+// «Вопросы»/Questions group, found by the words people type in either language («кошельки», «потерять», "real ERG").
 import { describe, expect, it } from "vitest";
 import { faq } from "@/content";
 import overlaysSrc from "./overlays.tsx?raw";
@@ -23,8 +23,8 @@ describe("⌘K finds FAQ questions", () => {
   });
 
   it("finds the answers people look for, in both languages", () => {
-    expect(best("Nautilus", "ru")[0]).toBe("/learn/faq#q-nautilus");
-    expect(best("nautilus", "en")[0]).toBe("/learn/faq#q-nautilus");
+    expect(best("кошельки Ergo", "ru")[0]).toBe("/learn/faq#q-nautilus");
+    expect(best("regular Ergo wallets", "en")[0]).toBe("/learn/faq#q-nautilus");
     expect(best("потерять", "ru")).toContain("/learn/faq#q-lose-money");
     expect(best("lose money", "en")[0]).toBe("/learn/faq#q-lose-money");
     expect(best("настоящими ERG", "ru")[0]).toBe("/learn/faq#q-launched");

@@ -155,7 +155,7 @@ export const faq: Faq[] = [
   },
   {
     id: "nautilus",
-    q: t("Why can't Nautilus sign notes?", "Почему Nautilus не может подписывать расписки?"),
+    q: t("Why can't regular Ergo wallets sign notes?", "Почему обычные кошельки Ergo не подписывают расписки?"),
     short: t(
       "Ergo wallets sign only transactions, and a note is not a transaction: it is a signature over the debt total in a format wallets don't support yet.",
       "Кошельки Ergo подписывают только транзакции, а расписка — не транзакция: это подпись под суммой долга в формате, который кошельки пока не поддерживают.",
