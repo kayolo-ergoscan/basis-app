@@ -1,7 +1,7 @@
 // The wallet flows' pure logic: amounts, receipts and requests (verified before anything is watched), notes (total,
 // timestamp, body, signature), coins (T1, Withdraw, Combine, destinations), the receiver's view of a note, watched
 // issuers and the journal steps from what the chain shows.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { bytesToHex } from "../../protocol/bytes";
 import {
   FEE_TREE_HEX, MINER_FEE_NANOERG, P2PK_MAX_INPUTS, RESERVE_TREE_HEX, TRACKER_NFT, checkReserveCreation, checkWithdraw, noteMessage, p2pkAddress, p2pkTree,
@@ -11,7 +11,8 @@ import {
 import type { JournalEntry, JournalState } from "../vault";
 import { p2pkBox, secretBytes, syntheticRedemption } from "../tx/testkit";
 import { TEXT } from "../tx/fixtures/chain";
-import { dpOf, ergPlain, parseErg } from "./amount";
+import { dpOf, ergInput, ergPlain, parseErg } from "./amount";
+import { setNumberLang, units } from "../../ui/engine/money";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCancel, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
   PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, laterNoteCovers, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, signNote, storedIsEntry,
@@ -27,6 +28,8 @@ const A = bytesToHex(publicKeyOf(SK_A)), B = bytesToHex(publicKeyOf(SK_B));
 const T0 = 1_795_000_000_000;
 
 describe("amounts", () => {
+  afterEach(() => setNumberLang("en"));
+
   it("reads what people type, exactly, and refuses the rest", () => {
     expect(parseErg("1.5")).toBe(1_500_000_000n);
     expect(parseErg("1,5")).toBe(1_500_000_000n);
@@ -34,6 +37,43 @@ describe("amounts", () => {
     expect(parseErg("1 000.000000001")).toBe(1_000_000_000_001n);
     expect(parseErg(".25")).toBe(250_000_000n);
     for (const bad of ["", "0", "0.0", "-1", "1.0000000001", "abc", "1e9", "1.2.3"]) expect(parseErg(bad)).toBeNull();
+  });
+
+  it("EN: a dot decimal; a comma before exactly three digits is a thousands group, refused, never 1 ERG (money P2-7)", () => {
+    expect(parseErg("1,000", "en")).toBeNull();
+    expect(parseErg("0,001", "en")).toBeNull();
+    expect(parseErg("1,240.50", "en")).toBeNull();
+    expect(parseErg("1,5", "en")).toBe(1_500_000_000n);
+    expect(parseErg("1,0001", "en")).toBe(1_000_100_000n);
+    expect(parseErg("9.545", "en")).toBe(9_545_000_000n);
+    expect(parseErg("1240.5", "en")).toBe(1_240_500_000_000n);
+    expect(ergInput(9_545_000_000n, "en")).toBe("9.545");
+  });
+
+  it("RU: a decimal comma and spaced groups, as the page shows them", () => {
+    expect(parseErg("9,545", "ru")).toBe(9_545_000_000n);
+    expect(parseErg("0,001", "ru")).toBe(1_000_000n);
+    expect(parseErg("1 240,00", "ru")).toBe(1_240_000_000_000n);
+    expect(parseErg("1\u2009\u2060240,5", "ru")).toBe(1_240_500_000_000n);
+    expect(parseErg("1\u00a0240,5", "ru")).toBe(1_240_500_000_000n);
+    expect(parseErg("2.5", "ru")).toBe(2_500_000_000n);
+    expect(parseErg("1.240,5", "ru")).toBeNull();
+    expect(parseErg("1,2,3", "ru")).toBeNull();
+    expect(ergInput(9_545_000_000n, "ru")).toBe("9,545");
+    expect(ergInput(12n * 1_000_000_000n, "ru")).toBe("12");
+    // the page language is the default: what the language switch sets (setNumberLang)
+    setNumberLang("ru");
+    expect(parseErg("0,5")).toBe(500_000_000n);
+    expect(ergInput(500_000_000n)).toBe("0,5");
+    expect(units(9_545_000_000n, 9, 3)).toBe("9,545");
+    expect(units(1_240_000_000_000n, 9, 2)).toBe("1\u2009\u2060240,00");
+    setNumberLang("en");
+    expect(parseErg("0,500")).toBeNull();
+    expect(ergInput(500_000_000n)).toBe("0.5");
+    expect(units(1_240_000_000_000n, 9, 2)).toBe("1,240.00");
+  });
+
+  it("machine text stays plain", () => {
     expect(ergPlain(1_500_000_000n)).toBe("1.5");
     expect(ergPlain(1_000_000n)).toBe("0.001");
     expect(ergPlain(12n * 1_000_000_000n)).toBe("12");

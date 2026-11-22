@@ -13,7 +13,7 @@ import {
   parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest,
   type CheckedRedemption, type ChainBoxes, type L2Result, type RedemptionExpectation,
 } from "@/mainnet/tx";
-import { REDEEM_FEE, REDEEM_MIN, ergPlain, fragmentOf, noteView, parseErg, payoutOf, submitBodyOf, submitVerdict, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
+import { REDEEM_FEE, REDEEM_MIN, ergInput, fragmentOf, noteView, parseErg, payoutOf, submitBodyOf, submitVerdict, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
 import { buildScope, isVaultError, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import { ContractXray } from "@/viz";
@@ -121,7 +121,7 @@ export function RedeemScreen() {
 
   let view: NoteView | null = null;
   if (pair.value && me) { try { const n = parseStoredNote(pair.value); if (n.recipient === me.pub && n.issuer === issuer) view = noteView(n); } catch { view = null; } }
-  useEffect(() => { if (view && !amountText && view.redeemableNow >= REDEEM_MIN) setAmountText(ergPlain(view.redeemableNow)); }, [view?.redeemableNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (view && !amountText && view.redeemableNow >= REDEEM_MIN) setAmountText(ergInput(view.redeemableNow)); }, [view?.redeemableNow]); // eslint-disable-line react-hooks/exhaustive-deps
   const amount = parseErg(amountText);
   const open = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "redeem" && (e.state !== "final" || Date.now() - e.updatedAt < 30 * 60_000) && e.state !== "abandoned") : []), [entries, me]);
   const pending = phase.k === "commit-pending";
@@ -305,7 +305,7 @@ export function RedeemScreen() {
                       {view && view.redeemableNow < REDEEM_MIN && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
                       <Field label={t("mw.red.amount")} help={t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
                         error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < REDEEM_MIN))) ? t("mw.red.amountBad", { min: ergText(REDEEM_MIN), max: ergText(view?.redeemableNow ?? 0n) }) : undefined}>
-                        <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(ergPlain(view!.redeemableNow)) } : undefined} />
+                        <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(ergInput(view!.redeemableNow)) } : undefined} />
                       </Field>
                       {amount !== null && amount >= REDEEM_MIN && <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE) })}</span></p>}
                       {phase.k === "working" && <Steps label={t("mw.red.stepsAria")} items={stageItems(phase.at, false)} />}

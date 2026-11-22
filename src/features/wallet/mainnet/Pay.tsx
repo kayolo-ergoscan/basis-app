@@ -8,11 +8,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, TextInput, short } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, TextInput, int, short } from "@/ui";
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
 import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
 import {
-  checkPreviousNote, coverage, ergPlain, laterNoteCovers, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
+  checkPreviousNote, coverage, ergInput, laterNoteCovers, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
   type CheckedPrev, type NoteReceipt, type PrevNoteRule,
 } from "@/mainnet/flows";
 import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
@@ -124,7 +124,7 @@ export function PayScreen() {
   const loc = useLocation();
   const req = useMemo(() => parseRequest(loc.hash), [loc.hash]);
   const [toText, setToText] = useState(req?.to ?? "");
-  const [amountText, setAmountText] = useState(req?.amount ? ergPlain(req.amount) : "");
+  const [amountText, setAmountText] = useState(req?.amount ? ergInput(req.amount) : "");
   const [pass, setPass] = useState("");
   const [phase, setPhase] = useState<Phase>({ k: "edit" });
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
@@ -320,7 +320,7 @@ export function PayScreen() {
                   ]} sum={{ label: t("mw.pay.rowTotal"), value: <Erg nano={total!} /> }} />
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
                   {d.onChain > 0n ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.onChain), debt: ergText(debtAfter!), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
+                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.onChain), debt: ergText(debtAfter!), pct: cov !== null ? int(cov) : "—" })}</p>
                   ) : null}
                   {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>

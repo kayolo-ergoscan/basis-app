@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, Field, Key, TextInput, short } from "@/ui";
 import { MINER_FEE_NANOERG, checkWithdraw, computeTxId, type UnsignedTx, type ErgoBox } from "@/mainnet/tx";
-import { checkDestination, ergPlain, isBroadcastLimit, maxWithdraw, parseErg, planWithdraw, spendable } from "@/mainnet/flows";
+import { checkDestination, ergInput, isBroadcastLimit, maxWithdraw, parseErg, planWithdraw, spendable } from "@/mainnet/flows";
 import { isVaultError } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
@@ -112,7 +112,7 @@ export function WithdrawScreen() {
                     <TextInput mono value={toText} onChange={setToText} autoComplete="off" placeholder="9…" />
                   </Field>
                   <Field label={t("mw.wd.amount")} help={t("mw.wd.amountHelp", { max: ergText(max), fee: ergText(MINER_FEE_NANOERG) })} error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
-                    <AmountInput value={amountText} onChange={setAmountText} max={max > 0n ? { label: t("mw.wd.max"), onMax: () => setAmountText(ergPlain(max)) } : undefined} />
+                    <AmountInput value={amountText} onChange={setAmountText} max={max > 0n ? { label: t("mw.wd.max"), onMax: () => setAmountText(ergInput(max)) } : undefined} />
                   </Field>
                   {phase.k === "error" && (
                     <Callout tone="alarm" title={t("mw.wd.stopT")}>

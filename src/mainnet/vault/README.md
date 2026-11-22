@@ -51,7 +51,7 @@ For `damaged`, `backedUp` says whether that record had a verified backup.
 | `exportBackup({ extras? })` → `{ filename, json }` | The backup file of the unlocked key, with the watched issuers and contacts sealed inside. Offer it as a download (`application/json`) | `locked`, `bad-input` (extras) |
 | `verifyBackup(fileText, passphrase)` → state | The user loads the file again and types the passphrase. A match sets `backedUpAt`. Works locked or unlocked | `bad-backup`, `backup-other-key`, `wrong-passphrase`, `no-key`, `damaged` |
 | `restoreFromBackup(fileText, passphrase, { takeOver? })` → `{ state, alreadyPresent, extras, extrasUnreadable, persisted }` | Restores into a browser without a key; unlocked and backed up afterwards. The same key already here: the file only counts as a verified backup (`alreadyPresent`). `extras` are decrypted and returned as untrusted input; `extrasUnreadable` means the file has extras that do not open (the key restores without them) | `bad-backup`, `wrong-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
-| `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
+| `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified. This browser's sandbox key (its record's public key, `env.sandboxPub`) is refused: the sandbox keeps its secret as plain text (keys review P2-7) | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused`, `sandbox-key-refused` |
 | `unlock(passphrase, { takeOver? })` → state | Opens the session in this tab. When it is already open, it still checks the passphrase | `no-key`, `damaged`, `wrong-passphrase`, `locked-elsewhere`, `tracker-key-refused`, `locked` (lock() came first) |
 | `lock(reason = "manual")` (sync) | Drops the session and releases the Web Lock. It never throws | |
 | `confirmPassphrase(passphrase)` → boolean | True when the passphrase opens the stored key. It changes nothing | `no-key`, `damaged` |
@@ -282,6 +282,7 @@ Every error is a `VaultError`: `{ name: "VaultError", code, message, detail }`. 
 | `backup-other-key` | The file holds another key than this browser's |
 | `invalid-hex`, `out-of-range` | Not 64 hex characters, or not in [1, n − 1] |
 | `tracker-key-refused` | ErgoScan's tracker key (see below) |
+| `sandbox-key-refused` | This browser's sandbox key: `importHex` never takes it (keys review P2-7) |
 | `locked` | The session is locked (or locked itself meanwhile) |
 | `locked-elsewhere` | Another tab holds the signer (`takeOver` takes it) |
 | `not-backed-up` | No verified backup yet: nothing is signed, and a wipe needs `confirmUnbacked` |

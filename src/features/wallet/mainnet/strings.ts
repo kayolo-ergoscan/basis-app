@@ -11,7 +11,7 @@ const en: Dict = {
   "mw.rule": "Check:",
   "mw.nothingSigned": "Nothing was signed.",
   "mw.nothingSent": "Nothing was sent.",
-  "mw.amount.bad": "Write an amount in ERG, for example 0.5",
+  "mw.amount.bad": "Write an amount in ERG with a dot for decimals, for example 0.5 or 1240.5 (no thousands commas)",
   "mw.boot.loading": "Opening the key store of this browser…",
   "mw.boot.errT": "The key store did not open",
   "mw.boot.errB": "This browser refused its local database. Nothing was changed. Reload the page; if it keeps failing, try another browser profile.",
@@ -46,7 +46,7 @@ const en: Dict = {
   "mw.time.t1": "The tracker sees a new reserve in about 6–⁠15 minutes",
   "mw.time.note": "A note becomes redeemable in about 10–⁠25 minutes",
   "mw.time.redeem": "A redemption confirms in about 2–⁠4 minutes",
-  "mw.time.refund": "A refund takes 43 200 blocks after its start, about 60 days",
+  "mw.time.refund": "A refund takes 43,200 blocks after its start, about 60 days",
 
   // errors (design §6.3)
   "mw.err.busy": "Busy, retrying soon.",
@@ -244,7 +244,7 @@ const en: Dict = {
   "mw.res.updated": "as of block {h}",
   "mw.res.inRefund": "A refund started at block {h}. New notes are refused.",
   "mw.res.under": "Notes out exceed the reserve: receivers may not be able to redeem everything.",
-  "mw.res.lock": "A reserve is withdrawn only in two steps: start a refund, then wait 43 200 blocks (about 60 days).",
+  "mw.res.lock": "A reserve is withdrawn only in two steps: start a refund, then wait 43,200 blocks (about 60 days).",
   "mw.res.later": "Top-up and refund come in a later version of this wallet.",
   "mw.res.progressT": "Creating the reserve",
   "mw.res.tracked": "Tracked by the tracker",
@@ -582,7 +582,7 @@ const en: Dict = {
   "mw.wd.freeT": "Free at the key",
   "mw.wd.free": "Can be sent",
   "mw.wd.freeB": "Boxes with tokens stay at the key; boxes being spent are left out.",
-  "mw.wd.reserveNote": "The reserve is not withdrawn here. A refund comes in a later version: start it, then wait 43 200 blocks (about 60 days).",
+  "mw.wd.reserveNote": "The reserve is not withdrawn here. A refund comes in a later version: start it, then wait 43,200 blocks (about 60 days).",
 
   // Activity
   "mw.act.h": "Activity",
@@ -676,7 +676,7 @@ const ru: Partial<Dict> = {
   "mw.rule": "Проверка:",
   "mw.nothingSigned": "Ничего не подписано.",
   "mw.nothingSent": "Ничего не отправлено.",
-  "mw.amount.bad": "Укажите сумму в ERG, например 0,5",
+  "mw.amount.bad": "Укажите сумму в ERG с запятой для дробной части, например 0,5 или 1 ⁠240,5",
   "mw.boot.loading": "Открываем хранилище ключа в этом браузере…",
   "mw.boot.errT": "Хранилище ключа не открылось",
   "mw.boot.errB": "Браузер отказал в доступе к локальной базе. Ничего не изменилось. Перезагрузите страницу; если не поможет, попробуйте другой профиль браузера.",
@@ -709,7 +709,7 @@ const ru: Partial<Dict> = {
   "mw.time.t1": "Трекер увидит новый резерв примерно через 6–⁠15 минут",
   "mw.time.note": "Расписку можно погасить примерно через 10–⁠25 минут",
   "mw.time.redeem": "Погашение подтверждается примерно за 2–⁠4 минуты",
-  "mw.time.refund": "Возврат — 43 200 блоков после запуска, около 60 дней",
+  "mw.time.refund": "Возврат — 43 ⁠200 блоков после запуска, около 60 дней",
 
   "mw.err.busy": "Занято, скоро повторим.",
   "mw.err.busyIn": "Занято, повтор через {s} с.",
@@ -900,7 +900,7 @@ const ru: Partial<Dict> = {
   "mw.res.updated": "на блоке {h}",
   "mw.res.inRefund": "Возврат начался на блоке {h}. Новые расписки не принимаются.",
   "mw.res.under": "Выдано больше, чем в резерве: держатели могут не погасить всё.",
-  "mw.res.lock": "Резерв выводится только в два шага: запуск возврата, затем ожидание 43 200 блоков (около 60 дней).",
+  "mw.res.lock": "Резерв выводится только в два шага: запуск возврата, затем ожидание 43 ⁠200 блоков (около 60 дней).",
   "mw.res.later": "Пополнение и возврат резерва появятся в следующей версии кошелька.",
   "mw.res.progressT": "Создание резерва",
   "mw.res.tracked": "Трекер видит резерв",
@@ -1232,7 +1232,7 @@ const ru: Partial<Dict> = {
   "mw.wd.freeT": "Свободно на ключе",
   "mw.wd.free": "Можно отправить",
   "mw.wd.freeB": "Боксы с токенами остаются на ключе; тратящиеся боксы не учитываются.",
-  "mw.wd.reserveNote": "Резерв здесь не выводится. Возврат появится в следующей версии: запуск, затем ожидание 43 200 блоков (около 60 дней).",
+  "mw.wd.reserveNote": "Резерв здесь не выводится. Возврат появится в следующей версии: запуск, затем ожидание 43 ⁠200 блоков (около 60 дней).",
 
   "mw.act.h": "История",
   "mw.act.lede": "Всё, что этот ключ подписал в этом браузере, новое сверху. Журнал хранится в этом браузере.",

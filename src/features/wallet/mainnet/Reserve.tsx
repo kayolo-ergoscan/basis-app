@@ -13,7 +13,7 @@ import {
   buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
   type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
-import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
+import { ergInput, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
 import { blocksNewT1, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
@@ -39,7 +39,7 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
     <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={cov} /> : undefined}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
-        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span>
+        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(cov) }) : t("mw.res.noDebt")}</span>
           {r.pendingRedemption > 0n && <span className="t-small mw-dim">{t("mw.res.pendingRed", { amount: ergText(r.pendingRedemption) })}</span>}</div>
       </div>
       <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
@@ -78,7 +78,7 @@ export function ReserveScreen() {
   const verr = useVaultError();
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const un = useUnspent(me, height, state.backedUp);
-  const [amountText, setAmountText] = useState(ergPlain(RESERVE_DEFAULT_CAP_NANOERG / 2n));
+  const [amountText, setAmountText] = useState(() => ergInput(RESERVE_DEFAULT_CAP_NANOERG / 2n));
   const [big, setBig] = useState(false);
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [pass, setPass] = useState("");
