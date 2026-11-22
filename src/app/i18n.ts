@@ -30,11 +30,11 @@ const en = {
   "app.height.offline": "offline",
   "app.height.offline.title": "The mainnet API does not answer right now; the sandbox works without it. Retrying every 30 s.",
 
-  "app.banner": "Basis has not launched on mainnet. This is an independent interface (not by Better Money Labs). The sandbox uses real cryptography and play money.",
+  "app.banner": "ErgoScan's Basis tracker runs on mainnet (beta). Unofficial project, Basis is experimental: use small amounts only. This is an independent interface (not by Better Money Labs).",
   "app.banner.close": "Hide this notice for this visit",
 
   "app.footer.line": "An independent interface to the Basis protocol.",
-  "app.footer.prelaunch": "Basis has not launched on mainnet; the sandbox uses play money.",
+  "app.footer.prelaunch": "ErgoScan's Basis tracker runs on mainnet (beta); the sandbox uses play money.",
   "app.footer.sources": "Sources",
   "app.footer.code": "Basis tracker and contracts",
   "app.footer.chat": "Community chat",
@@ -127,11 +127,11 @@ const ru: Partial<typeof en> = {
   "app.height.offline": "нет связи",
   "app.height.offline.title": "API основной сети сейчас не отвечает; песочница работает и без него. Повторяем каждые 30 с.",
 
-  "app.banner": "Basis ещё не запущен в основной сети. Это независимый интерфейс (не от Better Money Labs). В песочнице настоящая криптография и игровые деньги.",
+  "app.banner": "Трекер ErgoScan для Basis работает в mainnet (бета). Проект неофициальный, Basis экспериментальный: используйте только небольшие суммы. Это независимый интерфейс (не от Better Money Labs).",
   "app.banner.close": "Скрыть до следующего визита",
 
   "app.footer.line": "Независимый интерфейс к протоколу Basis.",
-  "app.footer.prelaunch": "Basis ещё не запущен в основной сети; в песочнице игровые деньги.",
+  "app.footer.prelaunch": "Трекер ErgoScan для Basis работает в mainnet (бета); в песочнице игровые деньги.",
   "app.footer.sources": "Источники",
   "app.footer.code": "Трекер и контракты Basis",
   "app.footer.chat": "Чат сообщества",

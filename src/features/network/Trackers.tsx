@@ -5,12 +5,13 @@ import { Link, useParams } from "react-router-dom";
 import { rich, useT, useTitle } from "@/app";
 import { Dial, Empty, Honest, Icon, KeySeal, Table, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, useTracker, type Observatory, type ReserveView, type TrackerCommit, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OUR_TRACKER, useTracker, type Observatory, type ReserveView, type TrackerCommit, type TrackerView } from "@/chain";
 import { makeClock } from "./clock";
 import { approx, blocks, date, ergs, height as fmtH, sid, tokenStr, type Lang } from "./fmt";
 import { AsOf, Block, Capped, ContractTag, ExitTag, Ext, Facts, IdLink, KeyName, NetLoading, NftTile, TrackerTag, trackerSilent, UntrustedName, useProgressive } from "./parts";
 import { FeedRow, goneLine, TrackerPanel } from "./Overview";
 import { BeatStrip, TrackerLanes } from "./viz";
+import { OurTrackerBlock, OurTrackerPage } from "./Ours";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 const RANK: Record<TrackerView["status"], number> = { live: 0, stale: 1, locked: 2, burned: 3, unused: 4 };
@@ -24,13 +25,15 @@ export function TrackersList({ obs }: { obs: Observatory }) {
   const clock = useMemo(() => makeClock(obs), [obs]);
   const list = useMemo(() => [...obs.trackers].sort(trackerOrder), [obs.trackers]);
   const panels = useProgressive(list, 4);
+  // ErgoScan's tracker is minted after the snapshot: it has its own card here, fed by its API
+  const ours = obs.index.trackers.has(OUR_TRACKER.nft) ? 0 : 1;
   return (
     <>
       <header className="nw-head">
         <div>
           <div className="eyebrow label">{t("network.tl.eyebrow")}</div>
           <h1 className="t-h1">{rich(t("network.tl.h1"))}</h1>
-          <p className="t-lede">{t("network.tl.lede", { n: list.length })}</p>
+          <p className="t-lede">{t("network.tl.lede", { n: list.length + ours })}</p>
         </div>
         <AsOf h={obs.height} live={obs.heightLive} />
       </header>
@@ -38,6 +41,7 @@ export function TrackersList({ obs }: { obs: Observatory }) {
         <Honest />
         <p className="t-small">{pick(copy.trackerLineLong, lang)}</p>
       </div>
+      {ours > 0 && <OurTrackerBlock />}
       <Block label={t("network.tl.lanes")} className="nw-lanes-b">
         <p className="t-small">{t("network.tl.lanesSub")}</p>
         <TrackerLanes obs={obs} trackers={list} clock={clock} />
@@ -50,7 +54,13 @@ export function TrackersList({ obs }: { obs: Observatory }) {
 }
 
 /* =========================== detail =========================== */
+/** ErgoScan's own tracker has its page fed by its API (the seed does not know its NFT); every other NFT reads the chain. */
 export function TrackerDetail({ obs }: { obs: Observatory | null }) {
+  const { nft = "" } = useParams();
+  return nft.toLowerCase() === OUR_TRACKER.nft ? <OurTrackerPage obs={obs} /> : <ChainTrackerDetail obs={obs} />;
+}
+
+function ChainTrackerDetail({ obs }: { obs: Observatory | null }) {
   const t = useT();
   const lang = t.lang as Lang;
   const phone = useIsPhone();

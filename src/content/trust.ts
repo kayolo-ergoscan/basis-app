@@ -149,8 +149,8 @@ export const trust = {
   status: {
     title: t("Where things stand", "Где мы сейчас"),
     text: denial(
-      "Basis has not launched. The current contracts (2026-10-25 and 2026-10-27) have no boxes on mainnet, no public tracker is running, and the latest review (2026-10-29) says the server and clients are not ready for a public launch.",
-      "Basis ещё не запущен. У текущих контрактов (2026-10-25 и 2026-10-27) нет ни одного бокса в mainnet, публичного трекера нет, а последнее ревью (2026-10-29) говорит, что сервер и клиенты к публичному запуску не готовы.",
+      "Basis is experimental. ErgoScan's tracker has run on mainnet in beta since 22 November 2026, and reserves under the current contracts (2026-10-25 and 2026-10-27) can bind to it. The latest review (2026-10-29) says the server and clients are not ready for a public launch.",
+      "Basis экспериментальный. Трекер ErgoScan работает в mainnet в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами (2026-10-25 и 2026-10-27). Последнее ревью (2026-10-29) говорит, что сервер и клиенты к публичному запуску не готовы.",
     ),
     contractsVerdict: t(
       "The same review calls the contracts sound after the C1–C3 fixes.",

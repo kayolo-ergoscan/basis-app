@@ -666,3 +666,63 @@
   .nw-skel-card i, .nw-beacon.ping .ping-ring { animation: none; }
 }
 :root.rm .nw-skel-card i, :root.rm .nw-beacon.ping .ping-ring { animation: none; }
+
+/* ---------- ErgoScan's tracker (Ours.tsx): the card on the overview and /network/trackers ---------- */
+.nw-ours { border: 1px solid var(--rule); border-radius: var(--r-note); background: var(--surface); padding: 22px 24px 20px; display: grid; gap: 18px; margin-bottom: clamp(34px, 4vw, 60px); min-width: 0; }
+.nw-ours-h { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px 20px; align-items: start; }
+.nw-ours-t { display: grid; gap: 6px; min-width: 0; }
+.nw-ours-t .eyebrow, .nw-ours-t h2, .nw-ours-t p { margin: 0; }
+.nw-ours-t h2 a { text-decoration: none; }
+.nw-ours-t h2 a:hover { text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 4px; }
+.nw-ours-t .t-small { max-width: 76ch; color: var(--ink-2); }
+.nw-ours-st { display: grid; justify-items: end; gap: 8px; text-align: right; min-width: 0; }
+.nw-ours-ans { margin: 0; font: 400 12px/1.45 var(--f-ui); color: var(--ink-3); max-width: 40ch; }
+.nw-ours-ans.err { color: var(--ink-2); }
+.nw-ours-ans.in-facts { text-align: left; max-width: none; font-size: 13px; color: var(--ink-2); }
+.nw-ours-b { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; padding-top: 18px; border-top: 1px solid var(--rule); }
+.nw-ours-g { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; }
+.nw-ours-g .fig { padding: 0 20px; border-left: 1px solid var(--rule); min-width: 0; }
+.nw-ours-g .fig:first-child { padding-left: 0; border-left: 0; }
+.nw .nw-ours-g .fig .v { font-size: clamp(26px, 2.1vw, 36px); }
+.nw .nw-ours-g .fig.metal .v { font-size: clamp(30px, 2.5vw, 44px); }
+.nw .nw-ours-g .fig.open .v { color: var(--alarm); }
+.nw-ours-dial { display: grid; place-items: center; }
+.nw-ours-nodial { display: block; width: 112px; height: 112px; border-radius: 50%; border: 1px dashed var(--rule-2); }
+.nw-ours-ids { display: flex; flex-wrap: wrap; gap: 10px 30px; padding-top: 14px; border-top: 1px dashed var(--rule-2); }
+.nw-ours-ids > div { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; }
+.nw-ours-dg { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.nw-ours-dg .hex { font-size: 13px; color: var(--ink); }
+.nw-ours-notes { display: grid; gap: 6px; }
+.nw-ours-notes p { margin: 0; }
+.nw-ours-f { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 28px; align-items: center; }
+.nw-ours-keys { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.nw-ours-empty { margin: 0; font: 500 15px/1.45 var(--f-ui); color: var(--ink); }
+.nw-ours-evs { list-style: none; margin: 0; padding: 0; display: grid; }
+.nw-ours-ev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 400 13.5px/1.4 var(--f-ui); color: var(--ink-2); padding: 9px 0; border-bottom: 1px solid var(--rule); }
+.nw-ours-ev b { color: var(--ink); font-weight: 500; }
+@media (min-width: 1001px) {
+  .nw-ours-g .fig { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; }
+}
+@media (max-width: 1280px) {
+  .nw-ours-g .fig { padding: 0 14px; }
+}
+@media (max-width: 1000px) {
+  .nw-ours-h { grid-template-columns: auto minmax(0, 1fr); }
+  .nw-ours-st { grid-column: 1 / -1; justify-items: start; text-align: left; }
+  .nw-ours-g { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 22px; }
+  .nw-ours-g .fig:nth-child(4) { padding-left: 0; border-left: 0; }
+  .nw-ours-f { grid-template-columns: minmax(0, 1fr); }
+  .nw-ours-keys { justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .nw-ours { padding: 16px; gap: 16px; }
+  .nw-ours-h { gap: 12px 14px; }
+  .nw-ours-b { grid-template-columns: minmax(0, 1fr); padding-top: 16px; }
+  .nw-ours-dial { display: none; }
+  .nw-ours-g { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 18px; }
+  .nw-ours-g .fig, .nw-ours-g .fig:nth-child(n) { padding: 0; border-left: 0; }
+  .nw-ours-g .fig.metal { grid-column: 1 / -1; order: -1; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  .nw-ours-ids { display: grid; gap: 10px; }
+  .nw-ours-ids > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); }
+  .nw-ours-keys .key { flex: 1; justify-content: center; }
+}

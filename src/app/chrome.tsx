@@ -136,8 +136,8 @@ export function TabBar() {
   );
 }
 
-const BANNER_KEY = "basis.banner";
-/** Thin pre-launch notice, once per session, dismissible (PRODUCT §1). */
+const BANNER_KEY = "basis.banner.mainnet"; // a new text: a notice hidden before is shown once more
+/** Thin notice: our tracker on mainnet (beta), unofficial, small amounts only. Once per session, dismissible (PRODUCT §1). */
 export function Banner() {
   const t = useT();
   const [hidden, setHidden] = useState(() => { try { return sessionStorage.getItem(BANNER_KEY) === "1"; } catch { return false; } });

@@ -19,13 +19,7 @@ export function ruPlural(n: number, forms: [string, string, string]): string {
 }
 
 export const copy = {
-  /** Thin banner, once per session, dismissible (PRODUCT §1). */
-  preLaunchBanner: denial(
-    "Basis has not launched on mainnet. This is an independent interface (not by Better Money Labs). The sandbox uses real cryptography and play money.",
-    "Basis ещё не запущен в mainnet. Это независимый интерфейс (не от Better Money Labs). В песочнице — настоящая криптография и игровые деньги.",
-  ),
-  /** Short form for narrow screens. */
-  preLaunchShort: denial("Pre-launch: Basis has not launched on mainnet.", "До запуска: Basis ещё не запущен в mainnet."),
+  // The banner ("ErgoScan's Basis tracker runs on mainnet (beta) …") is app.banner in src/app/i18n.ts.
   /** The footer and positioning line. */
   independence: t("An independent interface to the Basis protocol.", "Независимый интерфейс к протоколу Basis."),
   independenceLong: t(
@@ -66,8 +60,8 @@ export const copy = {
     ),
   asOfBlock: (h: number): Text => t(`as of block ${height(h)}`, `на блоке ${height(h)}`),
   mainnetHonest: t(
-    "Everything Basis-shaped on mainnet today is test use of older contract versions. The current contracts have no boxes yet, and no public tracker is running.",
-    "Всё, что сегодня похоже на Basis в mainnet, — тестовое использование старых версий контракта. У текущих контрактов пока нет ни одного бокса, публичного трекера тоже нет.",
+    "Basis on mainnet is still experimental. The early test reserves sit under older contract versions; ErgoScan's tracker has run in beta since 22 November 2026, and reserves under the current contracts can bind to it.",
+    "Basis в mainnet пока экспериментальный. Ранние тестовые резервы лежат под старыми версиями контракта; трекер ErgoScan работает в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами.",
   ),
   currentContractsEmpty: t("No reserve under the current contracts yet.", "Под текущими контрактами резервов пока нет."),
   topUpClosed: t(

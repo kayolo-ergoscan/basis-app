@@ -5,10 +5,11 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { OUR_TRACKER, EMERGENCY_BLOCKS, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
+import { OurTrackerBlock, useOursInStrip } from "./Ours";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -30,6 +31,7 @@ export default function Overview({ obs }: { obs: Observatory }) {
       </header>
 
       <MainnetStrip obs={obs} />
+      <OurTrackerBlock />
 
       {phone && (
         <Seg<"trackers" | "reserves" | "redemptions"> className="nw-colseg" ariaLabel={t("network.col.aria")} value={col} onChange={setCol}
@@ -77,7 +79,7 @@ function Detector({ obs }: { obs: Observatory }) {
           ))}
         </div>
         {n === 0 ? (
-          <p className="nw-det-p">{pick(copy.preLaunchShort, lang)} {t("network.det.willShow")}</p>
+          <p className="nw-det-p">{pick(copy.currentContractsEmpty, lang)} {t("network.det.willShow")}</p>
         ) : (
           <ul className="nw-det-found" aria-label={t("network.det.found")}>
             {det.found.map((b) => (
@@ -97,7 +99,10 @@ function Detector({ obs }: { obs: Observatory }) {
 function MainnetStrip({ obs }: { obs: Observatory }) {
   const t = useT();
   const lang = t.lang as Lang;
-  const live = obs.trackers.filter((x) => x.status === "live" || x.status === "stale").filter((x) => x.lastTrackerBox?.unspent).length;
+  // ErgoScan's tracker NFT was minted after the snapshot: the seed does not list it, so it is added here (its box
+  // counts once the tracker's API has named it)
+  const ours = useOursInStrip(obs);
+  const live = obs.trackers.filter((x) => x.status === "live" || x.status === "stale").filter((x) => x.lastTrackerBox?.unspent).length + (ours?.withBox ?? 0);
   const gone = obs.trackers.filter((x) => x.status === "burned" || x.status === "locked").length;
   const recent = obs.redemptions.filter((r) => r.height > obs.height - 21_600).length;
   const tokens = obs.totals.unspentTokens;
@@ -109,9 +114,9 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
           <dd><span className="v num">{fmtH(obs.height)}</span></dd>
           <dd className="s">{obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })}</dd>
         </div>
-        <div className="fig">
+        <div className="fig" title={ours ? t("network.ours.strip", { h: fmtH(ours.mint) }) : undefined}>
           <dt>{t("network.strip.trackers")}</dt>
-          <dd><span className="v num">{obs.trackers.length}</span></dd>
+          <dd><span className="v num">{obs.trackers.length + (ours?.extra ?? 0)}</span></dd>
           <dd className="s">{t("network.strip.trackersSub", { live, gone })}</dd>
         </div>
         <div className="fig">
@@ -143,7 +148,7 @@ function TrackersColumn({ obs }: { obs: Observatory }) {
   const gone = obs.trackers.filter((x) => !withBox.includes(x)).sort((a, b) => TRACKER_RANK[a.status] - TRACKER_RANK[b.status] || (b.evidence.height ?? 0) - (a.evidence.height ?? 0));
   return (
     <section className="nw-col" aria-labelledby="nw-col-trk">
-      <ColHead id="nw-col-trk" title={t("network.col.trackers")} sub={t("network.col.trackersSub")} to="/network/trackers" n={obs.trackers.length} />
+      <ColHead id="nw-col-trk" title={t("network.col.trackers")} sub={t("network.col.trackersSub")} to="/network/trackers" n={obs.trackers.length + (obs.index.trackers.has(OUR_TRACKER.nft) ? 0 : 1)} />
       <p className="nw-trustline">{pick(copy.trackerLine, t.lang as Lang)}</p>
       <div className="nw-stack">
         {withBox.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} />)}

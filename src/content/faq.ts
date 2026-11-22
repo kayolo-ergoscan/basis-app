@@ -170,10 +170,10 @@ export const faq: Faq[] = [
   {
     id: "launched",
     q: t("Is Basis running on mainnet yet?", "Basis уже работает в mainnet?"),
-    short: denial("Not yet. Basis has not launched: the current contracts have no boxes, and no public tracker is running.", "Пока нет. Basis ещё не запущен: у текущих контрактов нет боксов, публичного трекера тоже нет."),
+    short: t("In beta, and only in part. ErgoScan's tracker has run on mainnet since 22 November 2026, and reserves under the current contracts can bind to it. Basis is experimental: use small amounts only.", "В бета-режиме и пока лишь частично. Трекер ErgoScan работает в mainnet с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами. Basis экспериментальный: используйте только небольшие суммы."),
     a: [
-      denial("Basis has not launched on mainnet. The contracts reviewed in October 2026 have no boxes yet.", "Basis ещё не запущен в mainnet. У контрактов, прошедших ревью в октябре 2026 года, пока нет ни одного бокса."),
-      t("What you can see on mainnet is test use of older contract versions: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions so far.", "В mainnet видно только тестовое использование старых версий контракта: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и пока 41 погашение."),
+      t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в mainnet Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
+      t("Older contract versions hold the early test use: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions at the last snapshot.", "Под старыми версиями контракта — ранние тесты: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и 41 погашение на момент последнего снимка."),
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
     tags: ["status"],

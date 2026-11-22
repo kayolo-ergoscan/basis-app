@@ -568,8 +568,8 @@ export const trackerApi = {
     "Примеры условные: hex-значения сокращены, суммы указаны в минимальных единицах (nanoERG для ERG).",
   ),
   noPublicTracker: t(
-    "No public tracker is running today. To try these calls, run the reference server yourself.",
-    "Публичного трекера сейчас нет. Чтобы попробовать эти запросы, запустите эталонный сервер сами.",
+    "ErgoScan's tracker on mainnet (beta) opens only its public read routes, and this site reads them for the Mainnet console. To try every call, run the reference server yourself.",
+    "Трекер ErgoScan в mainnet (бета) открывает только публичные маршруты чтения, и этот сайт читает их для консоли основной сети. Чтобы попробовать все запросы, запустите эталонный сервер сами.",
   ),
   envelope: {
     title: t("Response envelope", "Конверт ответа"),
