@@ -7,6 +7,8 @@ import { ERG } from "@/protocol";
 import { fmtInt as chainInt } from "@/chain/decode";
 import { copy } from "@/content";
 import { amount } from "@/features/network/fmt";
+import networkSrc from "@/features/network/Ours.tsx?raw";
+import tracker from "@/features/tracker/strings";
 import { int, money, numberLang, parseMoney, units } from "@/ui/engine/money";
 import { fmtAmount as vizAmount, ERG_UNIT } from "@/viz/core/format";
 import { fmtUnits, parseAmount } from "@/world/format";
@@ -82,6 +84,14 @@ describe("blocks in words", () => {
     }
     expect(bad).toEqual([]);
     expect(seen).toBeGreaterThan(2000);
+  });
+
+  it("a block figure says «блоков» once: the line under it does not repeat the word, and the count fits a phone", () => {
+    // /tracker/mainnet: «2 037 блоков» over «осталось до погашения без подписи трекера», not «… блоков, пока …»
+    expect(tracker.en["tracker.m.dialLeft"]).not.toMatch(/^(blk|blocks?)\b/i);
+    expect(tracker.ru["tracker.m.dialLeft"]).not.toMatch(/^бло?к/iu);
+    // /network/trackers: the ErgoScan card prints the count big and the word small, like ERG beside an amount
+    expect(networkSrc).toContain('<span className="u plain">{blockWord(em.blocksLeft, lang)}</span>');
   });
 
   it("hand-set English strings group thousands with a comma, not a space", () => {

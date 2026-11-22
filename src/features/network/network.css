@@ -692,6 +692,7 @@
 .nw .nw-ours-g .fig .v { font-size: clamp(26px, 2.1vw, 36px); }
 .nw .nw-ours-g .fig.metal .v { font-size: clamp(30px, 2.5vw, 44px); }
 .nw .nw-ours-g .fig.open .v { color: var(--alarm); }
+.nw .fig .u.plain { color: var(--ink-3); letter-spacing: .04em; }
 .nw-ours-dial { display: grid; place-items: center; }
 .nw-ours-nodial { display: block; width: 112px; height: 112px; border-radius: 50%; border: 1px dashed var(--rule-2); }
 .nw-ours-ids { display: flex; flex-wrap: wrap; gap: 10px 30px; padding-top: 14px; border-top: 1px dashed var(--rule-2); }
