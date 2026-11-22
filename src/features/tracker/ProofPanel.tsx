@@ -154,11 +154,8 @@ export function ProofCard({ p, target, isCurrent, onUseCurrent }: { p: ProofStat
       .sort((a, b) => (a.issuer === YOU ? -1 : b.issuer === YOU ? 1 : nameOf(a.issuer).localeCompare(nameOf(b.issuer))));
   }, [options, nameOf]);
 
-  // "1.20 ERG"; Russian prose writes the decimal comma
-  const money = (o: NoteOption, v: bigint) => {
-    const s = fmtDenom(eco, v, o.denom);
-    return t.lang === "ru" ? s.replace(".", ",") : s;
-  };
+  // "1.20 ERG" (RU «1,20 ERG»): the formatter writes numbers in the page language
+  const money = (o: NoteOption, v: bigint) => fmtDenom(eco, v, o.denom, { lang: t.lang });
   const label = (o: NoteOption) => t(o.omitted ? "tracker.pf.optionOmitted" : "tracker.pf.option", { a: nameOf(o.issuer), b: nameOf(o.receiver), v: money(o, o.totalDebt) });
 
   return (

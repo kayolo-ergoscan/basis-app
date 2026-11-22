@@ -1,13 +1,14 @@
 // /network page strings (EN / RU). Loaded with the lazy page (Page.tsx calls addI18n), so they stay out of the main
-// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings use U+2009 U+2060 for
-// thousands and U+00A0 before units (VISUAL §4.3). Shared honest phrases come from @/content `copy`, not from here.
+// chunk; the route keys (network.title, network.cmd.*) live in i18n.ts. Numbers inside strings are in each language's
+// format: EN "2,160", RU "2 160" with U+2009 U+2060; U+00A0 before units (VISUAL §4.3). Shared honest phrases come
+// from @/content `copy`, not from here.
 import type { I18nBundle } from "@/app/types";
 
 const S = " ⁠"; // thin space + word joiner
 const NB = " ";
-const B2160 = `2${S}160${NB}blk`;
+const B2160 = `2,160${NB}blk`;
 const B2160RU = `2${S}160${NB}блоков`;
-const B43200 = `43${S}200${NB}blk`;
+const B43200 = `43,200${NB}blk`;
 const B43200RU = `43${S}200${NB}блоков`;
 
 export default {
@@ -92,7 +93,7 @@ export default {
     "network.trk.noBox": "No tracker box",
     "network.trk.emOpen": "Emergency redeem open since block {h}",
     "network.trk.emOpens": "Emergency redeem opens at block {h}, in {left}",
-    "network.em.idle": `Box age, not uptime: the tracker server posts a new box only when something changed, so an honest but idle tracker also opens this window after ${B2160} of quiet.`,
+    "network.em.idle": `The window opens on time, not on failure. If a tracker has written nothing to Ergo for about 3${NB}days (${B2160}), even just because there were no payments, holders can redeem the last recorded totals without its signature.`,
     "network.trk.reserves": "reserves: {n}",
     "network.trk.served": "redemptions: {n}",
     "network.trk.burnedAt": "Burned at block {h}",
@@ -121,7 +122,8 @@ export default {
     "network.res.open": "Open reserve {id}",
     "network.res.noTracker": "R6 names no tracker",
     "network.topup.key": "Top up",
-    "network.topup.why": "Topping up one of these legacy test reserves would lock real money in an old contract version.",
+    "network.topup.why": "Topping up one of the legacy test reserves would lock real money in an old contract version.",
+    "network.topup.whyCurrent": "Anyone can top up this reserve, without the owner's signature: at least 0.1 ERG at a time.",
     "network.rd.age": "tracker box age {age}",
     "network.rd.em": "emergency window",
     "network.rd.first": "first of pair",
@@ -198,6 +200,7 @@ export default {
     "network.rv.holderRedeem": "Note holders · redeem",
     "network.rv.redeem.now": "possible now, with proofs against the tracker's tree",
     "network.rv.redeem.if-tracker-posts": "only if a tracker box appears",
+    "network.rv.redeem.checking": "checking the tracker…",
     "network.rv.redeem.no": "not possible",
     "network.rv.refund.yes": `available: write R7, wait ${B43200} ≈ 60 days, take what is left`,
     "network.rv.refund.pending": "running",
@@ -257,7 +260,9 @@ export default {
     // trackers list
     "network.tl.eyebrow": "MAINNET · TRACKERS",
     "network.tl.h1": "Trackers, *read from their boxes.*",
-    "network.tl.lede": "A tracker NFT travels from box to box. Each tracker box names a key in R4 and commits a digest of notes in R5. These are the {n} NFTs that reserves name or that ever sat in a tracker box.",
+    "network.tl.lede": "Every tracker has its own NFT — that is how the chain recognises it. Here are all {n}: trackers that have written to Ergo, and ones that reserves only point to so far.",
+    "network.tl.tech": "Details",
+    "network.tl.techText": "A tracker NFT travels from box to box. Each tracker box names a key in R4 and commits a digest of notes in R5.",
     "network.tl.lanes": "Box history",
     "network.tl.lanesSub": "Every readable tracker box on one block axis. Tall marks are new digests; short marks re-post the same digest.",
     "network.tl.lg.commit": "new digest",
@@ -359,7 +364,7 @@ export default {
     "network.tx.docTitleOther": "Transaction {id}",
     "network.tx.from": "from the reserve of {owner} to {receiver}",
     "network.tx.loading": "Reading the transaction…",
-    "network.tx.queued": "Waiting for the next block: this tab has spent its share of API requests for this block (6 per block). The transaction loads by itself, usually within 2 minutes.",
+    "network.tx.queued": "Waiting for the next block: this tab has spent its share of API requests for this block ({n} per block). The transaction loads by itself, usually within 2 minutes.",
     "network.tx.offline": "The chain API did not answer, so this transaction cannot be read right now. It loads by itself once the API answers again.",
     "network.tx.error": "Could not read this transaction",
     "network.tx.errorText": "The chain API did not answer. The summary below comes from the snapshot.",
@@ -649,7 +654,7 @@ export default {
     "network.trk.noBox": "Бокса трекера нет",
     "network.trk.emOpen": "Аварийное погашение открыто с блока {h}",
     "network.trk.emOpens": "Аварийное погашение откроется на блоке {h}, через {left}",
-    "network.em.idle": `Считается возраст бокса, а не «онлайн»: сервер трекера публикует новый бокс, только когда что-то изменилось, поэтому и честный, но простаивающий трекер открывает это окно после ${B2160RU} тишины.`,
+    "network.em.idle": `Окно открывается по времени, а не по поломке. Если трекер около 3${NB}дней (${B2160RU}) ничего не записывал в${NB}Ergo${NB}— даже просто потому, что не было платежей,${NB}— держатели могут погасить последние записанные итоги без его подписи.`,
     "network.trk.reserves": "резервов: {n}",
     "network.trk.served": "погашений: {n}",
     "network.trk.burnedAt": "Сожжён на блоке {h}",
@@ -678,7 +683,8 @@ export default {
     "network.res.open": "Открыть резерв {id}",
     "network.res.noTracker": "R6 не называет трекер",
     "network.topup.key": "Пополнить",
-    "network.topup.why": "Пополнение такого старого тестового резерва заперло бы настоящие деньги в старой версии контракта.",
+    "network.topup.why": "Пополнение старого тестового резерва заперло бы настоящие деньги в старой версии контракта.",
+    "network.topup.whyCurrent": "Пополнить этот резерв может любой, без подписи владельца: от 0,1 ERG за раз.",
     "network.rd.age": "возраст бокса трекера {age}",
     "network.rd.em": "аварийное окно",
     "network.rd.first": "первое для пары",
@@ -753,6 +759,7 @@ export default {
     "network.rv.holderRedeem": "Держатели расписок · погашение",
     "network.rv.redeem.now": "возможно сейчас, с доказательствами по дереву трекера",
     "network.rv.redeem.if-tracker-posts": "только если появится бокс трекера",
+    "network.rv.redeem.checking": "проверяем трекер…",
     "network.rv.redeem.no": "невозможно",
     "network.rv.refund.yes": `доступен: записать R7, ждать ${B43200RU} ≈ 60 дней, забрать остаток`,
     "network.rv.refund.pending": "идёт",
@@ -811,7 +818,9 @@ export default {
 
     "network.tl.eyebrow": "ОСНОВНАЯ СЕТЬ · ТРЕКЕРЫ",
     "network.tl.h1": "Трекеры — *по их боксам.*",
-    "network.tl.lede": "NFT трекера переходит из бокса в бокс. Каждый бокс трекера называет ключ в R4 и фиксирует дайджест расписок в R5. Здесь все NFT, которые называют резервы или которые хоть раз были в боксе трекера: {n}.",
+    "network.tl.lede": "У каждого трекера есть свой NFT — по нему трекер узнают в блокчейне. Здесь все {n}: и трекеры, которые уже записывали данные в Ergo, и те, на которые пока только ссылаются резервы.",
+    "network.tl.tech": "Подробнее",
+    "network.tl.techText": "NFT трекера переходит из бокса в бокс. Каждый бокс трекера называет ключ в R4 и фиксирует дайджест расписок в R5.",
     "network.tl.lanes": "История боксов",
     "network.tl.lanesSub": "Каждый читаемый бокс трекера на одной оси блоков. Высокие отметки — новые дайджесты, короткие — повтор того же дайджеста.",
     "network.tl.lg.commit": "новый дайджест",
@@ -914,7 +923,7 @@ export default {
     "network.tx.docTitleOther": "Транзакция {id}",
     "network.tx.from": "из резерва {owner} получателю {receiver}",
     "network.tx.loading": "Читаем транзакцию…",
-    "network.tx.queued": "Ждём следующего блока: эта вкладка уже потратила свою долю запросов к API на этот блок (6 на блок). Транзакция загрузится сама, обычно в пределах 2 минут.",
+    "network.tx.queued": "Ждём следующего блока: эта вкладка уже потратила свою долю запросов к API на этот блок ({n} на блок). Транзакция загрузится сама, обычно в пределах 2 минут.",
     "network.tx.offline": "API блокчейна не ответил, поэтому транзакцию сейчас не прочитать. Она загрузится сама, когда API снова ответит.",
     "network.tx.error": "Не удалось прочитать транзакцию",
     "network.tx.errorText": "API блокчейна не ответил. Сводка ниже — из снимка.",

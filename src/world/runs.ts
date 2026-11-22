@@ -38,9 +38,12 @@ import {
 } from "@/protocol";
 import { ensureAvl, type AvlInfo } from "./avl";
 import { FrameBatcher, now, yieldToLoop } from "./frame";
-import { buildTown } from "./town/genesis";
+import { buildTown, SANDBOX_GENESIS_HEIGHT } from "./town/genesis";
 
 export const RUN_FORMAT = "basis-sandbox-run";
+/** Economy options a /play scenario run adds to the scenario's own: `runScenario(id, { economy: SCENARIO_ECONOMY })`
+ *  builds the same economy. */
+export const SCENARIO_ECONOMY = { genesisHeight: SANDBOX_GENESIS_HEIGHT } as const;
 /** Time-machine checkpoint interval (events). */
 const CHECKPOINT_EVERY = 256;
 
@@ -217,7 +220,7 @@ const HEAVY_STEPS: Record<string, HeavyStep> = {
 
 /** A fresh small world: a tracker, three people/businesses and an agent, three reserves, a confirmed box. */
 export function buildSmallWorld(seed: string, avl?: AvlBackend): Economy {
-  const eco = new Economy({ seed, avl });
+  const eco = new Economy({ seed, genesisHeight: SANDBOX_GENESIS_HEIGHT, avl });
   eco.addParticipant({ id: "op", name: "Tracker operator", kind: "tracker-operator", erg: erg(10) });
   eco.createTracker({ id: "T-01", name: "Sandbox tracker", operator: "op", globalPolicy: defaultCollateralPolicy() });
   eco.addParticipant({ id: "alice", name: "Alice", kind: "human", erg: erg(20) });
@@ -237,7 +240,7 @@ export function buildSmallWorld(seed: string, avl?: AvlBackend): Economy {
 
 /** Only a tracker and its operator. */
 export function buildEmptyWorld(seed: string, avl?: AvlBackend): Economy {
-  const eco = new Economy({ seed, avl });
+  const eco = new Economy({ seed, genesisHeight: SANDBOX_GENESIS_HEIGHT, avl });
   eco.addParticipant({ id: "op", name: "Tracker operator", kind: "tracker-operator", erg: erg(10) });
   eco.createTracker({ id: "T-01", name: "Sandbox tracker", operator: "op", globalPolicy: defaultCollateralPolicy() });
   return eco;
@@ -298,8 +301,8 @@ export class RunController {
       this.eco = init.eco;
       this.ctx = this.scenario ? { rng: new Rng(this.seed), memo: {}, params: this.params } : null;
     } else if (this.scenario) {
-      // exactly ScenarioRun's constructor, with the backend made explicit
-      this.eco = new Economy({ seed: this.seed, ...this.scenario.economy, avl: this.avl });
+      // exactly ScenarioRun's constructor with SCENARIO_ECONOMY as its options, the backend made explicit
+      this.eco = new Economy({ seed: this.seed, ...this.scenario.economy, ...SCENARIO_ECONOMY, avl: this.avl });
       this.ctx = { rng: new Rng(this.seed), memo: {}, params: this.params };
       this.eco.markStep(this.scenario.id, -1, this.scenario.title, this.scenario.tagline);
       this.scenario.setup(this.eco, this.ctx);

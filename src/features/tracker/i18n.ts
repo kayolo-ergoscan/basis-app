@@ -6,14 +6,16 @@ export default {
   en: {
     "tracker.title": "Tracker",
     "tracker.eyebrow": "SANDBOX TRACKER T-01",
-    "tracker.cmd.open": "Tracker console",
+    "tracker.cmd.open": "ErgoScan's tracker on mainnet",
+    "tracker.cmd.practice": "Practice tracker: the sandbox town's T-01",
     "tracker.cmd.run": "Run your own tracker",
     "tracker.cmd.api": "Tracker API mirror",
   },
   ru: {
     "tracker.title": "Трекер",
     "tracker.eyebrow": "ТРЕКЕР ПЕСОЧНИЦЫ T-01",
-    "tracker.cmd.open": "Консоль трекера",
+    "tracker.cmd.open": "Трекер ErgoScan в основной сети",
+    "tracker.cmd.practice": "Учебный трекер: T-01 города-песочницы",
     "tracker.cmd.run": "Свой трекер: как запустить",
     "tracker.cmd.api": "Зеркало API трекера",
   },

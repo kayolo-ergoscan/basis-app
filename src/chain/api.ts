@@ -3,16 +3,20 @@
 //
 // Rules (PRODUCT §4.2 and §6; CHAIN_API.md "Request budget"):
 //   • ≤ 2 requests per second, ever, for the whole app: src/chain has one global token bucket (capacity 1, refill 1/s,
-//     so its starts are ≥ 1 s apart) and the shell's /v1/info poll (once per 30 s) is the only other /v1 traffic, so any
-//     one-second window holds at most one src/chain request plus at most one height poll;
-//   • ≤ 6 requests per block per visitor. The shell's height pill (src/app/height.ts) polls /v1/info every 30 s, about
-//     4 polls in a 2-minute block, so `heightReserve` keeps 4 of the 6 for it and src/chain spends the other 2.
-//     Background work gets a slot only while no user-initiated request waits; an interactive request (useBox, a tx
-//     opened by the user) that finds the block spent waits for the next block instead of failing;
+//     so its starts are ≥ 1 s apart, first come first served) and the shell's /v1/info poll (once per 30 s) is the only
+//     other /v1 traffic, so any one-second window holds at most one src/chain request plus at most one height poll;
+//   • background work: ≤ 6 requests per block per visitor. The shell's height pill (src/app/height.ts) polls /v1/info
+//     every 30 s, about 4 polls in a 2-minute block, so `heightReserve` keeps 4 of the 6 for it and the background
+//     checks spend the other 2. Background work gets a slot only while no user-started request waits;
+//   • user-started loads (the interactive lane: a page, a tx, a box, a reserve or a tracker the user opens) are not held
+//     by that cap: they go out at once, through the same token bucket. `userPerBlock` (30 per block per tab) is only a
+//     safety net against a runaway loop; a request over it waits for the next block instead of failing;
 //     A block that takes longer than 4 minutes (or a height poll that is down) opens a new budget epoch by time;
+//   • answers that can no longer change (a transaction 3 blocks deep, a spent box: finalTx / finalBox) are kept for the
+//     tab, in memory and in sessionStorage, so opening them again, or coming back to them, costs no request;
 //   • while the tab is hidden, background requests are refused ("hidden") and nothing is scheduled;
 //   • timeouts (AbortController), retries with exponential backoff + jitter on network errors, timeouts, 429 and 5xx.
-//     Every attempt is a request and counts against the budget.
+//     Every attempt is a request and counts against the budget of its lane.
 import type { BudgetStats } from "./types";
 
 export type Lane = "background" | "interactive";
@@ -35,33 +39,52 @@ export interface ChainApiConfig {
   backoffMs: number;             // first retry delay; doubles each time (+ up to 30 % jitter)
   ratePerSec: number;            // token refill rate
   burst: number;                 // bucket capacity
-  perBlock: number;              // every request of this visitor in one block, height polls included
+  perBlock: number;              // background requests of this visitor in one block, height polls included
   heightReserve: number;         // of those, kept for the shell's height poller
+  userPerBlock: number;          // user-started (interactive) requests per block per tab: a safety net, not a budget
   epochMaxMs: number;            // no new block for this long (height poll down, slow chain) → a new budget epoch anyway
   now: () => number;
   isHidden: () => boolean;
   random: () => number;
+  /** Where final answers outlive a reload of the tab (sessionStorage in the app; null in tests or when blocked). */
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
 }
 
-/** Budget defaults. If the shell's height poll moves to 60 s, set heightReserve to 2 and src/chain gets 4 per block. */
-export const CHAIN_BUDGET = { perBlock: 6, heightReserve: 4, ratePerSec: 1, burst: 1 } as const;
+/** Budget defaults. If the shell's height poll moves to 60 s, set heightReserve to 2 and the background gets 4 per
+ *  block. `userPerBlock` caps the user-started lane per block and tab (a safety net: a page view needs a handful). */
+export const CHAIN_BUDGET = { perBlock: 6, heightReserve: 4, userPerBlock: 30, ratePerSec: 1, burst: 1 } as const;
 
-export interface GetOptions { lane?: Lane; signal?: AbortSignal; timeoutMs?: number; retries?: number }
+export interface GetOptions<T = unknown> {
+  lane?: Lane;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  retries?: number;
+  /** The answer can no longer change (finalTx, finalBox; tip = the newest block seen): keep it for the tab and answer
+   *  this path from it from now on, with no request. */
+  final?: (data: T, tip: number) => boolean;
+}
+
+/** A transaction 3 blocks deep (2 blocks on top of its own): a reorg that deep does not happen on Ergo in practice. */
+export const finalTx = (t: { inclusionHeight?: number | null } | null | undefined, tip: number): boolean =>
+  typeof t?.inclusionHeight === "number" && t.inclusionHeight > 0 && tip >= t.inclusionHeight + 2;
+
+/** A spent box: its registers and tokens never change, and once spent it stays spent. */
+export const finalBox = (b: { spentTransactionId?: string | null } | null | undefined): boolean => !!b?.spentTransactionId;
 
 export interface RequestLogEntry { path: string; lane: Lane; status: number | string; ms: number; at: number; bytes: number | null }
 
 export interface ChainApi {
   readonly config: Readonly<ChainApiConfig>;
-  /** GET base + path, parsed as JSON. Throws ChainApiError. */
-  get<T>(path: string, opts?: GetOptions): Promise<T>;
+  /** GET base + path, parsed as JSON (or kept for the tab, see GetOptions.final). Throws ChainApiError. */
+  get<T>(path: string, opts?: GetOptions<T>): Promise<T>;
   /** A new block was seen (the shell's height poll): a higher height opens a new block budget. */
   newBlock(height: number): void;
   /** The shell made a /v1/info request (counted in the stats; its slots are `heightReserve`). */
   noteHeightPoll(): void;
   /** Would a request in this lane be sent right now (budget, visibility, no interactive request waiting)? */
   canSpend(lane: Lane): boolean;
-  /** Data slots left in this block. */
-  budgetLeft(): number;
+  /** Slots left in this block: background data slots (default), or what is left of the user-started safety cap. */
+  budgetLeft(lane?: Lane): number;
   stats(): BudgetStats;
   log(): RequestLogEntry[];
   subscribe(fn: () => void): () => void;
@@ -69,6 +92,16 @@ export interface ChainApi {
 
 const defaultHidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
 const defaultFetch: typeof fetch = (...a) => fetch(...a);
+const defaultStorage = (): ChainApiConfig["storage"] => {
+  try { return typeof sessionStorage !== "undefined" ? sessionStorage : null; } catch { return null; }
+};
+
+// Final answers kept for the tab: in memory (newest FINAL_MEM) and in sessionStorage (newest FINAL_STORED, each at most
+// FINAL_MAX_CHARS; an index key lists them oldest first). Storage is best effort: blocked or full simply means memory only.
+const FINAL_MEM = 120;
+const FINAL_STORED = 24;
+const FINAL_MAX_CHARS = 150_000;
+const FINAL_KEY = "basis.chain.final.v1";
 
 export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi {
   const cfg: ChainApiConfig = {
@@ -81,11 +114,13 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
     burst: CHAIN_BUDGET.burst,
     perBlock: CHAIN_BUDGET.perBlock,
     heightReserve: CHAIN_BUDGET.heightReserve,
+    userPerBlock: CHAIN_BUDGET.userPerBlock,
     epochMaxMs: 240_000,
     now: () => Date.now(),
     isHidden: defaultHidden,
     random: Math.random,
     ...partial,
+    storage: partial.storage === undefined ? defaultStorage() : partial.storage,
   };
   const dataBudget = Math.max(0, cfg.perBlock - cfg.heightReserve);
 
@@ -128,7 +163,8 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
   // ── per-block budget ──
   let epochHeight = -1;
   let epochStartedAt = cfg.now();
-  let used = 0;
+  let used = 0;                  // background data requests this block (≤ dataBudget)
+  let userUsed = 0;              // user-started requests this block (≤ cfg.userPerBlock, the safety net)
   let heightThisBlock = 0;
   let interactiveWaiting = 0;
   let blockWaiters: (() => void)[] = [];
@@ -145,14 +181,15 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
     if (cfg.now() - epochStartedAt < cfg.epochMaxMs) return;
     epochStartedAt = cfg.now();
     used = 0;
+    userUsed = 0;
     heightThisBlock = 0;
   };
   const admit = (lane: Lane): "budget" | "hidden" | null => {
     rollEpoch();
-    if (lane === "background") {
-      if (cfg.isHidden()) return "hidden";
-      if (interactiveWaiting > 0) return "budget";
-    }
+    // what the user opened is not held by the background budget, only by the safety cap
+    if (lane === "interactive") return userUsed < cfg.userPerBlock ? null : "budget";
+    if (cfg.isHidden()) return "hidden";
+    if (interactiveWaiting > 0) return "budget";
     return used < dataBudget ? null : "budget";
   };
   /** Resolves on the next block, or when the epoch times out (then admit() opens a new one). */
@@ -175,9 +212,50 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
       emit();
       try { await nextBlock(signal); } finally { interactiveWaiting--; }
     }
-    used++;              // reserve the slot before waiting for the token, so parallel callers cannot overspend
-    try { await acquireToken(signal); } catch (e) { used--; throw e; }
+    // reserve the slot before waiting for the token, so parallel callers cannot overspend
+    if (lane === "interactive") userUsed++; else used++;
+    try { await acquireToken(signal); } catch (e) {
+      if (lane === "interactive") userUsed = Math.max(0, userUsed - 1); else used = Math.max(0, used - 1);
+      throw e;
+    }
   }
+
+  // ── final answers, kept for the tab ──
+  const finals = new Map<string, string>();   // path → JSON text, oldest first
+  const storeKey = (path: string) => `${FINAL_KEY}:${path}`;
+  const storedIndex = (): string[] => {
+    try {
+      const v = JSON.parse(cfg.storage?.getItem(FINAL_KEY) ?? "[]");
+      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch { return []; }
+  };
+  const finalText = (path: string): string | null => {
+    const mem = finals.get(path);
+    if (mem !== undefined) { finals.delete(path); finals.set(path, mem); return mem; }
+    if (!cfg.storage) return null;
+    try {
+      const v = cfg.storage.getItem(storeKey(path));
+      if (v === null) return null;
+      finals.set(path, v);
+      if (finals.size > FINAL_MEM) finals.delete(finals.keys().next().value!);
+      return v;
+    } catch { return null; }
+  };
+  const keep = (path: string, data: unknown) => {
+    let text: string;
+    try { text = JSON.stringify(data); } catch { return; }
+    finals.delete(path);
+    finals.set(path, text);
+    if (finals.size > FINAL_MEM) finals.delete(finals.keys().next().value!);
+    if (!cfg.storage || text.length > FINAL_MAX_CHARS) return;
+    try {
+      const idx = storedIndex().filter((p) => p !== path);
+      idx.push(path);
+      while (idx.length > FINAL_STORED) cfg.storage.removeItem(storeKey(idx.shift()!));
+      cfg.storage.setItem(storeKey(path), text);
+      cfg.storage.setItem(FINAL_KEY, JSON.stringify(idx));
+    } catch { /* storage full or blocked: memory only */ }
+  };
 
   const sleep = (ms: number, signal?: AbortSignal) =>
     new Promise<void>((resolve, reject) => {
@@ -235,13 +313,21 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
   const retryable = (e: unknown) =>
     e instanceof ChainApiError && (e.kind === "network" || e.kind === "timeout" || (e.kind === "http" && (e.status === 429 || (e.status ?? 0) >= 500)));
 
-  async function get<T>(path: string, opts: GetOptions = {}): Promise<T> {
+  async function get<T>(path: string, opts: GetOptions<T> = {}): Promise<T> {
+    const kept = finalText(path);
+    if (kept !== null) {
+      try { return JSON.parse(kept) as T; } catch { finals.delete(path); }
+    }
     const lane = opts.lane ?? "interactive";
     const retries = opts.retries ?? cfg.retries;
     const timeoutMs = opts.timeoutMs ?? cfg.timeoutMs;
     for (let attempt = 0; ; attempt++) {
       try {
-        return await once<T>(path, lane, timeoutMs, opts.signal);
+        const data = await once<T>(path, lane, timeoutMs, opts.signal);
+        let fin = false;
+        try { fin = !!opts.final?.(data, epochHeight); } catch { fin = false; }
+        if (fin) keep(path, data);
+        return data;
       } catch (e) {
         if (!retryable(e) || attempt >= retries || opts.signal?.aborted) throw e;
         const delay = (e as ChainApiError).retryAfterMs ?? cfg.backoffMs * 2 ** attempt * (1 + 0.3 * cfg.random());
@@ -258,7 +344,7 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
       if (!(height > epochHeight)) return;
       const first = epochHeight < 0;
       epochHeight = height;
-      if (!first) { used = 0; heightThisBlock = 0; epochStartedAt = cfg.now(); }
+      if (!first) { used = 0; userUsed = 0; heightThisBlock = 0; epochStartedAt = cfg.now(); }
       const w = blockWaiters;
       blockWaiters = [];
       for (const f of w) f();
@@ -266,7 +352,7 @@ export function createChainApi(partial: Partial<ChainApiConfig> = {}): ChainApi 
     },
     noteHeightPoll() { heightThisBlock++; byLane.height++; emit(); },
     canSpend: (lane) => admit(lane) === null,
-    budgetLeft: () => { rollEpoch(); return Math.max(0, dataBudget - used); },
+    budgetLeft: (lane = "background") => { rollEpoch(); return lane === "interactive" ? Math.max(0, cfg.userPerBlock - userUsed) : Math.max(0, dataBudget - used); },
     stats: () => ({
       perBlock: cfg.perBlock,
       usedThisBlock: used + heightThisBlock,

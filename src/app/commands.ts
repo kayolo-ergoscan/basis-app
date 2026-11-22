@@ -11,7 +11,7 @@ export interface Command {
   sub?: string;
   /** Extra search words. */
   keywords?: string;
-  group?: "go" | "actions" | "id" | "settings" | "dev" | "terms";
+  group?: "go" | "actions" | "id" | "settings" | "dev" | "terms" | "faq";
   icon?: IconName;
   /** Either navigate… */
   to?: string;
@@ -19,6 +19,33 @@ export interface Command {
   run?: () => void;
   /** Shortcut hint shown at the right ("P"). */
   kbd?: string;
+}
+
+/** A FAQ question as the bar needs it (content `faq`: id, question, one-line answer). */
+export interface FaqQuestion { id: string; q: { en: string; ru: string }; short: { en: string; ru: string } }
+
+/** FAQ questions as commands (→ /learn/faq#q-<id>, which opens that answer): the label is the question in the reader's
+ *  language; both languages and the short answer are search words, so «кошельки» or «потерять» find their answer. */
+export function faqCommands(list: readonly FaqQuestion[], lang: "en" | "ru"): Command[] {
+  return list.map((f) => ({
+    id: "faq." + f.id,
+    label: lang === "ru" ? f.q.ru : f.q.en,
+    sub: `/learn/faq#q-${f.id}`,
+    to: `/learn/faq#q-${f.id}`,
+    group: "faq" as const,
+    icon: "learn" as const,
+    keywords: `${f.q.en} ${f.q.ru} ${f.short.en} ${f.short.ru}`,
+  }));
+}
+
+/** How well a command answers the query: 0 = not at all; every word must appear in its label, line, words or path. */
+export function score(c: Command, q: string): number {
+  if (!q) return 1;
+  const hay = `${c.label} ${c.sub ?? ""} ${c.keywords ?? ""} ${c.to ?? ""}`.toLowerCase();
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.every((w) => hay.includes(w))) return 0;
+  const l = c.label.toLowerCase();
+  return l.startsWith(words[0]) ? 3 : l.includes(words[0]) ? 2 : 1;
 }
 
 let dynamic: Command[] = [];

@@ -22,6 +22,8 @@ export interface Source {
 
 const BT = "https://github.com/BetterMoneyLabs/basis-tracker";
 const BT_BLOB = `${BT}/blob/${GIT_REF}`;
+/** A folder of basis-tracker at the pinned commit (the crate links of the ready-made programs, clients.ts). */
+export const BT_TREE = `${BT}/tree/${GIT_REF}`;
 const CC = "https://github.com/BetterMoneyLabs/chaincash";
 const CC_REF = "78475e30362571acf56e4e38276a9d6c0a84ce0c";
 const CC_BLOB = `${CC}/blob/${CC_REF}`;

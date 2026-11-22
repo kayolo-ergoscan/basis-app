@@ -3,7 +3,7 @@
 import type {
   Address, ApiAsset, ApiBox, ApiTx, BoxDetail, ContractView, DetectedBox, DetectorState, ExitClass, Hex, HostIndexView, LiveBox, LiveData,
   LiveStatus, Observatory, OwnerRow, ReceiverRow, RedemptionView, ReserveView, Seed, SeedReserve, SeedTracker, TokenAmount,
-  Totals, TrackerBoxRef, TrackerCommit, TrackerView, TxBoxRole, TxBoxView, TxDetail,
+  Totals, TrackerBoxRef, TrackerCommit, TrackerStatus, TrackerView, TxBoxRole, TxBoxView, TxDetail,
 } from "./types";
 import {
   CURRENT_TEMPLATES, EMERGENCY_BLOCKS, EMPTY_DIGEST, FEE_TREE_PREFIX, addressOfErgoTree, assessExit, decodeBasisRegisters,
@@ -129,6 +129,14 @@ function safeAddress(tree: Hex): Address {
 export const isTrackerShaped = (b: Pick<LiveBox, "basis" | "assets">, nft?: Hex) =>
   !!(b.basis.key && b.basis.tree && b.assets[0] && (!nft || b.assets[0].tokenId === nft));
 
+/** What the unspent box holding a tracker NFT makes of it (null: no unspent box holds it, after two empty answers). */
+export function liveTrackerStatus(b: LiveBox | null, nft: Hex): TrackerStatus {
+  if (b === null) return "burned";
+  const key = p2pkKeyOfTree(b.ergoTree);
+  if (key && isTrackerShaped(b, nft)) return b.basis.tree!.zero ? "stale" : "live";
+  return key ? "unused" : "locked";
+}
+
 // ─── trackers ───────────────────────────────────────────────────────────────────────────────────
 
 function seedCommits(t: SeedTracker): TrackerCommit[] {
@@ -236,15 +244,36 @@ export function trackerLookup(seed: Seed, t: TrackerView | undefined): TrackerLo
   };
 }
 
+/** Where a tracker NFT outside the seed is now (one that a reserve found live names in R6), from the live layer's
+ *  lookup. null until the first answer, so the reserve's exit reads "checking", never "needs a tracker box". */
+export function liveTrackerLookup(seed: Seed, nft: Hex, L: LiveData["trackers"][Hex] | undefined): TrackerLookup | null {
+  if (!L) return null;
+  const b = L.box;
+  const status = liveTrackerStatus(b, nft);
+  if (b === null) return { status, currentBox: null, trackerBoxHeight: null, holder: null, burnTx: null, releasable: false, emptyTree: false };
+  const boxed = status === "live" || status === "stale";
+  return {
+    status,
+    currentBox: b.id,
+    trackerBoxHeight: boxed ? b.height : null,
+    holder: status === "locked" ? null : b.address,
+    burnTx: null,
+    releasable: status === "locked" ? !!contractOf(seed, b.ergoTree, b.templateHash)?.ownerExit : false,
+    emptyTree: status === "live" ? !!b.basis.tree?.empty : false,
+  };
+}
+
+type Lookup = (nft: Hex) => TrackerLookup | null;
+
 // ─── reserves ───────────────────────────────────────────────────────────────────────────────────
 
-function reserveFromSeed(seed: Seed, r: SeedReserve, live: LiveData, tip: number, trackers: Map<Hex, TrackerView>, next: Map<Hex, Hex>): ReserveView {
+function reserveFromSeed(seed: Seed, r: SeedReserve, live: LiveData, tip: number, lookup: Lookup, next: Map<Hex, Hex>): ReserveView {
   const { byId } = contractIndex(seed);
   const c = byId.get(r.contract) ?? null;
   const seen = live.spent[r.id];
   const unspent = !r.spent && !seen;
   const exit = unspent && c
-    ? assessExit({ ownerExit: c.ownerExit, ownerKey: r.owner?.key ?? null, tree: r.r5, r6: r.r6, ownNft: r.nft?.id ?? null, r7: r.r7, tracker: r.r6 ? trackerLookup(seed, trackers.get(r.r6)) : null, tip })
+    ? assessExit({ ownerExit: c.ownerExit, ownerKey: r.owner?.key ?? null, tree: r.r5, r6: r.r6, ownNft: r.nft?.id ?? null, r7: r.r7, tracker: r.r6 ? lookup(r.r6) : null, tip })
     : null;
   return {
     id: r.id,
@@ -287,7 +316,7 @@ function lastCheck(live: LiveData, id: Hex, templateHash: Hex | null): ReserveVi
   return tpl.at > own.at ? tpl : own;
 }
 
-function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, trackers: Map<Hex, TrackerView>, prev: Map<Hex, Hex>, next: Map<Hex, Hex>): ReserveView | null {
+function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, lookup: Lookup, prev: Map<Hex, Hex>, next: Map<Hex, Hex>): ReserveView | null {
   const c = contractOf(seed, b.ergoTree, b.templateHash);
   if (!c) return null;
   const seen = live.spent[b.id];
@@ -295,7 +324,7 @@ function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, tr
   const key = b.basis.key;
   const r7 = b.regs.R7 ? Number(b.basis.refundHeight) : null;
   const exit = unspent
-    ? assessExit({ ownerExit: c.ownerExit, ownerKey: key, tree: b.basis.tree, r6: b.basis.nft, ownNft: b.basis.ownNft, r7, tracker: b.basis.nft ? trackerLookup(seed, trackers.get(b.basis.nft)) : null, tip })
+    ? assessExit({ ownerExit: c.ownerExit, ownerKey: key, tree: b.basis.tree, r6: b.basis.nft, ownNft: b.basis.ownNft, r7, tracker: b.basis.nft ? lookup(b.basis.nft) : null, tip })
     : null;
   const coll = c.kind === "erg" ? null : b.assets[1] ?? null;
   const madeBy = Object.values(live.txs).find((x) => x.reserveOut?.boxId === b.id);
@@ -382,7 +411,7 @@ function redemptionFromLive(seed: Seed, d: TxDetail): RedemptionView | null {
 
 // ─── totals ─────────────────────────────────────────────────────────────────────────────────────
 
-const EXIT_CLASSES: ExitClass[] = ["locked", "refund", "refund+redeem", "redeem-if-tracker", "redeem", "refund+redeem-if-tracker"];
+const EXIT_CLASSES: ExitClass[] = ["locked", "refund", "refund+redeem", "redeem-if-tracker", "redeem", "refund+redeem-if-tracker", "redeem-checking", "refund+redeem-checking"];
 
 export function computeTotals(seed: Seed, reserves: ReserveView[], redemptions: RedemptionView[], trackers: TrackerView[], live: LiveData): Totals {
   const unspent = reserves.filter((r) => r.unspent);
@@ -448,6 +477,12 @@ export function buildObservatory({ seed, live, tip, status }: BuildInput): Obser
   const extra = Object.values(live.extraReserves).filter((b) => !seed.reserves.some((r) => r.id === b.id));
   const trackers = seed.trackers.map((t) => trackerView(seed, t, live, height, seed.reserves, extra));
   const trackerMap = new Map(trackers.map((t) => [t.nft, t]));
+  // where each R6 NFT is: a seed tracker's view, or the live lookup of an NFT outside the seed (null until it answers)
+  const lookups = new Map<Hex, TrackerLookup | null>();
+  const lookup: Lookup = (nft) => {
+    if (!lookups.has(nft)) lookups.set(nft, trackerMap.has(nft) ? trackerLookup(seed, trackerMap.get(nft)) : liveTrackerLookup(seed, nft, live.trackers[nft]));
+    return lookups.get(nft)!;
+  };
 
   // lineage of live boxes: a live redemption links reserveIn → reserveOut
   const prev = new Map<Hex, Hex>();
@@ -456,8 +491,8 @@ export function buildObservatory({ seed, live, tip, status }: BuildInput): Obser
     if (d.reserveIn && d.reserveOut) { prev.set(d.reserveOut.boxId, d.reserveIn.boxId); next.set(d.reserveIn.boxId, d.reserveOut.boxId); }
   }
   const reserves: ReserveView[] = [
-    ...extra.map((b) => reserveFromLive(seed, b, live, height, trackerMap, prev, next)).filter((r): r is ReserveView => !!r),
-    ...seed.reserves.map((r) => reserveFromSeed(seed, r, live, height, trackerMap, next)),
+    ...extra.map((b) => reserveFromLive(seed, b, live, height, lookup, prev, next)).filter((r): r is ReserveView => !!r),
+    ...seed.reserves.map((r) => reserveFromSeed(seed, r, live, height, lookup, next)),
   ].sort((a, b) => b.height - a.height);
   const reserveMap = new Map(reserves.map((r) => [r.id, r]));
 
@@ -542,6 +577,22 @@ export function hostIndexView(seed: Seed, live: LiveData, unspent: ReserveView[]
     source: "seed", reserveCount: S.reserveCount, ergLockedNano: big(S.ergLockedNano), trackerCount: S.trackerCount, listedKnown,
     unspentHere: unspent.length, notListed: unspent.length - listedKnown, checkedHeight: seed.asOf.height, checkedAt: null,
   };
+}
+
+/** What the reserve totals on a page (unspent reserve boxes, the ERG in them) stand for, so that their "as of block"
+ *  label matches the numbers:
+ *   • "live": this tab has listed both current templates live and knows the chain height. Show obs.totals, labelled
+ *     with that live height (the same block the page shows as Ergo's height);
+ *   • "checking": that first live look is still on its way. Show no number and no empty-state sentence yet, so nothing
+ *     jumps and nothing is contradicted a second later;
+ *   • "snapshot": the live layer failed before it. Show the snapshot's own numbers (obs.snapshotTotals), labelled with
+ *     the snapshot's block. */
+export type TotalsSource = "live" | "checking" | "snapshot";
+export function totalsSource(obs: Pick<Observatory, "detector" | "heightLive" | "live">): TotalsSource {
+  const tpl = obs.detector.templates;
+  if (tpl.length > 0 && tpl.every((t) => t.checkedAt !== null) && obs.heightLive) return "live";
+  if (!obs.live.online || obs.live.lastError !== null) return "snapshot";
+  return "checking";
 }
 
 export function detectorState(seed: Seed, live: LiveData): DetectorState {

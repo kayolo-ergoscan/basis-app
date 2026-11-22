@@ -324,7 +324,7 @@ const ru: Record<string, string> = {
   "ui.reserve.exitNone.c": "Если {name} начнёт выход, держатели смогут погашать ещё {blk} ({time}), и только потом владелец заберёт остаток.",
   "ui.reserve.exitAt": "Выход начат в блоке {h}. Держатели могут погашать до блока {until} ({time}).",
   "ui.reserve.topUpKey": "Пополнить",
-  "ui.reserve.anyone": "Пополнить может любой · от 0.1 ERG",
+  "ui.reserve.anyone": "Пополнить может любой · от 0,1 ERG",
   "ui.reserve.inspect": "Смотреть боксы",
 
   "ui.tracker.title": "Трекер {id}",

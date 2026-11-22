@@ -170,7 +170,7 @@ export default vizBundle({
     "viz.feed.jump": "К новым",
     "viz.feed.jumpN": "К новым · {n}",
     "viz.feed.empty": "Под эти фильтры ничего не подходит.",
-    "viz.feed.block": "блк {h}",
+    "viz.feed.block": "блок {h}",
     "viz.feed.list": "События",
   },
 } satisfies I18nBundle);

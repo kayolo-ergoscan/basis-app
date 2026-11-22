@@ -1,10 +1,11 @@
 // Sandbox helpers shared by the Learn labs: the real Ergo AVL+ backend (WebAssembly, loaded once, lazily), the lab
 // cast and a few sandbox constants. Lab keys are derived from public names (src/viz/core/lab.ts): play money only.
 import { useEffect, useState } from "react";
-import { DEFAULT_GENESIS_HEIGHT, getAvlBackend, type AvlBackend } from "@/protocol";
+import { getAvlBackend, type AvlBackend } from "@/protocol";
 
-/** First block of every sandbox economy. */
-export const LAB_HEIGHT = DEFAULT_GENESIS_HEIGHT;
+/** First block of every sandbox economy: SANDBOX_GENESIS_HEIGHT of @/world, repeated here so the Learn chunk does not
+ *  load the world (learn.test.ts checks they agree). */
+export const LAB_HEIGHT = 1;
 
 let pending: Promise<{ backend: AvlBackend; real: boolean }> | null = null;
 

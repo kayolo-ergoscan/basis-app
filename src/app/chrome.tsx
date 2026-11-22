@@ -42,10 +42,12 @@ export function HeightChip() {
   // offline before the first answer: say so calmly (a grey lamp and a word), never an error colour
   const offline = h.height == null && h.error;
   const title = offline ? t("app.height.offline.title") : h.height == null ? t("app.height.wait") : h.error ? t("app.height.stale") : t("app.height.title");
+  // «Блок 1 922 434» / "Block 1,922,434"; offline it is the network that is gone: «Ergo нет связи»
+  const word = offline ? "Ergo" : t("app.height.label");
   return (
-    <Link to="/network" className="chip height" title={title} ref={chip as React.Ref<HTMLAnchorElement>} aria-label={`${t("app.height.label")} ${h.height != null ? int(h.height) : offline ? t("app.height.offline") : "…"}. ${title}`}>
+    <Link to="/network" className="chip height" title={title} ref={chip as React.Ref<HTMLAnchorElement>} aria-label={`${word} ${h.height != null ? int(h.height) : offline ? t("app.height.offline") : "…"}. ${title}`}>
       <span ref={lamp} style={{ display: "inline-flex" }}><Lamp state={offline ? "stale" : h.height == null ? "signed" : h.error ? "stale" : "live"} /></span>
-      <span className="lbl-l">{t("app.height.label")}</span> {offline ? <span className="off">{t("app.height.offline")}</span> : <b className="num">{h.height != null ? int(h.height) : "· · ·"}</b>}
+      <span className="lbl-l">{word}</span> {offline ? <span className="off">{t("app.height.offline")}</span> : <b className="num">{h.height != null ? int(h.height) : "· · ·"}</b>}
     </Link>
   );
 }

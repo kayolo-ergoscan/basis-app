@@ -1,10 +1,11 @@
 // / — the story in one scroll (VISUAL §13 Home): the hero with a note signed live in this page, the live strip,
-// 01 Five moments, 02 Three doors, 03 Mainnet now, the money spectrum with the personas, and 04 Learn.
+// 01 Five moments, 02 Three doors, 03 Mainnet now, the money spectrum with the personas, three FAQ questions, 04 Learn.
 import "./home.css";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { addI18n } from "@/app/lang";
 import { Doors } from "./Doors";
+import { HomeFaq } from "./Faq";
 import { Hero } from "./Hero";
 import { Learn } from "./Learn";
 import { Mainnet } from "./Mainnet";
@@ -42,6 +43,7 @@ export default function HomePage() {
         <Doors />
         <Mainnet />
         <Spectrum />
+        <HomeFaq />
         <Learn />
       </div>
     </StoryContext.Provider>

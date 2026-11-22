@@ -6,7 +6,7 @@ import { useQuery } from "./query";
 import { rich, useT, useTitle } from "@/app";
 import { Empty, ErrorState, Icon, KeySeal, Lamp, Loading, PairSeal, Seg, Table, Tag, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
-import { blake2b256, bytesToHex, chainApi, EMERGENCY_BLOCKS, hexToBytes, useChainStatus, useRedemption, type Observatory, type OwnerRow, type ReceiverRow, type RedemptionView, type TxBoxView, type TxDetail } from "@/chain";
+import { blake2b256, bytesToHex, CHAIN_BUDGET, chainApi, EMERGENCY_BLOCKS, hexToBytes, useChainStatus, useRedemption, type Observatory, type OwnerRow, type ReceiverRow, type RedemptionView, type TxBoxView, type TxDetail } from "@/chain";
 import { makeClock } from "./clock";
 import { amount, blocks, date, dateTime, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, Ext, Facts, IdLink, KeyName, NetLoading, useAfterPaint, useProgressive } from "./parts";
@@ -337,19 +337,20 @@ function TxBox({ b, lang, tip }: { b: TxBoxView; lang: Lang; tip?: number }) {
   );
 }
 
-/** The lens loads through the interactive lane; once this block's requests are spent it waits for the next block
- *  (up to ≈ 2 min). Say so in words instead of a silent spinner, and offer the explorer meanwhile. */
+/** The lens loads through the interactive lane: at once, unless this tab has hit the per-block safety cap of
+ *  user-started requests, and then it waits for the next block (up to ≈ 2 min). Say so in words instead of a silent
+ *  spinner, and offer the explorer meanwhile. */
 function TxWait({ txId }: { txId: string }) {
   const t = useT();
   const st = useChainStatus(); // re-render when the budget moves
   // offline first: failed requests also use up the block's budget, and "spent its share" would then be the wrong reason
   const offline = !st.online && st.lastError !== null;
-  const queued = !offline && chainApi.budgetLeft() === 0;
+  const queued = !offline && chainApi.budgetLeft("interactive") === 0;
   return (
     <div className="nw-lazy nw-txwait">
       <Loading label={t("network.tx.loading")} seed={txId} lines={5} />
       <p className="nw-wait" role="status" aria-live="polite">
-        {offline ? t("network.tx.offline") : queued ? t("network.tx.queued") : t("network.tx.loading")}{" "}
+        {offline ? t("network.tx.offline") : queued ? t("network.tx.queued", { n: CHAIN_BUDGET.userPerBlock }) : t("network.tx.loading")}{" "}
         <Ext kind="tx" id={txId}>{t("network.nf.explorer", { id: sid(txId, 6, 6) })}</Ext>
       </p>
     </div>

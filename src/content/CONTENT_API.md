@@ -51,6 +51,7 @@ import { chapters, moments, faq, copy, pick, type Text } from "@/content";
 | `history.ts` | `historyEvents`, `people`, `eras`, `eventKinds`, `historyTitle/Lede/AsOf`, `peopleTitle` | /learn/history |
 | `sources.ts` | `sources`, `source(id)`, `sourceGroups`, `sourcesIntro`, `SourceId` | /learn/sources, citations |
 | `trackerApi.ts` | `apiEndpoints` (35), `apiGroups` (12), `trackerApi {envelope, statusCodes, roles, auth, limits, gotchas, …}` | /learn/api |
+| `clients.ts` | `clientPrograms` (basis-cli, basis-ui, basis-mcp), `clients {lede, withTracker, redemption, accepted, refused, …}`, `ERGOSCAN_TRACKER_URL`, `CLIENTS_HREF` | /learn/api#clients only; other pages link there with `CLIENTS_HREF` |
 | `contracts.ts` | `contracts`, `annotations`, `reasonLines`, `CONTRACT_ONLY`, `actionLines`, `actionTabs`, `contextVars`, `contextVarOrder`, `notChecked`, `GIT_REF*` | Contract X-ray, /learn/contracts |
 | `contractSource.ts` | `basisEs`, `basisTokenEs` (verbatim, 470 lines each, sha256-checked) | viz/contract |
 | `reasons.ts` | `reserveCheckReasons`, `trackerReasons`, `xrayReasons`, `complianceModes`, `noteStatuses`, `censorshipModes`, `redemptionStages`, `economyReasons`, `reasonFor(code)` | every failure message |

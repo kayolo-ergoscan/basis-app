@@ -302,7 +302,11 @@ export function Moments() {
             <div className="ix" aria-hidden="true">{m.numeral.toLowerCase()}.</div>
             <h3 id={`m-${m.id}-h`}>{pick(m.title, lang)}</h3>
             <p><CodeText text={pick(m.text, lang)} /></p>
-            <div className="fact">{pick(m.fact, lang)}</div>
+            {/* the protocol fact is for developers: folded, so the two sentences above are what a newcomer reads (М8) */}
+            <details className="fact-d">
+              <summary>{t("home.m.dev")}</summary>
+              <div className="fact">{pick(m.fact, lang)}</div>
+            </details>
             <Link className="textlink m-ch" to={`/learn/how#${m.chapter}`}>{t("home.m.chapter")} <span aria-hidden="true">→</span></Link>
           </article>
           );

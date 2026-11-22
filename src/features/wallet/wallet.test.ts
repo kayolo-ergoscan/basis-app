@@ -8,6 +8,9 @@ import eager from "./i18n";
 import route from "./route";
 import { MODE_STRINGS } from "./ModeSwitch";
 import { makePayLink, parsePayLink, plainAmount, policyCapFor, share } from "./lib/model";
+import { faq } from "@/content";
+import onboardingSrc from "./flows/Onboarding.tsx?raw";
+import { whereKey, WHY_NO_WALLET_HREF } from "./flows/Onboarding";
 
 const BANNED_EN = [
   /trustless/i,
@@ -108,6 +111,38 @@ describe("wallet strings", () => {
     const missing = [...used].filter((k) => !(k in EN) && !(`${k}_other` in EN) && !(k in MODE_STRINGS.en) && !route.commands?.some((c) => c.id === k) && k !== route.titleKey);
     expect(missing).toEqual([]);
     expect(Object.keys(MODE_STRINGS.ru).sort()).toEqual(Object.keys(MODE_STRINGS.en).sort());
+  });
+});
+
+describe("honest wallet without a key", () => {
+  it("says plainly that ordinary Ergo wallets cannot sign notes yet, and «why?» opens that FAQ answer", () => {
+    expect(WHY_NO_WALLET_HREF).toBe("/learn/faq#q-nautilus");
+    expect(faq.some((f) => `#q-${f.id}` === WHY_NO_WALLET_HREF.slice(WHY_NO_WALLET_HREF.indexOf("#")))).toBe(true);
+    expect(onboardingSrc).toContain('<Link className="textlink" to={WHY_NO_WALLET_HREF}>{t("wallet.onb.whyLink")}</Link>');
+    expect(EN["wallet.onb.why"]).toMatch(/^Regular Ergo wallets can't sign notes yet/);
+    expect(RU["wallet.onb.why"]).toMatch(/^Обычные кошельки Ergo пока не подписывают расписки/);
+    expect([EN["wallet.onb.whyLink"], RU["wallet.onb.whyLink"]]).toEqual(["why?", "почему?"]);
+  });
+
+  it("calls itself what the buttons call it, a sandbox wallet, and says the money is play money", () => {
+    expect(`${EN["wallet.onb.h.0"]} ${EN["wallet.onb.em.0"]}`).toBe("Sandbox wallet.");
+    expect(`${RU["wallet.onb.h.0"]} ${RU["wallet.onb.em.0"]}`).toBe("Игровой кошелёк.");
+    expect(EN["wallet.onb.lede.0"]).toMatch(/play money\.$/);
+    expect(RU["wallet.onb.lede.0"]).toMatch(/деньги игровые\.$/);
+    expect(EN["wallet.onb.createB"]).not.toMatch(/secp256k1/);
+  });
+
+  it("every wallet tab says what it will hold once there is a key (the phone's «Расписки» and «Вы» tabs too)", () => {
+    expect(whereKey("/wallet")).toBeNull();
+    expect(whereKey("/wallet/")).toBeNull();
+    expect(whereKey("/wallet/notes")).toBe("wallet.onb.where.notes");
+    expect(whereKey("/wallet/settings")).toBe("wallet.onb.where.settings");
+    expect(whereKey("/wallet/reserve")).toBe("wallet.onb.where.reserve");
+    for (const p of ["/wallet/pay", "/wallet/policy", "/wallet/contacts", "/wallet/note/ab12"]) expect(whereKey(p), p).toBe("wallet.onb.where.other");
+    for (const k of ["notes", "settings", "reserve", "other"]) {
+      expect(EN[`wallet.onb.where.${k}`], k).toMatch(/sandbox key\.$/);
+      expect(RU[`wallet.onb.where.${k}`], k).toMatch(/игровой ключ\.$/);
+    }
   });
 });
 

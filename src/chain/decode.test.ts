@@ -1,5 +1,6 @@
 // Decoders on real mainnet fixtures from the seed (scripts/make-seed.mjs ← research/data/onchain.json).
 import { describe, expect, it } from "vitest";
+import { setNumberLang } from "@/ui/engine/money";
 import { decodeRegister } from "@/protocol/registerCodec";
 import seedJson from "./seed.json";
 import type { Seed } from "./types";
@@ -202,7 +203,9 @@ describe("tokens, numbers, clocks", () => {
     expect(formatUnits("3400", 3)).toBe("3.4");
     expect(formatUnits(2700000n, 6)).toBe("2.7");
     expect(formatUnits(-50000000n, 9)).toBe("-0.05");
-    expect(fmtInt(43200)).toBe("43 ⁠200");
+    expect(fmtInt(43200)).toBe("43,200"); // numbers follow the page language (EN here; RU "43 200")
+    setNumberLang("ru");
+    try { expect(fmtInt(43200)).toBe("43\u2009\u2060200"); } finally { setNumberLang("en"); }
     expect(shortHex("02d9aaaaaaaa60b6")).toBe("02d9…60b6");
     expect(blocksToApprox(2160)).toBe("≈ 3 d");
     expect(blocksToApprox(43200, "ru")).toBe("≈ 60 дн");

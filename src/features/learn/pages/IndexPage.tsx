@@ -23,7 +23,7 @@ export default function IndexPage() {
         <div>
           <div className="eyebrow label" style={{ marginBottom: 18 }}>{t("learn.ix.kicker", { n: LEARN_PAGES.length })}</div>
           <h1>{rich(t("learn.ix.title"))}</h1>
-          <p className="t-lede">{t("learn.ix.lede")}</p>
+          <p className="t-lede">{t("learn.ix.lede", { total, start: startMin })}</p>
           <div className="lx-stats">
             <div className="lx-stat"><b>{LEARN_PAGES.length}</b><span className="label">{t("learn.ix.stat.chapters")}</span></div>
             <div className="lx-stat"><b>{t("learn.min", { n: total })}</b><span className="label">{t("learn.ix.stat.time")}</span></div>

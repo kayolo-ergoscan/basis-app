@@ -162,6 +162,12 @@
 .nw-em-l { margin: 0; font: 600 13.5px/1.35 var(--f-ui); color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
 .nw-em-l.open::before { content: '⚑'; color: var(--alarm); font-weight: 400; }
 .nw-em-idle { margin: 0; font: 400 12.5px/1.5 var(--f-ui); color: var(--ink-3); max-width: 70ch; }
+.nw-em-idle-once { margin-top: 14px; font-size: 13.5px; color: var(--ink-2); }
+.nw-tech { margin-top: 12px; }
+.nw-tech > summary { cursor: pointer; width: fit-content; font: 500 13px/1.4 var(--f-ui); color: var(--ink-3); border-radius: 4px; }
+.nw-tech > summary:hover { color: var(--ink); }
+.nw-tech > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.nw-tech > p { margin: 8px 0 0; max-width: 62ch; }
 .nw-trk-f { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 500 10.5px/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
 
 /* beat strip (box history bucketed) */
@@ -231,6 +237,7 @@
 .nw .x-refund { background: var(--metal-lo); }
 .nw .x-redeem-if-tracker, .nw .x-refund-redeem-if-tracker { background: repeating-linear-gradient(90deg, var(--metal) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--metal); }
 .nw .x-locked { background: var(--hatch), var(--well); }
+.nw .x-redeem-checking, .nw .x-refund-redeem-checking { background: var(--rule-2); }
 
 /* top up: the one metal key, closed */
 .nw-topup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 16px; border: 1px dashed var(--rule-2); border-radius: var(--r-paper); margin-top: 6px; }
@@ -413,6 +420,8 @@
 .nw-tl-base { position: absolute; bottom: 14px; height: 1px; background: var(--rule-2); }
 .nw-tl-month { position: absolute; top: 0; width: 0; border-left: 1px dashed var(--rule); pointer-events: none; }
 .nw-tl-month i { position: absolute; top: 100%; left: 0; transform: translate(-50%, 9px); font: 500 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-style: normal; white-space: nowrap; }
+.nw-tl-month i.start { transform: translate(0, 9px); }
+.nw-tl-month i.end { transform: translate(-100%, 9px); }
 .nw-stem { position: absolute; width: 14px; margin-left: -7px; display: block; z-index: 2; }
 .nw-stem::before { content: ''; position: absolute; left: 6px; width: 2px; top: 0; bottom: 0; background: linear-gradient(var(--metal), var(--metal-lo)); border-radius: 1px; }
 .nw-stem i { position: absolute; left: 50%; top: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--metal); transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--bg); transition: width var(--t-fast), height var(--t-fast); }
@@ -686,6 +695,7 @@
 .nw .nw-ours-g .fig .v { font-size: clamp(26px, 2.1vw, 36px); }
 .nw .nw-ours-g .fig.metal .v { font-size: clamp(30px, 2.5vw, 44px); }
 .nw .nw-ours-g .fig.open .v { color: var(--alarm); }
+.nw .fig .u.plain { color: var(--ink-3); letter-spacing: .04em; }
 .nw-ours-dial { display: grid; place-items: center; }
 .nw-ours-nodial { display: block; width: 112px; height: 112px; border-radius: 50%; border: 1px dashed var(--rule-2); }
 .nw-ours-ids { display: flex; flex-wrap: wrap; gap: 10px 30px; padding-top: 14px; border-top: 1px dashed var(--rule-2); }

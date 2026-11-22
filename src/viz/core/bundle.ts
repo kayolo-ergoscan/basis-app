@@ -1,5 +1,5 @@
-// House typography for the viz bundles (VISUAL §4.3): digit groups with U+2009 U+2060, NBSP between a number and
-// its unit, curly quotes / «ёлочки», RU short words kept with the next word. Uses the content module's `typo`,
+// House typography for the viz bundles (VISUAL §4.3): digit groups in each language's format (EN "2,160", RU "2 160"
+// with U+2009 U+2060), NBSP between a number and its unit, curly quotes / «ёлочки», RU short words kept with the next word. Uses the content module's `typo`,
 // so the X-rays and the prose follow one rule set.
 import type { Dict, I18nBundle } from "@/app/types";
 import { typo } from "@/content/types";

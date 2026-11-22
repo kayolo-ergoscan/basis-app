@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { bytesToHex, debtKey, demoKeyPair, noteMessage, parseUnits, signWithTrace, type SignTrace } from "@/protocol";
+import { plainNumber } from "@/ui/engine/money";
 import { fmtInt, shortHex } from "../core/format";
 import { useVizLang, useVizT } from "../core/lang";
 import { Btn, Tag } from "../core/primitives";
@@ -24,7 +25,7 @@ export interface SignLabProps {
 }
 
 function parseAmount(s: string): bigint | null {
-  const v = s.replace(/[\s ⁠ ]/g, "").replace(",", ".");
+  const v = plainNumber(s);
   try {
     const n = parseUnits(v, 9);
     return n >= 0n && n < 1n << 63n ? n : null;

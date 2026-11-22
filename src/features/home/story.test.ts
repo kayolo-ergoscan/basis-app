@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { SIMULATED_AVL } from "@/protocol";
 import { loadErgoAvlBackend } from "@/protocol/avl-wasm";
+import { SANDBOX_GENESIS_HEIGHT } from "@/world";
 import { Story, STORY, storyKeys } from "./story";
 
 async function backends() {
@@ -47,6 +48,9 @@ describe("home story", () => {
       expect(c.commit?.digest).toMatch(/^[0-9a-f]{66}$/);
       expect(c.commit?.digest).not.toBe(c.genesis?.digest);
       expect(c.commit!.height).toBeGreaterThan(c.genesis!.height);
+      // sandbox blocks are counted from 1, so they never look like real Ergo blocks (≈ 1.9 M)
+      expect(c.genesis!.height).toBeGreaterThanOrEqual(SANDBOX_GENESIS_HEIGHT);
+      expect(c.commit!.height).toBeLessThan(1_000);
       expect(Math.round(c.reserve.coverage ?? 0)).toBe(132);
 
       const p = s.check();

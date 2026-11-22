@@ -17,7 +17,7 @@ function manualChunks(id: string): string | undefined {
 // Release guard: a text that still waits for facts carries the FILL marker ("[[" + "FILL", see
 // src/content/placeholders.test.ts). `vite build` refuses every app module that still holds it, so scripts/build.sh
 // fails until the text is written; the dev server shows the placeholder as it is.
-const SRC_DIR = "/root/basis/app/src/";
+const SRC_DIR = new URL("./src/", import.meta.url).pathname; // this tree's src, worktrees included
 const FILL_MARK = "[[" + "FILL";
 const refuseUnfilled: Plugin = {
   name: "refuse-unfilled",
@@ -65,7 +65,8 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react(), refuseUnfilled, saveDevFixtures],
-  resolve: { alias: { "@": "/root/basis/app/src" } },
+  // Relative to this file, so a worktree under /root/basis/app-wt/ resolves `@/` to its own src, not the main tree.
+  resolve: { alias: { "@": new URL("./src", import.meta.url).pathname } },
   server: { host: "127.0.0.1", proxy },
   preview: { host: "127.0.0.1", proxy },
   build: {

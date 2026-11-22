@@ -11,7 +11,8 @@ export type Address = string;
 export type ContractRole = "legacy" | "current" | "superseded" | "repo-only";
 export type ContractKind = "erg" | "token" | "multitoken";
 export type ContractAction = "redeem" | "topUp" | "refundInit" | "refundComplete";
-export type ExitClass = "locked" | "refund" | "refund+redeem" | "redeem-if-tracker" | "redeem" | "refund+redeem-if-tracker";
+// "…-checking": where the R6 tracker NFT is has not been looked up yet in this tab (only for NFTs outside the seed)
+export type ExitClass = "locked" | "refund" | "refund+redeem" | "redeem-if-tracker" | "redeem" | "refund+redeem-if-tracker" | "redeem-checking" | "refund+redeem-checking";
 export type TrackerStatus = "live" | "stale" | "burned" | "locked" | "unused";
 export type TokenKind = "use" | "use-lookalike" | "other";
 
@@ -78,7 +79,7 @@ export interface SeedReserve {
   regs: Partial<Record<"R4" | "R5" | "R6" | "R7", Hex>>;
   creator: Address | null;       // funding address of the creation tx (lineage root) or of the redemption fee box
   issues: string[];              // malformed-register flags from the snapshot
-  exit: Exclude<ExitClass, "redeem" | "refund+redeem-if-tracker"> | null; // snapshot verdict (unspent only)
+  exit: Exclude<ExitClass, "redeem" | "refund+redeem-if-tracker" | "redeem-checking" | "refund+redeem-checking"> | null; // snapshot verdict (unspent only)
 }
 
 export interface SeedTrackerKey { key: Hex; addr: Address; from: number; to: number; boxes: number }
@@ -243,7 +244,7 @@ export interface TokenAmount { id: Hex; amount: bigint; decimals: number; name: 
 
 export interface ExitAssessment {
   class: ExitClass;
-  redeem: "now" | "if-tracker-posts" | "no";
+  redeem: "now" | "if-tracker-posts" | "checking" | "no";
   refund: "yes" | "pending" | "ready" | "no";
   reason: ExitReason;            // structured; text via describeExit(reason, lang)
   line: { en: string; ru: string };   // one-line reason

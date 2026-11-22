@@ -3,6 +3,7 @@
 import {
   Economy, erg, tokenDenomination, type ActionOutcome, type AvlBackend, type DenomId, type DenominationInfo, type RedemptionOutcome,
 } from "@/protocol";
+import { LAB_HEIGHT } from "./lab";
 
 export type PathId = 0 | 1 | 2 | 3;
 export type RunKind = "ok" | "bad";
@@ -39,7 +40,7 @@ export interface LabRun {
 }
 
 function base(backend: AvlBackend, token: boolean): { eco: Economy; denom: DenomId | undefined } {
-  const eco = new Economy({ seed: token ? "learn-contract-token" : "learn-contract", avl: backend });
+  const eco = new Economy({ seed: token ? "learn-contract-token" : "learn-contract", genesisHeight: LAB_HEIGHT, avl: backend });
   const denom = token ? eco.addDenomination(LAB_TOKEN).id : undefined;
   const tok = (n: bigint): Array<[DenomId, bigint]> => (token ? [[LAB_TOKEN.id, n]] : []);
   eco.addParticipant({ id: "op", name: "T-01 operator", kind: "tracker-operator", erg: erg(5) });

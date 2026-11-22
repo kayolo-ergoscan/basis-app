@@ -4,6 +4,7 @@
 import { blake2b } from "@noble/hashes/blake2b";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes as nobleHexToBytes } from "@noble/hashes/utils";
+import { blockWord, groupDigits } from "@/ui/engine/money";
 import type {
   ApiAsset, ApiRegister, AvlTreeInfo, BasisRegisters, DecodedConstant, EmergencyClock, ExitAssessment, ExitClass,
   ExitReason, Hex, RefundClock, SeedAvl, TokenKind, TrackerStatus,
@@ -39,8 +40,8 @@ export const isHex = (s: unknown, bytes?: number): s is string =>
 /** VISUAL §4.3 hex: first 4 + "…" + last 4 ("02d9…60b6"); `n` changes both halves. */
 export const shortHex = (h: string | null | undefined, n = 4): string => (!h ? "—" : h.length <= 2 * n + 1 ? h : `${h.slice(0, n)}…${h.slice(-n)}`);
 
-/** VISUAL §4.3 integer: thousands separated by a thin space + word joiner (U+2009 U+2060): 43 200. */
-export const fmtInt = (n: number | bigint): string => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009\u2060");
+/** VISUAL §4.3 integer in the page language: "43,200" (EN) / "43 200" (RU, thin space + word joiner U+2009 U+2060). */
+export const fmtInt = (n: number | bigint): string => groupDigits(n.toString());
 
 export function blake2b256(...parts: Uint8Array[]): Uint8Array {
   const h = blake2b.create({ dkLen: 32 });
@@ -560,7 +561,7 @@ export function assessExit(x: ExitInput): ExitAssessment {
   else if (!x.r6) reason = { code: "r6-missing" };
   else if (!x.tree || x.tree.zero) reason = { code: "r5-invalid" };
   else if (x.ownNft && x.r6 === x.ownNft) reason = { code: "tracker-own-nft", nft: x.r6 };
-  else if (!t) { redeem = "if-tracker-posts"; reason = { code: "tracker-unknown", nft: x.r6 }; }
+  else if (!t) { redeem = "checking"; reason = { code: "tracker-unknown", nft: x.r6 }; }   // not looked up yet: say so, never "no box"
   else if (t.status === "live") {
     redeem = "now";
     reason = { code: "tracker-live", nft: x.r6, trackerBox: t.currentBox, emptyTree: !!t.emptyTree };
@@ -573,8 +574,8 @@ export function assessExit(x: ExitInput): ExitAssessment {
   else reason = { code: "tracker-burned", nft: x.r6, tx: t.burnTx };
 
   const cls: ExitClass = refundCapable
-    ? redeem === "now" ? "refund+redeem" : redeem === "if-tracker-posts" ? "refund+redeem-if-tracker" : "refund"
-    : redeem === "now" ? "redeem" : redeem === "if-tracker-posts" ? "redeem-if-tracker" : "locked";
+    ? redeem === "now" ? "refund+redeem" : redeem === "if-tracker-posts" ? "refund+redeem-if-tracker" : redeem === "checking" ? "refund+redeem-checking" : "refund"
+    : redeem === "now" ? "redeem" : redeem === "if-tracker-posts" ? "redeem-if-tracker" : redeem === "checking" ? "redeem-checking" : "locked";
   const a: Omit<ExitAssessment, "line"> = { class: cls, redeem, refund, reason, emergency, refundClock: rc.started ? rc : null };
   return { ...a, line: { en: describeExit(a, "en"), ru: describeExit(a, "ru") } };
 }
@@ -587,6 +588,8 @@ export const EXIT_LABEL: Record<ExitClass, { en: string; ru: string }> = {
   "redeem-if-tracker": { en: "Redeemable only if a tracker box appears", ru: "Погашение — только если появится бокс трекера" },
   redeem: { en: "Holders can redeem · no owner exit", ru: "Держатели могут погасить · у владельца выхода нет" },
   "refund+redeem-if-tracker": { en: "Owner can refund · redeemable if a tracker box appears", ru: "Владелец может вернуть · погашение, если появится бокс трекера" },
+  "redeem-checking": { en: "Redemption: checking the tracker…", ru: "Погашение: проверяем трекер…" },
+  "refund+redeem-checking": { en: "Owner can refund · redemption: checking the tracker…", ru: "Владелец может вернуть · погашение: проверяем трекер…" },
 };
 
 /** One plain sentence for an assessment (VISUAL §14: no "safe", "guaranteed", "trustless"; blocks first, then time). */
@@ -608,11 +611,11 @@ export function describeExit(a: Pick<ExitAssessment, "class" | "reason" | "refun
           : `its tracker NFT ${id(r.nft)} is locked inside reserve ${id(r.reserve)}${r.releasable ? " and comes free only if that reserve's owner completes a refund" : ""}`;
       case "tracker-stale": return ru ? `у бокса трекера ${id(r.nft)} дайджест из нулей, против него ничего не доказать` : `the tracker box of ${id(r.nft)} has an all-zero digest, so nothing can be proven against it`;
       case "tracker-unused": return ru ? `NFT ${id(r.nft)} лежит в обычном кошельке, погасить можно, только если его держатель опубликует бокс трекера` : `NFT ${id(r.nft)} sits in a plain wallet, so redeeming works only if its holder posts a tracker box`;
-      case "tracker-unknown": return ru ? `где сейчас NFT трекера ${id(r.nft)}, ещё не проверено` : `where tracker NFT ${id(r.nft)} is now has not been checked yet`;
+      case "tracker-unknown": return ru ? `проверяем, где сейчас NFT трекера ${id(r.nft)}` : `checking where tracker NFT ${id(r.nft)} is now`;
       case "tracker-live": {
         const e = a.emergency;
         const em = !e ? "" : e.open
-          ? (ru ? `; новейшему боксу трекера ${n(e.age)}\u00a0блк, больше ${n(EMERGENCY_BLOCKS)}\u00a0блк (≈\u00a03\u00a0дня), поэтому погашению уже не нужна его подпись` : `; the tracker's newest box is ${n(e.age)}\u00a0blk old, more than ${n(EMERGENCY_BLOCKS)}\u00a0blk (≈\u00a03\u00a0days), so a redemption no longer needs its signature`)
+          ? (ru ? `; новейшему боксу трекера ${n(e.age)}\u00a0${blockWord(e.age, "ru")}, больше ${n(EMERGENCY_BLOCKS)}\u00a0${blockWord(EMERGENCY_BLOCKS, "ru")} (≈\u00a03\u00a0дня), поэтому погашению уже не нужна его подпись` : `; the tracker's newest box is ${n(e.age)}\u00a0blk old, more than ${n(EMERGENCY_BLOCKS)}\u00a0blk (≈\u00a03\u00a0days), so a redemption no longer needs its signature`)
           : (ru ? `; без подписи трекера — с блока ${n(e.opensAt)}` : `; without the tracker's signature from block ${n(e.opensAt)}`);
         if (r.emptyTree) {
           return ru
@@ -636,6 +639,8 @@ export function describeExit(a: Pick<ExitAssessment, "class" | "reason" | "refun
     case "redeem": return ru ? `У владельца выхода нет; ${why}.` : `No owner exit; ${why}.`;
     case "redeem-if-tracker": return ru ? `У владельца выхода нет; ${why}.` : `No owner exit; ${why}.`;
     case "refund+redeem-if-tracker": return `${cap(refundPart)}. ${cap(why)}.`;
+    case "redeem-checking": return ru ? `У владельца выхода нет; ${why}.` : `No owner exit; ${why}.`;
+    case "refund+redeem-checking": return `${cap(refundPart)}. ${cap(why)}.`;
   }
 }
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

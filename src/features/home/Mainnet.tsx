@@ -3,7 +3,7 @@
 // detector. Every number carries "experimental" and "as of block N".
 import { useMemo, type CSSProperties } from "react";
 import { rich, useLang, useT } from "@/app/lang";
-import { useObservatory, useOursInCounts } from "@/chain";
+import { totalsSource, useObservatory, useOursInCounts } from "@/chain";
 import type { TrackerStatus } from "@/chain/types";
 import { chainUrl, copy, pick } from "@/content";
 import { Icon, int, Key, Lamp, Section, units, type LampState } from "@/ui";
@@ -42,15 +42,24 @@ export function Mainnet() {
   }
 
   const T = obs.totals;
-  const tokens = T.unspentTokens.length > 0;
+  // the reserve figures and their footnote stand for one block: the block of this tab's last live check (the same one
+  // the detector line beside them names), the snapshot's block when the live layer failed before that, and no figures
+  // while the first look is on its way
+  const src = totalsSource(obs);
+  const S = obs.snapshotTotals;
+  const R = src === "snapshot"
+    ? { boxes: S.reserveBoxes, unspent: S.unspent, nano: BigInt(S.unspentNano), tokens: Object.keys(S.unspentTokens).length > 0, height: obs.asOf.height }
+    : { boxes: T.reserveBoxes, unspent: T.unspent, nano: T.unspentNano, tokens: T.unspentTokens.length > 0, height: obs.detector.checkedHeight ?? obs.height };
+  const checking = src === "checking";
   const last = obs.records.lastActivity;
   // reserves = unspent boxes at the current contracts (a spent box is an earlier state of a reserve)
   const found = obs.detector.found.filter((b) => b.unspent).length;
   const totalTrackers = obs.trackers.length + (ours?.extra ?? 0);
-  const ergStr = units(T.unspentNano, 9, 3);
+  const ergStr = units(R.nano, 9, 3);
   const stats = [
-    { k: t("home.n.boxes"), v: int(T.reserveBoxes), sub: t("home.n.unspent", { n: int(T.unspent) }) },
-    { k: t("home.n.locked"), v: ergStr, sub: tokens ? t("home.n.tokens") : "", metal: true },
+    { k: t("home.n.boxes"), v: checking ? "—" : int(R.boxes), sub: checking ? "" : t("home.n.unspent", { n: int(R.unspent) }) },
+    // while checking, the placeholder takes the plain figure style: a lone dash in the gold display face reads as a rule
+    { k: t("home.n.locked"), v: checking ? "—" : ergStr, sub: !checking && R.tokens ? t("home.n.tokens") : "", metal: !checking },
     { k: t("home.n.redemptions"), v: int(T.redemptions), sub: t("home.n.redeemed", { v: units(T.redeemedNano, 9, 2) }) },
     { k: t("home.n.trackers"), v: int(totalTrackers), sub: pick(copy.trackerLine, lang), title: ours ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined },
   ];
@@ -64,7 +73,7 @@ export function Mainnet() {
             {stats.map((s) => (
               <div key={s.k} className={s.metal ? "metal" : undefined} title={"title" in s ? s.title : undefined}>
                 <dt className="label">{s.k}</dt>
-                <dd className="v num">{s.v}{s.metal && <span className="unit">ERG</span>}</dd>
+                <dd className="v num">{s.v}{s.metal && !checking && <span className="unit">ERG</span>}</dd>
                 {s.sub && <dd className="sub">{s.sub}</dd>}
               </div>
             ))}
@@ -84,8 +93,8 @@ export function Mainnet() {
         <aside className="mn-side">
           <div className={`mn-detector${found ? " on" : ""}`}>
             <span className="label"><Lamp state={found ? "committed" : "off"} size={9} />{t("home.n.current")}</span>
-            <p>{found ? t.p("home.n.detector.found", found) : t("home.n.detector.none")}</p>
-            {obs.detector.checkedHeight != null && <span className="mono">{t("chain.detector.checked", { height: int(obs.detector.checkedHeight) })}</span>}
+            <p>{checking ? t("chain.checking") : src === "snapshot" ? t("chain.live.seedOnly") : found ? t.p("home.n.detector.found", found) : t("home.n.detector.none")}</p>
+            {src === "live" && obs.detector.checkedHeight != null && <span className="mono">{t("chain.detector.checked", { height: int(obs.detector.checkedHeight) })}</span>}
           </div>
           {last && (
             <div className="mn-last">
@@ -99,7 +108,7 @@ export function Mainnet() {
           )}
         </aside>
         <div className="mn-footrow">
-          <p className="mn-foot mono">{pick(copy.mainnetFootnote({ boxes: T.reserveBoxes, erg: ergStr, height: obs.asOf.height }), lang)}</p>
+          <p className="mn-foot mono">{checking ? t("chain.checking") : pick(copy.mainnetFootnote({ boxes: R.boxes, erg: ergStr, height: R.height }), lang)}</p>
           <Key to="/network" kbd="N" icon="network">{t("home.n.go")}</Key>
         </div>
       </div>

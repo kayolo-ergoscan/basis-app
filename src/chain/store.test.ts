@@ -1,11 +1,12 @@
 // The live layer end to end with a fake /v1: scheduling within the block budget, a new tracker commit → mainnet pulse,
-// a changed template → one full list → batched spent/unspent merge, interactive box decode.
+// a changed template → one full list → batched spent/unspent merge, interactive box decode, first looks at what the
+// user opened on the interactive lane, the lookup of a tracker NFT outside the seed, final answers kept for the tab.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import seedJson from "./seed.json";
 import { createChainApi, type ChainApiConfig } from "./api";
 import { CURRENT_TEMPLATES, p2sAddress } from "./decode";
 import { contractIndex } from "./model";
-import { createChainStore } from "./store";
+import { createChainStore, FIRST_LOOK_NFTS } from "./store";
 import type { ApiBox, Seed } from "./types";
 import type { Pulse } from "@/app/pulse";
 
@@ -31,6 +32,24 @@ function trackerBox(nft: string, id: string, height: number, digest: string): Ap
   };
 }
 
+/** ErgoScan's tracker NFT: minted after the snapshot, so the seed does not list it. */
+const OURS = "f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f";
+const CURRENT_ERG = contractIndex(seed).list.find((c) => c.current && c.kind === "erg")!;
+
+/** An unspent reserve under the current ERG contract (owner key and tree borrowed from a seed reserve), R6 = `r6`. */
+function liveReserve(id: string, r6: string, height: number): ApiBox {
+  const r = seed.reserves.find((x) => !x.spent && x.owner && x.regs.R5)!;
+  return {
+    boxId: id, transactionId: "aa".repeat(32), value: "550000000", creationHeight: height, ergoTree: CURRENT_ERG.ergoTree, address: p2sAddress(CURRENT_ERG.ergoTree),
+    assets: [{ tokenId: id.slice(0, 62) + "bb", amount: "1" }], additionalRegisters: { R4: r.regs.R4, R5: r.regs.R5, R6: `0e20${r6}` }, spentTransactionId: null,
+  };
+}
+
+/** A tracker box (a key in R4, a tree in R5) that holds `nft`. */
+function boxHolding(nft: string, id: string, height: number): ApiBox {
+  return { ...trackerBox("4e2eef33d424388d6efec14a792020738dd47663007a2025afb1891b95e4e8b5", id, height, "ab".repeat(32) + "02"), assets: [{ tokenId: nft, amount: "1" }] };
+}
+
 interface Fake { routes: Map<string, () => unknown>; calls: string[] }
 function fakeFetch(f: Fake): ChainApiConfig["fetchImpl"] {
   return (async (url: string) => {
@@ -40,7 +59,7 @@ function fakeFetch(f: Fake): ChainApiConfig["fetchImpl"] {
     const h = f.routes.get(key);
     if (!h) return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 });
     const body = h();
-    return body === 404 ? new Response("not found", { status: 404 }) : new Response(JSON.stringify(body), { status: 200 });
+    return typeof body === "number" ? new Response("no", { status: body }) : new Response(JSON.stringify(body), { status: 200 });
   }) as ChainApiConfig["fetchImpl"];
 }
 
@@ -148,9 +167,11 @@ describe("chain store", () => {
     routes.set(`/boxes/unspent/byTokenId/${nft}`, () => ({ items: [], total: 0 }));
     const { chain, fake } = setup(routes);
     chain.acquire();
+    chain.onHeight(H + 1, Date.now());
     chain.focus("tracker", nft);
-    await vi.advanceTimersByTimeAsync(10);
-    await block(chain, H + 1);
+    // the first look answers empty; the rest of that block brings no second answer
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(fake.calls.filter((c) => c.includes(nft)).length).toBe(1);
     expect(chain.getObservatory()!.index.trackers.get(nft)!.status).toBe("live");
     await block(chain, H + 2);
     expect(fake.calls.filter((c) => c.includes(nft)).length).toBe(2);
@@ -204,6 +225,114 @@ describe("chain store", () => {
     expect(fake.calls.filter((c) => c === `/boxes/${id}`).length).toBe(n);
     await chain.fetchBox("nothex");
     expect(chain.store.getState().boxes["nothex"].state).toBe("error");
+  });
+
+  it("looks up a tracker NFT outside the seed at once: the exit reads 'checking' until it answers, never 'needs a tracker'", async () => {
+    const id = "61".repeat(32);
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [liveReserve(id, OURS, H + 2)], total: 1 }));
+    routes.set(`/boxes/unspent/byTokenId/${OURS}`, () => ({ items: [boxHolding(OURS, "7c".repeat(32), H + 1)], total: 1 }));
+    const { chain, fake, api, pulses } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 3, Date.now());
+    await vi.advanceTimersByTimeAsync(10);
+    // the detector found the reserve; where its R6 NFT is has not been answered yet
+    let r = chain.getObservatory()!.index.reserves.get(id)!;
+    expect(r.exit).toMatchObject({ class: "refund+redeem-checking", redeem: "checking", reason: { code: "tracker-unknown" } });
+    expect(r.exit!.line.en).toMatch(/checking where tracker NFT/i);
+    expect(r.exit!.line.ru).toMatch(/проверяем, где сейчас NFT трекера/i);
+    await vi.advanceTimersByTimeAsync(1000);
+    // the lookup went out on the interactive lane in the same block, although the detectors took the background share
+    expect(fake.calls).toContain(`/boxes/unspent/byTokenId/${OURS}`);
+    expect(api.stats().byLane.interactive).toBe(1);
+    r = chain.getObservatory()!.index.reserves.get(id)!;
+    expect(r.exit).toMatchObject({ class: "refund+redeem", redeem: "now", reason: { code: "tracker-live", trackerBox: "7c".repeat(32) } });
+    expect(r.exit!.emergency).toMatchObject({ boxHeight: H + 1, open: false });
+    // a lookup, not a commit: no pulse, the seed's trackers and the counts stay as they were
+    expect(pulses).toEqual([]);
+    expect(chain.getObservatory()!.trackers.length).toBe(seed.trackers.length);
+    expect(chain.getObservatory()!.index.trackers.has(OURS)).toBe(false);
+  });
+
+  it("opens a reserve at once: its first looks go out on the interactive lane, later re-checks stay in the block budget", async () => {
+    const id = "62".repeat(32);
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [liveReserve(id, OURS, H + 2)], total: 1 }));
+    routes.set(`/boxes/${id}`, () => liveReserve(id, OURS, H + 2));
+    routes.set(`/boxes/unspent/byTokenId/${OURS}`, () => ({ items: [boxHolding(OURS, "7c".repeat(32), H + 1)], total: 1 }));
+    const { chain, fake, api } = setup(routes);
+    chain.acquire();
+    chain.focus("reserve", id);
+    chain.onHeight(H + 3, Date.now());
+    await vi.advanceTimersByTimeAsync(5000);
+    // all in the first block: two detector lists (background) + the reserve's box, its contract's mempool and its
+    // tracker NFT (interactive) — nobody waits for the next block
+    expect(new Set(fake.calls)).toEqual(new Set([
+      `/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}?limit=20`,
+      `/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.multiToken}?limit=20`,
+      `/boxes/${id}`,
+      `/mempool/transactions/byAddress/${CURRENT_ERG.p2sFull}`,
+      `/boxes/unspent/byTokenId/${OURS}`,
+    ]));
+    expect(api.stats().byLane).toMatchObject({ background: 2, interactive: 3 });
+    const r = chain.getObservatory()!.index.reserves.get(id)!;
+    expect(r.exit?.class).toBe("refund+redeem");
+    expect(r.pending).toBe(0);
+    expect(r.checked?.height).toBe(H + 3);
+    // later blocks: re-checks are background work, at most 2 per block
+    for (let h = H + 4; h <= H + 14; h++) {
+      const before = api.stats().byLane.interactive;
+      const calls = fake.calls.length;
+      await block(chain, h);
+      expect(api.stats().byLane.interactive).toBe(before);
+      expect(fake.calls.length - calls).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("gives at most FIRST_LOOK_NFTS unfocused NFTs outside the seed a first look on the interactive lane", async () => {
+    const nfts = Array.from({ length: FIRST_LOOK_NFTS + 2 }, (_, i) => `${i + 1}`.repeat(64).slice(0, 64));
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: nfts.map((n, i) => liveReserve(`${7 + i}`.repeat(64).slice(0, 64), n, H + 2)), total: nfts.length }));
+    const { chain, fake, api } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 3, Date.now());
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(api.stats().byLane.interactive).toBe(FIRST_LOOK_NFTS);
+    expect(nfts.filter((n) => fake.calls.includes(`/boxes/unspent/byTokenId/${n}`)).length).toBe(FIRST_LOOK_NFTS);
+    // the rest come in the background, before the live trackers of the seed
+    await block(chain, H + 4);
+    expect(nfts.every((n) => fake.calls.includes(`/boxes/unspent/byTokenId/${n}`))).toBe(true);
+    expect(api.stats().byLane.interactive).toBe(FIRST_LOOK_NFTS);
+  });
+
+  it("tries a failed detector list again on the next block, not after its 6-block interval", async () => {
+    const routes = quietChain();
+    let fails = 1;   // a 400 is an answer, not retried: the whole check fails
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => (fails-- > 0 ? 400 : { items: [], total: 0 }));
+    const { chain } = setup(routes);
+    chain.acquire();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(chain.getObservatory()!.detector.templates.find((t) => t.hash === CURRENT_TEMPLATES.erg)!.checkedAt).toBeNull();
+    await block(chain, H + 1);
+    await block(chain, H + 2);
+    expect(chain.getObservatory()!.detector.templates.find((t) => t.hash === CURRENT_TEMPLATES.erg)!.checkedAt).not.toBeNull();
+  });
+
+  it("keeps a final transaction for the tab: opening it again costs no request", async () => {
+    const txId = "9a".repeat(32);
+    const routes = new Map<string, () => unknown>([[`/transactions/${txId}`, () => ({ id: txId, inclusionHeight: H, timestamp: 1_790_000_000_000, inputs: [], dataInputs: [], outputs: [] })]]);
+    const { chain, fake } = setup(routes);
+    chain.onHeight(H + 10, Date.now());
+    const p = chain.fetchTx(txId);
+    await vi.advanceTimersByTimeAsync(1000);
+    await p;
+    expect(chain.store.getState().txs[txId].state).toBe("ok");
+    chain.resetLive();                                  // the store forgets it; the api still holds the final answer
+    const q = chain.fetchTx(txId);
+    await vi.advanceTimersByTimeAsync(1000);
+    await q;
+    expect(chain.store.getState().txs[txId].state).toBe("ok");
+    expect(fake.calls.filter((c) => c === `/transactions/${txId}`).length).toBe(1);
   });
 
   it("does nothing while no hook is mounted", async () => {

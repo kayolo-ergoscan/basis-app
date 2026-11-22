@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { debtKey } from "@/protocol";
+import { plainNumber } from "@/ui/engine/money";
 import { ERG_UNIT, fmtAmount, fmtInt, fmtTimestamp, shortHex, toHexStr, type UnitInfo } from "../core/format";
 import { useVizLang, useVizT } from "../core/lang";
 import { LAB_DEFAULT_TS, LAB_TRACKER_NFT, labDisplayName, labKey } from "../core/lab";
@@ -52,7 +53,7 @@ export function buildMessage(f: MessageFields): Uint8Array {
 
 /** "1.5", "1 240.50", "1240,5" → raw units; null when it is not an amount with at most `decimals` places. */
 export function parseAmountInput(s: string, decimals: number): bigint | null {
-  const v = s.replace(/[\s ⁠  ]/g, "").replace(",", ".");
+  const v = plainNumber(s);
   if (!/^\d+(\.\d*)?$/.test(v)) return null;
   const [i, f = ""] = v.split(".");
   if (f.length > decimals) return null;
@@ -75,7 +76,7 @@ export function MessageBuilder(p: MessageBuilderProps) {
   const unit = p.unit ?? ERG_UNIT;
   const aliceBob = useMemo(() => toHexStr(debtKey(labKey("Alice").pub, labKey("Bob").pub)), []);
   const [key, setKey] = useState(p.debtKey ?? aliceBob);
-  const [amount, setAmount] = useState(p.totalDebt !== undefined ? fmtAmount(p.totalDebt, unit, { unit: false }).replace(/[ ⁠]/g, "") : "1.5");
+  const [amount, setAmount] = useState(p.totalDebt !== undefined ? plainNumber(fmtAmount(p.totalDebt, unit, { unit: false })) : "1.5");
   const [ts, setTs] = useState((p.timestampMs ?? LAB_DEFAULT_TS).toString());
   const [nft, setNft] = useState(p.trackerNftId ?? LAB_TRACKER_NFT);
   const vk = checkHexField(key, 32, t);

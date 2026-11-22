@@ -16,6 +16,8 @@ const route: FeatureRoute = {
     { id: "learn.trust", labelKey: "learn.cmd.trust", to: "/learn/trust", keywords: "trust censor steal issues review доверие цензура ревью" },
     { id: "learn.tools", labelKey: "learn.cmd.tools", to: "/learn/tools", keywords: "tools debt key message verify template decode box инструменты бокс" },
     { id: "learn.api", labelKey: "learn.cmd.api", to: "/learn/api", keywords: "api endpoints http tracker server эндпоинты" },
+    // the ready-made programs block (content clients.ts): CLIENTS_HREF, written out so the shell's eager chunk stays small
+    { id: "learn.clients", labelKey: "learn.cmd.clients", to: "/learn/api#clients", keywords: "cli tui mcp basis-cli basis-ui basis-mcp terminal wallet ai agents programs clients rust терминал кошелёк ии агенты программы клиенты" },
     { id: "learn.history", labelKey: "learn.cmd.history", to: "/learn/history", keywords: "history chaincash timeline история" },
     { id: "learn.faq", labelKey: "learn.cmd.faq", to: "/learn/faq", keywords: "faq questions answers вопросы ответы" },
     { id: "learn.glossary", labelKey: "learn.cmd.glossary", to: "/learn/glossary", keywords: "glossary terms words словарь термины" },

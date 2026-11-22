@@ -81,8 +81,10 @@ const EXIT_TONE: Record<ExitClass, [TagTone, string]> = {
   "redeem-if-tracker": ["plain", "◌"],
   redeem: ["up", "↓"],
   "refund+redeem-if-tracker": ["watch", "↩"],
+  "redeem-checking": ["plain", "…"],
+  "refund+redeem-checking": ["watch", "↩"],
 };
-export const EXIT_ORDER: ExitClass[] = ["refund+redeem", "redeem", "redeem-if-tracker", "refund+redeem-if-tracker", "refund", "locked"];
+export const EXIT_ORDER: ExitClass[] = ["refund+redeem", "redeem", "refund+redeem-checking", "redeem-checking", "redeem-if-tracker", "refund+redeem-if-tracker", "refund", "locked"];
 /** Exit class tag: shape first (✕ ↩ ⇅ ◌), then words. */
 export function ExitTag({ cls, long }: { cls: ExitClass; long?: boolean }) {
   const t = useT();

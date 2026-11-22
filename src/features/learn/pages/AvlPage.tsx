@@ -3,7 +3,7 @@
 // does not prove.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rich, useT } from "@/app";
-import { Key, Tag, TextInput, money, short, withUnit } from "@/ui";
+import { Key, Tag, TextInput, money, plainNumber, short, withUnit } from "@/ui";
 import { AvlProofViewer, AvlTreeView, DigestGlyph, LAB_NAMES, labKey } from "@/viz";
 import { EMPTY_AVL_DIGEST_HEX, bytesToHex, debtKey, erg, trackerTreeValue, type AuthenticatedMap } from "@/protocol";
 import { pick, trust } from "@/content";
@@ -24,7 +24,7 @@ function u64(b: Uint8Array | undefined): bigint | null {
 const ergNum = (n: bigint) => Number(n) / Number(NANO);
 
 function parseAmount(s: string): bigint | null {
-  const v = s.replace(/[\s   ⁠]/g, "").replace(",", ".");
+  const v = plainNumber(s);
   if (!/^\d+(\.\d{0,9})?$/.test(v)) return null;
   try {
     const n = erg(v);

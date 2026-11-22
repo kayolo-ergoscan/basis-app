@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { getAvlBackend } from "@/protocol";
 import strings from "./strings";
 import i18n from "./i18n";
+import { SANDBOX_GENESIS_HEIGHT } from "@/world";
 import { runPath, type LabContract, type PathId } from "./contractLab";
+import { LAB_HEIGHT } from "./lab";
 import { LEARN_PAGES, neighbours, readingMinutes } from "./pages";
 import indexSrc from "./pages/IndexPage.tsx?raw";
 import howFigSrc from "./figures/how.tsx?raw";
@@ -13,6 +15,10 @@ const BAD_CHECK: Record<PathId, string> = { 0: "properlyRedeemed", 1: "topUpAmou
 
 describe("contract lab", () => {
   const backend = getAvlBackend();
+  it("the labs count sandbox blocks like the rest of the site, from 1", () => {
+    expect(LAB_HEIGHT).toBe(SANDBOX_GENESIS_HEIGHT);
+    expect(runPath(backend, "basis", 0, "ok").height).toBeLessThan(LAB_HEIGHT + 100_000);
+  });
   for (const contract of ["basis", "basis-token"] as LabContract[]) {
     for (const action of [0, 1, 2, 3] as PathId[]) {
       it(`${contract} path ${action}: the honest run passes the contract`, () => {

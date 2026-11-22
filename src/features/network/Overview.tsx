@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
@@ -67,6 +67,30 @@ function Detector({ obs }: { obs: Observatory }) {
   const n = live.length;
   const spent = det.found.length - n;
   const current = obs.contracts.filter((c) => c.current);
+  // until this tab has listed both current templates live there is no count to show: no "0", no empty-state sentence
+  // that the first answer would contradict a second later
+  const src = totalsSource(obs);
+  if (src !== "live") {
+    const note = src === "checking" ? t("chain.checking") : t("chain.live.seedOnly");
+    return (
+      <section className="nw-det" aria-label={`${t("network.det.label")} · ${note}`}>
+        <Beacon found={0} checked={null} />
+        <div className="nw-det-t">
+          <span className="label">{t("network.det.label")}</span>
+          <p className="nw-det-n"><span>{note}</span></p>
+          <div className="nw-det-tpl">
+            {current.map((c) => (
+              <Link key={c.id} to={`/network/contracts#${c.id}`} className="nw-tpl" title={c.p2sFull}>
+                <span className="hex">{c.p2s.head.slice(0, 6)}…</span>
+                <span className="k">{t(`network.kind.${c.kind}`)}</span>
+              </Link>
+            ))}
+          </div>
+          {src === "checking" && <span className="nw-det-c">{t("network.det.waiting")}</span>}
+        </div>
+      </section>
+    );
+  }
   return (
     <section className={cx("nw-det", n > 0 && "found")} aria-label={t("network.det.aria", { n })}>
       <Beacon found={n} checked={det.checkedHeight} />
@@ -110,6 +134,11 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
   const gone = obs.trackers.filter((x) => x.status === "burned" || x.status === "locked").length;
   const recent = obs.redemptions.filter((r) => r.height > obs.height - 21_600).length;
   const tokens = obs.totals.unspentTokens;
+  // reserve figures: live once this tab has looked at the chain; "checking" until then (no number that jumps a second
+  // later); the snapshot's own figures, labelled with its block, if the live layer failed first
+  const src = totalsSource(obs);
+  const S = obs.snapshotTotals;
+  const asOfSnap = t("chain.asOf", { height: fmtH(obs.asOf.height) });
   return (
     <section className="nw-strip" aria-label={t("network.strip.aria")}>
       <dl className="nw-strip-g">
@@ -125,13 +154,29 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
         </div>
         <div className="fig">
           <dt>{t("network.strip.reserves")}</dt>
-          <dd><span className="v num">{obs.unspent.length}</span></dd>
-          <dd className="s">{t("network.strip.reservesSub", { total: obs.reserves.length })}</dd>
+          {src === "live" ? (<>
+            <dd><span className="v num">{obs.unspent.length}</span></dd>
+            <dd className="s">{t("network.strip.reservesSub", { total: obs.reserves.length })}</dd>
+          </>) : src === "snapshot" ? (<>
+            <dd><span className="v num">{S.unspent}</span></dd>
+            <dd className="s">{t("network.strip.reservesSub", { total: S.reserveBoxes })} · {asOfSnap}</dd>
+          </>) : (<>
+            <dd><span className="v num">—</span></dd>
+            <dd className="s">{t("chain.checking")}</dd>
+          </>)}
         </div>
         <div className="fig metal">
           <dt>{t("network.strip.locked")}</dt>
-          <dd><span className="v t-money">{ergs(obs.totals.unspentNano)}</span><span className="u">ERG</span></dd>
-          <dd className="s">{tokens.length ? tokens.map((x) => `+ ${tokenStr(x, lang)}`).join(" · ") : t("network.strip.lockedSub")}</dd>
+          {src === "live" ? (<>
+            <dd><span className="v t-money">{ergs(obs.totals.unspentNano)}</span><span className="u">ERG</span></dd>
+            <dd className="s">{tokens.length ? tokens.map((x) => `+ ${tokenStr(x, lang)}`).join(" · ") : t("network.strip.lockedSub")}</dd>
+          </>) : src === "snapshot" ? (<>
+            <dd><span className="v t-money">{ergs(BigInt(S.unspentNano))}</span><span className="u">ERG</span></dd>
+            <dd className="s">{asOfSnap}</dd>
+          </>) : (<>
+            <dd><span className="v num">—</span></dd>
+            <dd className="s">{t("chain.checking")}</dd>
+          </>)}
         </div>
         <div className="fig">
           <dt>{t("network.strip.redemptions")}</dt>
@@ -155,8 +200,10 @@ function TrackersColumn({ obs }: { obs: Observatory }) {
       <ColHead id="nw-col-trk" title={t("network.col.trackers")} sub={t("network.col.trackersSub")} to="/network/trackers" n={obs.trackers.length + oursExtra(obs)} />
       <p className="nw-trustline">{pick(copy.trackerLine, t.lang as Lang)}</p>
       <div className="nw-stack">
-        {withBox.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} />)}
+        {withBox.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} idle={false} />)}
       </div>
+      {/* the emergency window's one explanation, once under the cards instead of in each (§5 #12) */}
+      {withBox.length > 0 && <p className="nw-em-idle nw-em-idle-once">{t("network.em.idle")}</p>}
       <div className="nw-sub label">{t("network.trk.gone")}</div>
       <ul className="nw-gone">
         {gone.map((tr) => <GoneRow key={tr.nft} tr={tr} />)}
@@ -165,7 +212,8 @@ function TrackersColumn({ obs }: { obs: Observatory }) {
   );
 }
 
-export function TrackerPanel({ tr, tip, compact }: { tr: TrackerView; tip: number; compact?: boolean }) {
+/** `idle={false}`: the card leaves out the emergency window's explanation, which its page says once under the cards. */
+export function TrackerPanel({ tr, tip, compact, idle = true }: { tr: TrackerView; tip: number; compact?: boolean; idle?: boolean }) {
   const t = useT();
   const lang = t.lang as Lang;
   const box = tr.lastTrackerBox;
@@ -201,7 +249,7 @@ export function TrackerPanel({ tr, tip, compact }: { tr: TrackerView; tip: numbe
           <p className={cx("nw-em-l", em.open && "open")}>
             {em.open ? t("network.trk.emOpen", { h: fmtH(em.opensAt) }) : t("network.trk.emOpens", { h: fmtH(em.opensAt), left: blocks(em.blocksLeft, lang) })}
           </p>
-          <p className="nw-em-idle">{t("network.em.idle")}</p>
+          {idle && <p className="nw-em-idle">{t("network.em.idle")}</p>}
         </div>
       )}
       <footer className="nw-trk-f">
@@ -245,10 +293,15 @@ function ReservesColumn({ obs }: { obs: Observatory }) {
   const list = useMemo(() => [...obs.unspent].sort(reserveRank), [obs.unspent]);
   const rows = EXIT_ORDER.map((cls) => ({ cls, boxes: obs.totals.exit[cls]?.boxes ?? 0, sub: exitSub(obs, cls, lang) }));
   const shown = all ? list : list.slice(0, 5);
+  // before this tab's first live look the list is the snapshot's: no count that changes a second later (checking), or
+  // the count labelled with the snapshot's block (the live layer failed); the breakdown then says it is the snapshot
+  const src = totalsSource(obs);
+  const sub = t("network.col.reservesSub", { n: list.length });
   return (
     <section className="nw-col" aria-labelledby="nw-col-res">
-      <ColHead id="nw-col-res" title={t("network.col.reserves")} sub={t("network.col.reservesSub", { n: list.length })} to="/network/reserves" n={obs.reserves.length} />
-      <ExitBar rows={rows} total={list.length} />
+      <ColHead id="nw-col-res" title={t("network.col.reserves")} to="/network/reserves" n={src === "checking" ? undefined : obs.reserves.length}
+        sub={src === "live" ? sub : src === "checking" ? t("chain.checking") : `${sub} · ${t("chain.asOf", { height: fmtH(obs.asOf.height) })}`} />
+      <ExitBar rows={rows} total={list.length} note={src === "live" ? undefined : <p className="t-small">{t("chain.live.seedOnly")}</p>} />
       <div className="nw-stack">
         {shown.map((r) => <VaultCard key={r.id} r={r} obs={obs} />)}
       </div>
@@ -269,14 +322,15 @@ export function exitSub(obs: Observatory, cls: ExitClass, lang: Lang): string {
   return parts.join(" · ");
 }
 
-/** The one metal key of the view, disabled: topping up a legacy test reserve would lock real money. */
-export function TopUpClosed() {
+/** The one metal key of the view, disabled: the site has no top-up yet. On a current-contract reserve page it says who
+ *  may top up (basis.es action #1: anyone, ≥ 0.1 ERG, no signature); elsewhere, why the legacy test reserves should not be. */
+export function TopUpClosed({ current = false }: { current?: boolean }) {
   const t = useT();
   const lang = t.lang as Lang;
   return (
     <div className="nw-topup">
       <Key variant="metal" icon="coin" disabled aria-disabled="true" aria-describedby="nw-topup-why">{t("network.topup.key")}</Key>
-      <p id="nw-topup-why"><b>{pick(copy.topUpClosed, lang)}</b> {t("network.topup.why")}</p>
+      <p id="nw-topup-why"><b>{pick(copy.topUpClosed, lang)}</b> {t(current ? "network.topup.whyCurrent" : "network.topup.why")}</p>
     </div>
   );
 }
@@ -448,9 +502,15 @@ function FootNotes({ obs }: { obs: Observatory }) {
   const t = useT();
   const lang = t.lang as Lang;
   const hi = obs.hostIndex;
+  // the same block rule as the strip: live figures at the live height, the snapshot's own figures at its block
+  const src = totalsSource(obs);
+  const S = obs.snapshotTotals;
+  const line = src === "live" ? pick(copy.mainnetFootnote({ boxes: obs.reserves.length, erg: ergs(obs.totals.unspentNano), height: obs.height }), lang)
+    : src === "snapshot" ? pick(copy.mainnetFootnote({ boxes: S.reserveBoxes, erg: ergs(BigInt(S.unspentNano)), height: obs.asOf.height }), lang)
+    : t("chain.checking");
   return (
     <aside className="nw-foot" aria-label={t("network.foot.aria")}>
-      <p><Icon name="info" size={16} /><span>{pick(copy.mainnetFootnote({ boxes: obs.reserves.length, erg: ergs(obs.totals.unspentNano), height: obs.height }), lang)}</span></p>
+      <p><Icon name="info" size={16} /><span>{line}</span></p>
       <p><Icon name="stamp" size={16} /><span>{t("chain.fee.protocol")}</span></p>
       <p><Icon name="search" size={16} /><span>{t("chain.hostIndex", { listed: hi.listedKnown, total: hi.unspentHere })} {t("network.foot.hostMore", { count: hi.reserveCount, erg: ergs(hi.ergLockedNano), trackers: hi.trackerCount })}</span></p>
       <p><Icon name="warn" size={16} /><span>{t("chain.basisNames", { count: obs.incidents.basisNamedNfts.count })} <Link to="/network/incidents" className="link">{t("network.tab.incidents")}</Link></span></p>

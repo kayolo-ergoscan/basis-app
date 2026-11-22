@@ -149,8 +149,8 @@ export const trust = {
   status: {
     title: t("Where things stand", "Где мы сейчас"),
     text: denial(
-      "Basis is experimental. ErgoScan's tracker has run on mainnet in beta since 22 November 2026, and reserves under the current contracts (2026-10-25 and 2026-10-27) can bind to it. The latest review (2026-10-29) says the server and clients are not ready for a public launch.",
-      "Basis экспериментальный. Трекер ErgoScan работает в mainnet в бета-режиме с 22 ноября 2026 года, и к нему можно привязать резервы под текущими контрактами (2026-10-25 и 2026-10-27). Последнее ревью (2026-10-29) говорит, что сервер и клиенты к публичному запуску не готовы.",
+      "Basis is an experiment. ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026; reserves on the current contracts (of 25 and 27 October 2026) can connect to it. The latest review (29 October 2026) says the server and apps are not ready for a public launch.",
+      "Basis — эксперимент. Трекер ErgoScan работает в основной сети Ergo в бета-режиме с 22 ноября 2026 года; к нему можно подключать резервы на текущих контрактах (от 25 и 27 октября 2026 года). Последнее ревью (29 октября 2026 года) говорит, что сервер и приложения к публичному запуску ещё не готовы.",
     ),
     contractsVerdict: t(
       "The same review calls the contracts sound after the C1–C3 fixes.",

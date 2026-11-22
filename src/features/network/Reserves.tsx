@@ -192,7 +192,9 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
   const tok = r.collateral;
   const ex = r.exit;
   const em = ex?.emergency ?? tracker?.emergency ?? null;
-  const trackerBoxH = tracker?.lastTrackerBox?.unspent ? tracker.lastTrackerBox.height : null;
+  // a tracker NFT outside the seed has no TrackerView: its box comes from the live lookup (the assessment's clock)
+  const trackerBoxH = tracker ? (tracker.lastTrackerBox?.unspent ? tracker.lastTrackerBox.height : null) : ex?.emergency?.boxHeight ?? null;
+  const checking = ex?.reason.code === "tracker-unknown";   // not looked up yet: "checking", never "no box"
   const gone = tracker && (tracker.status === "burned" || tracker.status === "locked") ? tracker.status : null;
   return (
     <>
@@ -251,10 +253,10 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
                 </>
               ) : (
                 <>
-                  <ExitClocks height={obs.height} boxCreationHeight={trackerBoxH} r7={r.r7 && r.r7 > 0 ? r.r7 : null}
+                  <ExitClocks height={obs.height} boxCreationHeight={trackerBoxH} boxPending={checking} r7={r.r7 && r.r7 > 0 ? r.r7 : null}
                     show={r.contract?.ownerExit ? "both" : "emergency"} trackerName={tracker ? sid(tracker.nft) : undefined}
                     loading={t("network.rv.clocksLoading")}
-                    failed={<><ClocksFallback em={em} lang={lang} /><p className="nw-em-idle">{t("network.em.idle")}</p></>} />
+                    failed={<><ClocksFallback em={em} checking={checking} lang={lang} /><p className="nw-em-idle">{t("network.em.idle")}</p></>} />
                   <p className="t-small">{t("network.rv.clocksNote")} {pick(copy.refundCreditors, lang)}</p>
                 </>
               )}
@@ -291,16 +293,16 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               ...(r.issues.length ? [[t("network.rv.issues"), <span className="nw-issues">{r.issues.map((i) => <code key={i}>{i}</code>)}</span>] as [ReactNode, ReactNode]] : []),
             ]} />
           </Block>
-          <TopUpClosed />
+          <TopUpClosed current={!!r.contract?.current} />
         </aside>
       </div>
     </>
   );
 }
 
-function ClocksFallback({ em, lang }: { em: { open: boolean; age: number; opensAt: number; blocksLeft: number } | null; lang: Lang }) {
+function ClocksFallback({ em, checking, lang }: { em: { open: boolean; age: number; opensAt: number; blocksLeft: number } | null; checking?: boolean; lang: Lang }) {
   const t = useT();
-  if (!em) return <p className="t-small">{t("network.trk.noBox")}</p>;
+  if (!em) return <p className="t-small">{t(checking ? "viz.clock.checking" : "network.trk.noBox")}</p>;
   return <p className="nw-em-l">{em.open ? t("network.trk.emOpen", { h: fmtH(em.opensAt) }) : t("network.trk.emOpens", { h: fmtH(em.opensAt), left: `${fmtH(em.blocksLeft)}` })} · {lang === "ru" ? "возраст" : "age"} {fmtH(em.age)}</p>;
 }
 

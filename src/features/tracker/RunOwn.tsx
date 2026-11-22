@@ -5,10 +5,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorerLink, useObservatory } from "@/chain";
-import { GIT_REF_SHORT, pick, sources, trust, type OpenIssue } from "@/content";
+import { CLIENTS_HREF, GIT_REF_SHORT, pick, sources, trust, type OpenIssue } from "@/content";
 import { AmountInput, Card, Col, CopyButton, Grid, Icon, int, Key, money, PageHead, parseMoney, Section, Seg, short, Tag } from "@/ui";
 import { commitsPerDay, runwayDays } from "./runway";
-import { HeadActions, md, useText } from "./parts";
+import { HeadActions, md, TRACKER_PRACTICE, useText } from "./parts";
 
 const STEPS = ["node", "nft", "fee", "contracts", "config", "alive"] as const;
 type StepId = (typeof STEPS)[number];
@@ -83,7 +83,7 @@ function Step({ id, n, done, onToggle }: { id: StepId; n: number; done: boolean;
     config: <ConfigStep />,
     alive: (
       <p>
-        <Key size="sm" variant="quiet" icon="tracker" to="/tracker">{t("tracker.run.alive.try")}</Key>
+        <Key size="sm" variant="quiet" icon="tracker" to={TRACKER_PRACTICE}>{t("tracker.run.alive.try")}</Key>
       </p>
     ),
   };
@@ -115,7 +115,7 @@ function Runway() {
   const r = Math.max(0, Math.floor(parseMoney(red) ?? 0));
   const days = b === null ? null : runwayDays(b, perDayCommits, r);
   const perDay = (perDayCommits + r) * 0.001;
-  const fmt = (x: number) => (t.lang === "ru" ? money(x, 3).replace(".", ",") : money(x, 3));
+  const fmt = (x: number) => money(x, 3, t.lang);
   return (
     <div className="trk-runway" aria-label={t("tracker.run.fee.calc")} role="group">
       <div className="trk-runway-in">
@@ -320,6 +320,9 @@ function Aside({ done, onReset }: { done: number; onReset: () => void }) {
         footer={<Key href={repo.url} icon="github">{t("tracker.run.repo.open")}</Key>}
       >
         <p className="t-small">{t("tracker.run.repo.text")}</p>
+        <p className="t-small">
+          <Link className="textlink" to={CLIENTS_HREF}>{t("tracker.run.repo.clients")}</Link>
+        </p>
         <p className="t-small dim">{t("tracker.run.repo.ref", { ref: GIT_REF_SHORT })}</p>
         <ul className="trk-repo-links">
           {links.map(([k, url]) => (
