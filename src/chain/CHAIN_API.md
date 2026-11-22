@@ -128,7 +128,7 @@ to 60 s, set `heightReserve: 2` and src/chain gets 4 per block with no other cha
 | `/boxes/byTokenId/{id}?limit=&offset=` | 84 ms | 30 KB (9 boxes) | history; order not guaranteed (sort by `creationHeight` yourself) |
 | `/boxes/unspent/byErgoTreeTemplateHash/{hash}?limit=1` | 39–46 ms | 16 KB | `{items, total, offset, limit, hasMore, nextCursor: "height:boxId", source: "index"}`, explorer-shape items, newest first |
 | same, `?limit=50` (pB9o, 19 boxes) | 57 ms | 301 KB | only after the signature changed; next page: `&cursor={nextCursor}` |
-| `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 5 ms | 95 B | detector; both current templates were empty until the first ERG reserve at block 1 922 312 |
+| `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 5 ms | 95 B | detector; both current templates were empty until ErgoScan's own test reserve (ERG) in block 1 922 314 |
 | `/transactions/{id}` | 56–111 ms | 33.5 KB | `{id, inclusionHeight, timestamp, inputs[full boxes + spendingProof], dataInputs[full boxes], outputs, size}` |
 | `/mempool/transactions/byAddress/{P2S}` | 4–7 ms | 67 B | `{items, total}` |
 | `/tokens/{id}` | 168–213 ms | 2.6 KB | `emissionAmount` is a JSON **number** (1e18 loses precision): use the seed's token data |

@@ -1,4 +1,4 @@
-// /learn/history: from the 2022 off-chain bank idea to the state on 2026-11-21. Dates are UTC; people appear by
+// /learn/history: from the 2022 off-chain bank idea to ErgoScan's tracker on mainnet, 2026-11-22. Dates are UTC; people appear by
 // public handle only. On-chain events carry `ChainRef`s, which pages link to ergoscan.me.
 
 import type { SourceId } from "./sources";
@@ -38,7 +38,7 @@ export const historyLede: Text = t(
   "Basis grew out of ChainCash, an earlier design by the same author. The idea took four years; the review that matters is from October 2026.",
   "Basis вырос из ChainCash — более раннего проекта того же автора. Идея созревала четыре года, а ключевое ревью прошло в октябре 2026 года.",
 );
-export const historyAsOf = "2026-11-21";
+export const historyAsOf = "2026-11-22";
 
 export const eras: Record<Era, { title: Text; range: string }> = {
   ideas: { title: t("Early ideas", "Ранние идеи"), range: "2022" },
@@ -533,10 +533,34 @@ export const historyEvents: HistoryEvent[] = [
     precision: "day",
     era: "review",
     kind: "status",
-    title: t("Where it stands", "Где всё сейчас"),
+    title: t("Where it stood on 21 November", "Где всё было 21 ноября"),
     text: t("The current contracts have no boxes on mainnet, there is no public tracker, and tests on master are failing. Everything on mainnet so far is test use on older versions.", "У текущих контрактов нет боксов в mainnet, публичного трекера нет, тесты на master падают. Всё, что есть в mainnet, — тестовое использование старых версий."),
     milestone: true,
     sources: ["bt-spec-compiled", "bt-actions"],
+  },
+  {
+    id: "ergoscan-tracker",
+    date: "2026-11-22",
+    precision: "day",
+    era: "review",
+    kind: "chain",
+    title: t("ErgoScan's tracker on mainnet, in beta", "Трекер ErgoScan в mainnet, бета"),
+    text: t(
+      "ErgoScan starts its tracker in beta and runs a closed test with its own test keys: the first reserve under the current ERG contract (1 ERG), two debt commitments on chain, 0.35 of 0.5 ERG in notes redeemed. The 0.65 ERG reserve on this site is ErgoScan's own test reserve.",
+      "ErgoScan запускает трекер в бета-режиме и проводит закрытый тест со своими тестовыми ключами: первый резерв под текущим ERG-контрактом (1 ERG), две фиксации долгов в блокчейне, погашено 0,35 из 0,5 ERG по распискам. Резерв на 0,65 ERG на этом сайте — собственный тестовый резерв ErgoScan.",
+    ),
+    milestone: true,
+    sources: [],
+    chain: [
+      tx("0841b4425b8b54fb33faf31983e1ade474774a000b96faf4302b0b26db697969", 1922275, t("tracker NFT minted", "выпуск NFT трекера")),
+      { kind: "box", id: "2af09409e39799eb39e90f3c126d7a0dd2cfa98743d25cc2076fcbabe87ca345", height: 1922278, label: t("first tracker box", "первый бокс трекера") },
+      { kind: "box", id: "d0b189fe021d7a5a57940f07df8ffede8db84086a83be9419df4864617467b14", height: 1922314, label: t("ErgoScan's test reserve, 1 ERG", "тестовый резерв ErgoScan, 1 ERG") },
+      tx("b931923f1995cedc2f0c5813803d6ef97c62bc9aad5308813f11abb81988b909", 1922317, t("first debt commitment", "первая фиксация долгов")),
+      tx("72a41040dd0f8999bba988ab03ff27c93d31a44d1a5b6e93e324167bad1a4f8e", 1922325, t("redemption, 0.1 ERG", "погашение, 0,1 ERG")),
+      tx("cf4af7f50dc8ca7ca5ec819b13a630556970fd7314ae768d034e3adcbe31b94b", 1922330, t("second debt commitment", "вторая фиксация долгов")),
+      tx("cb4b9f3bb7669ba75efdf59d19dcb0baab65fb1c225ae5a6ecc0e081429b01ad", 1922336, t("redemption, 0.25 ERG", "погашение, 0,25 ERG")),
+      { kind: "token", id: "f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f", label: t("tracker NFT", "NFT трекера") },
+    ],
   },
 ];
 
