@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { DEV_FIXTURE_ROUTE, devFixtureHandler, type DevFixtureRequest, type DevFixtureResponse } from "./src/mainnet/tx/devfixture";
 
 // Vendor chunks (function form, so only modules that are really imported land in a chunk):
 //   react  — react, react-dom, scheduler and the router: the shell needs them on every page;
@@ -29,6 +30,30 @@ const refuseUnfilled: Plugin = {
   },
 };
 
+// Dev only, opt-in: `BASIS_DEV_FIXTURES=1 npx vite` lets the closed wallet canary save raw tracker answers, exactly as
+// received, as test fixtures in /root/basis/qa/fixtures/ (src/mainnet/tx/devfixture.ts). Never in a build, a preview
+// or vitest; new files only (flag "wx"); the handler checks the method, a custom header, the Origin, the name and size.
+const DEV_FIXTURE_DIR = "/root/basis/qa/fixtures/";
+const processEnv = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+const saveDevFixtures: Plugin = {
+  name: "basis-dev-fixtures",
+  apply: (_config, env) => env.command === "serve" && !env.isPreview && env.mode !== "test" && processEnv.BASIS_DEV_FIXTURES === "1",
+  configureServer(server) {
+    const handle = devFixtureHandler(async (name, bytes) => {
+      const fsModule = "node:fs/promises"; // a variable: this project has no Node types
+      const fs = (await import(/* @vite-ignore */ fsModule)) as { writeFile(path: string, data: Uint8Array, opts: { flag: "wx" }): Promise<void> };
+      try {
+        await fs.writeFile(DEV_FIXTURE_DIR + name, bytes, { flag: "wx" });
+        return "saved";
+      } catch (e) {
+        if ((e as { code?: string }).code === "EEXIST") return "exists";
+        throw e;
+      }
+    });
+    server.middlewares.use(DEV_FIXTURE_ROUTE, (req, res) => handle(req as unknown as DevFixtureRequest, res as unknown as DevFixtureResponse));
+  },
+};
+
 // Dev and preview:
 //   /v1/*          → the ErgoScan API contour (:4401), the same place Caddy sends it on basis.ergoscan.me;
 //   /api/tracker/* → our tracker's front (nginx on :3050), prefix stripped. The front adds the key itself, allows only
@@ -39,7 +64,7 @@ const proxy = {
 };
 
 export default defineConfig({
-  plugins: [react(), refuseUnfilled],
+  plugins: [react(), refuseUnfilled, saveDevFixtures],
   resolve: { alias: { "@": "/root/basis/app/src" } },
   server: { host: "127.0.0.1", proxy },
   preview: { host: "127.0.0.1", proxy },
