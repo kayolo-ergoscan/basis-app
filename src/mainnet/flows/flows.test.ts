@@ -14,7 +14,7 @@ import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCancel, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
-  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
+  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
@@ -102,6 +102,9 @@ describe("notes", () => {
     expect(pairStateOf(null)).toBeNull();
     expect(coverage(1_000_000_000n, 500_000_000n)).toBe(200);
     expect(coverage(1n, 0n)).toBeNull();
+    // a redemption mined, not yet counted by the tracker: the low figure settles (money P2-8)
+    expect(reserveCoverage({ collateral: 500_000_000n, debt: 1_000_000_000n, pendingRedemption: 500_000_000n })).toEqual({ pct: 50, settled: 100, settling: true });
+    expect(reserveCoverage({ collateral: 500_000_000n, debt: 1_000_000_000n, pendingRedemption: 0n })).toEqual({ pct: 50, settled: 50, settling: false });
   });
 });
 

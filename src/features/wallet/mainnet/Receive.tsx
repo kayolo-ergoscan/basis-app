@@ -7,10 +7,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
 import { TRACKER_NFT, parseStoredNote } from "@/mainnet/tx";
-import { WATCH_POLLED, decodeReceipt, fragmentOf, noteView, parseErg, requestLink, unwatchIssuer, watchIssuer, type NoteReceipt, type NoteView, type WatchedIssuer } from "@/mainnet/flows";
+import { WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseErg, requestLink, unwatchIssuer, watchIssuer, type NoteReceipt, type NoteView, type WatchedIssuer } from "@/mainnet/flows";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
-import { R, useResource, useWatchList } from "./data";
+import { R, net, useResource, useWatchList } from "./data";
 import { Erg, Gate, ProblemText, TimeHint, ergText } from "./ui";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
@@ -34,8 +34,9 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
   let bad = false;
   if (pair.value) {
     try {
+      // the total is the issuer's signed promise: checked here, never taken from the tracker on trust (money P2-5)
       const n = parseStoredNote(pair.value);
-      if (n.issuer === w.pk && n.recipient === me && n.denomination === "erg" && n.trackerNft === TRACKER_NFT) v = noteView(n);
+      if (checkPreviousNote(n, { issuer: w.pk, recipient: me, accepted: 0n, serverNowMs: net().clock.now() }).ok) v = noteView(n);
       else bad = true;
     } catch { bad = true; }
   }
@@ -53,13 +54,14 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
       {v ? (
         <>
           <div className="mw-figs">
-            <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Erg nano={v.total} /></b></div>
+            <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Erg nano={v.total} /></b><span className="t-small mw-dim">{t("mw.recv.totalSigned")}</span></div>
             <div className="mw-figure"><span className="label">{t("mw.recv.redeemed")}</span><b><Erg nano={v.redeemed} /></b></div>
             <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Erg nano={v.redeemableNow} tone={v.redeemableNow > 0n ? "up" : undefined} /></b></div>
           </div>
           {v.stage === "committed" && v.confirmedHeight !== null && <p className="t-small mw-dim">{t("mw.recv.committedAt", { h: int(v.confirmedHeight) })}</p>}
           {v.stage !== "committed" && <p className="t-small">{t(`mw.recv.wait.${v.stage}`)} <TimeHint k="note" /></p>}
           {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: ergText(v.committed) })}</p>}
+          <p className="t-small mw-dim">{t("mw.recv.trackerFigures")}</p>
         </>
       ) : none ? (
         <p className="t-small mw-dim">{t("mw.recv.noNote")}</p>

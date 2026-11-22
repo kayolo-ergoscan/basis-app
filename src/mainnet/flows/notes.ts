@@ -55,6 +55,17 @@ export function coverage(collateral: bigint, outstanding: bigint): number | null
   return Number((collateral * 10000n) / outstanding) / 100;
 }
 
+/**
+ * A reserve's coverage as the tracker reports it, and once its redemptions waiting for the chain are applied (money
+ * review P2-8). For a few minutes after a redemption is mined, the reserve already holds less while the tracker still
+ * counts the redeemed notes in its debt: then a low figure is that delay, not a shortfall.
+ */
+export function reserveCoverage(r: { collateral: bigint; debt: bigint; pendingRedemption: bigint }): { pct: number | null; settled: number | null; settling: boolean } {
+  const pct = coverage(r.collateral, r.debt);
+  if (r.pendingRedemption <= 0n) return { pct, settled: pct, settling: false };
+  return { pct, settled: coverage(r.collateral, r.debt - r.pendingRedemption), settling: true };
+}
+
 // ─── the pair's previous note (keys review P0-1, money review P1-1) ──────────────────────────────
 
 /** A previous note may be dated at most this much after our reading of the tracker's clock: the tracker refuses any

@@ -13,7 +13,7 @@ import {
   buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
   type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
-import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
+import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
 import { blocksNewT1, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
@@ -32,16 +32,19 @@ type Phase =
 /** The tracked reserve: what it holds, what its notes promise, its box on ergoscan.me. */
 export function ReserveCard({ r }: { r: TrackedReserve }) {
   const t = useT();
-  const cov = r.debt > 0n ? Number((r.collateral * 10000n) / r.debt) / 100 : null;
+  const { pct: cov, settled, settling } = reserveCoverage(r);
+  // a low figure while redemptions wait for the chain is the tracker's short delay, not a shortfall (money P2-8)
+  const lowOnlyForNow = settling && cov !== null && cov < 100 && (settled === null || settled >= 100);
   return (
     <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={cov} /> : undefined}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
-        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span></div>
+        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: cov.toFixed(0) }) : t("mw.res.noDebt")}</span>
+          {r.pendingRedemption > 0n && <span className="t-small mw-dim">{t("mw.res.pendingRed", { amount: ergText(r.pendingRedemption) })}</span>}</div>
       </div>
       <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
       {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: int(r.refundHeight) })}</Callout>}
-      {cov !== null && cov < 100 && <Callout tone="alarm">{t("mw.res.under")}</Callout>}
+      {cov !== null && cov < 100 && (lowOnlyForNow ? <Callout tone="calm">{t("mw.res.settling")}</Callout> : <Callout tone="alarm">{t("mw.res.under")}</Callout>)}
       <p className="t-small mw-dim">{t("mw.res.lock")}</p>
       <p className="t-small mw-dim">{t("mw.res.later")}</p>
     </Card>

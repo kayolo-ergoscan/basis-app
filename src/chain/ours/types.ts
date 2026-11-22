@@ -133,6 +133,9 @@ export interface TrackedReserve {
   ratio: number | null;
   /** R7: 0 = no refund started. */
   refundHeight: number;
+  /** Redemptions submitted and waiting for the chain (tracker round 5b, F11), still inside `debt`; 0 when none waits
+   *  or the tracker does not send it. Once they are applied, the debt is `debt − pendingRedemption`. */
+  pendingRedemption: bigint;
 }
 
 export interface ReservesAnswer {
