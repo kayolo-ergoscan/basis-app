@@ -2,6 +2,7 @@
 // redeemable now (only the committed total counts), and what a redemption pays out (the amount minus the miner fee,
 // paid by the recipient for ERG reserves).
 import { MIN_BOX_NANOERG, REDEEM_MAX_FEE_NANOERG, type StoredNote } from "../tx";
+import type { Problem } from "../net";
 
 export type NoteStage = "local" | "pending" | "committed";
 
@@ -62,3 +63,24 @@ export const submitBodyOf = (r: RedeemRecord): string =>
   `{"signed_tx":${r.signedRaw},"unsigned_tx":${r.unsignedRaw},` +
   `"issuer_pubkey":${JSON.stringify(r.issuer)},"recipient_pubkey":${JSON.stringify(r.recipient)},` +
   `"redeemed_amount":${r.amount},"new_already_redeemed":${r.newRedeemed}}`;
+
+/**
+ * What a `POST /redemption/submit` answer means for a recorded redemption (money review P1-2). The tracker uses the
+ * build up before anything else (validate_and_consume), so after an earlier attempt a 409 most likely means that attempt
+ * went through; and only two of its 500s are definite (tracker round 5b, F7):
+ * - "sent": the tracker broadcast it (2xx), or it said the node did not answer and it follows the transaction itself;
+ * - "in-doubt": the build was already used and an earlier attempt was made: follow the transaction, do not submit again;
+ * - "failed": nothing was broadcast (first-attempt 409, 400, 404, 413, "did not accept", "cannot record … did not
+ *   submit"); the watcher still follows its id for a while, the chain has the last word;
+ * - "unknown": no clear answer (timeout, network, 408, other 5xx, 429): it may be on its way; keep it, follow it, and
+ *   offer the same bytes again.
+ * `priorAttempts` = the entry's sendAttempts before this attempt's markSending.
+ */
+export type SubmitVerdict = "sent" | "in-doubt" | "failed" | "unknown";
+
+export function submitVerdict(problem: Problem | null, priorAttempts: number): SubmitVerdict {
+  if (problem === null || problem.kind === "submit-unknown") return "sent";
+  if (problem.kind === "replaced") return priorAttempts > 0 ? "in-doubt" : "failed";
+  if (problem.kind === "not-submitted" || problem.kind === "refused" || problem.kind === "not-found" || problem.kind === "too-large") return "failed";
+  return "unknown";
+}

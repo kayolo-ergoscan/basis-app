@@ -17,6 +17,13 @@ export type Result<T> = { ok: true; value: T } | { ok: false; problem: Problem }
 
 export interface NetOptions { signal?: AbortSignal; priority?: Priority }
 
+/**
+ * How long a redemption build or submit may take (money review P1-2): the tracker calls the node (up to 15 s a call) and
+ * its own limit is 30 s (TimeoutLayer, then 408). Waiting longer than that means the wallet hears the tracker's answer
+ * instead of guessing; the front's proxy_read_timeout is above it too.
+ */
+export const REDEMPTION_TIMEOUT_MS = 40_000;
+
 /** Body limits of the front (nginx `client_max_body_size`, tracker-ops/front/nginx.conf.tmpl). */
 export const FRONT_BODY_MAX = { notes: 4096, "reserves-create": 4096, build: 4096, submit: 65536, broadcast: 16384 } as const;
 
@@ -161,8 +168,11 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
   const { tracker, v1 } = deps;
   const save = deps.saveFixture ?? (() => {});
 
-  const ask = (client: Pick<RawClient, "raw">, route: string, o: NetOptions = {}, post?: string): Promise<RawAnswer> =>
-    client.raw(route, { method: post === undefined ? "GET" : "POST", body: post, priority: o.priority ?? (post === undefined ? "poll" : "user"), signal: o.signal });
+  const ask = (client: Pick<RawClient, "raw">, route: string, o: NetOptions = {}, post?: string, timeoutMs?: number): Promise<RawAnswer> =>
+    client.raw(route, {
+      method: post === undefined ? "GET" : "POST", body: post, priority: o.priority ?? (post === undefined ? "poll" : "user"), signal: o.signal,
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    });
 
   async function getJson<T>(name: WalletRoute, route: string, parse: (d: unknown) => T | null, bigKeys: readonly string[], o?: NetOptions): Promise<Result<T>> {
     const a = await ask(tracker, route, o);
@@ -176,7 +186,7 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
 
   async function post(name: "notes" | "reserves-create" | "build" | "submit" | "broadcast", route: string, body: string, o?: NetOptions): Promise<Result<string>> {
     if (utf8Length(body) > FRONT_BODY_MAX[name]) return { ok: false, problem: localProblem("too-large", `${utf8Length(body)} bytes; the front takes at most ${FRONT_BODY_MAX[name]}`) };
-    const a = await ask(tracker, route, o, body);
+    const a = await ask(tracker, route, o, body, name === "build" || name === "submit" ? REDEMPTION_TIMEOUT_MS : undefined);
     const p = problemOf(name, a);
     if (a.ok && name !== "notes" && name !== "broadcast") save(`wallet-canary-${name}-${a.status}-${Date.now()}.json`, a.text);
     if (p || !a.ok) return { ok: false, problem: p ?? localProblem("network") };

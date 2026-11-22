@@ -7,7 +7,7 @@ import { RESERVE_TEMPLATE_HASH, p2pkTree } from "../tx";
 import { p2pkBox } from "../tx/testkit";
 import { ISSUER_A, R3_RESERVE_IN, TEXT } from "../tx/fixtures/chain";
 import { backoffMs, problemOf, reasonOf } from "./problems";
-import { chainReserveValue, createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
+import { REDEMPTION_TIMEOUT_MS, chainReserveValue, createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
 
 const ME = "03" + "ab".repeat(32);
 const OTHER = "02" + "cd".repeat(32);
@@ -41,6 +41,21 @@ describe("problems", () => {
     expect(c8b).toMatchObject({ kind: "waiting-chain", txId: TX });
     expect(problemOf("submit", ans(409, env("unknown build")))!.kind).toBe("replaced");
     expect(problemOf("notes", ans(409, env("issuer has no active reserve under this tracker")))).toMatchObject({ kind: "conflict", reason: "issuer has no active reserve under this tracker" });
+  });
+
+  it("the tracker's build and submit answers about timestamps and broadcasts, in its exact words (8f8fb76)", () => {
+    const skew = problemOf("build", ans(400, env("request_timestamp 1795000000000 is more than 120 s away from the tracker's clock (1795000300000 ms); sign the request again with the current time")));
+    expect(skew).toMatchObject({ kind: "clock-skew", trackerNowMs: 1795000300000 });
+    const stale = problemOf("build", ans(409, env("request_timestamp 1795000000000 is not greater than this recipient's previous build request (1795000005000): sign every build request with a new, later timestamp")));
+    expect(stale).toMatchObject({ kind: "stale-ts", previousTs: 1795000005000 });
+    expect(problemOf("notes", ans(400, env("request_timestamp 1 is more than 120 s away from the tracker's clock (5 ms)")))!.kind).toBe("refused");
+    const unknown = problemOf("submit", ans(500, env(`the node did not answer for redemption ${TX}; the tracker watches the chain for it and records it if it is mined. Its reserve builds nothing until then, or until it can no longer be mined`)));
+    expect(unknown!.kind).toBe("submit-unknown");
+    expect(problemOf("submit", ans(500, env(`the node did not accept redemption ${TX}; build it again with POST /redemption/build`)))!.kind).toBe("not-submitted");
+    expect(problemOf("submit", ans(500, env(`the tracker cannot record redemption ${TX}, so it did not submit it; build it again with POST /redemption/build`)))!.kind).toBe("not-submitted");
+    expect(problemOf("submit", ans(500, env("something else")))!.kind).toBe("http");
+    expect(problemOf("submit", ans(409, env("Unknown, expired or already-used unsigned_tx. Call POST /redemption/build again to obtain a fresh one.")))!.kind).toBe("replaced");
+    expect(problemOf("submit", ans(408, "")))!.toMatchObject({ kind: "http", status: 408 });
   });
 
   it("400: future and past timestamps, other refusals; the reason is cut to 300 characters", () => {
@@ -86,6 +101,10 @@ describe("wallet routes", () => {
     const b = await net.build(`{"q":1}`);
     expect(b).toEqual({ ok: true, value: `{"success":true, "data":{"b":1,"a":2}}` });
     expect(saved[0]).toMatch(/^wallet-canary-build-200-\d+\.json$/);
+    // a build or submit waits longer than the tracker's own 30 s limit (money P1-2); other routes keep the default
+    await net.submit(`{"s":1}`);
+    expect(calls.map((c) => [c.route, c.o.timeoutMs])).toEqual([["/notes", undefined], ["/redemption/build", REDEMPTION_TIMEOUT_MS], ["/redemption/submit", REDEMPTION_TIMEOUT_MS]]);
+    expect(REDEMPTION_TIMEOUT_MS).toBeGreaterThanOrEqual(35_000);
   });
 
   it("broadcast: the node's id string is the answer; its error body is the reason", async () => {

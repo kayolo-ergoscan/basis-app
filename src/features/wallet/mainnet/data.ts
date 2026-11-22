@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { WATCH_STORAGE_KEY, nextTrackState, parseWatchStore, type WatchedIssuer } from "@/mainnet/flows";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, nextTrackState, parseWatchStore, type WatchedIssuer } from "@/mainnet/flows";
 import type { Priority } from "@/chain/ours";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
@@ -205,14 +205,18 @@ export function useWatchList(me: string | null): [WatchedIssuer[], (fn: (l: Watc
 /** Tx kinds the watcher follows on chain; notes follow the pair route instead. */
 const ON_CHAIN = new Set(["t1", "withdraw", "redeem"]);
 const RESEND_EVERY_MS = 10 * 60_000;
+/** A failed entry from before failure heights were kept: followed only if it failed within about 30 blocks' time. */
+const FAILED_FOLLOW_MS = FAILED_FOLLOW_BLOCKS * 2 * 60_000;
 const MEMPOOL_EVERY_MS = 30_000;
 
 /** Follows the open entries of this key (design §6.4 "Pending transaction"): each one once per new block, the key's
  *  mempool every 30 s while one waits there; a dropped T1 or Withdraw is sent again (the same bytes, at most every 10
- *  minutes). Renders nothing. */
+ *  minutes). A failed entry that was sent is still looked for during 30 blocks (the chain has the last word: it moves
+ *  to confirmed if it shows up). Renders nothing. */
 export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string; address: string } | null, height: number | null, entries: readonly JournalEntry[]) {
   const visible = useVisible();
-  const open = useMemo(() => entries.filter((e) => me && e.pub === me.pub && ON_CHAIN.has(e.kind) && e.txId && isOpenState(e.state) && e.sendAttempts > 0), [entries, me]);
+  const open = useMemo(() => entries.filter((e) => me && e.pub === me.pub && ON_CHAIN.has(e.kind) && e.txId && e.sendAttempts > 0 &&
+    (isOpenState(e.state) || (height !== null && followsFailed(e, height) && (failedAtOf(e) !== null || Date.now() - e.updatedAt < FAILED_FOLLOW_MS)))), [entries, me, height]);
   const mem = useResource(me ? R.mempool(me.address) : null, { everyMs: MEMPOOL_EVERY_MS, enabled: open.length > 0 });
   const checked = useRef(new Map<string, number>());
   const busy = useRef(false);
@@ -225,11 +229,13 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
       try {
         const inMempool = new Set((mem.value ?? []).map((t) => t.id));
         for (const e of due) {
+          // a failed entry gets its failure height once; it is looked for until 30 blocks after it
+          if (e.state === "failed" && failedAtOf(e) === null) await vault.journal.update(e.id, { meta: { failedAt: height } });
           const st = await net().txStatus(e.txId!);
           if (!st.ok) break;
           checked.current.set(e.id, height);
           let conflict = false, trackerBoxSpent = false;
-          if (!st.value && !inMempool.has(e.txId!) && e.lastSendAt !== null && Date.now() - e.lastSendAt > 3 * 60_000) {
+          if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && e.lastSendAt !== null && Date.now() - e.lastSendAt > 3 * 60_000) {
             if (e.kind === "redeem" && typeof e.meta.trackerBox === "string") {
               const b = await net().box(e.meta.trackerBox);
               trackerBoxSpent = b.ok && b.value.spentBy !== null;
@@ -242,7 +248,7 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
           else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
           // a T1 or Withdraw nobody sees: the same bytes again (idempotent), at most every 10 minutes
-          if (!st.value && !inMempool.has(e.txId!) && !conflict && e.kind !== "redeem" && (step?.state ?? e.state) === "sent" &&
+          if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && !conflict && e.kind !== "redeem" && (step?.state ?? e.state) === "sent" &&
               e.lastSendAt !== null && Date.now() - e.lastSendAt > RESEND_EVERY_MS) {
             await resend(vault, e);
           }

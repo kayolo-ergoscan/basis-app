@@ -17,8 +17,9 @@ import {
   PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
-import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf } from "./redeem";
-import { depthAt, nextTrackState } from "./track";
+import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
+import { FAILED_FOLLOW_BLOCKS, depthAt, followsFailed, nextTrackState } from "./track";
+import { localProblem, problemOf } from "../net";
 import { parseWatchStore, unwatchIssuer, watchExtras, watchIssuer } from "./watch";
 
 const SK_A = secretBytes(2n), SK_B = secretBytes(3n);
@@ -261,6 +262,24 @@ describe("redemption submit from the journal", () => {
     expect(submitBodyOf({ signedRaw: signed.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: l1.expect.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount, newRedeemed: l1.build.newAlreadyRedeemed })).toBe(body);
     expect(submitBodyOf({ signedRaw: signed.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: l1.expect.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount + 1n, newRedeemed: l1.build.newAlreadyRedeemed })).not.toBe(body);
   });
+
+  it("what a submit answer means: only a definite refusal closes it, a used build after an attempt is in doubt", () => {
+    const env = (error: string) => JSON.stringify({ success: false, data: null, error });
+    const at = (status: number, text: string) => problemOf("submit", { ok: true, status, text, retryAfterMs: null, sentAt: 0, receivedAt: 1 });
+    const used = at(409, env("Unknown, expired or already-used unsigned_tx. Call POST /redemption/build again to obtain a fresh one."));
+    expect(submitVerdict(null, 0)).toBe("sent");
+    expect(submitVerdict(used, 0)).toBe("failed"); // our first attempt: the build was never ours to use
+    expect(submitVerdict(used, 1)).toBe("in-doubt"); // most likely our earlier attempt used it
+    expect(submitVerdict(at(500, env("the node did not answer for redemption x; the tracker watches the chain for it")), 0)).toBe("sent");
+    expect(submitVerdict(at(500, env("the node did not accept redemption x; build it again with POST /redemption/build")), 0)).toBe("failed");
+    expect(submitVerdict(at(500, env("the tracker cannot record redemption x, so it did not submit it; build it again")), 2)).toBe("failed");
+    expect(submitVerdict(at(400, env("partial_tx does not match")), 0)).toBe("failed");
+    expect(submitVerdict(localProblem("too-large"), 0)).toBe("failed");
+    for (const p of [at(408, ""), at(500, env("other")), at(502, "<html>"), at(429, env("slow down")), localProblem("timeout"), localProblem("network"), localProblem("aborted")]) {
+      expect(submitVerdict(p, 0)).toBe("unknown");
+      expect(submitVerdict(p, 3)).toBe("unknown");
+    }
+  });
 });
 
 describe("watched issuers", () => {
@@ -292,6 +311,21 @@ describe("following a transaction", () => {
     expect(nextTrackState(e("sent"), { status: null, inMempool: false, trackerBoxSpent: true })!.error).toContain("Build again");
     expect(depthAt(100, 101)).toBe(2);
     expect(depthAt(null, 101)).toBe(0);
+  });
+
+  it("a failed entry that was sent is looked for 30 more blocks; only the chain reopens it", () => {
+    const f = { state: "failed" as const, inclusionHeight: null, sendAttempts: 1 };
+    expect(nextTrackState(f, { status: { inclusionHeight: 200, confirmations: 1 }, inMempool: false })).toEqual({ state: "confirmed", inclusionHeight: 200 });
+    expect(nextTrackState(f, { status: { inclusionHeight: 200, confirmations: 3 }, inMempool: false })).toEqual({ state: "final", inclusionHeight: 200 });
+    expect(nextTrackState(f, { status: null, inMempool: true })).toEqual({ state: "mempool", inclusionHeight: null });
+    expect(nextTrackState(f, { status: null, inMempool: false, conflict: true, trackerBoxSpent: true })).toBeNull();
+    const tx = { state: "failed" as const, txId: "ab".repeat(32), sendAttempts: 1, meta: { failedAt: 1000 } };
+    expect(followsFailed(tx, 1000 + FAILED_FOLLOW_BLOCKS)).toBe(true);
+    expect(followsFailed(tx, 1001 + FAILED_FOLLOW_BLOCKS)).toBe(false);
+    expect(followsFailed({ ...tx, meta: {} }, 5000)).toBe(true); // the watcher stamps the height first
+    expect(followsFailed({ ...tx, sendAttempts: 0 }, 1000)).toBe(false); // never sent: nothing to look for
+    expect(followsFailed({ ...tx, txId: null }, 1000)).toBe(false);
+    expect(followsFailed({ ...tx, state: "final" }, 1000)).toBe(false);
   });
 });
 

@@ -147,6 +147,7 @@ On page load, `unresolved(pub)` lists the open entries: poll them, and rebroadca
 | `inFlightInputs(pub?)` → `Set` | Box ids spent by open entries: coin selection must skip them |
 | `claimTimestamp(scope, candidateMs)` → ms | Strictly increasing per scope, across reloads and tabs: max(last + 1, candidate). It is stored before use |
 | `lastTimestamp(scope)` | The last claim, or null |
+| `rewindTimestamp(scope, refusedMs, toMs)` → boolean | After the server refused that very claim for its clock window (a build request more than 120 s off): the last claim becomes `toMs`. Nothing changes when a later claim was made, or `toMs` is not lower |
 | `getSnapshot()`, `subscribe(fn)`, `reload()` | For React: all entries, newest first. Other tabs' changes arrive by themselves |
 
 Scopes: `buildScope(receiver)` for redemption build requests (`claimTimestamp(buildScope(me), serverNow)`), and
@@ -160,7 +161,7 @@ design §6.6).
 | --- | --- |
 | `signed` | `sent`, `mempool`, `confirmed`, `final`, `failed` (and `abandoned` through `abandon()`) |
 | `sent`, `mempool`, `confirmed` | each other (a drop from the mempool, a reorg), `final`, `failed` |
-| `failed` | `confirmed`, `final` (the chain has the last word) |
+| `failed` | `mempool`, `confirmed`, `final` (the chain has the last word: a failed entry that was sent is still looked for, flows/track.ts) |
 | `final`, `abandoned` | nothing |
 
 **One reserve per key:**

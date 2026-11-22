@@ -60,6 +60,10 @@ export function ProblemText({ p, what }: { p: Problem; what?: "create" | "build"
     case "network": text = t("mw.err.network"); break;
     case "aborted": text = t("mw.err.aborted"); break;
     case "shape": text = t("mw.err.shape"); break;
+    case "clock-skew": text = t("mw.err.clockSkew"); break;
+    case "stale-ts": text = t("mw.err.staleTs"); break;
+    case "submit-unknown": text = t("mw.err.submitUnknown"); break;
+    case "not-submitted": text = t("mw.err.notSubmitted"); break;
     default: text = t("mw.err.http", { status: p.status ?? "—" });
   }
   return (

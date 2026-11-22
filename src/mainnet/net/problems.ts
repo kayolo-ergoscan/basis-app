@@ -11,10 +11,14 @@ export type ProblemKind =
   | "low-funds"     // 503 on /redemption/build: the tracker keeps its commit funds
   | "unavailable"   // 502 / 503 / 504 otherwise
   | "waiting-chain" // 409 on /redemption/build (round 5, C8): an earlier redemption waits for 2 confirmations
-  | "replaced"      // 409 on /redemption/submit: the build is unknown, expired, used or replaced; nothing was sent
+  | "replaced"      // 409 on /redemption/submit: the build is unknown, expired or used (maybe by an earlier attempt)
+  | "stale-ts"      // 409 on /redemption/build: request_timestamp not after this receiver's previous one (previousTs)
   | "conflict"      // 409 otherwise (no active reserve, reserve in refund, two reserves …): the reason says which
   | "future-ts"     // 400 "Future timestamp": the note is later than the tracker's clock
   | "past-ts"       // 400 "Past timestamp": not after the pair's last note
+  | "clock-skew"    // 400 on /redemption/build: request_timestamp more than 120 s from the tracker's clock (trackerNowMs)
+  | "submit-unknown" // 500 on /redemption/submit "the node did not answer": it may be mined, the tracker follows it
+  | "not-submitted" // 500 on /redemption/submit "did not accept" / "did not submit it": nothing was broadcast
   | "refused"       // 400 or 2xx success:false: the reason says why
   | "not-found"     // 404
   | "too-large"     // 413, or a body the wallet refused to send because the front would refuse it
@@ -31,6 +35,10 @@ export interface Problem {
   retryInMs: number | null;
   /** For waiting-chain: the redemption the tracker waits for. */
   txId: string | null;
+  /** For clock-skew: the tracker's clock (ms) as its answer names it. */
+  trackerNowMs?: number;
+  /** For stale-ts: the receiver's previous build request timestamp (ms) the tracker remembers. */
+  previousTs?: number;
 }
 
 export type WalletRoute =
@@ -55,6 +63,13 @@ export function reasonOf(text: string): string {
 const TX_ID = /\b([0-9a-f]{64})\b/i;
 /** The tracker names the redemption it waits for as "redemption <tx id>"; other 64-hex ids (a reserve) may come first. */
 const WAITING_TX = /redemption\s+([0-9a-fA-F]{64})\b/;
+/** Build 400 (redemption_build.rs, BUILD_REQUEST_MAX_SKEW_MS): "… more than 120 s away from the tracker's clock (<ms> ms)". */
+const SKEW = /more than \d+ s away from the tracker's clock \((\d{1,16}) ms\)/i;
+/** Build 409: "… is not greater than this recipient's previous build request (<ms>): sign every build request …". */
+const NOT_GREATER = /not greater than this\s+recipient's previous build\s+request \((\d{1,16})\)/i;
+/** Submit 500, round 5b (F7): only these two are definite; "the node did not answer …" may still be mined. */
+const SUBMIT_DEFINITE = /did not accept redemption|so it did not submit it/i;
+const SUBMIT_UNKNOWN = /did not answer for redemption/i;
 
 /** The poll backoff after `failures` failed answers in a row: 30 s, 60 s, … 10 min (OURS_POLL). */
 export function backoffMs(failures: number): number {
@@ -73,6 +88,10 @@ export function problemOf(route: WalletRoute, a: RawAnswer, failures = 0): Probl
     if (/server\.notes_max_/i.test(reason)) return p("cap");
     return p("busy", { retryInMs: a.retryAfterMs ?? backoffMs(failures + 1) });
   }
+  if (s === 500 && route === "submit") {
+    if (SUBMIT_UNKNOWN.test(reason)) return p("submit-unknown");
+    if (SUBMIT_DEFINITE.test(reason)) return p("not-submitted");
+  }
   if (s === 503 || s === 502 || s === 504) {
     if (route === "reserves-create") return p("restarting");
     if (route === "build" && /commit|fee fund|fee box|floor/i.test(reason)) return p("low-funds");
@@ -80,10 +99,14 @@ export function problemOf(route: WalletRoute, a: RawAnswer, failures = 0): Probl
   }
   if (s === 409) {
     if (route === "build" && /waiting for the\s+chain/i.test(reason)) return p("waiting-chain", { txId: (reason.match(WAITING_TX)?.[1] ?? reason.match(TX_ID)?.[1] ?? "").toLowerCase() || null });
+    const stale = route === "build" ? NOT_GREATER.exec(reason) : null;
+    if (stale) return p("stale-ts", { previousTs: Number(stale[1]) });
     if (route === "submit") return p("replaced");
     return p("conflict");
   }
   if (s === 400) {
+    const skew = route === "build" ? SKEW.exec(reason) : null;
+    if (skew) return p("clock-skew", { trackerNowMs: Number(skew[1]) });
     if (/^future timestamp/i.test(reason)) return p("future-ts");
     if (/^past timestamp/i.test(reason)) return p("past-ts");
     return p("refused");

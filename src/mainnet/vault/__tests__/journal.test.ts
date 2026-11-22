@@ -144,6 +144,11 @@ describe("mainnet journal", () => {
     await v.journal.markSending(f.id);
     await v.journal.update(f.id, { state: "failed" });
     expect((await v.journal.update(f.id, { state: "confirmed" })).state).toBe("confirmed");
+    const g = await v.journal.record(tx(pub, hex(3), { inputs: [hex(0x23)] }));
+    await v.journal.markSending(g.id);
+    await v.journal.update(g.id, { state: "failed" });
+    expect((await v.journal.update(g.id, { state: "mempool" })).state).toBe("mempool"); // seen after all
+    expect(await code(v.journal.update(g.id, { state: "signed" }))).toBe("bad-transition");
     v.close();
   });
 
@@ -185,6 +190,14 @@ describe("mainnet journal", () => {
     expect(await t.journal.lastTimestamp(s)).toBe(5006);
     expect(await code(v.journal.claimTimestamp("", 1))).toBe("bad-input");
     expect(await code(v.journal.claimTimestamp(s, Number.NaN))).toBe("bad-input");
+    // a claim the server refused for its clock window is taken back, only that one, only downwards
+    const ahead = await v.journal.claimTimestamp(s, 900_000);
+    expect(await v.journal.rewindTimestamp(s, ahead - 1, 6000)).toBe(false);
+    expect(await v.journal.rewindTimestamp(s, ahead, ahead + 5)).toBe(false);
+    expect(await v.journal.rewindTimestamp(s, ahead, 6000)).toBe(true);
+    expect(await v.journal.claimTimestamp(s, 7000)).toBe(7000);
+    expect(await v.journal.rewindTimestamp(s, ahead, 6000)).toBe(false);
+    expect(await code(v.journal.rewindTimestamp(s, 1.5, 0))).toBe("bad-input");
     v.close();
     t.close();
   });

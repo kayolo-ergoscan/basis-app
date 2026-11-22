@@ -2,7 +2,8 @@
 // checked) → no commit pending at the tracker → the signed build request → the tracker's build, kept as raw text →
 // both boxes re-read from /v1 → L1 (every byte the receiver depends on) → L2 (the reserve contract, run in this
 // browser) → review → hold to sign → the proof spliced into the tracker's own text → journal → submit → the chain
-// (depth 2) → the tracker counts it (C8). Payout = amount − miner fee. Nothing is signed before L1 and L2 pass.
+// (depth 2) → the tracker counts it (C8). Payout = amount − miner fee. Nothing is signed before L1 and L2 pass. Once
+// signed, a redemption is only ever closed by a definite answer or by the chain (flows.submitVerdict, money P1-2).
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
@@ -12,7 +13,7 @@ import {
   parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest,
   type CheckedRedemption, type ChainBoxes, type L2Result, type RedemptionExpectation,
 } from "@/mainnet/tx";
-import { REDEEM_FEE, REDEEM_MIN, ergPlain, fragmentOf, noteView, parseErg, payoutOf, submitBodyOf, type NoteView } from "@/mainnet/flows";
+import { REDEEM_FEE, REDEEM_MIN, ergPlain, fragmentOf, noteView, parseErg, payoutOf, submitBodyOf, submitVerdict, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
 import { buildScope, isVaultError, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import { ContractXray } from "@/viz";
@@ -29,10 +30,16 @@ type Phase =
   | { k: "working"; at: Stage }
   | { k: "commit-pending"; tx: string | null }
   | { k: "waiting-chain"; txId: string | null }
-  | { k: "stop"; at: Stage; problem?: Problem; text?: string; rule?: string; report?: string; l2?: L2Result }
+  | { k: "stop"; at: Stage; problem?: Problem; text?: string; rule?: string; report?: string; l2?: L2Result; atSigning?: boolean }
   | { k: "review"; l1: CheckedRedemption; chain: ChainBoxes; l2: L2Result; tip: number; build: string }
   | { k: "sending" }
-  | { k: "sent"; id: string; warn?: string };
+  | { k: "sent"; id: string; warn?: string; first?: Submitted };
+
+/** The journal note of a redemption whose build an earlier attempt most likely used (plain text, like the reasons). */
+const IN_DOUBT = "The build was already used, most likely by an earlier attempt of this redemption: following its transaction on chain.";
+
+/** One submit and what its answer means. */
+export interface Submitted { problem: Problem | null; verdict: SubmitVerdict; warn?: string }
 
 /** The submit body of a recorded redemption: the exact stored texts and the four plain fields. */
 export function submitOfEntry(e: JournalEntry): string | null {
@@ -41,28 +48,33 @@ export function submitOfEntry(e: JournalEntry): string | null {
   return submitBodyOf({ signedRaw: e.signedRaw, unsignedRaw: e.unsignedRaw, issuer: m.issuer, recipient: e.pub, amount: BigInt(m.amount), newRedeemed: BigInt(m.newRedeemed) });
 }
 
-/** POST /redemption/submit with the recorded body (markSending first). */
-export async function submitEntry(vault: MainnetVault, e: JournalEntry): Promise<{ problem: Problem | null; warn?: string }> {
+/**
+ * POST /redemption/submit with the recorded body (markSending first), and what the answer means: sent, in doubt and
+ * failed move a still "signed" entry; "unknown" keeps it signed (the watcher follows it, "Submit again" stays).
+ */
+export async function submitEntry(vault: MainnetVault, e: JournalEntry): Promise<Submitted> {
   const body = submitOfEntry(e);
-  if (!body) return { problem: localProblem("shape", "this journal entry cannot be submitted again") };
-  await vault.journal.markSending(e.id);
+  if (!body) return { problem: localProblem("shape", "this journal entry cannot be submitted again"), verdict: "unknown" };
+  const marked = await vault.journal.markSending(e.id);
+  const prior = marked.sendAttempts - 1;
   const r = await net().submit(body);
-  if (r.ok) {
-    let warn: string | undefined;
-    try { if (parseSubmitResponse(r.value).txId !== e.txId) warn = "id"; } catch { warn = "shape"; }
-    await vault.journal.update(e.id, { state: e.state === "signed" ? "sent" : e.state, error: null });
-    return { problem: null, warn };
-  }
-  const p = r.problem;
-  const definite = p.kind === "replaced" || p.kind === "refused" || p.kind === "conflict" || p.kind === "not-found" || p.kind === "too-large";
-  await vault.journal.update(e.id, definite ? { state: "failed", error: p.reason || p.kind } : { error: p.reason || p.kind });
-  return { problem: p };
+  let warn: string | undefined;
+  if (r.ok) { try { if (parseSubmitResponse(r.value).txId !== e.txId) warn = "id"; } catch { warn = "shape"; } }
+  const problem = r.ok ? null : r.problem;
+  const verdict = submitVerdict(problem, prior);
+  // the watcher may have seen it meanwhile: only a still "signed" entry changes state here
+  const cur = (await vault.journal.get(e.id)) ?? marked;
+  const error = verdict === "in-doubt" ? IN_DOUBT : problem ? problem.reason || problem.kind : null;
+  if (cur.state === "signed" && verdict === "failed") await vault.journal.update(e.id, { state: "failed", error });
+  else if (cur.state === "signed" && verdict !== "unknown") await vault.journal.update(e.id, { state: "sent", error });
+  else await vault.journal.update(e.id, { error });
+  return { problem, verdict, warn };
 }
 
-function RedeemProgress({ e }: { e: JournalEntry }) {
+function RedeemProgress({ e, first }: { e: JournalEntry; first?: Submitted }) {
   const t = useT();
   const { vault, height } = useMw();
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [last, setLast] = useState<Submitted | null>(first ?? null);
   const [busy, setBusy] = useState(false);
   const issuer = typeof e.meta.issuer === "string" ? e.meta.issuer : null;
   const want = typeof e.meta.newRedeemed === "string" ? BigInt(e.meta.newRedeemed) : null;
@@ -72,7 +84,7 @@ function RedeemProgress({ e }: { e: JournalEntry }) {
   const extra: StepItem[] = [{ id: "synced", label: t("mw.red.synced"), sub: e.state === "final" && !synced ? t("mw.red.syncedWait") : undefined, state: synced ? "done" : e.state === "final" ? "now" : "todo" }];
   const again = async () => {
     setBusy(true);
-    try { setProblem((await submitEntry(vault, e)).problem); } finally { setBusy(false); }
+    try { setLast(await submitEntry(vault, e)); } finally { setBusy(false); }
   };
   return (
     <div className="mw-form">
@@ -83,7 +95,12 @@ function RedeemProgress({ e }: { e: JournalEntry }) {
           {e.sendAttempts === 0 && <Key variant="quiet" onClick={() => void vault.journal.abandon(e.id)}>{t("mw.track.discard")}</Key>}
         </div>
       )}
-      {problem && <Callout tone="alarm"><ProblemText p={problem} what="submit" /></Callout>}
+      {last && (last.problem || last.verdict !== "sent") && (
+        <Callout tone={last.verdict === "failed" ? "alarm" : "calm"}>
+          {last.verdict !== "sent" && <span className="mw-problem">{t(`mw.red.v.${last.verdict}`)}</span>}
+          {last.problem && <ProblemText p={last.problem} what="submit" />}
+        </Callout>
+      )}
     </div>
   );
 }
@@ -115,8 +132,12 @@ export function RedeemScreen() {
 
   const guard = (f: () => Promise<void>) => f().catch((e: unknown) => stop("build", { text: t("mw.err.shape"), rule: e instanceof Error ? e.message.slice(0, 300) : undefined }));
 
-  /** Everything up to the review; nothing here signs a transaction. */
-  async function prepare(retry = 0) {
+  /**
+   * Everything up to the review; nothing here signs a transaction. A build refused for its request timestamp is signed
+   * again once (twice at most): too far from the tracker's clock → from the clock its answer names (the refused claim
+   * taken back); not after this receiver's previous request → after that one.
+   */
+  async function prepare(retry = 0, trackerClock?: { nowMs: number; at: number }) {
     if (!me || amount === null || !issuer) return;
     if (height === null) return stop("note", { text: t("mw.res.noHeight") });
     // 1. the note
@@ -141,17 +162,30 @@ export function RedeemScreen() {
     // 3. the signed build request (the key signs a request, not a transaction)
     setPhase({ k: "working", at: "request" });
     let body: string;
+    let claimed: number;
     try {
-      const ts = BigInt(await vault.journal.claimTimestamp(buildScope(me.pub), net().clock.now()));
+      const now = trackerClock ? trackerClock.nowMs + (Date.now() - trackerClock.at) : net().clock.now();
+      claimed = await vault.journal.claimTimestamp(buildScope(me.pub), now);
+      const ts = BigInt(claimed);
       body = await vault.withSecret("build-request", (sk) => signedBuildRequest(sk, { issuer, recipient: me.pub, amount, issuerSignature: expect.issuerSignature, requestTimestamp: ts }).body);
     } catch (e) { return stop("request", { text: verr(e) }); }
     // 4. the build, kept as raw text
     setPhase({ k: "working", at: "build" });
     const b = await net().build(body, { priority: "user" });
     if (!b.ok) {
-      if (b.problem.kind === "waiting-chain") return setPhase({ k: "waiting-chain", txId: b.problem.txId });
-      if (b.problem.kind === "future-ts" && retry === 0) { net().clock.reset(); return prepare(1); }
-      return stop("build", { problem: b.problem });
+      const bp = b.problem;
+      if (bp.kind === "waiting-chain") return setPhase({ k: "waiting-chain", txId: bp.txId });
+      if ((bp.kind === "clock-skew" || bp.kind === "future-ts") && retry < 2) {
+        net().clock.reset();
+        if (bp.trackerNowMs === undefined) return prepare(retry + 1);
+        await vault.journal.rewindTimestamp(buildScope(me.pub), claimed, Math.max(0, bp.trackerNowMs - 1));
+        return prepare(retry + 1, { nowMs: bp.trackerNowMs, at: Date.now() });
+      }
+      if (bp.kind === "stale-ts" && bp.previousTs !== undefined && retry < 2) {
+        await vault.journal.claimTimestamp(buildScope(me.pub), bp.previousTs); // the next claim comes after it
+        return prepare(retry + 1, trackerClock);
+      }
+      return stop("build", { problem: bp });
     }
     let build;
     try { build = parseBuildResponse(b.value); } catch (e) {
@@ -195,10 +229,10 @@ export function RedeemScreen() {
         if (rebuilt !== body) throw new Error("the submit body cannot be rebuilt from the journal");
         return { txId: s.txId, signedRaw: s.signedRaw, unsignedRaw: l1.build.unsignedRaw, inputs: [l1.build.reserveBoxId], meta, height: tip };
       });
-    } catch (e) { return stop("l2", { text: isVaultError(e) ? verr(e) : t("mw.red.signFailed") }); }
+    } catch (e) { return stop("l2", { text: isVaultError(e) ? verr(e) : t("mw.red.signFailed"), atSigning: true }); }
+    // recorded: from here on the entry tells what happened, never "nothing was signed"
     const r = await submitEntry(vault, entry);
-    if (r.problem) return stop("build", { problem: r.problem });
-    setPhase({ k: "sent", id: entry.id, warn: r.warn });
+    setPhase({ k: "sent", id: entry.id, warn: r.warn, first: r });
   }
 
   const stageItems = (at: Stage, failed: boolean): StepItem[] => STAGES.map((s, i) => ({
@@ -223,7 +257,7 @@ export function RedeemScreen() {
               {phase.k === "sent" && sentEntry ? (
                 <div className="mw-form">
                   {phase.warn && <Callout tone="calm">{t("mw.red.idWarn")}</Callout>}
-                  <RedeemProgress e={sentEntry} />
+                  <RedeemProgress e={sentEntry} first={phase.first} />
                   <Key onClick={() => setPhase({ k: "idle" })}>{t("mw.red.another")}</Key>
                 </div>
               ) : phase.k === "review" ? (
@@ -293,7 +327,7 @@ export function RedeemScreen() {
                           <Callout tone="alarm" title={t("mw.red.stopT")}>
                             {phase.problem ? <ProblemText p={phase.problem} what="build" /> : phase.text}
                             {phase.rule && <span className="mw-reason">{t("mw.rule")} <code>{phase.rule}</code></span>}
-                            <span className="mw-reason">{t("mw.nothingSigned")}</span>
+                            <span className="mw-reason">{phase.atSigning ? t("mw.nothingSent") : t("mw.nothingSigned")}</span>
                             {phase.report && <span className="mw-actions"><CopyReport text={phase.report} label={t("mw.red.copyBuild")} /></span>}
                           </Callout>
                           {phase.l2?.eval && <ContractXray evaluation={phase.l2.eval} focus={phase.l2.rule ? [phase.l2.rule] : undefined} mode="compact" title={t("mw.red.xrayT")} />}
