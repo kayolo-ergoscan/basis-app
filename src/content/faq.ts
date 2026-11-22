@@ -156,12 +156,15 @@ export const faq: Faq[] = [
   {
     id: "nautilus",
     q: t("Why can't Nautilus sign notes?", "Почему Nautilus не может подписывать расписки?"),
-    short: t("A note needs a raw Schnorr signature over 80 bytes, and Ergo wallets sign only transactions.", "Расписке нужна «сырая» подпись Шнорра над 80 байтами, а кошельки Ergo подписывают только транзакции."),
+    short: t(
+      "Ergo wallets sign only transactions, and a note is not a transaction: it is a signature over the debt total in a format wallets don't support yet.",
+      "Кошельки Ergo подписывают только транзакции, а расписка — не транзакция: это подпись под суммой долга в формате, который кошельки пока не поддерживают.",
+    ),
     a: [
-      t("Nautilus and other Ergo wallets connect to sites through the EIP-12 standard. It signs transactions and their inputs, not arbitrary messages.", "Nautilus и другие кошельки Ergo подключаются к сайтам по стандарту EIP-12. Он подписывает транзакции и их входы, а не произвольные сообщения."),
-      t("A note is not a transaction. It is a 65-byte Schnorr signature over the 80-byte message, with its own nonce rule: the top byte of e and of z must be below 0x80.", "Расписка — не транзакция. Это 65-байтная подпись Шнорра над 80-байтным сообщением со своим правилом для нонса: старший байт e и z должен быть меньше 0x80."),
-      t("So today a note needs a key the app controls. In this sandbox that is a play key in your browser.", "Поэтому сейчас для расписки нужен ключ, которым управляет приложение. В этой песочнице это игровой ключ в вашем браузере."),
-      t("Topping up a reserve is an ordinary transaction, which such wallets can sign.", "Пополнение резерва — обычная транзакция, такие кошельки могут её подписать."),
+      t("Ergo wallets connect to sites through the EIP-12 standard. It signs transactions and their inputs, not arbitrary messages.", "Кошельки Ergo подключаются к сайтам по стандарту EIP-12. Он подписывает транзакции и их входы, а не произвольные сообщения."),
+      t("A note is not a transaction: it is a signature over the debt total in a special format, and wallets don't support it yet. The Signature X-ray shows its bytes.", "Расписка — не транзакция, а подпись под суммой долга в особом формате, и кошельки его пока не поддерживают. Её байты показывает «Рентген подписи»."),
+      t("So notes are signed by a key inside the app. In this sandbox that is a play key in your browser.", "Поэтому расписки подписывает ключ внутри приложения. В этой песочнице это игровой ключ в вашем браузере."),
+      t("You can top up a reserve with a regular wallet: that is an ordinary transaction.", "Пополнить резерв можно и обычным кошельком: это обычная транзакция."),
     ],
     tags: ["wallet"],
     links: [{ label: t("Signature X-ray", "Рентген подписи"), to: "/learn/signature" }],
