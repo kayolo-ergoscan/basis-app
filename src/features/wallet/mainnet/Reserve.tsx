@@ -111,7 +111,7 @@ export function ReserveScreen() {
     if (!onChain.value.complete) return fail({ text: t("mw.res.chainIncomplete") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
-    if (mempoolCreatesReserve(mem.value)) return fail({ text: t("mw.res.inMempool") });
+    if (mempoolCreatesReserve(mem.value, me)) return fail({ text: t("mw.res.inMempool") });
     const fresh = await net().unspent(me.address, me.tree, { priority: "user" });
     if (!fresh.ok) return fail({ problem: fresh.problem });
     const usable = spendable(fresh.value.boxes, inFlightOf(entries, me.pub), mem.value);
