@@ -42,8 +42,10 @@ Snapshot totals (checked by `model.test.ts`): 99 reserve boxes, 58 unspent, 41 r
   (`seenLive` when the live layer saw it go), prev/next (lineage), `value: bigint`, owner `{key, addr, label}`, nft,
   `collateral: TokenAmount`, r5 (AVL info), r6, r7, raw regs, issues, `legacy`, `exit: ExitAssessment` (unspent only,
   recomputed with live tracker states), `pending` (mempool txs, focus only; −1 unknown), `checked` (last live confirmation).
-- `ExitAssessment` — `class` locked | refund | refund+redeem | redeem-if-tracker | redeem | refund+redeem-if-tracker,
-  `redeem` now | if-tracker-posts | no, `refund` yes | pending | ready | no, `reason` (r4-invalid, r6-missing,
+- `ExitAssessment` — `class` locked | refund | refund+redeem | redeem-if-tracker | redeem | refund+redeem-if-tracker |
+  redeem-checking | refund+redeem-checking (the last two only while the R6 NFT of a reserve found live, outside the
+  seed's tracker list, has not been looked up yet: the UI says "checking…", never "needs a tracker box"),
+  `redeem` now | if-tracker-posts | checking | no, `refund` yes | pending | ready | no, `reason` (r4-invalid, r6-missing,
   r5-invalid, tracker-own-nft, tracker-unknown/live/unused/stale/locked/burned, with `emptyTree`), `emergency`
   (`EmergencyClock`), `refundClock {started, startedAt, completesAt, blocksLeft, ready}`, `line {en, ru}` (one sentence).
 - `TrackerView` — nft, name (untrusted), `status` live | stale | burned | locked | unused, evidence, holder, currentBox,
@@ -60,7 +62,11 @@ Snapshot totals (checked by `model.test.ts`): 99 reserve boxes, 58 unspent, 41 r
   current templates (`2XoR` ERG, `8LeD` multi-token); `found` is `[]` until the first box appears there.
 - `HostIndexView` — `{source, reserveCount, ergLockedNano, trackerCount, listedKnown, unspentHere, notListed, checkedHeight}`.
 - `LiveStatus` — `{enabled, online, hidden, lastOkAt, lastError, changes, budget {perBlock, usedThisBlock, requests,
-  avgLatencyMs, byLane}}`.
+  avgLatencyMs, byLane}}` (`usedThisBlock` = background + height polls, the 6-per-block budget).
+- `totalsSource(obs)` — what the reserve totals stand for, so their "as of block" label matches: `live` (both current
+  templates listed live in this tab, label = the live height), `checking` (that first look is on its way: show no
+  figure and no empty-state sentence), `snapshot` (the live layer failed first: show `snapshotTotals` at the
+  snapshot's block). Home's mainnet card and section 03 and the /network strip, detector and footnote use it.
 
 All amounts are `bigint` (the API sends strings); format them with the ui `money()` / `Num` helpers (ERG 9 dp, USE 3,
 look-alike 6). Block counts with `fmtInt`.
@@ -71,8 +77,8 @@ look-alike 6). Block counts with `fmtInt`.
 useHeight(): HeightState                         // re-export of the shell's src/app/height.ts (one /v1/info poller for the app)
 useObservatory(): Observatory | null             // null only while the seed chunk loads
 useChainStatus(): LiveStatus
-useReserve(boxId): { loading, reserve, tracker, lineage, redemptions }     // focus: box every 10 blk, its P2S mempool every 3
-useTracker(nft): { loading, tracker, reserves, redemptions }               // focus: the NFT's unspent box every 2 blk
+useReserve(boxId): { loading, reserve, tracker, lineage, redemptions }     // focus: at once, then box every 10 blk, P2S mempool every 3
+useTracker(nft): { loading, tracker, reserves, redemptions }               // focus: at once, then the NFT's unspent box every 2 blk
 useRedemption(txId, { detail? }): { loading, redemption, detail, detailState, error }   // detail = one interactive /transactions
 useDetector(): DetectorState                     // { watching: true, found, templates }
 useBox(boxId): { state: idle|loading|ok|missing|error, box: BoxDetail|null, error, refresh }   // one interactive /boxes/{id}, cached
@@ -92,30 +98,34 @@ noble fallback) / `templateHashSync`, `p2pkAddress`, `p2sAddress`, `parseAddress
 | rule | how |
 | --- | --- |
 | ≤ 2 requests per second for the whole app | src/chain: token bucket, capacity 1, refill 1/s (starts ≥ 1 s apart). The shell's `/v1/info` (once per 30 s) is the only other `/v1` traffic, so any 1-second window holds ≤ 1 src/chain request + ≤ 1 height poll. |
-| ≤ 6 requests per block per visitor | block ≈ 120 s; the shell polls `/v1/info` every 30 s ≈ 4 per block → `heightReserve: 4`, src/chain spends 2 data requests per block. |
-| interactive first | `useBox` / tx detail use the interactive lane: if the block is spent they wait for the next block (never fail); background work yields while one waits. |
+| background ≤ 6 requests per block per visitor | block ≈ 120 s; the shell polls `/v1/info` every 30 s ≈ 4 per block → `heightReserve: 4`, the background checks spend 2 data requests per block. |
+| user-started loads are not held by it | what the user opens — a page's first look at a focused reserve or tracker (its box, its contract's mempool, its R6 tracker NFT), a tx, a box (`useBox`, tx detail), the first fee read of our tracker — goes on the interactive lane: at once, through the same token bucket (FIFO). Safety net: `userPerBlock: 30` per block per tab; over it a request waits for the next block (never fails), and background work yields while one waits. |
+| final answers kept for the tab | a transaction 3 blocks deep (`finalTx`) and a spent box (`finalBox`) never change: `get(path, { final })` keeps them in memory (120) and sessionStorage (24, ≤ 150 000 chars each), and that path is answered from there with no request — also after a reload of the tab. |
 | hidden tab | background requests are refused and nothing is scheduled; the shell's poller is the shell's. |
 | slow chain | no new block for 240 s → a new budget epoch by time. |
-| failures | 10 s timeout (AbortController); 2 retries on network errors, timeouts, 429, 5xx, backoff 800 ms ×2 + ≤ 30 % jitter; 404 is an answer, not retried. Every attempt counts against the budget. |
+| failures | 10 s timeout (AbortController); 2 retries on network errors, timeouts, 429, 5xx, backoff 800 ms ×2 + ≤ 30 % jitter; 404 is an answer, not retried. Every attempt counts against the budget of its lane. A check that still failed runs again on the next block, not after its interval. |
 
 Scheduler (`store.ts`, `INTERVALS` in blocks; lower prio goes first; follow-ups such as a changed template's full list,
-a vanished box's spending tx, are prio 0):
+a vanished box's spending tx, are prio 0). The first run in a tab of a task marked "first look" is user-started: it
+goes out at once on the interactive lane (`firstLooks()`); every later run is background work:
 
 | prio | task | request | every |
 | --- | --- | --- | --- |
-| 1 | focused tracker (`useTracker`) | `/boxes/unspent/byTokenId/{nft}` | 2 |
-| 1 | focused reserve (`useReserve`) | `/boxes/{id}` | 10 |
-| 2 | mempool of the focused reserve's contract | `/mempool/transactions/byAddress/{P2S}` | 3 |
+| 1 | focused tracker (`useTracker`), first look | `/boxes/unspent/byTokenId/{nft}` | 2 |
+| 1 | focused reserve (`useReserve`), first look | `/boxes/{id}` | 10 |
+| 1 | the tracker NFT a focused reserve names in R6, when it is outside the seed, first look | `/boxes/unspent/byTokenId/{nft}` | 6 |
+| 2 | mempool of the focused reserve's contract, first look | `/mempool/transactions/byAddress/{P2S}` | 3 |
 | 3 | detector, 2 current templates | `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 6 |
-| 4 | live trackers (3) | `/boxes/unspent/byTokenId/{nft}` | 6 |
+| 3 | a tracker NFT outside the seed named by an unspent reserve (found live), until its first answer; first look for at most `FIRST_LOOK_NFTS` = 3 such NFTs per tab, the rest in the background | `/boxes/unspent/byTokenId/{nft}` | 6 |
+| 4 | live trackers (3), and NFTs outside the seed that sit in a tracker box | `/boxes/unspent/byTokenId/{nft}` | 6 |
 | 5 | legacy templates with unspent reserves (6) | `/boxes/unspent/byErgoTreeTemplateHash/{hash}?limit=1` (signature); on a change one `?limit=50` full list | 12 |
 | 6 | stale / unused trackers (2) | `/boxes/unspent/byTokenId/{nft}` | 20 |
 | 7 | host index | `/defi/basis` | 360 |
 
 Steady state with no focus: 2/6 + 3/6 + 6/12 + 2/20 + 1/360 ≈ 1.44 requests per block of the 2 available, so a full
 sweep of all 14 targets takes about 7 blocks after page load (tested: 14 distinct targets within 10 blocks, ≤ 2 per
-block). A tracker page adds ≈ 0.33, a reserve page ≈ 0.43; when the sum exceeds 2, low-priority tasks wait, nothing
-is dropped. An NFT is called burned only after empty answers in two different blocks. If the shell's height poll moves
+block). A tracker page adds ≈ 0.33, a reserve page ≈ 0.43 of re-checks; when the sum exceeds 2, low-priority tasks
+wait, nothing is dropped. An NFT outside the seed is only located (no commits, no pulse, not a "change"). An NFT is called burned only after empty answers in two different blocks. If the shell's height poll moves
 to 60 s, set `heightReserve: 2` and src/chain gets 4 per block with no other change.
 
 ## Endpoints (measured on :4401, 2026-11-21 and 2026-11-22, paced ≤ 1 req/s)
