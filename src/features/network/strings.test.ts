@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import page from "./strings";
 import route from "./i18n";
 import { amount, monthLabel, sid } from "./fmt";
+import overviewSrc from "./Overview.tsx?raw";
+import trackersSrc from "./Trackers.tsx?raw";
 
 const BANNED_EN = [/trustless/i, /guarantee/i, /\bsafe/i, /safety/i, /unstoppable/i, /live on mainnet/i, /launched/i, /official/i, /\byield\b/i, /\bAPY\b/, /7 days/i, /2 ?%/, /bearer/i, /censorship-resistant/i, /risk-free/i, /insured/i, /audited/i];
 const BANNED_RU = [/гарант/i, /безопасн/i, /официальн/i, /доходност/i, /запущен/i, /7 ?дн/i, /2 ?%/, /на предъявителя/i, /бездовер/i, /аудирован/i];
@@ -64,5 +66,30 @@ describe("network formatters", () => {
   it("names months on an axis in the nominative", () => {
     expect(monthLabel(Date.UTC(2026, 4, 1), "ru")).toBe("май");
     expect(monthLabel(Date.UTC(2026, 0, 1), "en")).toBe("Jan 2026");
+  });
+});
+
+describe("plain words on the tracker cards (UX review, 22 Nov 2026)", () => {
+  const en = page.en as Record<string, string>;
+  const ru = page.ru as Record<string, string>;
+  const plain = (x: string) => x.replace(/[\u00a0\u2009\u2060]/g, " ").replace(/ {2,}/g, " ");
+
+  it("the emergency window is explained once per page, under the cards, not in every card", () => {
+    expect(overviewSrc).toContain("export function TrackerPanel({ tr, tip, compact, idle = true }");
+    expect(overviewSrc).toContain('{idle && <p className="nw-em-idle">{t("network.em.idle")}</p>}');
+    for (const src of [overviewSrc, trackersSrc]) {
+      expect(src).toMatch(/<TrackerPanel key=\{tr\.nft\} tr=\{tr\} tip=\{obs\.height\} idle=\{false\} \/>/);
+      expect(src.match(/nw-em-idle nw-em-idle-once/g)).toHaveLength(1);
+    }
+    expect(plain(en["network.em.idle"])).toMatch(/^The window opens on time, not on failure\. If a tracker has written nothing to Ergo for about 3 days \(2 160 /);
+    expect(plain(ru["network.em.idle"])).toMatch(/^Окно открывается по времени, а не по поломке\. Если трекер около 3 дней \(2 160 блоков\)/);
+  });
+
+  it("the trackers page says what a tracker NFT is in words; R4 and R5 are under «Подробнее»", () => {
+    expect(en["network.tl.lede"]).not.toMatch(/\bR[45]\b/);
+    expect(ru["network.tl.lede"]).not.toMatch(/\bR[45]\b/);
+    expect(plain(en["network.tl.techText"])).toContain("names a key in R4 and commits a digest of notes in R5");
+    expect(plain(ru["network.tl.techText"])).toContain("называет ключ в R4 и фиксирует дайджест расписок в R5");
+    expect(trackersSrc).toContain('<summary>{t("network.tl.tech")}</summary>');
   });
 });

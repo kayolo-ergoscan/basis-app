@@ -155,8 +155,10 @@ function TrackersColumn({ obs }: { obs: Observatory }) {
       <ColHead id="nw-col-trk" title={t("network.col.trackers")} sub={t("network.col.trackersSub")} to="/network/trackers" n={obs.trackers.length + oursExtra(obs)} />
       <p className="nw-trustline">{pick(copy.trackerLine, t.lang as Lang)}</p>
       <div className="nw-stack">
-        {withBox.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} />)}
+        {withBox.map((tr) => <TrackerPanel key={tr.nft} tr={tr} tip={obs.height} idle={false} />)}
       </div>
+      {/* the emergency window's one explanation, once under the cards instead of in each (§5 #12) */}
+      {withBox.length > 0 && <p className="nw-em-idle nw-em-idle-once">{t("network.em.idle")}</p>}
       <div className="nw-sub label">{t("network.trk.gone")}</div>
       <ul className="nw-gone">
         {gone.map((tr) => <GoneRow key={tr.nft} tr={tr} />)}
@@ -165,7 +167,8 @@ function TrackersColumn({ obs }: { obs: Observatory }) {
   );
 }
 
-export function TrackerPanel({ tr, tip, compact }: { tr: TrackerView; tip: number; compact?: boolean }) {
+/** `idle={false}`: the card leaves out the emergency window's explanation, which its page says once under the cards. */
+export function TrackerPanel({ tr, tip, compact, idle = true }: { tr: TrackerView; tip: number; compact?: boolean; idle?: boolean }) {
   const t = useT();
   const lang = t.lang as Lang;
   const box = tr.lastTrackerBox;
@@ -201,7 +204,7 @@ export function TrackerPanel({ tr, tip, compact }: { tr: TrackerView; tip: numbe
           <p className={cx("nw-em-l", em.open && "open")}>
             {em.open ? t("network.trk.emOpen", { h: fmtH(em.opensAt) }) : t("network.trk.emOpens", { h: fmtH(em.opensAt), left: blocks(em.blocksLeft, lang) })}
           </p>
-          <p className="nw-em-idle">{t("network.em.idle")}</p>
+          {idle && <p className="nw-em-idle">{t("network.em.idle")}</p>}
         </div>
       )}
       <footer className="nw-trk-f">
