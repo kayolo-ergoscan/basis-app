@@ -4,7 +4,7 @@ import { secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { MAINNET_PUB_STORAGE_KEY, SANDBOX_WALLET_STORAGE_KEY, mainnetPubInBrowser, sandboxPubInBrowser, setMainnetPubMarker } from "../../key-markers";
-import { SandboxWallet, WALLET_STORAGE_KEY, WalletError } from "../../../world/identity";
+import { MAINNET_PUB_STORAGE_KEY as SANDBOX_SIDE_MARKER, SandboxWallet, WALLET_STORAGE_KEY, WalletError } from "../../../world/identity";
 import { FakeBrowser, PASS } from "./fakes";
 import { code, openTab } from "./helpers";
 
@@ -34,6 +34,7 @@ describe("sandbox and mainnet keys", () => {
   it("the sandbox refuses the mainnet key; each side reads only the other's public key", () => {
     g.localStorage = memoryStorage();
     expect(SANDBOX_WALLET_STORAGE_KEY).toBe(WALLET_STORAGE_KEY);
+    expect(SANDBOX_SIDE_MARKER).toBe(MAINNET_PUB_STORAGE_KEY);
     setMainnetPubMarker(PUB);
     expect(mainnetPubInBrowser()).toBe(PUB);
     const sandbox = new SandboxWallet();

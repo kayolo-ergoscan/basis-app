@@ -98,7 +98,8 @@ function RedeemProgress({ e, first }: { e: JournalEntry; first?: Submitted }) {
       {last && (last.problem || last.verdict !== "sent") && (
         <Callout tone={last.verdict === "failed" ? "alarm" : "calm"}>
           {last.verdict !== "sent" && <span className="mw-problem">{t(`mw.red.v.${last.verdict}`)}</span>}
-          {last.problem && <ProblemText p={last.problem} what="submit" />}
+          {last.verdict !== "sent" && last.problem && " "}
+          {last.problem && <ProblemText p={last.problem} what="submit" reasonOnly={last.verdict === "in-doubt"} />}
         </Callout>
       )}
     </div>

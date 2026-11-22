@@ -8,10 +8,21 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { bytesToBig, bytesToHex, CURVE_N, hexToBytes, keyPairFromSecret, secretToHex, utf8, type Hex, type KeyPair } from "@/protocol";
 import { fingerprint, threeWords } from "./words";
-import { mainnetPubInBrowser } from "@/mainnet/key-markers";
 
 export const SANDBOX_KEY_LABEL = "SANDBOX KEY · play money only · never use for real funds";
 export const WALLET_STORAGE_KEY = "basis.world.wallet.v1";
+/** The mainnet key's public key, kept by the mainnet wallet while its vault holds a key (src/mainnet/key-markers.ts;
+ *  read here directly, so the sandbox loads none of the mainnet code). Never imported as a sandbox key (keys P2-7). */
+export const MAINNET_PUB_STORAGE_KEY = "basis.mainnet.pub.v1";
+
+function mainnetPubInBrowser(): string | null {
+  try {
+    const v = typeof localStorage !== "undefined" ? localStorage.getItem(MAINNET_PUB_STORAGE_KEY) : null;
+    return v && /^0[23][0-9a-f]{64}$/.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 export const BACKUP_FORMAT = "basis-sandbox-key-backup";
 export const PBKDF2_ITERATIONS = 210_000;
 
