@@ -59,7 +59,7 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
           </div>
           {v.stage === "committed" && v.confirmedHeight !== null && <p className="t-small mw-dim">{t("mw.recv.committedAt", { h: int(v.confirmedHeight) })}</p>}
           {v.stage !== "committed" && <p className="t-small">{t(`mw.recv.wait.${v.stage}`)} <TimeHint k="note" /></p>}
-          {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: ergText(v.committed, t.lang) })}</p>}
+          {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: ergText(v.committed) })}</p>}
         </>
       ) : none ? (
         <p className="t-small mw-dim">{t("mw.recv.noNote")}</p>
@@ -71,7 +71,7 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
         <p className="t-small mw-dim">{t("mw.recv.reading")}</p>
       )}
       {w.receipt && (!v || BigInt(w.receipt.total) > v.total) && (
-        <p className="t-small">{t("mw.recv.receiptAhead", { total: ergText(BigInt(w.receipt.total), t.lang) })}</p>
+        <p className="t-small">{t("mw.recv.receiptAhead", { total: ergText(BigInt(w.receipt.total)) })}</p>
       )}
       {pair.problem && <p className="t-small"><ProblemText p={pair.problem} what="read" /></p>}
       <div className="mw-actions">
@@ -107,7 +107,7 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
         {r && r.ok && mine && (
           <div className="mw-form">
             <Callout tone="proof" title={t("mw.recv.validT")}>
-              {t("mw.recv.validB", { total: ergText(r.receipt.total, t.lang), at: new Date(Number(r.receipt.timestamp)).toISOString().slice(0, 16).replace("T", " ") + " UTC" })}
+              {t("mw.recv.validB", { total: ergText(r.receipt.total), at: new Date(Number(r.receipt.timestamp)).toISOString().slice(0, 16).replace("T", " ") + " UTC" })}
             </Callout>
             <div className="mw-filecard">
               <KeySeal pk={r.receipt.issuer} size="sm" />

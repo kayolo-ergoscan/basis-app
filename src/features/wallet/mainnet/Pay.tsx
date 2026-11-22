@@ -235,7 +235,7 @@ export function PayScreen() {
                   ]} sum={{ label: t("mw.pay.rowTotal"), value: <Erg nano={total!} /> }} />
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
                   {d.reserve ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.reserve.collateral, t.lang), debt: ergText(debtAfter!, t.lang), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
+                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.reserve.collateral), debt: ergText(debtAfter!), pct: cov !== null ? cov.toFixed(0) : "—" })}</p>
                   ) : null}
                   {d.reserve && debtAfter! > d.reserve.collateral && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>
@@ -244,7 +244,7 @@ export function PayScreen() {
                       <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
                     </Field>
                   )}
-                  <Key variant="primary" hold="sign" block disabled={askPass && !pass} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: ergText(d.add, t.lang) })}</Key>
+                  <Key variant="primary" hold="sign" block disabled={askPass && !pass} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: ergText(d.add) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "edit" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (

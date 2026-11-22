@@ -216,7 +216,7 @@ export function RedeemScreen() {
             <p className="t-lede">{t("mw.red.lede")}</p>
           </header>
           {open.filter((e) => e.id !== (phase.k === "sent" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.red.progressT", { amount: ergText(BigInt(String(e.meta.amount ?? "0")), t.lang) })}><RedeemProgress e={e} /></Card>
+            <Card key={e.id} title={t("mw.red.progressT", { amount: ergText(BigInt(String(e.meta.amount ?? "0"))) })}><RedeemProgress e={e} /></Card>
           ))}
           <Gate vault={vault} state={state} unlocked why={t("mw.red.unlockWhy")}>
             <Card title={t("mw.red.formT")}>
@@ -237,12 +237,12 @@ export function RedeemScreen() {
                     extra={(
                       <>
                         <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t("mw.red.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
-                        <p className="t-small mw-dim">{t("mw.red.reserveAfter", { v: ergText(phase.l1.reserveAfter.value, t.lang) })}</p>
+                        <p className="t-small mw-dim">{t("mw.red.reserveAfter", { v: ergText(phase.l1.reserveAfter.value) })}</p>
                         <button type="button" className="textlink t-small" aria-expanded={showXray} onClick={() => setShowXray(!showXray)}>{showXray ? t("mw.red.hideXray") : t("mw.red.showXray")}</button>
                         {showXray && phase.l2.eval && <ContractXray evaluation={phase.l2.eval} mode="compact" title={t("mw.red.xrayT")} />}
                       </>
                     )} />
-                  <Key variant="metal" hold block onAct={() => void sign()}>{t("mw.red.hold", { amount: ergText(phase.l1.payout, t.lang) })}</Key>
+                  <Key variant="metal" hold block onAct={() => void sign()}>{t("mw.red.hold", { amount: ergText(phase.l1.payout) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (
@@ -264,16 +264,16 @@ export function RedeemScreen() {
                           <div>
                             <div className="label">{t("mw.recv.issuer")}</div>
                             <div className="mono t-small mw-break">{issuer}</div>
-                            {view && <div className="t-small">{t("mw.red.noteLine", { total: ergText(view.total, t.lang), redeemed: ergText(view.redeemed, t.lang), now: ergText(view.redeemableNow, t.lang) })}</div>}
+                            {view && <div className="t-small">{t("mw.red.noteLine", { total: ergText(view.total), redeemed: ergText(view.redeemed), now: ergText(view.redeemableNow) })}</div>}
                           </div>
                         </div>
                       )}
                       {view && view.redeemableNow < REDEEM_MIN && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
-                      <Field label={t("mw.red.amount")} help={t("mw.red.amountHelp", { min: ergText(REDEEM_MIN, t.lang), fee: ergText(REDEEM_FEE, t.lang) })}
-                        error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < REDEEM_MIN))) ? t("mw.red.amountBad", { min: ergText(REDEEM_MIN, t.lang), max: ergText(view?.redeemableNow ?? 0n, t.lang) }) : undefined}>
+                      <Field label={t("mw.red.amount")} help={t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
+                        error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < REDEEM_MIN))) ? t("mw.red.amountBad", { min: ergText(REDEEM_MIN), max: ergText(view?.redeemableNow ?? 0n) }) : undefined}>
                         <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(ergPlain(view!.redeemableNow)) } : undefined} />
                       </Field>
-                      {amount !== null && amount >= REDEEM_MIN && <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE, t.lang) })}</span></p>}
+                      {amount !== null && amount >= REDEEM_MIN && <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE) })}</span></p>}
                       {phase.k === "working" && <Steps label={t("mw.red.stepsAria")} items={stageItems(phase.at, false)} />}
                       {phase.k === "commit-pending" && (
                         <Callout tone="calm" title={t("mw.red.commitT")}>
@@ -317,7 +317,7 @@ export function RedeemScreen() {
               <li>{t("mw.red.how1")}</li>
               <li>{t("mw.red.how2")}</li>
               <li>{t("mw.red.how3")}</li>
-              <li>{t("mw.red.how4", { fee: ergText(REDEEM_FEE, t.lang) })}</li>
+              <li>{t("mw.red.how4", { fee: ergText(REDEEM_FEE) })}</li>
             </ul>
             <TimeHint k="redeem" />
           </Card>

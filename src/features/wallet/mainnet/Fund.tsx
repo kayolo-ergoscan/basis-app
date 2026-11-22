@@ -53,7 +53,7 @@ export function FundScreen() {
             </Card>
             <Card title={t("mw.fund.planT")}>
               <div className="mw-form">
-                <Field label={t("mw.fund.amount")} help={t("mw.fund.amountHelp", { min: ergText(RESERVE_MIN_NANOERG, t.lang), max: ergText(RESERVE_DEFAULT_CAP_NANOERG, t.lang) })}
+                <Field label={t("mw.fund.amount")} help={t("mw.fund.amountHelp", { min: ergText(RESERVE_MIN_NANOERG), max: ergText(RESERVE_DEFAULT_CAP_NANOERG) })}
                   error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
                   <AmountInput value={amountText} onChange={setAmountText} />
                 </Field>
@@ -61,7 +61,7 @@ export function FundScreen() {
                 {need !== null && missing > 0n && (
                   <p className="t-body mw-send">
                     {t("mw.fund.send")} <b><Erg nano={missing} /></b>
-                    <span className="t-small mw-dim"> · {t("mw.fund.sendWhy", { fee: ergText(T1_FEE_ALLOWANCE, t.lang), miner: ergText(MINER_FEE_NANOERG, t.lang) })}</span>
+                    <span className="t-small mw-dim"> · {t("mw.fund.sendWhy", { fee: ergText(T1_FEE_ALLOWANCE), miner: ergText(MINER_FEE_NANOERG) })}</span>
                   </p>
                 )}
                 <Callout tone="policy" title={t("mw.fund.notReserveT")}>{t("mw.fund.notReserveB")}</Callout>
@@ -75,7 +75,7 @@ export function FundScreen() {
                   { id: "wait", label: t("mw.fund.s.wait"), sub: <TimeHint k="deposit" />, state: incoming.length || have > 0n ? "done" : "now" },
                   { id: "seen", label: t("mw.fund.s.seen"), sub: incoming[0] ? <ChainLink kind="tx" id={incoming[0].id} /> : undefined, state: incoming.length ? "now" : have > 0n ? "done" : "todo" },
                   { id: "conf", label: t("mw.fund.s.confirmed"), sub: lastHeight ? t("mw.fund.atBlock", { h: int(lastHeight) }) : undefined, state: have > 0n ? "done" : "todo" },
-                  { id: "ready", label: t("mw.fund.s.ready"), sub: ready ? undefined : need !== null ? t("mw.fund.s.readyNeed", { need: ergText(need, t.lang) }) : undefined, state: ready ? "done" : "todo" },
+                  { id: "ready", label: t("mw.fund.s.ready"), sub: ready ? undefined : need !== null ? t("mw.fund.s.readyNeed", { need: ergText(need) }) : undefined, state: ready ? "done" : "todo" },
                 ]} />
                 <div className="mw-figure">
                   <span className="label">{t("mw.fund.balance")}</span>

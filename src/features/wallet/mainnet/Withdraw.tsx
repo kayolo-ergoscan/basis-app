@@ -52,7 +52,7 @@ export function WithdrawScreen() {
     if (!m.ok) return setPhase({ k: "error", problem: m.problem });
     const boxes = spendable(fresh.value.boxes, inFlightOf(entries, me.pub), m.value);
     const p = planWithdraw(boxes, me.pub, toText.trim(), amount, MINER_FEE_NANOERG, height);
-    if (!p.ok) return setPhase({ k: "error", text: p.why === "too-many-boxes" ? t("mw.wd.tooMany") : p.why === "dust" ? t("mw.wd.dust") : p.why === "short" ? t("mw.wd.short", { max: ergText(maxWithdraw(boxes), t.lang) }) : t("mw.wd.build"), rule: p.message });
+    if (!p.ok) return setPhase({ k: "error", text: p.why === "too-many-boxes" ? t("mw.wd.tooMany") : p.why === "dust" ? t("mw.wd.dust") : p.why === "short" ? t("mw.wd.short", { max: ergText(maxWithdraw(boxes)) }) : t("mw.wd.build"), rule: p.message });
     const c = checkWithdraw(p.tx, p.inputs, { owner: me.pub, to: toText.trim(), amount: p.sent, fee: MINER_FEE_NANOERG });
     if (!c.ok) return setPhase({ k: "error", text: t("mw.res.checkFailed"), rule: `${c.rule}: ${c.message}` });
     setPhase({ k: "review", tx: p.tx, inputs: p.inputs, to: toText.trim(), sent: p.sent, change: p.change, txId: computeTxId(p.tx), tip: height });
@@ -98,7 +98,7 @@ export function WithdrawScreen() {
                   <Field label={t("mw.pay.passAgain")} help={t("mw.wd.passWhy")}>
                     <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
                   </Field>
-                  <Key variant="primary" hold block disabled={!pass} onAct={() => void sign()}>{t("mw.wd.hold", { amount: ergText(phase.sent, t.lang) })}</Key>
+                  <Key variant="primary" hold block disabled={!pass} onAct={() => void sign()}>{t("mw.wd.hold", { amount: ergText(phase.sent) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "edit" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (
@@ -106,7 +106,7 @@ export function WithdrawScreen() {
                   <Field label={t("mw.wd.to")} help={t("mw.wd.toHelp")} error={destErr ? t(`mw.wd.to.${destErr}`) : undefined}>
                     <TextInput mono value={toText} onChange={setToText} autoComplete="off" placeholder="9…" />
                   </Field>
-                  <Field label={t("mw.wd.amount")} help={t("mw.wd.amountHelp", { max: ergText(max, t.lang), fee: ergText(MINER_FEE_NANOERG, t.lang) })} error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
+                  <Field label={t("mw.wd.amount")} help={t("mw.wd.amountHelp", { max: ergText(max), fee: ergText(MINER_FEE_NANOERG) })} error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
                     <AmountInput value={amountText} onChange={setAmountText} max={max > 0n ? { label: t("mw.wd.max"), onMax: () => setAmountText(ergPlain(max)) } : undefined} />
                   </Field>
                   {phase.k === "error" && (
@@ -123,7 +123,7 @@ export function WithdrawScreen() {
             </Card>
           </Gate>
           {recent.filter((e) => e.id !== (phase.k === "done" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.wd.progressT", { amount: ergText(BigInt(String(e.meta.amount ?? "0")), t.lang) })}>
+            <Card key={e.id} title={t("mw.wd.progressT", { amount: ergText(BigInt(String(e.meta.amount ?? "0"))) })}>
               <EntryProgress vault={vault} entry={e} tip={height} />
             </Card>
           ))}

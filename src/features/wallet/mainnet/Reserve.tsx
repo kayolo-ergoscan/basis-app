@@ -108,7 +108,7 @@ export function ReserveScreen() {
     let p = planT1(usable, me.pub, amount, fee, cap);
     if (!p.ok) {
       if (p.why === "too-many-boxes") return offerCombine(usable);
-      return fail({ text: p.why === "short" ? t("mw.res.short", { need: ergText(p.need, t.lang), have: ergText(p.have, t.lang) }) : t("mw.res.amountRange", { min: ergText(p.min, t.lang), max: ergText(p.max, t.lang) }) });
+      return fail({ text: p.why === "short" ? t("mw.res.short", { need: ergText(p.need), have: ergText(p.have) }) : t("mw.res.amountRange", { min: ergText(p.min), max: ergText(p.max) }) });
     }
     setPhase({ k: "working", step: "template" });
     for (let round = 0; round < 2; round++) {
@@ -125,7 +125,7 @@ export function ReserveScreen() {
       // the tracker asks another miner fee: plan again with it; the same amount and NFT keep this template
       fee = payload.fee;
       const again = planT1(usable, me.pub, amount, fee, cap);
-      if (!again.ok) return fail({ text: t("mw.res.short", { need: ergText(amount + fee, t.lang), have: ergText(usable.reduce((s, b) => s + b.value, 0n), t.lang) }) });
+      if (!again.ok) return fail({ text: t("mw.res.short", { need: ergText(amount + fee), have: ergText(usable.reduce((s, b) => s + b.value, 0n)) }) });
       const same = again.plan.amount === p.plan.amount && again.plan.nftId === p.plan.nftId;
       p = again;
       if (same) break;
@@ -216,8 +216,8 @@ export function ReserveScreen() {
                   </div>
                 ) : (
                   <div className="mw-form">
-                    <Field label={t("mw.res.amount")} help={t("mw.res.amountHelp", { min: ergText(RESERVE_MIN_NANOERG, t.lang), max: ergText(cap, t.lang) })}
-                      error={amountText && (amount === null || amount > cap || amount < RESERVE_MIN_NANOERG) ? t("mw.res.amountRange", { min: ergText(RESERVE_MIN_NANOERG, t.lang), max: ergText(cap, t.lang) }) : undefined}>
+                    <Field label={t("mw.res.amount")} help={t("mw.res.amountHelp", { min: ergText(RESERVE_MIN_NANOERG), max: ergText(cap) })}
+                      error={amountText && (amount === null || amount > cap || amount < RESERVE_MIN_NANOERG) ? t("mw.res.amountRange", { min: ergText(RESERVE_MIN_NANOERG), max: ergText(cap) }) : undefined}>
                       <AmountInput value={amountText} onChange={setAmountText} disabled={busy} />
                     </Field>
                     <Switch checked={big} onChange={setBig} label={t("mw.res.bigT")} help={t("mw.res.bigB")} />

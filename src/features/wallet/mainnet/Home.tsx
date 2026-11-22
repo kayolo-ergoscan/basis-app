@@ -44,7 +44,7 @@ export function HomeScreen() {
           <Card title={t("mw.home.reserveT")} aside={cov !== null ? <CoverageTag pct={cov} small /> : undefined}>
             {reserve ? (
               <>
-                <div className="mw-figure big"><b><Erg nano={reserve.collateral} /></b><span className="t-small mw-dim">{t("mw.home.promised", { debt: ergText(reserve.debt, t.lang) })}</span></div>
+                <div className="mw-figure big"><b><Erg nano={reserve.collateral} /></b><span className="t-small mw-dim">{t("mw.home.promised", { debt: ergText(reserve.debt) })}</span></div>
                 <div className="mw-actions">
                   <Key size="sm" icon="pay" variant="primary" to="/wallet/mainnet/pay">{t("mw.nav.pay")}</Key>
                   <Key size="sm" icon="coin" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key>

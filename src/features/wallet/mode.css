@@ -13,3 +13,7 @@
   .wl-mode { display: grid; width: 100%; }
   .wl-mode a { padding: 8px 10px 9px; }
 }
+/* The sandbox onboarding centres itself in the viewport; the switch row above it already takes part of that height. */
+@media (min-width: 1001px) {
+  .wl-page:has(> .wl-mode-row) .wl-onb { min-height: max(520px, calc(100vh - 420px)); }
+}

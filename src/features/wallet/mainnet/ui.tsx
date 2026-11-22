@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorer } from "@/chain/links";
-import { Callout, Card, CopyButton, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, type LampState, type LedgerRow } from "@/ui";
+import { Callout, Card, CopyButton, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
 import { TxLens } from "@/viz";
 import { dpOf } from "@/mainnet/flows";
 import { isVaultError, type MainnetVault, type VaultState } from "@/mainnet/vault";
@@ -24,14 +24,8 @@ export function Erg({ nano, sign, tone, unit = true }: { nano: bigint; sign?: "f
   return <Num value={nano} decimals={9} dp={dpOf(nano)} unit={unit ? "ERG" : undefined} sign={sign ?? "auto"} tone={tone} reveal />;
 }
 
-export const ergText = (nano: bigint, lang: string): string => {
-  const dp = dpOf(nano);
-  const neg = nano < 0n;
-  const v = neg ? -nano : nano;
-  const whole = (v / 1_000_000_000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009\u2060");
-  const frac = dp ? (lang === "ru" ? "," : ".") + (v % 1_000_000_000n).toString().padStart(9, "0").slice(0, dp) : "";
-  return (neg ? "−" : "") + whole + frac + "\u00a0ERG";
-};
+/** ERG as text inside a sentence, formatted exactly like <Erg> (the kit's units(), "." in both languages). */
+export const ergText = (nano: bigint): string => `${units(nano, 9, dpOf(nano))}\u00a0ERG`;
 
 /** A link to ergoscan.me for a transaction, box or address. */
 export function ChainLink({ kind, id, children }: { kind: "tx" | "box" | "address"; id: string; children?: ReactNode }) {
