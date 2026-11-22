@@ -19,6 +19,7 @@ import {
   type NoteRecord,
   type TrackerSim,
 } from "@/protocol";
+import { SANDBOX_GENESIS_HEIGHT } from "@/world";
 
 export const STORY_SEED = "basis-home/v1";
 /** The economy's demo-key salt (Economy: `basis-sandbox-v1/${seed}`): lets the first paint know the pair key. */
@@ -132,7 +133,7 @@ export class Story {
 
   constructor(backend: AvlBackend) {
     this.backend = backend;
-    const eco = new Economy({ seed: STORY_SEED, lazySignatures: false, avl: backend });
+    const eco = new Economy({ seed: STORY_SEED, genesisHeight: SANDBOX_GENESIS_HEIGHT, lazySignatures: false, avl: backend });
     eco.addParticipant({ id: "op", name: "T-01 operator", kind: "tracker-operator", erg: erg(5) });
     eco.addParticipant({ id: "alice", name: "Alice", kind: "human", erg: erg(2200) });
     eco.addParticipant({ id: "bob", name: "Bob", kind: "human", erg: erg(10) });

@@ -55,6 +55,7 @@ export {
   BUSINESSES,
   AGENTS,
   buildTown,
+  SANDBOX_GENESIS_HEIGHT,
   type Resident,
 } from "./town/genesis";
 export { previewPay, previewRedeem, faucetReadyIn, type PayPreview, type CommandArgs, type CommandResults, type CommandName } from "./town/commands";
