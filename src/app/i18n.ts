@@ -30,7 +30,7 @@ const en = {
   "app.height.offline": "offline",
   "app.height.offline.title": "The mainnet API does not answer right now; the sandbox works without it. Retrying every 30 s.",
 
-  "app.banner": "ErgoScan's Basis tracker runs on mainnet (beta). Unofficial project, Basis is experimental: use small amounts only. This is an independent interface (not by Better Money Labs).",
+  "app.banner": "An unofficial site by ErgoScan (not by Better Money Labs). Basis is an experiment: on Ergo mainnet, use small amounts only.",
   "app.banner.close": "Hide this notice for this visit",
 
   "app.footer.line": "An independent interface to the Basis protocol.",
@@ -128,7 +128,7 @@ const ru: Partial<typeof en> = {
   "app.height.offline": "нет связи",
   "app.height.offline.title": "API основной сети сейчас не отвечает; песочница работает и без него. Повторяем каждые 30 с.",
 
-  "app.banner": "Трекер ErgoScan для Basis работает в mainnet (бета). Проект неофициальный, Basis экспериментальный: используйте только небольшие суммы. Это независимый интерфейс (не от Better Money Labs).",
+  "app.banner": "Неофициальный сайт от ErgoScan (не от Better Money Labs). Basis — эксперимент: в основной сети Ergo — только небольшие суммы.",
   "app.banner.close": "Скрыть до следующего визита",
 
   "app.footer.line": "Независимый интерфейс к протоколу Basis.",
