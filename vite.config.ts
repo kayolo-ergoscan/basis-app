@@ -40,7 +40,8 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react(), refuseUnfilled],
-  resolve: { alias: { "@": "/root/basis/app/src" } },
+  // Relative to this file, so a worktree under /root/basis/app-wt/ resolves `@/` to its own src, not the main tree.
+  resolve: { alias: { "@": new URL("./src", import.meta.url).pathname } },
   server: { host: "127.0.0.1", proxy },
   preview: { host: "127.0.0.1", proxy },
   build: {
