@@ -44,7 +44,7 @@ export const personas: Persona[] = [
       "A tracker can censor by leaving a note out, and the contract cannot stop it. Members should see your commit history.",
       "Трекер может цензурировать, не включив расписку, и контракт этому не помешает. Участники должны видеть историю ваших фиксаций.",
     ),
-    start: { label: t("Open the tracker console", "Открыть консоль трекера"), to: "/tracker" },
+    start: { label: t("Open the practice tracker", "Открыть учебный трекер"), to: "/tracker/practice" },
     scenario: "village-lets",
     sources: ["tg-1317", "bt-readme"],
   },

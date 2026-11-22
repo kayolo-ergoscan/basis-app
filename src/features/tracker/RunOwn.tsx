@@ -8,7 +8,7 @@ import { explorerLink, useObservatory } from "@/chain";
 import { CLIENTS_HREF, GIT_REF_SHORT, pick, sources, trust, type OpenIssue } from "@/content";
 import { AmountInput, Card, Col, CopyButton, Grid, Icon, int, Key, money, PageHead, parseMoney, Section, Seg, short, Tag } from "@/ui";
 import { commitsPerDay, runwayDays } from "./runway";
-import { HeadActions, md, useText } from "./parts";
+import { HeadActions, md, TRACKER_PRACTICE, useText } from "./parts";
 
 const STEPS = ["node", "nft", "fee", "contracts", "config", "alive"] as const;
 type StepId = (typeof STEPS)[number];
@@ -83,7 +83,7 @@ function Step({ id, n, done, onToggle }: { id: StepId; n: number; done: boolean;
     config: <ConfigStep />,
     alive: (
       <p>
-        <Key size="sm" variant="quiet" icon="tracker" to="/tracker">{t("tracker.run.alive.try")}</Key>
+        <Key size="sm" variant="quiet" icon="tracker" to={TRACKER_PRACTICE}>{t("tracker.run.alive.try")}</Key>
       </p>
     ),
   };

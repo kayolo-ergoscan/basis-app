@@ -283,7 +283,7 @@ const en = {
   "tracker.run.alive.t": "Keep the box alive within 2 160 blocks",
   "tracker.run.alive.b":
     "The reference updater posts only when the digest changed. If your community goes quiet for 2 160 blocks ≈ 3 days, the box ages out and every holder can emergency-redeem, even though your tracker is fine. Schedule a heartbeat commitment well inside that window, or decide on purpose that a quiet tracker lets the emergency path open.",
-  "tracker.run.alive.try": "Try it in the console",
+  "tracker.run.alive.try": "Try it on the practice tracker",
   "tracker.run.caveats.no": "02 · Caveats",
   "tracker.run.caveats.title": "What is still *open*",
   "tracker.run.caveats.lede": "Known problems in the reference software, with the date each was raised. They affect the tracker, not the contract rules, unless the entry says otherwise.",
@@ -403,8 +403,8 @@ const en = {
   "tracker.run.trustLink": "The whole trust model, with sources",
 
   // ---- the switch, and mainnet: ErgoScan's tracker, read-only (/tracker/mainnet) ----
-  "tracker.mode.aria": "Simulation or mainnet",
-  "tracker.mode.sim": "Simulation",
+  "tracker.mode.aria": "Mainnet or practice",
+  "tracker.mode.sim": "Practice",
   "tracker.mode.simSub": "Town tracker T-01 · play money",
   "tracker.mode.main": "Mainnet",
   "tracker.mode.mainSub": "ErgoScan's tracker · beta · live data",
@@ -798,7 +798,7 @@ const ru: Record<Key, string> & Record<string, string> = {
   "tracker.run.alive.t": "Обновляйте бокс чаще, чем раз в 2 160 блоков",
   "tracker.run.alive.b":
     "Эталонный апдейтер публикует бокс, только если дайджест изменился. Если сообщество затихнет на 2 160 блоков ≈ 3 дня, бокс устареет, и любой держатель сможет погасить в аварийном порядке, хотя с трекером всё в порядке. Запланируйте фиксацию-пульс задолго до конца этого окна — или осознанно решите, что у затихшего трекера аварийный путь открывается.",
-  "tracker.run.alive.try": "Попробовать в консоли",
+  "tracker.run.alive.try": "Попробовать на учебном трекере",
   "tracker.run.caveats.no": "02 · Оговорки",
   "tracker.run.caveats.title": "Что ещё *не решено*",
   "tracker.run.caveats.lede": "Известные проблемы эталонного ПО с датой, когда о каждой сообщили. Они касаются трекера, а не правил контракта, если в записи не сказано иное.",
@@ -924,8 +924,8 @@ const ru: Record<Key, string> & Record<string, string> = {
   "tracker.run.toml.fifo": "FIFO, если у эмитента два кредитора и больше",
   "tracker.run.trustLink": "Вся модель доверия, с источниками",
 
-  "tracker.mode.aria": "Симуляция или основная сеть",
-  "tracker.mode.sim": "Симуляция",
+  "tracker.mode.aria": "Основная сеть или учебный",
+  "tracker.mode.sim": "Учебный",
   "tracker.mode.simSub": "Трекер города T-01 · игровые деньги",
   "tracker.mode.main": "Основная сеть",
   "tracker.mode.mainSub": "Трекер ErgoScan · бета · живые данные",

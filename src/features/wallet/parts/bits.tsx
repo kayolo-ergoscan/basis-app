@@ -85,7 +85,7 @@ export function TrackerChip({ tracker, compact }: { tracker: TrackerInfo; compac
           <dd>{tracker.emergencyOpen ? t("wallet.trk.emOpen") : tracker.emergencyOpensAt ? t("wallet.trk.emAt", { h: f.height(tracker.emergencyOpensAt) }) : "—"}</dd>
         </dl>
         <Honest tracker={tracker.id} />
-        <Link className="textlink t-small" to="/tracker">{t("wallet.trk.open")}</Link>
+        <Link className="textlink t-small" to="/tracker/practice">{t("wallet.trk.open")}</Link>
       </div>
     </Popover>
   );
