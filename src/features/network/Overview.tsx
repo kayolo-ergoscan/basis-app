@@ -290,10 +290,15 @@ function ReservesColumn({ obs }: { obs: Observatory }) {
   const list = useMemo(() => [...obs.unspent].sort(reserveRank), [obs.unspent]);
   const rows = EXIT_ORDER.map((cls) => ({ cls, boxes: obs.totals.exit[cls]?.boxes ?? 0, sub: exitSub(obs, cls, lang) }));
   const shown = all ? list : list.slice(0, 5);
+  // before this tab's first live look the list is the snapshot's: no count that changes a second later (checking), or
+  // the count labelled with the snapshot's block (the live layer failed); the breakdown then says it is the snapshot
+  const src = totalsSource(obs);
+  const sub = t("network.col.reservesSub", { n: list.length });
   return (
     <section className="nw-col" aria-labelledby="nw-col-res">
-      <ColHead id="nw-col-res" title={t("network.col.reserves")} sub={t("network.col.reservesSub", { n: list.length })} to="/network/reserves" n={obs.reserves.length} />
-      <ExitBar rows={rows} total={list.length} />
+      <ColHead id="nw-col-res" title={t("network.col.reserves")} to="/network/reserves" n={src === "checking" ? undefined : obs.reserves.length}
+        sub={src === "live" ? sub : src === "checking" ? t("chain.checking") : `${sub} · ${t("chain.asOf", { height: fmtH(obs.asOf.height) })}`} />
+      <ExitBar rows={rows} total={list.length} note={src === "live" ? undefined : <p className="t-small">{t("chain.live.seedOnly")}</p>} />
       <div className="nw-stack">
         {shown.map((r) => <VaultCard key={r.id} r={r} obs={obs} />)}
       </div>
