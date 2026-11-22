@@ -51,3 +51,14 @@ export function redeemableAmount(amount: bigint | null, v: NoteView): "ok" | "be
   if (amount > v.redeemableNow) return "above";
   return "ok";
 }
+
+/** What a redemption's journal entry keeps to submit it again after a reload: the spliced `partial_tx` (signedRaw), the
+ *  build's own `unsigned_tx` text (unsignedRaw), and the four plain fields. */
+export interface RedeemRecord { signedRaw: string; unsignedRaw: string; issuer: string; recipient: string; amount: bigint; newRedeemed: bigint }
+
+/** The `POST /redemption/submit` body rebuilt from the journal: byte for byte what `redemptionSubmitBody` wrote at
+ *  signing time (the Redeem screen compares the two before it records anything). */
+export const submitBodyOf = (r: RedeemRecord): string =>
+  `{"signed_tx":${r.signedRaw},"unsigned_tx":${r.unsignedRaw},` +
+  `"issuer_pubkey":${JSON.stringify(r.issuer)},"recipient_pubkey":${JSON.stringify(r.recipient)},` +
+  `"redeemed_amount":${r.amount},"new_already_redeemed":${r.newRedeemed}}`;

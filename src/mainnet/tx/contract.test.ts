@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { AvlBackend } from "../../protocol/avl";
 import { getAvlBackend } from "../../protocol/avl";
 import { encodeLong } from "../../protocol/registers";
-import { checkRedemptionContract, checkReserveContract, loadContractAvl, type ContractInput } from "./contract";
+import { checkRedemptionContract, checkReserveContract, loadContractAvl, simTxOf, type ContractInput } from "./contract";
 import { R1, R2, R3, RECEIVER_B, type ChainTx } from "./fixtures/chain";
 import { r3Chain, r3Expect, r3Parts } from "./fixtures/r3-build";
 import type { ExtensionEntry } from "./model";
@@ -97,5 +97,17 @@ describe("L2 on a build that passed L1", () => {
     const l1 = checkRedemption(parseBuildResponse(trackerBuildResponse(parts)), r3Chain(), r3Expect());
     if (!l1.ok) throw new Error(l1.message);
     expect(checkRedemptionContract(l1, r3Chain(), R3.v1.inclusionHeight!, avl).rule).toBe("redeemed-total");
+  });
+});
+
+describe("simTxOf (the review screens' TxLens)", () => {
+  it("maps a real redemption faithfully, and gives null for a box the engine does not model", () => {
+    const sim = simTxOf(input(R3));
+    expect(sim?.id).toBe(R3.v1.id);
+    expect(sim?.inputs[0].script).toBe("basis.es");
+    expect(sim?.outputs.map((o) => o.script)).toEqual(["basis.es", `p2pk:${RECEIVER_B}`, "miner-fee"]);
+    expect(sim?.contextVars[0][1]).toEqual({ type: "GroupElement", value: RECEIVER_B });
+    const odd = { ...R3.v1.inputs[0], registers: [...R3.v1.inputs[0].registers.slice(0, 3), "0101"] };
+    expect(simTxOf({ ...input(R3), inputs: [odd] })).toBeNull();
   });
 });

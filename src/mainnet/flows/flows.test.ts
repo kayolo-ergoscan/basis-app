@@ -5,15 +5,15 @@ import { describe, expect, it } from "vitest";
 import { bytesToHex } from "../../protocol/bytes";
 import {
   MINER_FEE_NANOERG, P2PK_MAX_INPUTS, RESERVE_TREE_HEX, TRACKER_NFT, checkReserveCreation, checkWithdraw, noteMessage, p2pkAddress, p2pkTree,
-  parseStoredNote, publicKeyOf, reserveAddress, verifyBasis, buildReserveCreation, parseJson,
+  parseStoredNote, publicKeyOf, reserveAddress, verifyBasis, buildReserveCreation, parseJson, checkRedemption, parseBuildResponse, redemptionSubmitBody, signRedemption,
 } from "../tx";
-import { p2pkBox, secretBytes } from "../tx/testkit";
+import { p2pkBox, secretBytes, syntheticRedemption } from "../tx/testkit";
 import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import { coverage, needsPassphrase, noteBody, noteTimestamp, pairStateOf, signNote } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
-import { REDEEM_MIN, noteView, payoutOf, redeemableAmount } from "./redeem";
+import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf } from "./redeem";
 import { depthAt, nextTrackState } from "./track";
 import { parseWatchStore, unwatchIssuer, watchExtras, watchIssuer } from "./watch";
 
@@ -175,6 +175,18 @@ describe("receiver's view", () => {
     expect(redeemableAmount(1_000_000n, local)).toBe("none");
     expect(payoutOf(100_000_000n)).toBe(99_000_000n);
     expect(REDEEM_MIN).toBe(2_000_000n);
+  });
+});
+
+describe("redemption submit from the journal", () => {
+  it("rebuilds the submit body byte for byte", () => {
+    const s = syntheticRedemption();
+    const l1 = checkRedemption(parseBuildResponse(s.text), s.chain, s.expect);
+    if (!l1.ok) throw new Error(l1.message);
+    const signed = signRedemption(l1, secretBytes(s.recipient.secret));
+    const body = redemptionSubmitBody(l1, signed);
+    expect(submitBodyOf({ signedRaw: signed.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: l1.expect.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount, newRedeemed: l1.build.newAlreadyRedeemed })).toBe(body);
+    expect(submitBodyOf({ signedRaw: signed.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: l1.expect.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount + 1n, newRedeemed: l1.build.newAlreadyRedeemed })).not.toBe(body);
   });
 });
 

@@ -146,6 +146,20 @@ function toSimTx(c: ContractInput): SimTx {
 }
 
 /**
+ * The real transaction as the review screens' TxLens shows it (the same mapping L2 evaluates), or null when a box or a
+ * context variable holds a constant the engine does not model (then the screen lists the boxes itself). Never throws
+ * for such input.
+ */
+export function simTxOf(c: ContractInput): SimTx | null {
+  try {
+    return toSimTx(c);
+  } catch (e) {
+    if (e instanceof Unmappable) return null;
+    throw e;
+  }
+}
+
+/**
  * Runs the ERG reserve contract on input `inputIndex` of a real transaction. `avl` must carry a stateless verifier
  * (avl.wasm: `loadContractAvl()`); the engine never falls back to replaying trees here.
  */
