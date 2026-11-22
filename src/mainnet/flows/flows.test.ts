@@ -14,7 +14,7 @@ import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCancel, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
-  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, signNote, storedIsEntry,
+  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, laterNoteCovers, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
@@ -178,6 +178,12 @@ describe("the pair's previous note, before a new one is signed on top of it", ()
     expect(storedIsEntry({ ...s, signature: "cd".repeat(65) }, e)).toBe(false);
     expect(storedIsEntry({ ...s, recipient: A }, e)).toBe(false);
   });
+});
+
+it("a later note of the same key covers an unanswered one when its total is at least as high (two devices)", () => {
+  expect(laterNoteCovers({ total: 5n }, { total: 5n })).toBe(true);
+  expect(laterNoteCovers({ total: 7n }, { total: 5n })).toBe(true);
+  expect(laterNoteCovers({ total: 4n }, { total: 5n })).toBe(false);
 });
 
 describe("coins", () => {

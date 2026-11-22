@@ -103,6 +103,13 @@ export function pairJournalOf(entries: readonly JournalEntry[], issuer: string, 
   return { accepted, uncertain };
 }
 
+/**
+ * An unanswered note the pair has moved past (the tracker holds a later timestamp; this key, maybe on another device):
+ * true when that later note promises at least this note's total, so this payment is included in it and must not be
+ * paid again; false when it promises less (this one was replaced and can no longer be recorded).
+ */
+export const laterNoteCovers = (stored: { total: bigint }, ours: { total: bigint }): boolean => stored.total >= ours.total;
+
 /** True when the tracker's stored note is exactly this recorded note: same pair, total, timestamp and signature. */
 export function storedIsEntry(n: StoredNote, e: JournalEntry): boolean {
   const f = noteEntryFields(e);

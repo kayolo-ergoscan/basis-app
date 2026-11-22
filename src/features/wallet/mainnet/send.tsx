@@ -28,10 +28,10 @@ export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", 
 /** Sends a recorded entry (first time or again): markSending, then the exact stored text. */
 export const send = (vault: MainnetVault, entry: JournalEntry): Promise<SendResult> => broadcastEntry(vault, entry);
 
-/** True when "Cancel" is offered: a T1 or Withdraw the node refused, seen in no mempool or block, not cancelled yet
- *  (or its cancel itself failed). */
+/** True when "Cancel" is offered: a T1 or Withdraw the node refused, seen in no mempool or block (still "signed" when
+ *  the first broadcast was refused, "sent" after an earlier one went through), not cancelled yet (or its cancel failed). */
 export function canCancel(e: JournalEntry, entries: readonly JournalEntry[]): boolean {
-  if ((e.kind !== "t1" && e.kind !== "withdraw") || e.state !== "sent" || e.sendAttempts === 0 || e.meta.nodeRefused !== true) return false;
+  if ((e.kind !== "t1" && e.kind !== "withdraw") || (e.state !== "sent" && e.state !== "signed") || e.sendAttempts === 0 || e.meta.nodeRefused !== true) return false;
   const c = typeof e.meta.cancelledBy === "string" ? entries.find((x) => x.id === e.meta.cancelledBy) : undefined;
   return !c || c.state === "failed" || c.state === "abandoned";
 }
@@ -145,7 +145,7 @@ export function EntryProgress({ vault, entry, tip, extra, timeKey }: { vault: Ma
         </div>
       )}
       {canResend && <p className="t-small mw-dim">{t("mw.track.sameBytes")}</p>}
-      {cancelEntry && cancelEntry.txId && entry.state === "sent" && !canCancel(entry, entries) && (
+      {cancelEntry && cancelEntry.txId && (entry.state === "sent" || entry.state === "signed") && !canCancel(entry, entries) && (
         <p className="t-small">{t("mw.track.cancelSent")} <ChainLink kind="tx" id={cancelEntry.txId} /></p>
       )}
       {canCancel(entry, entries) && <CancelStuck vault={vault} entry={entry} />}

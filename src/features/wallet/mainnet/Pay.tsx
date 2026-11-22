@@ -12,7 +12,7 @@ import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, Te
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
 import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
 import {
-  checkPreviousNote, coverage, ergPlain, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
+  checkPreviousNote, coverage, ergPlain, laterNoteCovers, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
   type CheckedPrev, type NoteReceipt, type PrevNoteRule,
 } from "@/mainnet/flows";
 import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
@@ -107,6 +107,8 @@ const intentOf = (d: Draft): NoteIntent => ({
 
 /** The journal error of a note a later one replaced (stored as plain text, like the tracker's reasons). */
 const SUPERSEDED = "A later note to this receiver replaced it; this one can no longer be recorded.";
+/** … when that later note (this key, maybe on another device) promises at least this total: this one is inside it. */
+const INCLUDED = "A later note to this receiver already promises this total or more; this payment is included in it.";
 
 /** The pair's stored note: parsed, or null when the pair has none; "bad" when the answer cannot be read. */
 function readPair(text: string | null): StoredNote | null | "bad" {
@@ -156,7 +158,7 @@ export function PayScreen() {
     for (const u of pj.uncertain) {
       const f = noteEntryFields(u);
       // the tracker keeps a note only with a later timestamp than the pair's: this one can never be recorded now
-      if (f && c.prev && c.prev.timestamp >= f.timestamp) await vault.journal.update(u.id, { state: "failed", error: SUPERSEDED });
+      if (f && c.prev && c.prev.timestamp >= f.timestamp) await vault.journal.update(u.id, { state: "failed", error: laterNoteCovers(c.prev, f) ? INCLUDED : SUPERSEDED });
       else return { stop: { k: "error", text: t("mw.pay.uncertain"), id: u.id } };
     }
     return { prev: c.prev };
@@ -189,9 +191,10 @@ export function PayScreen() {
     const total = (d.prev?.total ?? 0n) + d.add;
     const intent = intentOf(d);
     let entry: JournalEntry;
+    let ts: bigint;
     try {
       const cand = Number(noteTimestamp(d.prev?.timestamp ?? null, net().clock.now()));
-      const ts = BigInt(await vault.journal.claimTimestamp(noteScope(me.pub, d.to), cand));
+      ts = BigInt(await vault.journal.claimTimestamp(noteScope(me.pub, d.to), cand));
       entry = await vault.signToJournal("note", (sk) => {
         const s = signNote(sk, { issuer: me.pub, recipient: d.to, total, timestamp: ts });
         return { txId: null, signedRaw: s.body, inputs: [], meta: { to: d.to, total: total.toString(), added: d.add.toString(), ts: ts.toString(), sig: s.signature, status: "draft" } };
@@ -228,6 +231,11 @@ export function PayScreen() {
     }
     if (pr.kind === "future-ts" && retry === 0) {
       await vault.journal.update(entry.id, { state: "failed", error: pr.reason || "Future timestamp" });
+      // take the refused claim back (as builds do), down to the pair's newest known note, so the next one follows the
+      // tracker's clock again instead of staying ahead of it
+      const known = (await vault.journal.list({ pub: me.pub, kind: "note" })).filter((x) => x.id !== entry.id).map(noteEntryFields)
+        .filter((f): f is NonNullable<typeof f> => f !== null && f.to === d.to).map((f) => Number(f.timestamp));
+      await vault.journal.rewindTimestamp(noteScope(me.pub, d.to), Number(ts), Math.max(Number(d.prev?.timestamp ?? 0n), ...known));
       net().clock.reset();
       await net().trackerState({ priority: "user" });
       await net().pendingTx({ priority: "user" });
@@ -256,8 +264,9 @@ export function PayScreen() {
     const c = checkPreviousNote(n, { issuer: me.pub, recipient: f.to, accepted: pairJournalOf(list, me.pub, f.to).accepted, serverNowMs: net().clock.now() });
     if (!c.ok) return setPhase({ k: "error", text: prevText(c.rule) });
     if (c.prev && c.prev.timestamp >= f.timestamp) {
-      await vault.journal.update(e.id, { state: "failed", error: SUPERSEDED });
-      return setPhase({ k: "error", text: t("mw.pay.superseded") });
+      const included = laterNoteCovers(c.prev, f);
+      await vault.journal.update(e.id, { state: "failed", error: included ? INCLUDED : SUPERSEDED });
+      return setPhase({ k: "error", text: t(included ? "mw.pay.included" : "mw.pay.superseded") });
     }
     await vault.journal.markSending(e.id);
     const r = await net().postNote(e.signedRaw, { priority: "user" });
