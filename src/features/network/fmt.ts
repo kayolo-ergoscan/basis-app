@@ -63,6 +63,17 @@ export function monthLabel(ms: number, lang: Lang, withYear = false): string {
   return `${MONTHS_ALONE[lang][d.getUTCMonth()]}${withYear || d.getUTCMonth() === 0 ? ` ${d.getUTCFullYear()}` : ""}`;
 }
 
+/** Width of one character of an axis label (10 px mono caps, .06 em tracking), for axisEdge(). */
+export const AXIS_CH_PX = 6.6;
+
+/** Where a label centred on its tick at x would cross the plot [0, width]: "start" (set it to the right of the tick),
+ *  "end" (to the left), or null (it fits centred). */
+export function axisEdge(x: number, labelPx: number, width: number): "start" | "end" | null {
+  if (x - labelPx / 2 < 0) return "start";
+  if (x + labelPx / 2 > width) return "end";
+  return null;
+}
+
 export const blocks = (n: number, lang: Lang): string => blk(n, lang);
 export const approx = (n: number, lang: Lang): string => humanTime(n, lang);
 export const blocksApprox = (n: number, lang: Lang): string => `${blk(n, lang)} · ${humanTime(n, lang)}`;

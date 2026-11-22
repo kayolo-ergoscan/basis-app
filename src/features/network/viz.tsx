@@ -7,7 +7,7 @@ import { useT } from "@/app";
 import { KeySeal, useUid } from "@/ui";
 import type { ExitClass, Observatory, RedemptionView, TokenKind, TrackerView } from "@/chain";
 import { monthStarts, type ChainClock } from "./clock";
-import { amount, blocks, date, height as fmtH, keyOfAddress, monthLabel, sAddr, tokenUnit, type Lang } from "./fmt";
+import { amount, AXIS_CH_PX, axisEdge, blocks, date, height as fmtH, keyOfAddress, monthLabel, sAddr, tokenUnit, type Lang } from "./fmt";
 import { ExitTag, NftTile, UntrustedName, TrackerTag, trackerSilent } from "./parts";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
@@ -249,8 +249,12 @@ export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[
           ))}
           {months.map((ms, i) => {
             const x = labelW + ((ms - t0) / (t1 - t0)) * plotW;
-            // the first tick names the year, so "Mar … Nov" is never ambiguous
-            return <span key={ms} className="nw-tl-month" style={{ left: x, height: H }}><i>{monthLabel(ms, lang, i === 0)}</i></span>;
+            // the first tick names the year where there is room for it (as on the trackers' axis), so "Mar … Nov" is
+            // never ambiguous; a label that would cross the plot's edge (the first tick sits on it on a phone) is set
+            // inside the plot instead of being cut
+            const label = monthLabel(ms, lang, i === 0 && w >= 640);
+            const edge = axisEdge(x, label.length * AXIS_CH_PX, w);
+            return <span key={ms} className="nw-tl-month" style={{ left: x, height: H }}><i className={edge ?? undefined}>{label}</i></span>;
           })}
           {list.map((r) => {
             const p = placed.get(r.tx);

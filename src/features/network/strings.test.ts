@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import page from "./strings";
 import route from "./i18n";
-import { amount, monthLabel, sid } from "./fmt";
+import { AXIS_CH_PX, amount, axisEdge, monthLabel, sid } from "./fmt";
 
 const BANNED_EN = [/trustless/i, /guarantee/i, /\bsafe/i, /safety/i, /unstoppable/i, /live on mainnet/i, /launched/i, /official/i, /\byield\b/i, /\bAPY\b/, /7 days/i, /2 ?%/, /bearer/i, /censorship-resistant/i, /risk-free/i, /insured/i, /audited/i];
 const BANNED_RU = [/гарант/i, /безопасн/i, /официальн/i, /доходност/i, /запущен/i, /7 ?дн/i, /2 ?%/, /на предъявителя/i, /бездовер/i, /аудирован/i];
@@ -60,6 +60,13 @@ describe("network formatters", () => {
     // a line may break after "…" (UAX #14), so a word joiner holds the tail to the head
     expect(sid("0123456789abcdef", 4, 4)).toBe("0123…\u2060cdef");
     expect(sid("0123456789abcdef", 4, 4).replace("\u2060", "")).toBe("0123…cdef");
+  });
+  it("keeps axis labels inside the plot: a first tick on the left edge (a phone) sets its label to the right", () => {
+    const px = (s: string) => s.length * AXIS_CH_PX;
+    expect(axisEdge(0, px(monthLabel(Date.UTC(2026, 2, 1), "ru")), 358)).toBe("start");     // «МАР» on /network/redemptions
+    expect(axisEdge(40, px("апр"), 358)).toBeNull();
+    expect(axisEdge(355, px("ноя"), 358)).toBe("end");
+    expect(axisEdge(132, px(monthLabel(Date.UTC(2026, 2, 1), "ru", true)), 1400)).toBeNull(); // desktop: lane labels on the left
   });
   it("names months on an axis in the nominative", () => {
     expect(monthLabel(Date.UTC(2026, 4, 1), "ru")).toBe("май");
