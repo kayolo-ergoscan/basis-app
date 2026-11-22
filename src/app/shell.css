@@ -89,6 +89,16 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
   .nav-links { display: none; }
   .nav .menu-k { display: inline-flex; }
 }
+/* The header with every link needs ~1560 px in RU («Как это работает», «Кошелёк (бета)»), ~1450 px in EN: at 1440 the
+   wallet key went past the right edge (22 Nov 2026). Up to 1600 px the height pill steps out (the bar at the bottom keeps
+   the height); RU folds the links into the menu up to 1500 px, as every language does up to 1280. */
+@media (min-width: 1281px) and (max-width: 1600px) {
+  .nav .nav-right .chip { display: none; }
+}
+@media (max-width: 1500px) {
+  :root[lang="ru"] .nav-links { display: none; }
+  :root[lang="ru"] .nav .menu-k { display: inline-flex; }
+}
 @media (max-width: 1000px) {
   /* the height pill keeps its word («Блок 1 922 434»): a bare number reads as nothing (UX review, 22 Nov 2026) */
   .nf { grid-template-columns: 1fr; }
