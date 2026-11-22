@@ -161,8 +161,9 @@ design §6.6).
 | --- | --- |
 | `signed` | `sent`, `mempool`, `confirmed`, `final`, `failed` (and `abandoned` through `abandon()`) |
 | `sent`, `mempool`, `confirmed` | each other (a drop from the mempool, a reorg), `final`, `failed` |
+| `final` | `sent`, `mempool`, `confirmed` (a reorg deeper than 2 blocks; flows/track.ts checks again until depth 10) |
 | `failed` | `mempool`, `confirmed`, `final` (the chain has the last word: a failed entry that was sent is still looked for, flows/track.ts) |
-| `final`, `abandoned` | nothing |
+| `abandoned` | nothing |
 
 **One reserve per key:**
 - At most one T1 per key that is not failed, abandoned or retired. The rule is atomic across tabs and throws

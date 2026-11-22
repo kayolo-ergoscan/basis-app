@@ -10,7 +10,7 @@ import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, TextInput, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
-  buildReserveCreation, checkReserveCreation, checkReservePayload, computeTxId, outputBoxes, parseReservePayload,
+  buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
   type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
 import { ergPlain, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
@@ -101,6 +101,11 @@ export function ReserveScreen() {
     res.refresh();
     if (mine.value.length > 0) return fail({ text: t("mw.res.hasReserve") });
     if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
+    // the chain too (money review P2-4): a reserve made on another device, or one the tracker does not show yet
+    const onChain = await net().reservesOnChain(me.pub, { priority: "user" });
+    if (!onChain.ok) return fail({ problem: onChain.problem });
+    if (onChain.value.boxes.length > 0) return fail({ text: t("mw.res.hasReserveChain") });
+    if (!onChain.value.complete) return fail({ text: t("mw.res.chainIncomplete") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
     if (mempoolCreatesReserve(mem.value)) return fail({ text: t("mw.res.inMempool") });
@@ -145,6 +150,8 @@ export function ReserveScreen() {
     if (!me || height === null) return;
     const plan = planCombine(usable, me.pub, me.address, height);
     if (!plan.ok) return fail({ text: t("mw.res.combineNo") });
+    const c = checkWithdraw(plan.tx, plan.inputs, { owner: me.pub, to: me.address, amount: plan.sent, fee: MINER_FEE_NANOERG, height });
+    if (!c.ok) return fail({ text: t("mw.res.checkFailed"), rule: `${c.rule}: ${c.message}` });
     setPhase({ k: "combine", plan, tip: height, txId: computeTxId(plan.tx) });
   }
 
@@ -162,8 +169,10 @@ export function ReserveScreen() {
     } catch (e) {
       if (isVaultError(e, "wrong-passphrase")) { setPassWrong(true); return setPhase(review); }
       if (isBroadcastLimit(e)) {
-        const fresh = un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : plan.inputs;
-        return offerCombine(fresh);
+        // the same filter as every selection: boxes an open entry or a mempool transaction spends stay out (P2-1)
+        const m = await net().mempool(me.address, { priority: "user" });
+        if (!m.ok) return fail({ problem: m.problem });
+        return offerCombine(un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub), m.value) : plan.inputs);
       }
       fail({ text: isVaultError(e, "t1-exists") ? t("mw.res.hasT1") : verr(e) });
     }

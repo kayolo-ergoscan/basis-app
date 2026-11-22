@@ -12,7 +12,7 @@ import { parseJson, utf8Length } from "./json";
 import { nodeTxFromJson, type UnsignedTx } from "./model";
 import {
   buildReserveCreation, buildWithdraw, checkReserveCreation, checkReservePayload, checkWithdraw, P2PK_MAX_INPUTS, parseReservePayload, planReserveCreation, reserveRegisters,
-  selectCoins, signP2pkTransaction, verifyP2pkTransaction,
+  outputHeight, selectCoins, signP2pkTransaction, verifyP2pkTransaction,
 } from "./p2pk";
 import { computeTxId, serializeCandidate } from "./serialize";
 import { secretBytes, p2pkBox, trackerRefusal } from "./testkit";
@@ -177,14 +177,29 @@ describe("coins, signing and broadcast JSON (synthetic key)", () => {
     const tx = buildWithdraw({ owner: me.pubHex, inputs, to, amount: 500_000_000n, fee: FEE, height });
     expect(tx.outputs.map((o) => [o.ergoTree, o.value])).toEqual([[p2pkTree(RECEIVER_B), 500_000_000n], [p2pkTree(me.pubHex), 199_000_000n], [FEE_TREE_HEX, FEE]]);
     expect(tx.outputs[1].tokens).toEqual([tok]);
-    expect(checkWithdraw(tx, inputs, { owner: me.pubHex, to, amount: 500_000_000n, fee: FEE })).toEqual({ ok: true });
+    expect(checkWithdraw(tx, inputs, { owner: me.pubHex, to, amount: 500_000_000n, fee: FEE, height })).toEqual({ ok: true });
     const { signed } = signP2pkTransaction(tx, inputs, secret);
     expect(verifyP2pkTransaction(signed, inputs)).toBe(true);
     // Sweep without tokens: no change output.
     const free = [p2pkBox(me.pubHex, 300_000_000n)];
     const sweep = buildWithdraw({ owner: me.pubHex, inputs: free, to, amount: 300_000_000n - FEE, fee: FEE, height });
     expect(sweep.outputs.length).toBe(2);
-    expect(checkWithdraw(sweep, free, { owner: me.pubHex, to, amount: 300_000_000n - FEE, fee: FEE })).toEqual({ ok: true });
+    expect(checkWithdraw(sweep, free, { owner: me.pubHex, to, amount: 300_000_000n - FEE, fee: FEE, height })).toEqual({ ok: true });
+  });
+
+  it("never creates outputs before the inputs: the creation height is max(tip, highest input), and it is checked", () => {
+    const later = [p2pkBox(me.pubHex, 300_000_000n, { creationHeight: height + 7 }), p2pkBox(me.pubHex, 200_000_000n, { index: 1 })];
+    const to = p2pkAddress(RECEIVER_B);
+    const wd = buildWithdraw({ owner: me.pubHex, inputs: later, to, amount: 400_000_000n, fee: FEE, height });
+    expect(new Set(wd.outputs.map((o) => o.creationHeight))).toEqual(new Set([height + 7]));
+    expect(outputHeight(height, later)).toBe(height + 7);
+    expect(checkWithdraw(wd, later, { owner: me.pubHex, to, amount: 400_000_000n, fee: FEE, height })).toEqual({ ok: true });
+    const stale = { ...wd, outputs: wd.outputs.map((o) => ({ ...o, creationHeight: height })) };
+    const r = checkWithdraw(stale, later, { owner: me.pubHex, to, amount: 400_000_000n, fee: FEE, height });
+    expect(r.ok ? "ok" : r.rule).toBe("creation-height");
+    const t1 = buildReserveCreation({ owner: me.pubHex, inputs: later, amount: ERG / 4n, fee: FEE, height });
+    expect(t1.outputs.every((o) => o.creationHeight === height + 7)).toBe(true);
+    expect(checkReserveCreation(t1, later, { owner: me.pubHex, amount: ERG / 4n, fee: FEE, height })).toEqual({ ok: true });
   });
 
   it(`${P2PK_MAX_INPUTS} inputs always fit the broadcast route, for T1 and for a Withdraw to P2PK, with 15 token types`, () => {
@@ -214,7 +229,7 @@ describe("coins, signing and broadcast JSON (synthetic key)", () => {
     expect(() => buildWithdraw({ ...w, to: p2pkAddress(RECEIVER_B), amount: 999_999n })).toThrow();
     expect(() => buildWithdraw({ ...w, to: p2pkAddress(RECEIVER_B), amount: 700_000_000n - FEE - 1n })).toThrow(/change/);
     const tx = buildWithdraw({ ...w, to: p2pkAddress(RECEIVER_B) });
-    const r = checkWithdraw(tx, inputs, { owner: me.pubHex, to: p2pkAddress(ISSUER_A), amount: 500_000_000n, fee: FEE });
+    const r = checkWithdraw(tx, inputs, { owner: me.pubHex, to: p2pkAddress(ISSUER_A), amount: 500_000_000n, fee: FEE, height });
     expect(r.ok ? "ok" : r.rule).toBe("destination");
   });
 });

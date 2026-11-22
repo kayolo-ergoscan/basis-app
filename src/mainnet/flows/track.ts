@@ -7,6 +7,8 @@ import type { TxStatus } from "../net";
 export const FINAL_DEPTH = 2;
 /** A failed entry that was sent is still looked for this many blocks after it failed: the chain has the last word. */
 export const FAILED_FOLLOW_BLOCKS = 30;
+/** A final entry is checked again until this depth (money review P2-3): a reorg deeper than 2 blocks sends it back. */
+export const FINAL_RECHECK_DEPTH = 10;
 
 export interface ChainSighting {
   /** /v1/transactions/{id}: null while it is in no block. */
@@ -30,6 +32,10 @@ export function nextTrackState(e: Pick<JournalEntry, "state" | "inclusionHeight"
     if (s.status) return { state: s.status.confirmations >= FINAL_DEPTH ? "final" : "confirmed", inclusionHeight: s.status.inclusionHeight };
     if (s.inMempool) return { state: "mempool", inclusionHeight: null };
     return null;
+  }
+  if (e.state === "final" && !s.status) {
+    // gone from its block (a reorg): back to the mempool or to "sent"; a conflict shows on the next look, from "sent"
+    return { state: s.inMempool ? "mempool" : "sent", inclusionHeight: null };
   }
   if (s.status) {
     const state: JournalState = s.status.confirmations >= FINAL_DEPTH ? "final" : "confirmed";
@@ -57,3 +63,7 @@ export function followsFailed(e: Pick<JournalEntry, "state" | "txId" | "sendAtte
   const at = failedAtOf(e);
   return at === null || tip - at <= FAILED_FOLLOW_BLOCKS;
 }
+
+/** True while a final entry is still checked again (depth up to 10). */
+export const followsFinal = (e: Pick<JournalEntry, "state" | "txId" | "inclusionHeight">, tip: number): boolean =>
+  e.state === "final" && !!e.txId && e.inclusionHeight !== null && depthAt(e.inclusionHeight, tip) <= FINAL_RECHECK_DEPTH;

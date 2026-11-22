@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { bytesToHex } from "../../protocol/bytes";
 import {
-  MINER_FEE_NANOERG, P2PK_MAX_INPUTS, RESERVE_TREE_HEX, TRACKER_NFT, checkReserveCreation, checkWithdraw, noteMessage, p2pkAddress, p2pkTree,
+  FEE_TREE_HEX, MINER_FEE_NANOERG, P2PK_MAX_INPUTS, RESERVE_TREE_HEX, TRACKER_NFT, checkReserveCreation, checkWithdraw, noteMessage, p2pkAddress, p2pkTree,
   parseStoredNote, publicKeyOf, reserveAddress, verifyBasis, buildReserveCreation, parseJson, checkRedemption, parseBuildResponse, redemptionSubmitBody, signRedemption,
   type StoredNote,
 } from "../tx";
@@ -12,13 +12,13 @@ import type { JournalEntry, JournalState } from "../vault";
 import { p2pkBox, secretBytes, syntheticRedemption } from "../tx/testkit";
 import { TEXT } from "../tx/fixtures/chain";
 import { dpOf, ergPlain, parseErg } from "./amount";
-import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
+import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCancel, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
   PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
-import { FAILED_FOLLOW_BLOCKS, depthAt, followsFailed, nextTrackState } from "./track";
+import { FAILED_FOLLOW_BLOCKS, FINAL_RECHECK_DEPTH, depthAt, followsFailed, followsFinal, nextTrackState } from "./track";
 import { localProblem, problemOf } from "../net";
 import { parseWatchStore, unwatchIssuer, watchExtras, watchIssuer } from "./watch";
 
@@ -211,6 +211,23 @@ describe("coins", () => {
     expect(mempoolCreatesReserve([{ id: "a", spends: [], outputs: [{ ergoTree: p2pkTree(A), address: null, value: 1n }] }])).toBeNull();
   });
 
+  it("Cancel a refused transaction: one of its own boxes back to the key, the smallest that pays the fee, tokens kept", () => {
+    const own = p2pkAddress(A);
+    const tiny = p2pkBox(A, 1_500_000n, { index: 7 });
+    const c = planCancel([big.boxId, small.boxId, tiny.boxId], [big, small, tiny, token], A, own, 1922310);
+    expect(c.ok).toBe(true);
+    if (!c.ok) return;
+    expect(c.inputs.map((b) => b.boxId)).toEqual([small.boxId]); // tiny cannot pay the fee and keep 0.001 ERG
+    expect(c.tx.outputs.map((o) => [o.ergoTree, o.value])).toEqual([[p2pkTree(A), 50_000_000n - MINER_FEE_NANOERG], [FEE_TREE_HEX, MINER_FEE_NANOERG]]);
+    expect(checkWithdraw(c.tx, c.inputs, { owner: A, to: own, amount: c.sent, fee: MINER_FEE_NANOERG, height: 1922310 })).toEqual({ ok: true });
+    const rich = p2pkBox(A, 10_000_000n, { index: 8, tokens: [{ tokenId: "45".repeat(32), amount: 9n }] });
+    const t = planCancel([rich.boxId], [rich], A, own, 1922310);
+    expect(t.ok && t.tx.outputs[1].tokens).toEqual([{ tokenId: "45".repeat(32), amount: 9n }]);
+    expect(t.ok && t.change).toBe(1_000_000n);
+    expect(planCancel([big.boxId], [small], A, own, 1922310)).toMatchObject({ ok: false, why: "short" }); // spent already
+    expect(planCancel([tiny.boxId, token.boxId], [tiny, token], A, own, 1922310)).toMatchObject({ ok: false, why: "dust" });
+  });
+
   it("Withdraw: destinations, the maximum, tokens stay, dust goes to the destination", () => {
     expect(checkDestination(p2pkAddress(B))).toMatchObject({ ok: true, p2pk: true });
     expect(checkDestination(reserveAddress())).toEqual({ ok: false, reason: "reserve" });
@@ -224,7 +241,7 @@ describe("coins", () => {
     expect(w.ok).toBe(true);
     if (!w.ok) return;
     expect(w.sent).toBe(1_149_500_000n + 0n);
-    expect(checkWithdraw(w.tx, w.inputs, { owner: A, to, amount: w.sent, fee: MINER_FEE_NANOERG })).toEqual({ ok: true });
+    expect(checkWithdraw(w.tx, w.inputs, { owner: A, to, amount: w.sent, fee: MINER_FEE_NANOERG, height: 1922310 })).toEqual({ ok: true });
     const dusty = planWithdraw([big], A, to, 1_098_500_000n, MINER_FEE_NANOERG, 1922310);
     expect(dusty.ok && dusty.sent).toBe(1_099_000_000n);
     expect(dusty.ok && dusty.change).toBe(0n);
@@ -326,6 +343,18 @@ describe("following a transaction", () => {
     expect(followsFailed({ ...tx, sendAttempts: 0 }, 1000)).toBe(false); // never sent: nothing to look for
     expect(followsFailed({ ...tx, txId: null }, 1000)).toBe(false);
     expect(followsFailed({ ...tx, state: "final" }, 1000)).toBe(false);
+  });
+
+  it("a final entry is checked again until depth 10: a deep reorg sends it back", () => {
+    const fin = { state: "final" as const, inclusionHeight: 500, sendAttempts: 1 };
+    expect(nextTrackState(fin, { status: { inclusionHeight: 500, confirmations: 4 }, inMempool: false })).toBeNull();
+    expect(nextTrackState(fin, { status: { inclusionHeight: 503, confirmations: 1 }, inMempool: false })).toEqual({ state: "confirmed", inclusionHeight: 503 });
+    expect(nextTrackState(fin, { status: null, inMempool: true })).toEqual({ state: "mempool", inclusionHeight: null });
+    expect(nextTrackState(fin, { status: null, inMempool: false, conflict: true })).toEqual({ state: "sent", inclusionHeight: null });
+    const e = { state: "final" as const, txId: "cd".repeat(32), inclusionHeight: 500 };
+    expect(followsFinal(e, 500 + FINAL_RECHECK_DEPTH - 1)).toBe(true);
+    expect(followsFinal(e, 500 + FINAL_RECHECK_DEPTH)).toBe(false);
+    expect(followsFinal({ ...e, state: "confirmed" }, 501)).toBe(false);
   });
 });
 

@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, nextTrackState, parseWatchStore, type WatchedIssuer } from "@/mainnet/flows";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, parseWatchStore, type WatchedIssuer } from "@/mainnet/flows";
 import type { Priority } from "@/chain/ours";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
@@ -205,6 +205,24 @@ export function useWatchList(me: string | null): [WatchedIssuer[], (fn: (l: Watc
 /** Tx kinds the watcher follows on chain; notes follow the pair route instead. */
 const ON_CHAIN = new Set(["t1", "withdraw", "redeem"]);
 const RESEND_EVERY_MS = 10 * 60_000;
+/** A stuck entry's inputs are looked up at most this many per block (in turns), for a foreign spend. */
+const INPUT_CHECKS_PER_BLOCK = 10;
+
+/**
+ * True when one of the entry's inputs is spent by another transaction (money review P2-1: every input, not only the
+ * first; for a redemption that is its reserve box, P2-2): then it can never confirm. Large entries are checked in turns.
+ */
+export async function spentElsewhere(e: Pick<JournalEntry, "inputs" | "txId">, height: number, box: WalletNet["box"] = (id) => net().box(id)): Promise<boolean> {
+  const n = e.inputs.length;
+  const take = Math.min(n, INPUT_CHECKS_PER_BLOCK);
+  const from = n > take ? (height * take) % n : 0;
+  for (let i = 0; i < take; i++) {
+    const b = await box(e.inputs[(from + i) % n]);
+    if (b.ok && b.value.spentBy !== null && b.value.spentBy !== e.txId) return true;
+  }
+  return false;
+}
+
 /** A failed entry from before failure heights were kept: followed only if it failed within about 30 blocks' time. */
 const FAILED_FOLLOW_MS = FAILED_FOLLOW_BLOCKS * 2 * 60_000;
 const MEMPOOL_EVERY_MS = 30_000;
@@ -212,11 +230,13 @@ const MEMPOOL_EVERY_MS = 30_000;
 /** Follows the open entries of this key (design §6.4 "Pending transaction"): each one once per new block, the key's
  *  mempool every 30 s while one waits there; a dropped T1 or Withdraw is sent again (the same bytes, at most every 10
  *  minutes). A failed entry that was sent is still looked for during 30 blocks (the chain has the last word: it moves
- *  to confirmed if it shows up). Renders nothing. */
+ *  to confirmed if it shows up); a final one is checked again until depth 10 (a deep reorg). Renders nothing. */
 export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string; address: string } | null, height: number | null, entries: readonly JournalEntry[]) {
   const visible = useVisible();
   const open = useMemo(() => entries.filter((e) => me && e.pub === me.pub && ON_CHAIN.has(e.kind) && e.txId && e.sendAttempts > 0 &&
-    (isOpenState(e.state) || (height !== null && followsFailed(e, height) && (failedAtOf(e) !== null || Date.now() - e.updatedAt < FAILED_FOLLOW_MS)))), [entries, me, height]);
+    (isOpenState(e.state) ||
+      (height !== null && followsFinal(e, height) && e.retiredAt === null) ||
+      (height !== null && followsFailed(e, height) && (failedAtOf(e) !== null || Date.now() - e.updatedAt < FAILED_FOLLOW_MS)))), [entries, me, height]);
   const mem = useResource(me ? R.mempool(me.address) : null, { everyMs: MEMPOOL_EVERY_MS, enabled: open.length > 0 });
   const checked = useRef(new Map<string, number>());
   const busy = useRef(false);
@@ -239,10 +259,8 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
             if (e.kind === "redeem" && typeof e.meta.trackerBox === "string") {
               const b = await net().box(e.meta.trackerBox);
               trackerBoxSpent = b.ok && b.value.spentBy !== null;
-            } else if (e.inputs[0]) {
-              const b = await net().box(e.inputs[0]);
-              conflict = b.ok && b.value.spentBy !== null && b.value.spentBy !== e.txId;
             }
+            conflict = await spentElsewhere(e, height);
           }
           const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent });
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
@@ -261,14 +279,20 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
 /** Sends a signed T1 or Withdraw again: the exact stored bytes (write-ahead: markSending first). */
 export async function resend(vault: MainnetVault, e: JournalEntry): Promise<Problem | null> {
   if (e.kind !== "t1" && e.kind !== "withdraw") return null;
+  return (await broadcastEntry(vault, e)).problem;
+}
+
+/**
+ * Broadcasts an entry's exact stored bytes (write-ahead: markSending first). A node refusal is kept as meta.nodeRefused,
+ * which offers "Cancel" while nobody has the transaction (money review P2-1); an accepted broadcast clears it.
+ */
+export async function broadcastEntry(vault: MainnetVault, e: JournalEntry): Promise<{ entry: JournalEntry; problem: Problem | null }> {
   await vault.journal.markSending(e.id);
   const r = await net().broadcast(e.signedRaw);
-  if (r.ok) {
-    await vault.journal.update(e.id, { state: e.state === "signed" ? "sent" : e.state, error: null });
-    return null;
-  }
-  await vault.journal.update(e.id, { error: r.problem.reason || r.problem.kind });
-  return r.problem;
+  const cur = (await vault.journal.get(e.id)) ?? e;
+  if (r.ok) return { entry: await vault.journal.update(e.id, { state: cur.state === "signed" ? "sent" : cur.state, error: null, meta: { nodeRefused: false } }), problem: null };
+  const refused = r.problem.kind === "refused";
+  return { entry: await vault.journal.update(e.id, { error: r.problem.reason || r.problem.kind, ...(refused ? { meta: { nodeRefused: true } } : {}) }), problem: r.problem };
 }
 
 // ─── the key's coins ────────────────────────────────────────────────────────────────────────────

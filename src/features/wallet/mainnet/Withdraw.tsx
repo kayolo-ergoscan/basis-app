@@ -53,7 +53,7 @@ export function WithdrawScreen() {
     const boxes = spendable(fresh.value.boxes, inFlightOf(entries, me.pub), m.value);
     const p = planWithdraw(boxes, me.pub, toText.trim(), amount, MINER_FEE_NANOERG, height);
     if (!p.ok) return setPhase({ k: "error", text: p.why === "too-many-boxes" ? t("mw.wd.tooMany") : p.why === "dust" ? t("mw.wd.dust") : p.why === "short" ? t("mw.wd.short", { max: ergText(maxWithdraw(boxes)) }) : t("mw.wd.build"), rule: p.message });
-    const c = checkWithdraw(p.tx, p.inputs, { owner: me.pub, to: toText.trim(), amount: p.sent, fee: MINER_FEE_NANOERG });
+    const c = checkWithdraw(p.tx, p.inputs, { owner: me.pub, to: toText.trim(), amount: p.sent, fee: MINER_FEE_NANOERG, height });
     if (!c.ok) return setPhase({ k: "error", text: t("mw.res.checkFailed"), rule: `${c.rule}: ${c.message}` });
     setPhase({ k: "review", tx: p.tx, inputs: p.inputs, to: toText.trim(), sent: p.sent, change: p.change, txId: computeTxId(p.tx), tip: height });
   }

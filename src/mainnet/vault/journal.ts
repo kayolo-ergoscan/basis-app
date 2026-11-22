@@ -95,8 +95,8 @@ const META_KEY = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 
 /**
  * Allowed state changes. sent, mempool and confirmed may move among themselves (a drop from the mempool, a reorg);
- * final and abandoned are terminal; failed can still be seen in the mempool or become confirmed or final, because the
- * chain has the last word.
+ * final can still go back to sent, mempool or confirmed (a reorg deeper than its 2 blocks); abandoned is terminal;
+ * failed can still be seen in the mempool or become confirmed or final, because the chain has the last word.
  * "abandoned" is reached only through abandon(), and only before the first send.
  */
 const NEXT: Readonly<Record<JournalState, readonly JournalState[]>> = {
@@ -104,7 +104,7 @@ const NEXT: Readonly<Record<JournalState, readonly JournalState[]>> = {
   sent: ["mempool", "confirmed", "final", "failed"],
   mempool: ["sent", "confirmed", "final", "failed"],
   confirmed: ["sent", "mempool", "final", "failed"],
-  final: [],
+  final: ["sent", "mempool", "confirmed"],
   failed: ["mempool", "confirmed", "final"],
   abandoned: [],
 };

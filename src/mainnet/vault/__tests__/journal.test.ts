@@ -134,7 +134,8 @@ describe("mainnet journal", () => {
     const done = await v.journal.update(e.id, { state: "final", lastHeight: 104, error: "x".repeat(400), meta: { note: "done" } });
     expect(done).toMatchObject({ state: "final", inclusionHeight: 103, lastHeight: 104, meta: { note: "done" } });
     expect(done.error).toHaveLength(300);
-    expect(await code(v.journal.update(e.id, { state: "mempool" }))).toBe("bad-transition");
+    expect(await code(v.journal.update(e.id, { state: "signed" }))).toBe("bad-transition"); // final goes back only after a reorg (below)
+    expect(await code(v.journal.update(e.id, { state: "failed" }))).toBe("bad-transition");
     expect(await code(v.journal.markSending(e.id))).toBe("bad-transition");
     expect(await code(v.journal.update(e.id, { state: "abandoned" }))).toBe("bad-transition");
     expect(await code(v.journal.update("nope", { state: "sent" }))).toBe("not-found");
@@ -149,6 +150,10 @@ describe("mainnet journal", () => {
     await v.journal.update(g.id, { state: "failed" });
     expect((await v.journal.update(g.id, { state: "mempool" })).state).toBe("mempool"); // seen after all
     expect(await code(v.journal.update(g.id, { state: "signed" }))).toBe("bad-transition");
+    // a final entry goes back after a reorg deeper than its 2 blocks; abandoned stays closed
+    await v.journal.update(g.id, { state: "final" });
+    expect((await v.journal.update(g.id, { state: "sent" })).state).toBe("sent");
+    expect((await v.journal.markSending(g.id)).sendAttempts).toBe(2);
     v.close();
   });
 
