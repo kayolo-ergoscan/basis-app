@@ -6,10 +6,13 @@ import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
 import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
-import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
+import { amount, approx, blocks, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
-import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
+import { BeatStrip, Beacon, ExitBar, VaultCoin } from "./viz";
 import { OurTrackerBlock } from "./Ours";
+import { FeedRow } from "./feed";
+
+export { FeedRow };
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -436,35 +439,6 @@ function RedemptionsColumn({ obs }: { obs: Observatory }) {
     </section>
   );
 }
-export function FeedRow({ r }: { r: RedemptionView }) {
-  const t = useT();
-  const lang = t.lang as Lang;
-  const rk = keyOfAddress(r.receiver);
-  // seen in the reserve's boxes, its transaction not read yet: the receiver, the time and the tracker box are unknown
-  const unread = r.fromBoxes ? t("network.rd.unread") : null;
-  return (
-    <li className={cx("nw-rd", r.emergencyWindow && "em")}>
-      <Link to={`/network/tx/${r.tx}`} className="nw-rd-a" aria-label={t("network.rd.open", { id: sid(r.tx) })} title={unread ? t("network.rd.unreadTitle") : undefined}>
-        <span className="nw-rd-amt num">{redemptionAmount(r, lang)}</span>
-        <span className="nw-rd-who" aria-hidden="true">
-          {r.owner.key ? <KeySeal pk={r.owner.key} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
-          <span className="arr">→</span>
-          {rk ? <KeySeal pk={rk} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
-        </span>
-        <span className="nw-rd-pair">
-          {t("network.rd.pair", { owner: r.ownerLabel ?? sAddr(r.owner.addr), receiver: r.receiverLabel ?? (r.receiver ? sAddr(r.receiver) : unread ?? sAddr(null)) })}
-        </span>
-        <span className="nw-rd-m">
-          <span>{unread ? t("network.rd.block", { h: fmtH(r.height) }) : date(r.at, lang)}</span>
-          <span>{unread ?? t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}</span>
-          {r.emergencyWindow && <span className="flag em" title={pick(copy.emergencyRule, lang)}>⚑ {t("network.rd.em")}</span>}
-          {r.firstOfPair && <span className="flag" title={t("network.rd.firstTitle")}>◇ {t("network.rd.first")}</span>}
-        </span>
-      </Link>
-    </li>
-  );
-}
-
 /* ---------------- shared column head ---------------- */
 export function ColHead({ id, title, sub, to, n, extra }: { id: string; title: string; sub?: string; to?: string; n?: number; extra?: ReactNode }) {
   const t = useT();
