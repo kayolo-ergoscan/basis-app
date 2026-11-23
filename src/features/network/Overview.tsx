@@ -337,10 +337,10 @@ export function exitSub(obs: Observatory, cls: ExitClass, lang: Lang): string {
  *  ErgoScan's tracker, the registers the wallet reads, no refund, and tracked by our tracker as its owner's reserve:
  *  anyone can create a box that looks like a reserve); otherwise it stays shut and says why. On the lists it opens the
  *  wallet's own reserve. The wallet reads the reserve and the tracker again before anything is signed. */
-export function TopUpKey({ r }: { r?: ReserveView }) {
+export function TopUpKey({ r, nftOf }: { r?: ReserveView; nftOf?: (box: string) => string | null }) {
   const t = useT();
   const ours = useOurTracker();
-  const why = r ? topUpShut(r, ours.reserves) : null;
+  const why = r ? topUpShut(r, ours.reserves, nftOf) : null;
   const to = !r ? "/wallet/mainnet/topup" : why || !r.nft ? null : `/wallet/mainnet/topup?nft=${r.nft.id}`;
   return (
     <div className="nw-topup">
@@ -361,12 +361,14 @@ function walletReadsRegisters(r: ReserveView): boolean {
     /^05[0-9a-f]{2,20}$/.test(g.R7?.toLowerCase() ?? "") && r.r7 !== null && r.r7 >= 0;
 }
 
-/** What our tracker says about one reserve: the fields of its /reserves entry the key needs. */
-type Tracked = { owner: string; nft: string; token: string | null };
+/** What our tracker says about one reserve: the fields of its /reserves entry the key needs. It names the reserve by
+ *  its box id; `nft` is the tracker's own NFT, not the reserve's. */
+type Tracked = { box: string; owner: string; nft: string; token: string | null };
 
 /** Why the wallet does not top up this reserve (null: it does). The wallet's own rules, tx/reserveaction.ts readReserve
- *  and flows/reserveops.ts trackedAs; `tracked` is our tracker's list of reserves (null: not read yet). */
-export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null): "spent" | "legacy" | "token" | "tracker" | "shape" | "refund" | "unknown" | "untracked" | null {
+ *  and flows/reserveops.ts trackedAs; `tracked` is our tracker's list of reserves (null: not read yet); `nftOf` gives
+ *  the reserve NFT of a box the observatory knows (the tracker may name an older box of the same reserve). */
+export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null, nftOf: (box: string) => string | null = () => null): "spent" | "legacy" | "token" | "tracker" | "shape" | "refund" | "unknown" | "untracked" | null {
   if (!r.unspent) return "spent";
   if (!r.contract?.current || r.legacy) return "legacy";
   if (r.kind !== "erg" || r.collateral) return "token";
@@ -376,8 +378,8 @@ export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null): "
   if (tracked === null) return "unknown";
   const nft = r.nft.id, owner = r.owner!.key.toLowerCase();
   // tracked as its owner's only ERG reserve (as the wallet's trackedAs): a second one of that owner is not picked between
-  const theirs = new Set(tracked.filter((x) => x.owner.toLowerCase() === owner && x.token === null).map((x) => x.nft));
-  if (theirs.size !== 1 || !theirs.has(nft)) return "untracked";
+  const theirs = tracked.filter((x) => x.nft === OUR_TRACKER.nft && x.owner.toLowerCase() === owner && x.token === null);
+  if (theirs.length !== 1 || (theirs[0].box !== r.id && nftOf(theirs[0].box) !== nft)) return "untracked";
   return null;
 }
 

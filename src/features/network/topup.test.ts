@@ -7,9 +7,11 @@ import { OUR_TRACKER, type ReserveView } from "@/chain";
 import { topUpShut } from "./Overview";
 
 const OWNER = `02${"4a".repeat(32)}`;
-const TRACKED = [{ owner: OWNER, nft: "9f".repeat(32), token: null }];
+const BOX = "ab".repeat(32);
+const tr = (o: Partial<{ box: string; owner: string; nft: string; token: string | null }> = {}) => ({ box: BOX, owner: OWNER, nft: OUR_TRACKER.nft, token: null, ...o });
+const TRACKED = [tr()];
 const view = (o: Partial<ReserveView> = {}): ReserveView => ({
-  id: "ab".repeat(32), source: "seed", contract: { current: true } as ReserveView["contract"], kind: "erg", height: 1, at: null, tx: null,
+  id: BOX, source: "seed", contract: { current: true } as ReserveView["contract"], kind: "erg", height: 1, at: null, tx: null,
   origin: "creation", unspent: true, spent: null, prev: null, next: null, value: 100_000_000n,
   nft: { id: "9f".repeat(32), name: null }, collateral: null, r5: null, r6: OUR_TRACKER.nft, r7: 0, creator: null, issues: [],
   owner: { key: OWNER, addr: "9f-owner" as NonNullable<ReserveView["owner"]>["addr"], label: null },
@@ -42,9 +44,15 @@ describe("topUpShut", () => {
   it("only a reserve our tracker tracks as its owner's: a planted box with R4 = someone stays shut", () => {
     expect(topUpShut(view(), null)).toBe("unknown");
     expect(topUpShut(view(), [])).toBe("untracked");
-    expect(topUpShut(view(), [{ owner: `03${"11".repeat(32)}`, nft: "9f".repeat(32), token: null }])).toBe("untracked");
-    expect(topUpShut(view(), [{ owner: OWNER, nft: "8e".repeat(32), token: null }])).toBe("untracked");
-    expect(topUpShut(view(), [{ owner: OWNER, nft: "9f".repeat(32), token: "11".repeat(32) }])).toBe("untracked");
-    expect(topUpShut(view(), [...TRACKED, { owner: OWNER, nft: "8e".repeat(32), token: null }])).toBe("untracked");
+    expect(topUpShut(view(), [tr({ owner: `03${"11".repeat(32)}` })])).toBe("untracked");
+    expect(topUpShut(view(), [tr({ box: "cd".repeat(32) })])).toBe("untracked"); // another box of that owner
+    expect(topUpShut(view(), [tr({ token: "11".repeat(32) })])).toBe("untracked");
+    expect(topUpShut(view(), [tr({ nft: "11".repeat(32) })])).toBe("untracked"); // another tracker's entry
+    expect(topUpShut(view(), [tr(), tr({ box: "cd".repeat(32) })])).toBe("untracked"); // two of that owner: not picked
+  });
+  it("the tracker may name an older box of the same reserve: the observatory gives its NFT", () => {
+    const older = [tr({ box: "cd".repeat(32) })];
+    expect(topUpShut(view(), older, (b) => (b === "cd".repeat(32) ? "9f".repeat(32) : null))).toBeNull();
+    expect(topUpShut(view(), older, (b) => (b === "cd".repeat(32) ? "8e".repeat(32) : null))).toBe("untracked");
   });
 });

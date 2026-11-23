@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import type { ChainBox } from "@/mainnet/net";
 import type { JournalEntry, MainnetVault } from "@/mainnet/vault";
-import { retireReserveOf, spentElsewhere } from "./data";
+import { OUR_TRACKER, type TrackedReserve } from "@/chain/ours";
+import { reserveBox } from "@/mainnet/tx/testkit";
+import { retireReserveOf, spentElsewhere, trackedRefs } from "./data";
 import { STUCK_COMPLETION_MS, canCancel, stuckCompletion } from "./send";
 
 const id = (i: number) => i.toString(16).padStart(64, "0");
@@ -100,5 +102,25 @@ describe("retiring the T1 after a completed refund (review 2)", () => {
     const b = fake({ ...t1, state: "confirmed" } as JournalEntry);
     expect(await retireReserveOf(b.vault, "02".repeat(33), chain(0))).toBe(false);
     expect(b.retired).toEqual([]);
+  });
+});
+
+describe("the tracker's reserves as reserve NFTs (review 2: the tracker names boxes, its nft is its own)", () => {
+  const OWNER = `02${"4a".repeat(32)}`;
+  const real = reserveBox(OWNER, 1_000_000_000n, { nft: "9f".repeat(32) });
+  const theirs = reserveBox(`03${"5b".repeat(32)}`, 1_000_000_000n, { nft: "8e".repeat(32) });
+  const entry = (box: string, o: Partial<TrackedReserve> = {}): TrackedReserve =>
+    ({ box, owner: OWNER, collateral: 1n, debt: 0n, nft: OUR_TRACKER.nft, token: null, updatedHeight: 1, updatedAt: 1, ratio: null, refundHeight: 0, pendingRedemption: 0n, ...o }) as TrackedReserve;
+  const reader = (boxes: Record<string, ChainBox["box"]>) => async (id: string) =>
+    id in boxes ? { ok: true as const, value: { text: "", box: boxes[id], spentBy: null } } : { ok: false as const, problem: { kind: "not-found" as const, status: 404, reason: "", retryInMs: null, txId: null } };
+  it("reads the NFT of the box the tracker names (an older box of the reserve names it too)", async () => {
+    const r = await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real }));
+    expect(r).toEqual({ ok: true, value: [{ owner: OWNER, nft: "9f".repeat(32), token: null }] });
+  });
+  it("leaves out another tracker's entry and a box that is not that owner's reserve; a failed read is no answer", async () => {
+    const boxes = reader({ [real.boxId]: real, [theirs.boxId]: theirs });
+    expect(await trackedRefs([entry(real.boxId, { nft: "11".repeat(32) })], boxes)).toEqual({ ok: true, value: [] });
+    expect(await trackedRefs([entry(theirs.boxId)], boxes)).toEqual({ ok: true, value: [] });
+    expect((await trackedRefs([entry("77".repeat(32))], boxes)).ok).toBe(false);
   });
 });

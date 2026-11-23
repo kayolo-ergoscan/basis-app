@@ -294,7 +294,7 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               ...(r.issues.length ? [[t("network.rv.issues"), <span className="nw-issues">{r.issues.map((i) => <code key={i}>{i}</code>)}</span>] as [ReactNode, ReactNode]] : []),
             ]} />
           </Block>
-          <TopUpKey r={r} />
+          <TopUpKey r={r} nftOf={(box) => obs.index.reserves.get(box)?.nft?.id ?? null} />
         </aside>
       </div>
     </>

@@ -63,7 +63,7 @@ export function RefundScreen() {
   const { vault, state, me, height, entries } = useMw();
   const verr = useVaultError();
   const chain = useResource(me ? R.reservesOnChain(me.pub) : null, { height, enabled: state.backedUp });
-  const tracked = useResource(me ? R.reservesOf(me.pub) : null, { height, enabled: state.backedUp });
+  const tracked = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [understood, setUnderstood] = useState(false);
   const [pass, setPass] = useState("");

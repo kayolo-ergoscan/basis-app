@@ -5,8 +5,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type WatchedIssuer } from "@/mainnet/flows";
-import type { Priority } from "@/chain/ours";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
+import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
+import { readReserve } from "@/mainnet/tx";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
 
@@ -165,6 +166,8 @@ export function useResource<T>(res: Resource<T> | null, o: PollOptions = {}): Vi
 export const R = {
   trackerState: () => resource("state", (o) => net().trackerState(o)),
   reservesOf: (pk: string) => resource(`reserves:${pk}`, (o) => net().reservesOf(pk, o)),
+  /** The tracker's reserves of a key as reserve NFTs (trackedRefs): which reserve is whose, for top-up and refund. */
+  trackedOf: (pk: string) => resource(`tracked-of:${pk}`, (o) => trackedOf(pk, o)),
   /** The key's reserves as the chain shows them (/v1): what top-up and refund act on. */
   reservesOnChain: (pk: string) => resource(`chain-reserves:${pk}`, (o) => net().reservesOnChain(pk, o)),
   /** The box that holds a reserve NFT now (/v1). */
@@ -316,11 +319,35 @@ export function t1NftOf(entries: readonly JournalEntry[], pub: string): string |
   return entries.find((e) => e.pub === pub && blocksNewT1(e))?.inputs[0] ?? null;
 }
 
+/**
+ * The reserves the tracker follows for a key, as reserve NFTs. The tracker names a reserve by its box id (its `nft` is
+ * the tracker's own NFT, not the reserve's), so the reserve NFT is the token of that box, read from /v1: every box of
+ * a reserve's chain holds the same NFT, so a box id the tracker has not updated yet still names it. Entries of
+ * another tracker, and boxes that do not read as a reserve of that owner, are left out.
+ */
+export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<TrackedRef[]>> {
+  const out: TrackedRef[] = [];
+  for (const r of list) {
+    if (!boundToUs(r)) continue;
+    const b = await box(r.box, { priority: "user" });
+    if (!b.ok) return b;
+    const rr = readReserve(b.value.box);
+    if (rr.ok && rr.info.owner === r.owner) out.push({ owner: r.owner, nft: rr.info.nft, token: r.token });
+  }
+  return { ok: true, value: out };
+}
+
+/** The tracker's reserves of a key as reserve NFTs (trackedRefs), read fresh. */
+export async function trackedOf(pub: string, o?: NetOptions): Promise<Result<TrackedRef[]>> {
+  const l = await net().reservesOf(pub, o ?? { priority: "user" });
+  return l.ok ? trackedRefs(l.value, (id) => net().box(id, o ?? { priority: "user" })) : l;
+}
+
 /** The key's own reserve now (review 2, P1): /v1 and the tracker read fresh, the T1 from the journal (ownReserve). */
 export async function ownReserveNow(pub: string, entries: readonly JournalEntry[]): Promise<Result<OwnReserve>> {
   const chain = await net().reservesOnChain(pub, { priority: "user" });
   if (!chain.ok) return chain;
-  const tracked = await net().reservesOf(pub, { priority: "user" });
+  const tracked = await trackedOf(pub);
   return { ok: true, value: ownReserve({ owner: pub, chain: chain.value, t1Nft: t1NftOf(entries, pub), tracked: tracked.ok ? tracked.value : null }) };
 }
 

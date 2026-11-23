@@ -119,7 +119,8 @@ export function reserveLife(refundHeight: bigint | number, tip: number | null): 
 
 // ─── which reserve is this key's own ──────────────────────────────────────────────────────────────
 
-/** What the tracker says about one reserve: the fields of its /reserves entry the rule needs. */
+/** One reserve the tracker follows, by its reserve NFT. The tracker's /reserves entry names a box (its `nft` field is
+ *  the tracker's own NFT): the wallet reads the reserve NFT from that box (features/wallet/mainnet/data.ts trackedRefs). */
 export interface TrackedRef { owner: string; nft: string; token: string | null }
 
 export type OwnReserve =

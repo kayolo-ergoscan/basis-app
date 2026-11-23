@@ -18,7 +18,7 @@ import { isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { freshHeight, refreshHeight } from "@/app/height";
 import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
-import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource, useUnspent } from "./data";
+import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
 import { BackLink, ChainLink, Erg, Gate, OwnReserveRefusal, ProblemText, TxReview, ergText, useVaultError } from "./ui";
 
@@ -52,7 +52,7 @@ function TopUpForm() {
   const badParam = asked !== "" && !HEX64.test(asked);
   // the key's own reserve: by the NFT this wallet trusts (its T1, the tracker), never the chain's newest box (review 2)
   const mineOnChain = useResource(me ? R.reservesOnChain(me.pub) : null, { height, enabled: state.backedUp });
-  const trackedMine = useResource(me ? R.reservesOf(me.pub) : null, { height, enabled: state.backedUp });
+  const trackedMine = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
   const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub) : null), [entries, me]);
   const trackerRead = trackedMine.value !== null || !!trackedMine.problem;
   const own: OwnReserve | null = me && mineOnChain.value && trackerRead
@@ -72,7 +72,7 @@ function TopUpForm() {
   const shapeRefusal = read ? refusalKey(read) : null;
   const info = read && read.ok ? read.info : null;
   const theirs = !!(asked && info && me && info.owner !== me.pub);
-  const trackedTheirs = useResource(theirs ? R.reservesOf(info!.owner) : null, { height, enabled: state.backedUp });
+  const trackedTheirs = useResource(theirs ? R.trackedOf(info!.owner) : null, { height, enabled: state.backedUp });
   // a ?nft= link: this key's own only when trusted; another key's only when our tracker tracks it as that owner's
   const link = !asked || !info || !me ? null
     : !theirs ? (own ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own, trackedOfOwner: null }) : "loading")
@@ -103,7 +103,7 @@ function TopUpForm() {
       return true;
     }
     if (!asked) { fail({ text: t("mw.trust.ownLink") }); return false; }
-    const tr = await net().reservesOf(r.owner, { priority: "user" });
+    const tr = await trackedOf(r.owner);
     if (!tr.ok) { fail({ text: t("mw.trust.trackerDown") }); return false; }
     if (!trackedAs(r.owner, r.nft, tr.value)) { fail({ text: t("mw.trust.untracked") }); return false; }
     return true;
