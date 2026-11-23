@@ -7,6 +7,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { addI18n, setLang } from "@/app/lang";
 import seedJson from "@/chain/seed.json";
 import { buildObservatory, contractIndex, CURRENT_TEMPLATES, emptyLive, interpretTx, liveBoxFromApi, OUR_TRACKER, p2sAddress, type ApiBox, type Seed } from "@/chain";
+import chainStrings from "@/chain/i18n";
+import { idleStatus } from "@/chain/model";
 import { OurRedemptions } from "./Ours";
 import strings from "./strings";
 
@@ -34,6 +36,7 @@ function liveData(listed: boolean) {
 
 beforeAll(() => {
   addI18n(strings);
+  addI18n(chainStrings);
   setLang("en");
 });
 
@@ -65,5 +68,9 @@ describe("our tracker page: redemptions found on chain", () => {
     const listed = emptyLive();
     for (const h of [CURRENT_TEMPLATES.erg, CURRENT_TEMPLATES.multiToken]) listed.detector.templates[h] = { total: 0, checkedAt: 1, checkedHeight: H + 600 };
     expect(html(<OurRedemptions obs={buildObservatory({ seed, live: listed, tip: H + 600 })} />)).toContain("None.");
+    // the live layer failed before its first look: the snapshot predates this tracker, so no "None." either
+    const failed = html(<OurRedemptions obs={buildObservatory({ seed, live: emptyLive(), tip: H + 600, status: { ...idleStatus(), lastError: "HTTP 503" } })} />);
+    expect(failed).toContain("Not checked live yet");
+    expect(failed).not.toContain("None.");
   });
 });

@@ -246,12 +246,14 @@ export function OurReserves({ v }: { v: OurView }) {
 export function OurRedemptions({ obs }: { obs: Observatory | null }) {
   const t = useT();
   const list = useMemo(() => (obs ? obs.redemptions.filter((x) => x.trackerNft === OUR_TRACKER.nft) : null), [obs]);
-  // before this tab has listed the current templates, an empty list would only mean "not looked yet"
-  const checking = !obs || (list !== null && list.length === 0 && totalsSource(obs) === "checking");
+  // before this tab has listed the current templates, an empty list would only mean "not looked yet" (or, when the live
+  // layer failed, that the snapshot predates this tracker)
+  const src = obs ? totalsSource(obs) : "checking";
+  const unknown = !list || (list.length === 0 && src !== "live");
   return (
-    <Block label={t("network.td.redemptions")} aside={<span className="label num">{list && !checking ? list.length : DASH}</span>}>
+    <Block label={t("network.td.redemptions")} aside={<span className="label num">{list && !unknown ? list.length : DASH}</span>}>
       <p className="t-small">{t("network.ours.td.redemptionsSub")}</p>
-      {checking ? <p className="t-small dim">{t("network.rd.unread")}</p>
+      {unknown ? <p className="t-small dim">{src === "snapshot" ? t("chain.live.seedOnly") : t("network.rd.unread")}</p>
         : list!.length ? <Capped rows={list!} n={8}>{(rows) => <ol className="nw-feed">{rows.map((x) => <FeedRow key={x.tx} r={x} />)}</ol>}</Capped>
           : <p className="t-small">{t("network.td.none")}</p>}
     </Block>
