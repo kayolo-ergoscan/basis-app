@@ -1,0 +1,7 @@
+# Keep build-machine paths out of avl.wasm (panic locations): /root/... -> short names.
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "--remap-path-prefix=/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f=crates",
+  "--remap-path-prefix=/root/basis/avl-wasm=avl-wasm",
+  "--remap-path-prefix=/root/basis/app/avl-wasm=avl-wasm",
+]

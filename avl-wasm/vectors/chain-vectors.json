@@ -1,0 +1,126 @@
+{
+ "about": "Real Ergo mainnet Basis redemptions. Registers from the ErgoScan index (gateway /v1), context extensions (#1 #3 #4 #5 #7 #8) from a public node /blocks/{id}/transactions. Digest = R5[2..68] (after the 0x64 AvlTree type byte).",
+ "emptyDigest": {
+  "keyLength": 32,
+  "valueLength": null,
+  "digest": "4ec61f485b98eb87153f7c57db4f5ecd75556fddbc403b41acf8441fde8e160900",
+  "seenIn": "R5 of Basis reserve 3857cf9f6e4394b9819363d5ffa9720fdc2982ebf1d19b3a53cdfcf72da3934e (h 1639835) and every fresh reserve: 644ec61f...0900 03 20 00"
+ },
+ "redemptions": [
+  {
+   "name": "Reserve aa8340fc: first redemption of a 0.2 ERG note (key absent -> AvlTree.insert, no #7)",
+   "tx": "4b65c7cdf46ba7fdb741803e5d6534de70911f07a409c285532821054cc2959b",
+   "height": 1832709,
+   "reserveIn": {
+    "box": "aa8340fc8ef5fa1ebb1edd31dd70d04f89f3b1357999f755a40e7d6b415185b6",
+    "value": 300000000,
+    "R5": "644ec61f485b98eb87153f7c57db4f5ecd75556fddbc403b41acf8441fde8e160900032000"
+   },
+   "reserveOut": {
+    "box": "8dc21481ed3f084f99d021124c9923e418c1ece60f2d44f8885d48923b29dcd0",
+    "value": 200000000,
+    "R5": "64f91e7e764bd5cd630eb53d582a72a2f2bdaa1ca1459b2f6d79680bc8b1a32ebd01032000"
+   },
+   "tracker": {
+    "box": "77aeabcb538cbd6dcac9a4cf3b1317730822e08529116432d62261965aeaa5a1",
+    "R5": "649c7b4fce8339154d33d80d6831bf61d045b6af51c1b2735cfeae6adb8d9c358e02012000",
+    "nft": "000b0695159e5f5c32c606385bd5f276d80133149c84c8b1325366381bf6f17f"
+   },
+   "owner": "022880fde8cace85c2c810fb32c5441a32198b0f7a122b9a672cfb7e50eb898cdc",
+   "receiver": "03dbc83fe0c803d370575d2a513247b741f2fe4fe45756cd9983ce087d788697a7",
+   "totalDebt": 200000000,
+   "timestamp": 1784494415054,
+   "proof5": "020000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000004",
+   "proof7": null,
+   "proof8": "03b10bc85261f4c18649996d4a19b9abcd9c83640f846cbf02a79bbecf3db8eb5b0221751a0e78687ff21fca5437ac0b5734213db42619d283a6b09615efa30006456995ccf33c8a09705612e6ee3808bb4cedb48cb7b7c019ecdc68b74e7ed912a400000008000000000bebc20000038f3e36ff923e1f8c8825e6bc052e096bf5160c709d8e69d210a5627a289995bcff0401"
+  },
+  {
+   "name": "Same reserve, second redemption (key present -> #7 lookup + AvlTree.insertOrUpdate)",
+   "tx": "cfcd857961d06bfae66781dfe4a5a7f8581732a2c3e3f7f16571c979971d5863",
+   "height": 1833071,
+   "reserveIn": {
+    "box": "8dc21481ed3f084f99d021124c9923e418c1ece60f2d44f8885d48923b29dcd0",
+    "value": 200000000,
+    "R5": "64f91e7e764bd5cd630eb53d582a72a2f2bdaa1ca1459b2f6d79680bc8b1a32ebd01032000"
+   },
+   "reserveOut": {
+    "box": "3ae59d54b1f57a9d1109e335834e35df684ceb7b436f46390eff7ae82df9ba9a",
+    "value": 100000000,
+    "R5": "64d077c133e112d2d124a44ce9823308648007b6e442f7051c255ff9eb6dea15cf01032000"
+   },
+   "tracker": {
+    "box": "77aeabcb538cbd6dcac9a4cf3b1317730822e08529116432d62261965aeaa5a1",
+    "R5": "649c7b4fce8339154d33d80d6831bf61d045b6af51c1b2735cfeae6adb8d9c358e02012000",
+    "nft": "000b0695159e5f5c32c606385bd5f276d80133149c84c8b1325366381bf6f17f"
+   },
+   "owner": "022880fde8cace85c2c810fb32c5441a32198b0f7a122b9a672cfb7e50eb898cdc",
+   "receiver": "03dbc83fe0c803d370575d2a513247b741f2fe4fe45756cd9983ce087d788697a7",
+   "totalDebt": 200000000,
+   "timestamp": 1784530019746,
+   "proof5": "03b10bc85261f4c18649996d4a19b9abcd9c83640f846cbf02a79bbecf3db8eb5b0221751a0e78687ff21fca5437ac0b5734213db42619d283a6b09615efa3000645ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000100000019f7c27dcce0000000005f5e100000400",
+   "proof7": "03b10bc85261f4c18649996d4a19b9abcd9c83640f846cbf02a79bbecf3db8eb5b0221751a0e78687ff21fca5437ac0b5734213db42619d283a6b09615efa3000645ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000100000019f7c27dcce0000000005f5e100000400",
+   "proof8": "03b10bc85261f4c18649996d4a19b9abcd9c83640f846cbf02a79bbecf3db8eb5b0221751a0e78687ff21fca5437ac0b5734213db42619d283a6b09615efa30006456995ccf33c8a09705612e6ee3808bb4cedb48cb7b7c019ecdc68b74e7ed912a400000008000000000bebc20000038f3e36ff923e1f8c8825e6bc052e096bf5160c709d8e69d210a5627a289995bcff0401"
+  },
+  {
+   "name": "Reserve 2ced1079 (InsertOnly flags, older deployment): first redemption of a 0.4 ERG note",
+   "tx": "85b14cc0dc5a0c65d009cf0c60159f7943caa0b39f6ccb5822e0f2890c92a273",
+   "height": 1827032,
+   "reserveIn": {
+    "box": "2ced1079ef2a5869f5a3ea9f284bf04c84d22e6a3de80190aeff72060858eec5",
+    "value": 200000000,
+    "R5": "644ec61f485b98eb87153f7c57db4f5ecd75556fddbc403b41acf8441fde8e160900012000"
+   },
+   "reserveOut": {
+    "box": "9b7481643c8791beafeb12255ff503b803414a49ac31ba4c787988a52f924872",
+    "value": 100000000,
+    "R5": "64616188e24267daf308650e620deea5b87098d1b15d4952944c3fc38598606bb301012000"
+   },
+   "tracker": {
+    "box": "b9c4bdbd8de1cee5d41006baf32c1c0ba5621bd7749c8a3ee9bc603cb95a6f72",
+    "R5": "648f8e9d303b9fe3676432a671df8e2c1762013ca949c1c51632e9de8592c5d5fc01012000",
+    "nft": "000b0695159e5f5c32c606385bd5f276d80133149c84c8b1325366381bf6f17f"
+   },
+   "owner": "0377709166937fcdc08bf7e841b31684e2377f489914c97ef7148de14d9c6e1f83",
+   "receiver": "03af13e39dd0ccc7429f9dfa5a056b71a8f5160eaf179763a03e0b55d8feec2cea",
+   "totalDebt": 400000000,
+   "timestamp": 1783796933524,
+   "proof5": "020000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000004",
+   "proof7": null,
+   "proof8": "0365b2adf3ef941f484c086bf68d0316aa32207bb694bf63227435b394b9d1bc35026995ccf33c8a09705612e6ee3808bb4cedb48cb7b7c019ecdc68b74e7ed912a4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000080000000017d78400000400"
+  }
+ ],
+ "digestOnly": [
+  {
+   "name": "Reserve d272eacd -> 22346ef6 (tx a253c774, 0.3 ERG note, ts from the tracker report)",
+   "owner": "0377709166937fcdc08bf7e841b31684e2377f489914c97ef7148de14d9c6e1f83",
+   "receiver": "03af13e39dd0ccc7429f9dfa5a056b71a8f5160eaf179763a03e0b55d8feec2cea",
+   "timestamp": 1783588179731,
+   "redeemed": 300000000,
+   "after": "e3caf2764ba4e91ba94876f34f65b4ad6ba58cff4be9b4f9b233e9bd9d4cb12301"
+  },
+  {
+   "name": "Reserve f2e1594e -> 95cac238 (tx 96c55b39, 0.2 of a 0.4 ERG note; ts recovered by search)",
+   "owner": "0377709166937fcdc08bf7e841b31684e2377f489914c97ef7148de14d9c6e1f83",
+   "receiver": "03af13e39dd0ccc7429f9dfa5a056b71a8f5160eaf179763a03e0b55d8feec2cea",
+   "timestamp": 1783612740170,
+   "redeemed": 200000000,
+   "after": "c6db7c180c70664a4d71c8dd3c43ec47842e7d691d8e399753a793d32a4318b301"
+  },
+  {
+   "name": "Reserve b4a1c033 -> 9f1a413a (tx 8f647e58, same note, 0.1 ERG; no search: independent confirmation)",
+   "owner": "0377709166937fcdc08bf7e841b31684e2377f489914c97ef7148de14d9c6e1f83",
+   "receiver": "03af13e39dd0ccc7429f9dfa5a056b71a8f5160eaf179763a03e0b55d8feec2cea",
+   "timestamp": 1783612740170,
+   "redeemed": 100000000,
+   "after": "79e8bd2b51789ecad76fa1b9823d5c7ca23dee170297f28d84f79c3589c0fcfa01"
+  },
+  {
+   "name": "Reserve ddfd4223 -> b4b2c78a (tx c897018c, same note, 0.01 ERG; independent confirmation)",
+   "owner": "0377709166937fcdc08bf7e841b31684e2377f489914c97ef7148de14d9c6e1f83",
+   "receiver": "03af13e39dd0ccc7429f9dfa5a056b71a8f5160eaf179763a03e0b55d8feec2cea",
+   "timestamp": 1783612740170,
+   "redeemed": 10000000,
+   "after": "e431a59f00ef438b0e872b203e31ca995ebb62a5cfce602619313f6d031ab54f01"
+  }
+ ]
+}

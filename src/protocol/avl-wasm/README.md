@@ -14,7 +14,7 @@ for byte.
 | `avl.wasm` | 120,121 bytes, 44,073 gzipped. No imports. Loads in 6–11 ms in Chromium 157 |
 | JS glue (Vite bundle of `index.ts` with `../avl.ts` and @noble blake2b) | 27.7 KB, 9.95 KB gzipped |
 | speed (Chromium) | 2,000 inserts plus 200 proofs in 30 ms |
-| source crate | `/root/basis/avl-wasm` (Rust 1.85.0, `cdylib`; build with `./build.sh --test`) |
+| source crate | `avl-wasm/` at the root of this repository (Rust 1.85.0, `cdylib`; build with `./build.sh --test`) |
 
 ## Use
 

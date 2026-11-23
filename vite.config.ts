@@ -58,9 +58,14 @@ const saveDevFixtures: Plugin = {
 //   /v1/*          → the ErgoScan API contour (:4401), the same place Caddy sends it on basis.ergoscan.me;
 //   /api/tracker/* → our tracker's front (nginx on :3050), prefix stripped. The front adds the key itself, allows only
 //                    the public read routes and limits each IP; the app never talks to the tracker (:3048) directly.
+// Outside the ErgoScan server, point both at the public site (README):
+//   BASIS_API=https://api.ergoscan.me BASIS_TRACKER=https://basis.ergoscan.me/api/tracker npm run dev
+const API_TARGET = processEnv.BASIS_API || "http://127.0.0.1:4401";
+const TRACKER_TARGET = processEnv.BASIS_TRACKER || "http://127.0.0.1:3050";
+const remote = (target: string) => !/^http:\/\/127\.0\.0\.1[:/]/.test(target);
 const proxy = {
-  "/v1": { target: "http://127.0.0.1:4401", changeOrigin: false },
-  "/api/tracker/": { target: "http://127.0.0.1:3050", changeOrigin: false, rewrite: (p: string) => p.replace(/^\/api\/tracker/, "") || "/" },
+  "/v1": { target: API_TARGET, changeOrigin: remote(API_TARGET) },
+  "/api/tracker/": { target: TRACKER_TARGET, changeOrigin: remote(TRACKER_TARGET), rewrite: (p: string) => p.replace(/^\/api\/tracker/, "") || "/" },
 };
 
 export default defineConfig({
