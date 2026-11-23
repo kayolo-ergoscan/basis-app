@@ -152,9 +152,14 @@ export function ownReserve(o: { owner: string; chain: { boxes: readonly UnspentB
   return { ok: true, box, nft: trusted };
 }
 
-/** Another key's reserve is topped up only when our tracker tracks this NFT as that owner's ERG reserve. */
+/**
+ * Another key's reserve is topped up only when our tracker tracks this NFT as that owner's ERG reserve, and as its only
+ * one: if the tracker itself follows a second box with R4 = that owner, the wallet does not pick between them.
+ */
 export function trackedAs(owner: string, nft: string, tracked: readonly TrackedRef[] | null): boolean {
-  return !!tracked && tracked.some((r) => r.owner === owner && r.nft === nft && r.token === null);
+  if (!tracked) return false;
+  const theirs = new Set(tracked.filter((r) => r.owner === owner && r.token === null).map((r) => r.nft));
+  return theirs.size === 1 && theirs.has(nft);
 }
 
 /**

@@ -150,5 +150,8 @@ describe("which reserve is the key's own (review 2: planted boxes)", () => {
     expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [{ owner: other, nft: PLANT, token: "11".repeat(32) }] })).toBe("untrusted");
     expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(PLANT, other)] })).toBe("other");
     expect(trackedAs(other, PLANT, [tr(PLANT, other)])).toBe(true);
+    // the tracker follows two ERG reserves of that owner: not picked
+    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(PLANT, other), tr(NFT, other)] })).toBe("untrusted");
+    expect(trackedAs(other, PLANT, [tr(PLANT, other), tr(PLANT, other), tr(NFT, me)])).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOurTracker, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
@@ -334,11 +334,13 @@ export function exitSub(obs: Observatory, cls: ExitClass, lang: Lang): string {
 
 /** The view's one metal key, Top up (basis.es action #1: anyone, ≥ 0.1 ERG, no signature). On a reserve page it opens
  *  the mainnet wallet's top-up with that reserve chosen, when the wallet tops it up (unspent, current contract, ERG,
- *  ErgoScan's tracker, no refund); otherwise it stays shut and says why. On the lists it opens the wallet's own reserve.
- *  The wallet reads the reserve again from the chain before anything is signed. */
+ *  ErgoScan's tracker, the registers the wallet reads, no refund, and tracked by our tracker as its owner's reserve:
+ *  anyone can create a box that looks like a reserve); otherwise it stays shut and says why. On the lists it opens the
+ *  wallet's own reserve. The wallet reads the reserve and the tracker again before anything is signed. */
 export function TopUpKey({ r }: { r?: ReserveView }) {
   const t = useT();
-  const why = r ? topUpShut(r) : null;
+  const ours = useOurTracker();
+  const why = r ? topUpShut(r, ours.reserves) : null;
   const to = !r ? "/wallet/mainnet/topup" : why || !r.nft ? null : `/wallet/mainnet/topup?nft=${r.nft.id}`;
   return (
     <div className="nw-topup">
@@ -348,13 +350,34 @@ export function TopUpKey({ r }: { r?: ReserveView }) {
     </div>
   );
 }
-/** Why the wallet does not top up this reserve (null: it does). The wallet's own rules, tx/reserveaction.ts readReserve. */
-export function topUpShut(r: ReserveView): "spent" | "legacy" | "token" | "tracker" | "refund" | null {
+
+/** The registers exactly as the wallet reads them (tx/reserveaction.ts readReserve): R4 the owner's key, R5 a tree,
+ *  R6 our tracker, R7 a Long ≥ 0; a box without R7 is refused there too, although the contract reads it as 0. */
+function walletReadsRegisters(r: ReserveView): boolean {
+  const g = r.regs;
+  const r4 = g.R4?.toLowerCase() ?? "";
+  return /^07(02|03)[0-9a-f]{64}$/.test(r4) && !!r.owner && r.owner.key.toLowerCase() === r4.slice(2) &&
+    /^64[0-9a-f]+$/.test(g.R5?.toLowerCase() ?? "") && g.R6?.toLowerCase() === `0e20${OUR_TRACKER.nft}` &&
+    /^05[0-9a-f]{2,20}$/.test(g.R7?.toLowerCase() ?? "") && r.r7 !== null && r.r7 >= 0;
+}
+
+/** What our tracker says about one reserve: the fields of its /reserves entry the key needs. */
+type Tracked = { owner: string; nft: string; token: string | null };
+
+/** Why the wallet does not top up this reserve (null: it does). The wallet's own rules, tx/reserveaction.ts readReserve
+ *  and flows/reserveops.ts trackedAs; `tracked` is our tracker's list of reserves (null: not read yet). */
+export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null): "spent" | "legacy" | "token" | "tracker" | "shape" | "refund" | "unknown" | "untracked" | null {
   if (!r.unspent) return "spent";
   if (!r.contract?.current || r.legacy) return "legacy";
   if (r.kind !== "erg" || r.collateral) return "token";
   if (!r.nft || r.r6 !== OUR_TRACKER.nft) return "tracker";
-  if (r.r7 !== null && r.r7 !== 0) return "refund";
+  if (!walletReadsRegisters(r)) return "shape";
+  if (r.r7 !== 0) return "refund";
+  if (tracked === null) return "unknown";
+  const nft = r.nft.id, owner = r.owner!.key.toLowerCase();
+  // tracked as its owner's only ERG reserve (as the wallet's trackedAs): a second one of that owner is not picked between
+  const theirs = new Set(tracked.filter((x) => x.owner.toLowerCase() === owner && x.token === null).map((x) => x.nft));
+  if (theirs.size !== 1 || !theirs.has(nft)) return "untracked";
   return null;
 }
 

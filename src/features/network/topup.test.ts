@@ -1,29 +1,50 @@
 // The observatory's Top up key: open (a link into the mainnet wallet) only for what the wallet tops up, shut with the
-// reason otherwise. The wallet reads the reserve again from the chain (tx/reserveaction.ts readReserve).
+// reason otherwise: the registers exactly as readReserve takes them (a box without R7 is refused), and only a reserve
+// our tracker tracks as its owner's (review 2: anyone can plant a box that looks like a reserve). The wallet reads the
+// reserve and the tracker again before anything is signed.
 import { describe, expect, it } from "vitest";
 import { OUR_TRACKER, type ReserveView } from "@/chain";
 import { topUpShut } from "./Overview";
 
+const OWNER = `02${"4a".repeat(32)}`;
+const TRACKED = [{ owner: OWNER, nft: "9f".repeat(32), token: null }];
 const view = (o: Partial<ReserveView> = {}): ReserveView => ({
   id: "ab".repeat(32), source: "seed", contract: { current: true } as ReserveView["contract"], kind: "erg", height: 1, at: null, tx: null,
-  origin: "creation", unspent: true, spent: null, prev: null, next: null, value: 100_000_000n, owner: null,
-  nft: { id: "9f".repeat(32), name: null }, collateral: null, r5: null, r6: OUR_TRACKER.nft, r7: 0, regs: {}, creator: null, issues: [],
+  origin: "creation", unspent: true, spent: null, prev: null, next: null, value: 100_000_000n,
+  nft: { id: "9f".repeat(32), name: null }, collateral: null, r5: null, r6: OUR_TRACKER.nft, r7: 0, creator: null, issues: [],
+  owner: { key: OWNER, addr: "9f-owner" as NonNullable<ReserveView["owner"]>["addr"], label: null },
+  regs: { R4: `07${OWNER}`, R5: `64${"00".repeat(33)}0a2000`, R6: `0e20${OUR_TRACKER.nft}`, R7: "0500" },
   legacy: false, exit: null, snapshotExit: null as unknown as ReserveView["snapshotExit"], pending: 0, checked: null, ...o,
 });
 
 describe("topUpShut", () => {
-  it("opens a current, unspent ERG reserve of our tracker with no refund (R7 absent too: the wallet reads it)", () => {
-    expect(topUpShut(view())).toBeNull();
-    expect(topUpShut(view({ r7: null }))).toBeNull();
+  it("opens a current, unspent ERG reserve of our tracker, tracked as its owner's, with no refund", () => {
+    expect(topUpShut(view(), TRACKED)).toBeNull();
   });
   it("says why it stays shut", () => {
-    expect(topUpShut(view({ unspent: false }))).toBe("spent");
-    expect(topUpShut(view({ legacy: true }))).toBe("legacy");
-    expect(topUpShut(view({ contract: { current: false } as ReserveView["contract"] }))).toBe("legacy");
-    expect(topUpShut(view({ contract: null }))).toBe("legacy");
-    expect(topUpShut(view({ kind: "token" }))).toBe("token");
-    expect(topUpShut(view({ r6: "11".repeat(32) }))).toBe("tracker");
-    expect(topUpShut(view({ nft: null }))).toBe("tracker");
-    expect(topUpShut(view({ r7: 1_923_000 }))).toBe("refund");
+    expect(topUpShut(view({ unspent: false }), TRACKED)).toBe("spent");
+    expect(topUpShut(view({ legacy: true }), TRACKED)).toBe("legacy");
+    expect(topUpShut(view({ contract: { current: false } as ReserveView["contract"] }), TRACKED)).toBe("legacy");
+    expect(topUpShut(view({ contract: null }), TRACKED)).toBe("legacy");
+    expect(topUpShut(view({ kind: "token" }), TRACKED)).toBe("token");
+    expect(topUpShut(view({ r6: "11".repeat(32) }), TRACKED)).toBe("tracker");
+    expect(topUpShut(view({ nft: null }), TRACKED)).toBe("tracker");
+    expect(topUpShut(view({ r7: 1_923_000, regs: { ...view().regs, R7: "05f0e4ea01" } }), TRACKED)).toBe("refund");
+  });
+  it("the registers as the wallet reads them: no R7 (the contract's 0) or an odd type stays shut", () => {
+    const { R7: _, ...noR7 } = view().regs;
+    expect(topUpShut(view({ r7: null, regs: noR7 }), TRACKED)).toBe("shape");
+    expect(topUpShut(view({ regs: { ...view().regs, R7: "0400" } }), TRACKED)).toBe("shape"); // an Int
+    expect(topUpShut(view({ regs: { ...view().regs, R4: "0e0102" } }), TRACKED)).toBe("shape");
+    expect(topUpShut(view({ regs: { ...view().regs, R5: "0e00" } }), TRACKED)).toBe("shape");
+    expect(topUpShut(view({ owner: null }), TRACKED)).toBe("shape");
+  });
+  it("only a reserve our tracker tracks as its owner's: a planted box with R4 = someone stays shut", () => {
+    expect(topUpShut(view(), null)).toBe("unknown");
+    expect(topUpShut(view(), [])).toBe("untracked");
+    expect(topUpShut(view(), [{ owner: `03${"11".repeat(32)}`, nft: "9f".repeat(32), token: null }])).toBe("untracked");
+    expect(topUpShut(view(), [{ owner: OWNER, nft: "8e".repeat(32), token: null }])).toBe("untracked");
+    expect(topUpShut(view(), [{ owner: OWNER, nft: "9f".repeat(32), token: "11".repeat(32) }])).toBe("untracked");
+    expect(topUpShut(view(), [...TRACKED, { owner: OWNER, nft: "8e".repeat(32), token: null }])).toBe("untracked");
   });
 });
