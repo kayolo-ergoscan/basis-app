@@ -25,7 +25,7 @@ export function HomeScreen() {
   const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned");
   const t1 = mine.find((e) => e.kind === "t1" && e.state !== "failed" && e.state !== "abandoned");
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
-  const step = !funded ? "fund" : !reserve && !t1 ? "reserve" : notes.length === 0 && reserve ? "note" : null;
+  const step = !funded ? "fund" : !reserve && !t1 ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
   return (
     <div className="mw-grid">
       <div className="mw-main">

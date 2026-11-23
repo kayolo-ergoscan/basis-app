@@ -12,7 +12,7 @@ import {
   MINER_FEE_NANOERG, REFUND_PERIOD_BLOCKS, checkReserveAction, checkReserveActionContract, computeTxId, loadContractAvl, readReserve, refundClock, reserveAddress,
   type ErgoBox, type L2Result, type ReserveActionKind, type ReserveInfo, type UnsignedTx,
 } from "@/mainnet/tx";
-import { blocksToDays, isBroadcastLimit, mempoolSpending, planRefundComplete, planRefundStart, spendable } from "@/mainnet/flows";
+import { isBroadcastLimit, mempoolSpending, planRefundComplete, planRefundStart, spendable } from "@/mainnet/flows";
 import { RESERVE_ACTION_KINDS, isOpenState, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
@@ -44,7 +44,6 @@ export function RefundFacts({ r7, tip }: { r7: bigint; tip: number | null }) {
         <div className="mw-countdown">
           <span className="label">{t("mw.ref.left")}</span>
           <Countdown blocks={clock.blocksLeft} toggle={false} />
-          <span className="t-small mw-dim">{t("mw.ref.leftB", { blocks: int(clock.blocksLeft), days: blocksToDays(clock.blocksLeft) })}</span>
         </div>
       ))}
       <p className="t-small">{t("mw.ref.holders", { h: int(Number(unlock)) })}</p>
@@ -191,7 +190,7 @@ export function RefundScreen() {
         ]}
         sum={{ label: phase.kind === "refund-start" ? t("mw.res.rowSpent", { n: phase.inputs.length }) : t("mw.ref.rowFrom"), value: <Erg nano={phase.kind === "refund-start" ? phase.inputs.reduce((s, b) => s + b.value, 0n) : phase.info.box.value} /> }}
         extra={<>
-          <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t("mw.top.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
+          <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t(phase.kind === "refund-end" ? "mw.ref.checkedEnd" : "mw.top.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
           <button type="button" className="textlink t-small" aria-expanded={xray} onClick={() => setXray(!xray)}>{xray ? t("mw.red.hideXray") : t("mw.red.showXray")}</button>
           {xray && phase.l2.eval && <ContractXray evaluation={phase.l2.eval} mode="compact" title={t("mw.top.xrayT")} />}
         </>} />

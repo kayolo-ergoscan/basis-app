@@ -112,6 +112,9 @@
 .mw-pair-who { display: grid; gap: 2px; min-width: 0; }
 .mw-pair-who b { font: 600 16px/1.25 var(--f-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mw-facts { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.mw-facts.mw-facts-tight { margin: 4px 0 0; color: inherit; }
+.mw-countdown { display: grid; gap: 6px; justify-items: start; }
+.mw-life { margin-top: 14px; }
 .mw-act { border-bottom: 1px solid var(--rule); }
 .mw-act:last-child { border-bottom: 0; }
 .mw-act-h { display: grid; grid-template-columns: 14px minmax(110px, 160px) minmax(0, 1fr) auto minmax(80px, 120px) auto; gap: 12px; align-items: center; width: 100%; padding: 12px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }

@@ -59,7 +59,7 @@ export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
   const life = reserveLife(refundHeight, height);
   if (life.kind === "active") {
     return (
-      <div className="mw-form">
+      <div className="mw-form mw-life">
         <p className="t-small"><Tag tone="ok" glyph="●">{t("mw.ref.active")}</Tag> {t("mw.res.activeB")}</p>
         <div className="mw-actions">
           <Key size="sm" icon="coin" to="/wallet/mainnet/topup">{t("mw.res.topUp")}</Key>
@@ -71,7 +71,7 @@ export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
   }
   const unlock = int(Number(life.clock.unlockAt));
   return (
-    <Callout tone={life.clock.open ? "info" : "alarm"} title={life.clock.open ? t("mw.res.refundOpenT") : t("mw.res.refundT", { h: int(Number(life.clock.startedAt)) })}>
+    <Callout className="mw-life" tone={life.clock.open ? "info" : "alarm"} title={life.clock.open ? t("mw.res.refundOpenT") : t("mw.res.refundT", { h: int(Number(life.clock.startedAt)) })}>
       <p>{life.clock.open ? t("mw.res.refundOpenB", { h: unlock }) : height === null ? t("mw.res.refundB0", { h: unlock }) : t("mw.res.refundB", { h: unlock, blocks: int(life.clock.blocksLeft), days: blocksToDays(life.clock.blocksLeft) })}</p>
       <Key size="sm" variant={life.clock.open ? "primary" : undefined} to="/wallet/mainnet/refund">{life.clock.open ? t("mw.res.refundEnd") : t("mw.res.refundSee")}</Key>
     </Callout>

@@ -174,13 +174,15 @@ export function TopUpScreen() {
               <Callout tone="alarm" title={t("mw.top.noT")}>{t("mw.top.no.gone")}</Callout>
             ) : (
               <div className="mw-form">
-                <div className="mw-who">
-                  {info && <KeySeal pk={info.owner} size="sm" />}
-                  <div className="mw-who-t">
-                    <b>{info ? (isOwn ? t("mw.top.ownerYou") : t("mw.top.ownerOther")) : t("mw.top.ownerUnknown")}</b>
-                    {info && <span className="mono t-small mw-dim mw-break">{short(p2pkAddress(info.owner), 8, 6)}</span>}
+                {info && (
+                  <div className="mw-filecard">
+                    <KeySeal pk={info.owner} size="sm" />
+                    <div>
+                      <div className="label">{isOwn ? t("mw.top.ownerYou") : t("mw.top.ownerOther")}</div>
+                      <div className="mono t-small mw-break">{p2pkAddress(info.owner)}</div>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="mw-figs">
                   <div className="mw-figure"><span className="label">{t("mw.top.now")}</span><b><Erg nano={box.value} /></b></div>
                   <div className="mw-figure"><span className="label">{t("mw.top.nft")}</span><span className="mono t-small">{short(box.tokens[0]?.tokenId ?? "", 8, 6)}</span></div>

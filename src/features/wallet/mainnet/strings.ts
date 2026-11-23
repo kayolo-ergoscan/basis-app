@@ -668,7 +668,7 @@ const en: Dict = {
   "mw.kind.topup": "Top-up",
   "mw.kind.refund-start": "Refund started",
   "mw.kind.refund-end": "Refund completed",
-  "mw.home.refundRun": "Refund running: new notes are refused. It can be completed from block {h}.",
+  "mw.home.refundRun": "New notes are refused. The refund can be completed from block {h}.",
   "mw.home.refundOpen": "The refund can be completed now.",
   "mw.home.refundSee": "Refund",
   "mw.res.activeB": "Notes can be issued from it.",
@@ -698,7 +698,6 @@ const en: Dict = {
   "mw.top.no.refund": "A refund of this reserve has started: once it ends, the owner takes everything. The wallet does not add money to a reserve in refund.",
   "mw.top.ownerYou": "Owner: this key",
   "mw.top.ownerOther": "Owner: another key",
-  "mw.top.ownerUnknown": "Owner unknown",
   "mw.top.now": "In the reserve",
   "mw.top.nft": "Reserve id",
   "mw.top.otherT": "This reserve belongs to another key",
@@ -773,7 +772,6 @@ const en: Dict = {
   "mw.ref.openT": "The refund can be completed",
   "mw.ref.openB": "43,200 blocks have passed. The completion sends everything less the 0.001 ERG fee to this key's address.",
   "mw.ref.left": "Left",
-  "mw.ref.leftB": "Blocks: {blocks}, about {days} days.",
   "mw.ref.holders": "Holders of your notes can redeem until you complete the refund. The contract lets you complete it from block {h}.",
   "mw.ref.notYet": "The refund cannot be completed yet: blocks left {blocks}.",
   "mw.ref.small": "The reserve holds too little to pay the miner fee and leave a box.",
@@ -794,6 +792,7 @@ const en: Dict = {
   "mw.ref.how2": "From then on, the tracker accepts no new notes from the reserve; holders keep redeeming.",
   "mw.ref.how3": "Step 2, the completion: from block R7 + 43,200 the whole reserve, less the fee, goes to your key's address.",
   "mw.ref.how4": "A started refund cannot be undone. After the completion this key can create a new reserve.",
+  "mw.ref.checkedEnd": "Checked: exactly two outputs, everything less the fee to your key with the reserve id token, and the fee; the reserve contract accepts it (checks: {n}).",
 };
 
 const ru: Partial<Dict> = {
@@ -1443,7 +1442,7 @@ const ru: Partial<Dict> = {
   "mw.kind.topup": "Пополнение",
   "mw.kind.refund-start": "Запуск возврата",
   "mw.kind.refund-end": "Завершение возврата",
-  "mw.home.refundRun": "Идёт возврат: новые расписки не принимаются. Завершить можно с блока {h}.",
+  "mw.home.refundRun": "Новые расписки не принимаются. Завершить возврат можно с блока {h}.",
   "mw.home.refundOpen": "Возврат можно завершить.",
   "mw.home.refundSee": "Возврат",
   "mw.res.activeB": "Под него можно выдавать расписки.",
@@ -1473,7 +1472,6 @@ const ru: Partial<Dict> = {
   "mw.top.no.refund": "По этому резерву начат возврат: когда срок выйдет, владелец заберёт всё. Кошелёк не добавляет деньги в резерв на возврате.",
   "mw.top.ownerYou": "Владелец: этот ключ",
   "mw.top.ownerOther": "Владелец: другой ключ",
-  "mw.top.ownerUnknown": "Владелец неизвестен",
   "mw.top.now": "В резерве",
   "mw.top.nft": "Идентификатор резерва",
   "mw.top.otherT": "Это резерв другого ключа",
@@ -1548,7 +1546,6 @@ const ru: Partial<Dict> = {
   "mw.ref.openT": "Возврат можно завершить",
   "mw.ref.openB": "43 ⁠200 блоков прошло. Завершение отправит всё, кроме комиссии 0,001 ERG, на адрес этого ключа.",
   "mw.ref.left": "Осталось",
-  "mw.ref.leftB": "Блоков: {blocks}, дней: около {days}.",
   "mw.ref.holders": "Держатели ваших расписок могут гасить их, пока вы не завершите возврат. Контракт позволяет завершить его с блока {h}.",
   "mw.ref.notYet": "Завершить возврат пока нельзя: осталось блоков — {blocks}.",
   "mw.ref.small": "В резерве слишком мало, чтобы заплатить комиссию майнеру и оставить бокс.",
@@ -1569,6 +1566,7 @@ const ru: Partial<Dict> = {
   "mw.ref.how2": "С этого момента трекер не принимает новые расписки от резерва; держатели продолжают гасить.",
   "mw.ref.how3": "Шаг 2, завершение: с блока R7 + 43 ⁠200 весь резерв за вычетом комиссии уходит на адрес вашего ключа.",
   "mw.ref.how4": "Начатый возврат нельзя отменить. После завершения этот ключ может создать новый резерв.",
+  "mw.ref.checkedEnd": "Проверено: ровно два выхода — всё, кроме комиссии, на ваш ключ вместе с токеном-идентификатором резерва, и комиссия; контракт резерва её принимает (проверок: {n}).",
 };
 
 export default { en, ru };
