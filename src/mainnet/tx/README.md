@@ -92,7 +92,7 @@ const { txId } = tx.parseSubmitResponse(submitAnswerText);    // compare with si
 | `extension-values` | #0 = `0200`. #1 = the recipient. #2 = the note's signature. #3 = the committed total (and `total_debt`). #4 = the timestamp. #5, #7 and #8 are each exactly one Coll[Byte]. |
 | `tracker-signature` | #6 is 65 bytes and verifies under `TRACKER_PK` over the 80-byte note message |
 | `outputs` | There are exactly 3 outputs |
-| `reserve-output` | Output 0 keeps the tree, the tokens, R4 and R6. Its value is reserve − amount, ≥ 0.001 ERG. R5 is an AvlTree (flags 03, keyLength 32, no valueLength). R7 is equal. There are exactly 4 registers. |
+| `reserve-output` | Output 0 keeps the tree, the tokens, R4 and R6. Its value is reserve − amount, ≥ 0.001 ERG. R5 is an AvlTree (flags 03, keyLength 32, no valueLength). R7 is equal (an absent R7 counts as 0, like the contract's `getOrElse(0L)`; the tracker writes R7). There are exactly 4 registers. |
 | `payout-output` | Output 1 is `0008cd‖recipient` = payout, with no tokens and no registers |
 | `fee-output` | Output 2 is the fee tree = fee, with no tokens and no registers |
 | `creation-height` | No output is below its input. When `tipHeight` is given, every output is within tip − 15 … tip + 2. |
@@ -169,13 +169,16 @@ const combine = tx.buildWithdraw({ owner, inputs: batch, to: tx.p2pkAddress(owne
 
 The wallet builds these itself: the tracker takes no part. `readReserve(box)` first: the box id recomputed, the
 pinned reserve tree (no legacy template), exactly one token (the reserve NFT, amount 1), R4 a key, R5 an AVL tree,
-R6 our tracker's NFT, R7 a canonical Long ≥ 0, and no other register (exactly R4–R7: a box without R7 is refused,
-although the contract itself reads it as 0). Anything else is refused with its rule, before any plan.
+R6 our tracker's NFT, R7 a canonical Long ≥ 0 or absent, and no other register (R4–R7, or R4–R6). A box without R7
+reads as R7 = 0, as the contract reads it (`SELF.R7[Long].getOrElse(0L)`, l. 234) and the tracker does: a top-up
+keeps it without R7 (l. 443 compares `getOrElse(0L)`), a refund start writes R7 (l. 454 reads `.get`), L2 (the
+engine) reads it the same way, and the vault's guard does not look at R7. Anything else is refused with its rule,
+before any plan.
 
 | | #0 | Inputs | Outputs | Proof of the reserve input | Rules (L1) |
 | --- | --- | --- | --- | --- | --- |
-| Top-up | `020a` (10) | reserve, then the payer's P2PK boxes | reserve + amount (tree, tokens, R4–R7 byte-equal), change?, fee | empty: the contract asks for no signature | amount ≥ 0.1 ERG; never a reserve with R7 ≠ 0 (wallet policy, the contract allows it) |
-| Refund start | `0214` (20) | reserve, then the owner's P2PK boxes (the fee) | reserve (value not lower, R7 = tip + 10), change?, fee | ProveDlog(owner) over `bytesToSign` | R7 = 0 before; the owner signs; dust under 0.001 ERG goes into the reserve |
+| Top-up | `020a` (10) | reserve, then the payer's P2PK boxes | reserve + amount (tree, tokens, every register byte-equal: R7 absent stays absent), change?, fee | empty: the contract asks for no signature | amount ≥ 0.1 ERG; never a reserve with R7 ≠ 0 (wallet policy, the contract allows it) |
+| Refund start | `0214` (20) | reserve, then the owner's P2PK boxes (the fee) | reserve (value not lower, R4–R6 byte-equal, R7 = tip + 10), change?, fee | ProveDlog(owner) over `bytesToSign` | R7 = 0 before; the owner signs; dust under 0.001 ERG goes into the reserve |
 | Refund completion | `021e` (30) | reserve only | P2PK(owner): value − fee with the NFT; fee | ProveDlog(owner) | R7 > 0 and the next block ≥ R7 + 43 200 |
 
 - **Fee** exactly `MINER_FEE_NANOERG`, last output; change only to the signer's own address; creation height the

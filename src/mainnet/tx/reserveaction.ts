@@ -17,8 +17,11 @@
 //
 // The wallet's own rules on top (stricter than the contract): only an ERG reserve under the pinned tree and bound to
 // our tracker; no top-up of a reserve in refund (the contract allows it, the money would only wait for the owner's
-// completion); exactly the outputs above, R4–R7 byte for byte, the miner fee exactly 0.001 ERG, every token of the
-// wallet's boxes to its change, the reserve NFT kept (a completion puts it into the owner's output: nothing is burned).
+// completion); exactly the outputs above, the registers byte for byte (R4–R6, and R7 unless the start writes it), the
+// miner fee exactly 0.001 ERG, every token of the wallet's boxes to its change, the reserve NFT kept (a completion puts
+// it into the owner's output: nothing is burned). A reserve without R7 reads as R7 = 0, as the contract reads it
+// (`SELF.R7[Long].getOrElse(0L)`, l. 234: "Absent or 0 = no refund pending"): a top-up keeps it without R7 (l. 443
+// compares getOrElse(0L)), a refund start writes R7 (l. 454 reads `selfOut.R7[Long].get`).
 import { bytesToHex, hexToBytes } from "../../protocol/bytes";
 import { isValidPublicKey } from "../../protocol/keys";
 import { decodeRegister, encodeAvlTree } from "../../protocol/registerCodec";
@@ -59,14 +62,15 @@ export interface ReserveInfo {
   owner: Hex;
   /** Token 0: the reserve NFT. */
   nft: Hex;
-  /** R7: 0 = no refund started; otherwise the height the refund counts from. */
+  /** R7: 0 = no refund started (or no R7 at all); otherwise the height the refund counts from. */
   refundHeight: bigint;
 }
 
 /**
  * Reads a reserve box the wallet may act on: it hashes to its id, sits under the pinned ERG contract (a legacy template
  * or a token reserve is refused), holds exactly its NFT, R4 a valid key, R5 an AvlTree, R6 our tracker's NFT and R7 a
- * Long ≥ 0, each one canonical constant and nothing after R7.
+ * Long ≥ 0, each one canonical constant and nothing after R7. R7 may be absent (nothing after R6): it reads as 0, as
+ * the contract reads it (l. 234, getOrElse(0L)) and the tracker too (wallet-t3).
  */
 export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { ok: false; rule: ReserveReadRule; message: string } {
   const no = (rule: ReserveReadRule, message: string) => ({ ok: false as const, rule, message });
@@ -74,7 +78,7 @@ export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { o
   if (box.ergoTree !== RESERVE_TREE_HEX) return no("contract", "the box is not under the current Basis ERG reserve contract (a legacy test version, a token reserve or another contract)");
   if (box.tokens.length !== 1 || box.tokens[0].amount !== 1n) return no("tokens", "the reserve does not hold exactly one NFT");
   const [r4, r5, r6, r7] = box.registers;
-  if (box.registers.length !== 4) return no("registers", "the reserve does not have exactly R4–R7");
+  if (box.registers.length !== 3 && box.registers.length !== 4) return no("registers", "the reserve does not have exactly R4–R6, or R4–R7");
   let owner = "", refundHeight = -1n;
   try {
     const d4 = decodeRegister(r4);
@@ -82,9 +86,13 @@ export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { o
     owner = d4.value;
     const d5 = decodeRegister(r5);
     if (d5.type !== "AvlTree" || encodeAvlTree(d5) !== r5) return no("registers", "R5 is not one AvlTree");
-    const d7 = decodeRegister(r7);
-    if (d7.type !== "Long" || encodeLong(d7.value) !== r7 || d7.value < 0n) return no("registers", "R7 is not a Long refund height");
-    refundHeight = d7.value;
+    if (r7 === undefined) {
+      refundHeight = 0n;
+    } else {
+      const d7 = decodeRegister(r7);
+      if (d7.type !== "Long" || encodeLong(d7.value) !== r7 || d7.value < 0n) return no("registers", "R7 is not a Long refund height");
+      refundHeight = d7.value;
+    }
   } catch {
     return no("registers", "a register could not be read");
   }
@@ -247,7 +255,8 @@ export interface ReserveActionWant {
 /**
  * L1 for a top-up, a refund start or a completion: the reserve box is one the wallet acts on and in the right refund
  * state; the transaction spends exactly it (input 0, #0 the action, nothing else in its extension) and the signer's
- * own verified boxes; the outputs are exactly the layout above with R4–R7 byte for byte, the fee exactly 0.001 ERG
+ * own verified boxes; the outputs are exactly the layout above with the registers byte for byte (a top-up keeps all
+ * of them, R7 absent stays absent; a refund start keeps R4–R6 and writes R7), the fee exactly 0.001 ERG
  * (MINER_FEE_NANOERG), every token of the signer's boxes in its change, ERG in = ERG out, no data inputs.
  */
 export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], want: ReserveActionWant): CheckResult<ReserveActionRule> {
@@ -304,8 +313,9 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
       if (outs.length !== 2 && outs.length !== 3) refuse("outputs", `${outs.length} outputs; this action has [reserve, change?, fee]`);
       const r = outs[0];
       const tokensOk = r.tokens.length === reserve.tokens.length && reserve.tokens.every((t, i) => r.tokens[i].tokenId === t.tokenId && r.tokens[i].amount === t.amount);
-      if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== 4) refuse("reserve-output", "output 0 does not keep the reserve contract, its NFT and four registers");
-      const keep = want.kind === "topup" ? 4 : 3;
+      const regs = want.kind === "topup" ? reserve.registers.length : 4;
+      if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its NFT and ${regs === 4 ? "R4–R7" : "R4–R6 (the reserve has no R7)"}`);
+      const keep = want.kind === "topup" ? regs : 3;
       for (let i = 0; i < keep; i++) if (r.registers[i] !== reserve.registers[i]) refuse("reserve-output", `output 0 changes R${4 + i}`);
       if (want.kind === "topup") {
         if (r.value !== reserve.value + want.amount!) refuse("reserve-output", `output 0 holds ${r.value}; the reserve ${reserve.value} plus ${want.amount} is ${reserve.value + want.amount!}`);

@@ -286,6 +286,12 @@ describe("mainnet vault: the passphrase rules", () => {
     const mine = reserveBox(ME, 2_000_000_000n);
     const realStart = signReserveAction(buildRefundStart({ reserve: mine, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [mine, coin], SK, "refund-start");
     expect(reserveActionPaysRight(realStart.nodeJson, ME, "refund-start")).toBe(true);
+    // a reserve without R7 (read as 0, wallet-t3): the same guard, for a top-up that keeps it so and a start that writes it
+    const bare = reserveBox(ME, 2_000_000_000n, { r7: null });
+    const bareTop = signReserveAction(buildTopUp({ reserve: bare, payer: ME, inputs: [coin], amount: 100_000_000n, fee: 1_000_000n, height: 1_925_000 }), [bare, coin], SK, "topup");
+    expect(reserveActionPaysRight(bareTop.nodeJson, ME, "topup", ME)).toBe(true);
+    const bareStart = signReserveAction(buildRefundStart({ reserve: bare, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [bare, coin], SK, "refund-start");
+    expect(reserveActionPaysRight(bareStart.nodeJson, ME, "refund-start")).toBe(true);
     // the reserve output: our tracker (R6), the reviewed owner for a top-up, this key for a refund start
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "topup", ME)).toBe(false);
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "refund-start")).toBe(false);
