@@ -118,6 +118,19 @@ describe("top-up", () => {
     expect(checkReserveActionContract(tx, inputs, "topup", [], TIP + 1, avl).ok).toBe(true);
   });
 
+  it("L2 takes the payer's boxes with registers the engine does not model (Int, SigmaProp, Coll[Coll[Byte]]) as opaque", () => {
+    const odd = { ...p2pkBox(payer.pubHex, 300_000_000n, { index: 3 }), registers: ["0402", `08cd${payer.pubHex}`, "1a020101020203"] };
+    const oddBox = { ...odd, boxId: computeBoxId(odd) };
+    const t = buildTopUp({ reserve, payer: payer.pubHex, inputs: [oddBox], amount, fee: FEE, height: TIP });
+    expect(checkReserveAction(t, [reserve, oddBox], want)).toEqual({ ok: true });
+    const r = checkReserveActionContract(t, [reserve, oddBox], "topup", [payer.pubHex], TIP + 1, avl);
+    if (!r.ok) throw new Error(`${r.rule}: ${r.message}`);
+    // the reserve itself stays strict: an output reserve with an Int register is still refused
+    const bad = clone(t);
+    bad.outputs[0].registers = [...bad.outputs[0].registers.slice(0, 3), "0402"];
+    expect(checkReserveActionContract(bad, [reserve, oddBox], "topup", [payer.pubHex], TIP + 1, avl).ok).toBe(false);
+  });
+
   it("L2 refuses less than 0.1 ERG and a changed R5 (the contract's own rules)", () => {
     const small = clone(tx);
     small.outputs[0].value = reserve.value + 99_999_999n;

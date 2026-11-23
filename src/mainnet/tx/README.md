@@ -169,7 +169,8 @@ const combine = tx.buildWithdraw({ owner, inputs: batch, to: tx.p2pkAddress(owne
 
 The wallet builds these itself: the tracker takes no part. `readReserve(box)` first: the box id recomputed, the
 pinned reserve tree (no legacy template), exactly one token (the reserve NFT, amount 1), R4 a key, R5 an AVL tree,
-R6 our tracker's NFT, R7 a Long (absent counts as 0). Anything else is refused with its rule, before any plan.
+R6 our tracker's NFT, R7 a canonical Long ≥ 0, and no other register (exactly R4–R7: a box without R7 is refused,
+although the contract itself reads it as 0). Anything else is refused with its rule, before any plan.
 
 | | #0 | Inputs | Outputs | Proof of the reserve input | Rules (L1) |
 | --- | --- | --- | --- | --- | --- |

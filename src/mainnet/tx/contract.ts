@@ -87,10 +87,21 @@ function registerValue(hex: Hex, where: string): RegisterValue {
   throw new Unmappable(`${where} is not exactly one canonical constant`);
 }
 
-function simBox(b: BoxCandidate & { boxId: Hex }, where: string): SimBox {
+/**
+ * One box as the engine sees it. Reserve-tree boxes, outputs and data inputs are mapped strictly (the contract reads
+ * them); another input's registers are opaque to the contract (basis.es reads only SELF, its output and the tracker
+ * box), so a register of a type the engine does not model (an Int, a SigmaProp, a Coll[Coll[Byte]] on one of the
+ * payer's own boxes) is left out instead of refusing an honest transaction.
+ */
+function simBox(b: BoxCandidate & { boxId: Hex }, where: string, opaque = false): SimBox {
   const registers: SimBox["registers"] = {};
+  const lenient = opaque && b.ergoTree !== RESERVE_TREE_HEX;
   b.registers.forEach((hex, i) => {
-    registers[REGISTER_NAMES[i]] = registerValue(hex, `${where} ${REGISTER_NAMES[i]}`);
+    try {
+      registers[REGISTER_NAMES[i]] = registerValue(hex, `${where} ${REGISTER_NAMES[i]}`);
+    } catch (e) {
+      if (!lenient || !(e instanceof Unmappable)) throw e;
+    }
   });
   return { boxId: b.boxId, script: scriptOf(b.ergoTree), value: b.value, tokens: b.tokens.map((t) => ({ ...t })), registers, creationHeight: b.creationHeight };
 }
@@ -138,7 +149,7 @@ function toSimTx(c: ContractInput): SimTx {
   });
   return {
     id,
-    inputs: c.inputs.map((b, i) => simBox(b, `input ${i}`)),
+    inputs: c.inputs.map((b, i) => simBox(b, `input ${i}`, true)),
     dataInputs: c.dataInputs.map((b, i) => simBox(b, `data input ${i}`)),
     outputs: outputBoxes(c.tx, id).map((b, i) => simBox(b, `output ${i}`)),
     contextVars,
