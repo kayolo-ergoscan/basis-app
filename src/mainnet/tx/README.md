@@ -32,10 +32,11 @@ Import from `src/mainnet/tx` (the `index.ts` barrel). Inside the repo, use **rel
 | `provedlog.ts` | `proveDlog(message, secret32)` (hedged nonce, self-verified), `verifyDlog(pk, message, proof)`, `publicKeyOf(secret32)` |
 | `messages.ts` | `noteMessage` (80 B), `buildRequestMessage` (131 B ERG, 198 B token), `signBasis`, `verifyBasis` (Basis Schnorr, not ProveDlog) |
 | `redemption.ts` | Redemption: `parseStoredNote`, `checkNoteForRedemption`, `signedBuildRequest`, `parseBuildResponse`, **`checkRedemption` (L1)**, `signRedemption`, `spliceRedemptionProof`, `redemptionSubmitBody`, `parseSubmitResponse`, `TrackerRefusal` |
-| `contract.ts` | **L2**: `loadContractAvl`, `checkRedemptionContract`, `checkReserveContract` |
+| `contract.ts` | **L2**: `loadContractAvl`, `checkRedemptionContract`, `checkReserveContract`, `checkReserveActionContract` |
+| `reserveaction.ts` | The reserve's own actions (basis.es #1–#3): `readReserve`, `refundClock`, `buildTopUp`, `buildRefundStart`, `buildRefundComplete`, `checkReserveAction` (L1), `signReserveAction`, `verifyReserveAction`, `actionVar` |
 | `p2pk.ts` | T1 and Withdraw: `selectCoins`, `planReserveCreation`, `parseReservePayload`, `checkReservePayload`, `buildReserveCreation`, `checkReserveCreation`, `buildWithdraw`, `checkWithdraw`, `signP2pkTransaction`, `verifyP2pkTransaction`, `P2PK_MAX_INPUTS` |
 | `devfixture.ts` | **Dev builds only.** `saveDevFixture(name, text)` saves a raw tracker answer to `/root/basis/qa/fixtures/` during the closed wallet canary (see "Raw answers from the canary"). `devFixtureHandler` is the dev server's half, wired in `vite.config.ts`. |
-| `testkit.ts` | **Tests and UI fixtures only, never in production code.** `syntheticRedemption()`, `trackerBuildResponse()`, `trackerRefusal()`, `p2pkBox()`, `secretBytes()` |
+| `testkit.ts` | **Tests and UI fixtures only, never in production code.** `syntheticRedemption()`, `trackerBuildResponse()`, `trackerRefusal()`, `p2pkBox()`, `reserveBox()`, `secretBytes()` |
 | `fixtures/` | Mainnet JSON, saved byte for byte (see `fixtures/chain.ts`), R3's rebuilt build answer (`fixtures/r3-build.ts`), and R3's dry-run `unsigned_tx` as the canary printed it (a shape fixture, not a span fixture) |
 
 Secrets are always **32-byte `Uint8Array`s**. The vault hands them in, and nothing here keeps them.
@@ -164,6 +165,29 @@ const combine = tx.buildWithdraw({ owner, inputs: batch, to: tx.p2pkAddress(owne
 - **`to`:** a mainnet P2PK or P2S address. The reserve contract, the fee contract, P2SH and testnet addresses are refused.
 - **Tokens** stay with the owner, in the change output.
 
+## Top-up and refund (basis.es actions 1, 2, 3)
+
+The wallet builds these itself: the tracker takes no part. `readReserve(box)` first: the box id recomputed, the
+pinned reserve tree (no legacy template), exactly one token (the reserve NFT, amount 1), R4 a key, R5 an AVL tree,
+R6 our tracker's NFT, R7 a Long (absent counts as 0). Anything else is refused with its rule, before any plan.
+
+| | #0 | Inputs | Outputs | Proof of the reserve input | Rules (L1) |
+| --- | --- | --- | --- | --- | --- |
+| Top-up | `020a` (10) | reserve, then the payer's P2PK boxes | reserve + amount (tree, tokens, R4–R7 byte-equal), change?, fee | empty: the contract asks for no signature | amount ≥ 0.1 ERG; never a reserve with R7 ≠ 0 (wallet policy, the contract allows it) |
+| Refund start | `0214` (20) | reserve, then the owner's P2PK boxes (the fee) | reserve (value not lower, R7 = tip + 10), change?, fee | ProveDlog(owner) over `bytesToSign` | R7 = 0 before; the owner signs; dust under 0.001 ERG goes into the reserve |
+| Refund completion | `021e` (30) | reserve only | P2PK(owner): value − fee with the NFT; fee | ProveDlog(owner) | R7 > 0 and the next block ≥ R7 + 43 200 |
+
+- **Fee** exactly `MINER_FEE_NANOERG`, last output; change only to the signer's own address; creation height the
+  tip; every input exactly once.
+- **L2:** `checkReserveActionContract(tx, inputs, kind, signers, tip + 1, avl)` runs `evaluateReserveSpend` on the
+  real transaction and also checks the action and the output index, and R5 byte-equal for a top-up and a refund
+  start.
+- **A refund cannot be undone.** #2 needs R7 = 0 ("one-shot", basis.es l. 449, 455); #0 and #1 keep R7 (l. 423,
+  443); #3 destroys the box. No path sets R7 back to 0. Redemptions still work during the refund and after its
+  deadline, until the completion (l. 56).
+- The vault's `after` guard (`reserveActionPaysRight`) checks the signed outputs again: the reserve tree or the
+  owner's own address, then the fee.
+
 ## Raw answers from the canary (dev only)
 
 The span tests (`json.test.ts`, the splice in `redemption.test.ts`) run on answers that `testkit.ts` rebuilds from the chain. `fixtures/r3-dryrun-unsigned-tx.txt` is the tracker's own `unsigned_tx` from R3's dry run. It has real field names, order and values, but it was pretty-printed by the canary, so it is a **shape fixture, not a raw-span fixture** (`dryrun.test.ts`). The first raw answer will come from the closed wallet canary run, through this hook.
@@ -229,6 +253,7 @@ Once a build answer is saved, it becomes the raw-span golden. Test it for:
   - without whitespace, it equals the test kit's text byte for byte: field names, order and number format;
   - it is R3 except for #6, the tracker's signature, which has a fresh nonce on every build;
   - wrapped in a build answer, it passes L1 and L2.
+- **`reserveaction.test.ts`:** top-up, refund start and completion on the real R3 reserve box: L1 and L2 accepted, signing and the node JSON (`"proofBytes":""` and `{"0":"020a"}` for a top-up), 31 L1 mutations, the contract refusing the wrong height, a missing owner, a second start and an early completion one block before R7 + 43 200.
 - **`devfixture.test.ts`:** both halves of the canary hook: names, sizes, the header, the origin, and no overwrite.
 
 **Beyond the design, confirmed 2026-11-22:**
