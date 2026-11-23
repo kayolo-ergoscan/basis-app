@@ -700,8 +700,11 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .note .note-face .odo-wrap { display: inline-flex; }
 .u-unit { font-weight: inherit; }
 
-/* Touch: keyboard hints mean nothing without a keyboard; segmented controls and tabs get 44 px targets (like .key.sm). */
-@media (pointer: coarse) {
+/* Touch or a phone-wide window: keyboard hints mean nothing without a keyboard (and a phone-sized layout has no room for
+   them, also in a desktop browser); on touch, segmented controls and tabs get 44 px targets (like .key.sm). */
+@media (pointer: coarse), (max-width: 640px) {
   .kbd, .key .kbd, kbd.hint { display: none !important; }
+}
+@media (pointer: coarse) {
   .seg button, .tabs button, .tabs a { min-height: 44px; }
 }

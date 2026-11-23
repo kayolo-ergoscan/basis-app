@@ -477,5 +477,3 @@
    part of its own top padding under the nav, so its eyebrow lands a calm step below it */
 .home section[id] { scroll-margin-top: -32px; }
 
-/* touch screens have no keyboard: the keys drop their shortcut hints here */
-@media (pointer: coarse) { .home .key .kbd { display: none; } }
