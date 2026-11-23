@@ -10,7 +10,7 @@ import { signP2pkTransaction } from "../../tx/p2pk";
 import { p2pkBox } from "../../tx/testkit";
 import { planCombine, planWithdraw } from "../../flows/coins";
 import { signNote } from "../../flows/notes";
-import { checkNoteBody, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, type NoteIntent } from "../policy";
+import { checkNoteBody, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, reserveActionPaysRight, type NoteIntent } from "../policy";
 import type { MainnetVault } from "../vault";
 import { FakeBrowser, OTHER_PASS, PASS } from "./fakes";
 import { backUp, code, openTab, randomPub } from "./helpers";
@@ -206,5 +206,36 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(() => checkNoteBody(nested, ME, intent(to, 7n, 1n))).not.toThrow();
     expect(() => checkNoteBody(s.body.replace("{", `{"amount":8,`), ME, intent(to, 8n, 1n))).toThrow();
     expect(() => checkNoteBody(s.body.replace("{", `{"amount":8,`), ME, intent(to, 7n, 1n))).toThrow();
+  });
+
+  it("top-up and refund always need the passphrase, and pay only [the reserve or this key, change to this key, fee ≤ 0.001 ERG]", async () => {
+    const { v } = await ready();
+    const own = `0008cd${ME}`;
+    const other = `0008cd${randomPub()}`;
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX]), ME, "topup")).toBe(true);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, FEE_TREE_HEX]), ME, "refund-start")).toBe(true);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, other, FEE_TREE_HEX]), ME, "topup")).toBe(false);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], undefined, [1, 1, 1000001]), ME, "topup")).toBe(false);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX]), ME, "topup")).toBe(false);
+    expect(reserveActionPaysRight(txJson([own, FEE_TREE_HEX]), ME, "topup")).toBe(false);
+    expect(reserveActionPaysRight(txJson([own, FEE_TREE_HEX]), ME, "refund-end")).toBe(true);
+    expect(reserveActionPaysRight(txJson([other, FEE_TREE_HEX]), ME, "refund-end")).toBe(false);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, FEE_TREE_HEX]), ME, "refund-end")).toBe(false);
+    let touched = 0;
+    const act = (trees: string[], id: string) => () => { touched++; return { txId: id, signedRaw: txJson(trees, id), inputs: ["dd".repeat(32)] }; };
+    for (const kind of ["topup", "refund-start", "refund-end"] as const) {
+      const trees = kind === "refund-end" ? [own, FEE_TREE_HEX] : [RESERVE_TREE_HEX, own, FEE_TREE_HEX];
+      expect(await code(v.signToJournal(kind, act(trees, "c1".repeat(32))))).toBe("passphrase-required");
+      expect(await code(v.withSecret(kind, () => 1))).toBe("passphrase-required");
+    }
+    expect(touched).toBe(0);
+    expect(await code(v.signToJournal("topup", act([RESERVE_TREE_HEX, other, FEE_TREE_HEX], "c2".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
+    expect(await code(v.signToJournal("refund-end", act([other, FEE_TREE_HEX], "c3".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
+    expect(await v.journal.list({ kind: "topup" })).toEqual([]);
+    const e = await v.signToJournal("topup", act([RESERVE_TREE_HEX, own, FEE_TREE_HEX], "c4".repeat(32)), { passphrase: PASS });
+    expect([e.kind, e.state, e.txId]).toEqual(["topup", "signed", "c4".repeat(32)]);
+    expect((await v.signToJournal("refund-start", act([RESERVE_TREE_HEX, FEE_TREE_HEX], "c5".repeat(32)), { passphrase: PASS })).kind).toBe("refund-start");
+    expect((await v.signToJournal("refund-end", act([own, FEE_TREE_HEX], "c6".repeat(32)), { passphrase: PASS })).kind).toBe("refund-end");
+    v.close();
   });
 });

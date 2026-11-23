@@ -73,7 +73,7 @@ progress. The design expects 0.5–1.5 s on phones.
 
 `withSecret(purpose, fn, { passphrase? })` is the only way to the secret.
 
-- **Purposes:** `t1`, `note`, `redeem`, `withdraw`, `build-request`, `export-hex`.
+- **Purposes:** `t1`, `note`, `redeem`, `withdraw`, `topup`, `refund-start`, `refund-end`, `build-request`, `export-hex`.
 - **What it needs:** an unlocked session in this tab, and a verified backup (`export-hex` excepted).
 - **The callback:** `fn(secret, pub)` is called synchronously. `secret` is a 32-byte copy, wiped when `fn` returns, and
   `pub` holds the 33 bytes of the compressed public key.
@@ -98,10 +98,15 @@ progress. The design expects 0.5–1.5 s on phones.
     `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
     read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
     the pair's previous note, which must be this key's (its signature is checked);
+  - `topup`, `refund-start`, `refund-end` (the reserve's own actions, `src/mainnet/tx/reserveaction.ts`): always. A
+    top-up may send money to another key's reserve for good; a refund start can never be undone. `signToJournal` also
+    drops signed bytes whose outputs are not the action's layout (`reserveActionPaysRight`): a top-up or refund start is
+    [the reserve contract, change to this key?, a miner fee of at most `MINER_FEE_NANOERG`], a completion is [this
+    key, the miner fee];
   - `redeem`, `build-request`: never. A redemption pays only this key: `signToJournal("redeem")` refuses (`bad-input`)
     signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`].
 
-  A direct `withSecret` for `t1`, `withdraw` or `note` always needs `passphrase` (the vault cannot see what such a
+  A direct `withSecret` for `t1`, `withdraw`, `note`, `topup`, `refund-start` or `refund-end` always needs `passphrase` (the vault cannot see what such a
   callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule
   binds the app's own flows; code injected into the page could still call `withSecret("redeem", …)` with any callback,
   which is what the CSP is for.
@@ -180,7 +185,7 @@ design §6.6).
 | Field | Limit |
 | --- | --- |
 | `signedRaw`, `unsignedRaw` | JSON text up to 64 KiB. A `redeem` keeps `unsignedRaw` (the submit echoes it byte for byte) |
-| `txId` | 64 hex for `t1`, `redeem` and `withdraw`; null for `note`. It must equal the id inside `signedRaw` |
+| `txId` | 64 hex for every transaction kind (`t1`, `redeem`, `withdraw`, `topup`, `refund-start`, `refund-end`); null for `note`. It must equal the id inside `signedRaw` |
 | `inputs` | 1–256 unique lowercase 64-hex box ids for transactions; none for a note |
 | `meta` | Up to 32 flat fields, named `/^[A-Za-z][A-Za-z0-9_]{0,31}$/`. Values: strings (≤ 2048), finite numbers, booleans or null. Amounts go in as decimal strings |
 

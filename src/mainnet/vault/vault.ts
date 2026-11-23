@@ -16,13 +16,13 @@ import {
 import { VaultDb } from "./db";
 import { browserEnv, type ChannelLike, type CryptoLike, type VaultEnv } from "./env";
 import { VaultError } from "./errors";
-import { dropJournalOf, MainnetJournal, type JournalEntry, type JournalKind, type JournalRecordInput } from "./journal";
+import { dropJournalOf, MainnetJournal, RESERVE_ACTION_KINDS, type JournalEntry, type JournalKind, type JournalRecordInput } from "./journal";
 import { deriveKey, seal, unseal } from "./kdf";
 import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } from "./keys";
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
-import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, type NoteIntent, type NotePolicy, type PairPromise } from "./policy";
+import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, reserveActionPaysRight, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
@@ -134,7 +134,7 @@ interface Guard<T> {
 }
 
 /** Purposes a direct withSecret() serves only with the passphrase: the vault cannot see what such a callback signs. */
-const PASS_DIRECT: ReadonlySet<SecretPurpose> = new Set(["t1", "withdraw", "note", "export-hex"]);
+const PASS_DIRECT: ReadonlySet<SecretPurpose> = new Set(["t1", "withdraw", "note", "topup", "refund-start", "refund-end", "export-hex"]);
 const needPass = (message: string, reason: string) => new VaultError("passphrase-required", message, { reason });
 
 type Stored = { kind: "none" } | { kind: "ok"; rec: KeyRecord } | { kind: "damaged"; backedUp: boolean };
@@ -149,7 +149,7 @@ export interface VaultInternals {
   hiddenMs: number;
 }
 
-const PURPOSES: readonly SecretPurpose[] = ["t1", "note", "redeem", "withdraw", "build-request", "export-hex"];
+const PURPOSES: readonly SecretPurpose[] = ["t1", "note", "redeem", "withdraw", "topup", "refund-start", "refund-end", "build-request", "export-hex"];
 const INSPECT: unique symbol = Symbol.for("nodejs.util.inspect.custom");
 
 const INITIAL: VaultState = Object.freeze({ status: "loading", key: null, backedUp: false, lockReason: null, missing: Object.freeze([]), persisted: null, v: 0 });
@@ -626,6 +626,7 @@ export class MainnetVault {
     const guard: Guard<Part> = {
       before(s, typed) {
         if (kind === "t1" && !typed) throw needPass("a reserve creation needs the passphrase", "t1");
+        if (RESERVE_ACTION_KINDS.includes(kind) && !typed) throw needPass("a top-up or a refund moves the reserve: it needs the passphrase", kind);
         if (kind === "note") {
           const p = notePolicy(s.pub, intent, s.promised); // also refuses a previous note that is not this key's
           if (p.passphrase && !typed) throw needPass("the notes since the passphrase was typed promise more than 25 % of the reserve", p.reserveValue > 0n ? "note-over-quarter" : "note-no-reserve");
@@ -635,6 +636,9 @@ export class MainnetVault {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
         if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
+        if (RESERVE_ACTION_KINDS.includes(kind) && !reserveActionPaysRight(part.signedRaw, s.pub, kind as ReserveActionKind)) {
+          throw new VaultError("bad-input", "a top-up or a refund pays only [the reserve or this key, change to this key, a miner fee of at most 0.001 ERG]");
+        }
         if (kind === "note") {
           checkNoteBody(part.signedRaw, s.pub, intent);
           if (!typed) s.promised.set(intent.recipient, nextPromise(s.promised, intent.recipient, intent.prev?.total ?? 0n, intent.total));

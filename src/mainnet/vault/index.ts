@@ -5,10 +5,10 @@ export type {
   TakeOverOptions, VaultKey, VaultOptions, VaultState, VaultStatus, WipeOptions,
 } from "./vault";
 export { attachAutoLock, type AutoLockDom, type AutoLockTarget } from "./autolock";
-export { MainnetJournal, buildScope, noteScope, blocksNewT1, isOpenState, JOURNAL_KINDS, JOURNAL_STATES, OPEN_STATES, MAX_ERROR_CHARS, MAX_RAW_BYTES } from "./journal";
+export { MainnetJournal, buildScope, noteScope, blocksNewT1, isOpenState, JOURNAL_KINDS, JOURNAL_STATES, OPEN_STATES, RESERVE_ACTION_KINDS, MAX_ERROR_CHARS, MAX_RAW_BYTES } from "./journal";
 export type { JournalEntry, JournalFilter, JournalKind, JournalMeta, JournalMetaValue, JournalPatch, JournalRecordInput, JournalState } from "./journal";
 export { VaultError, isVaultError, type VaultErrorCode, type ErrorDetail } from "./errors";
-export { NOTE_PASSPHRASE_DIVISOR, notePassphraseNeeded, type NoteIntent, type NotePolicy } from "./policy";
+export { NOTE_PASSPHRASE_DIVISOR, notePassphraseNeeded, reserveActionPaysRight, type NoteIntent, type NotePolicy, type ReserveActionKind } from "./policy";
 export { checkPassphrase, normalizePassphrase, type PassphraseCheck, type PassphraseIssue } from "./passphrase";
 export { HOW_TO_DECRYPT, parseBackup, backupFilename, type BackupContact, type BackupExtras, type BackupFile, type SealedExtras } from "./backup";
 export { TRACKER_PUBLIC_KEY, isPublicKeyHex, type Hex } from "./keys";

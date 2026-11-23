@@ -16,7 +16,8 @@ import { VaultError } from "./errors";
 import { isPublicKeyHex, type Hex } from "./keys";
 import { isObject } from "./record";
 
-export type JournalKind = "t1" | "note" | "redeem" | "withdraw";
+/** t1 creates the reserve; topup, refund-start and refund-end are the reserve's own actions (basis.es #1–#3). */
+export type JournalKind = "t1" | "note" | "redeem" | "withdraw" | "topup" | "refund-start" | "refund-end";
 export type JournalState = "signed" | "sent" | "mempool" | "confirmed" | "final" | "failed" | "abandoned";
 export type JournalMetaValue = string | number | boolean | null;
 export type JournalMeta = Readonly<Record<string, JournalMetaValue>>;
@@ -28,7 +29,7 @@ export interface JournalEntry {
   /** The key that signed it. */
   readonly pub: Hex;
   readonly state: JournalState;
-  /** Transaction id (t1, redeem, withdraw); null for a note. */
+  /** Transaction id (every kind but a note); null for a note. */
   readonly txId: Hex | null;
   /** The exact text to (re)send: the signed transaction JSON, or the note's POST body. */
   readonly signedRaw: string;
@@ -81,7 +82,9 @@ export interface JournalFilter {
   open?: boolean;
 }
 
-export const JOURNAL_KINDS: readonly JournalKind[] = ["t1", "note", "redeem", "withdraw"];
+export const JOURNAL_KINDS: readonly JournalKind[] = ["t1", "note", "redeem", "withdraw", "topup", "refund-start", "refund-end"];
+/** The reserve's own actions after T1: they spend the reserve box itself. */
+export const RESERVE_ACTION_KINDS: readonly JournalKind[] = ["topup", "refund-start", "refund-end"];
 export const JOURNAL_STATES: readonly JournalState[] = ["signed", "sent", "mempool", "confirmed", "final", "failed", "abandoned"];
 /** Still in flight: shown as pending, polled, rebroadcast. */
 export const OPEN_STATES: readonly JournalState[] = ["signed", "sent", "mempool", "confirmed"];
@@ -89,7 +92,7 @@ export const MAX_RAW_BYTES = 64 * 1024;
 export const MAX_ERROR_CHARS = 300;
 export const MAX_INPUTS = 256;
 
-const TX_KINDS: ReadonlySet<JournalKind> = new Set(["t1", "redeem", "withdraw"]);
+const TX_KINDS: ReadonlySet<JournalKind> = new Set(["t1", "redeem", "withdraw", "topup", "refund-start", "refund-end"]);
 const HEX64 = /^[0-9a-f]{64}$/;
 const META_KEY = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 

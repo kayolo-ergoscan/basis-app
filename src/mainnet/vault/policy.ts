@@ -6,7 +6,9 @@
 //   • note: when the notes signed since the last passphrase entry, this one included, promise more than 25 % of the
 //     reserve's value read on chain (/v1, never the tracker's figure). A note promises its increment: the new total
 //     minus the pair's previous total, which must be a note of this key (its signature is checked here);
-//   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below).
+//   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below);
+//   • topup, refund-start, refund-end (the reserve's own actions): always, and the signed outputs must be exactly the
+//     action's layout (reserveActionPaysRight, below): a top-up can send money to another key's reserve for good.
 // "Since the last passphrase entry" = since the session opened (an unlock is a passphrase entry) or since the last use
 // of the key with the passphrase typed again. The count lives in the session only.
 import { FEE_TREE_HEX, MINER_FEE_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, TRACKER_NFT } from "../tx/constants";
@@ -162,4 +164,24 @@ export function redemptionPaysOwnKey(signedRaw: string, pub: Hex): boolean {
   const outs = outputsOf(signedRaw);
   return !!outs && outs.length === 3 && outs[0].tree === RESERVE_TREE_HEX && outs[1].tree === `0008cd${pub}` &&
     outs[2].tree === FEE_TREE_HEX && outs[2].value <= REDEEM_MAX_FEE_NANOERG;
+}
+
+/** The reserve's own actions (journal kinds topup, refund-start, refund-end). */
+export type ReserveActionKind = "topup" | "refund-start" | "refund-end";
+
+/**
+ * True when a signed reserve action pays only where the wallet's own checks allow (tx/reserveaction.ts L1): a top-up
+ * or a refund start is [the reserve contract, change to this key?, the miner fee]; a completion is [this key, the
+ * miner fee]; the fee is at most MINER_FEE_NANOERG. The amounts and registers are L1's; this keeps a screen from
+ * signing money to anywhere else under these kinds.
+ */
+export function reserveActionPaysRight(signedRaw: string, pub: Hex, kind: ReserveActionKind): boolean {
+  const outs = outputsOf(signedRaw);
+  if (!outs) return false;
+  const own = `0008cd${pub}`;
+  const fee = outs[outs.length - 1];
+  if (!fee || fee.tree !== FEE_TREE_HEX || fee.value > MINER_FEE_NANOERG) return false;
+  if (kind === "refund-end") return outs.length === 2 && outs[0].tree === own;
+  if (outs.length !== 2 && outs.length !== 3) return false;
+  return outs[0].tree === RESERVE_TREE_HEX && (outs.length === 2 || outs[1].tree === own);
 }
