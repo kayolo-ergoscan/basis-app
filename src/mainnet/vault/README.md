@@ -102,9 +102,12 @@ progress. The design expects 0.5–1.5 s on phones.
     top-up may send money to another key's reserve for good; a refund start can never be undone. `signToJournal` also
     drops signed bytes whose outputs are not the action's layout (`reserveActionPaysRight`): a top-up or refund start is
     [the reserve contract, change to this key?, a miner fee of at most `MINER_FEE_NANOERG`], a completion is [this
-    key, the miner fee];
+    key, the miner fee]; the reserve output keeps R6 = our tracker and R4 = this key (refund start) or the owner the
+    screen reviewed (top-up: `opts.reserveOwner`, required);
   - `redeem`, `build-request`: never. A redemption pays only this key: `signToJournal("redeem")` refuses (`bad-input`)
-    signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`].
+    signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`],
+    or that are not a redemption: one input whose #0 is action 0, and an output 0 that is not this key's own reserve
+    (a refund start or a top-up with change has the same output layout).
 
   A direct `withSecret` for `t1`, `withdraw`, `note`, `topup`, `refund-start` or `refund-end` always needs `passphrase` (the vault cannot see what such a
   callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule

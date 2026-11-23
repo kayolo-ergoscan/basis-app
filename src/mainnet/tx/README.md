@@ -186,8 +186,13 @@ although the contract itself reads it as 0). Anything else is refused with its r
 - **A refund cannot be undone.** #2 needs R7 = 0 ("one-shot", basis.es l. 449, 455); #0 and #1 keep R7 (l. 423,
   443); #3 destroys the box. No path sets R7 back to 0. Redemptions still work during the refund and after its
   deadline, until the completion (l. 56).
-- The vault's `after` guard (`reserveActionPaysRight`) checks the signed outputs again: the reserve tree or the
-  owner's own address, then the fee.
+- The vault's `after` guard (`reserveActionPaysRight`) checks the signed outputs again: the reserve tree (R6 our
+  tracker, R4 this key or the reviewed owner) or the owner's own address, then the fee.
+- Which reserve is "yours" (`flows/reserveops.ts` `ownReserve`): only the one whose NFT this wallet's T1 or the
+  tracker names (both agree when both are known), and only when the chain shows exactly one reserve box at the key.
+  Anyone can create a box under the reserve contract with R4 = your key; it is never picked by position.
+- L2 maps the reserve-tree boxes, the outputs and the data inputs strictly; the registers of the payer's other inputs
+  are opaque to it (basis.es never reads them).
 
 ## Raw answers from the canary (dev only)
 
