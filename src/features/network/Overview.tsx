@@ -6,11 +6,13 @@ import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
 import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
-import { amount, approx, blocks, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
-import { Capped, ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
-import { BeatStrip, Beacon, ExitBar, VaultCoin } from "./viz";
+import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
+import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
+import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
 import { OurTrackerBlock } from "./Ours";
+// FeedRow lives in feed.tsx (Ours.tsx uses it too); re-exported for the pages that import it from here
 import { FeedRow } from "./feed";
+import { Capped } from "./parts";
 
 export { FeedRow };
 
