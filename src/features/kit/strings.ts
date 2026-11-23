@@ -235,7 +235,7 @@ export default {
     "kit.co.alarm": "Something is wrong",
     "kit.co.alarm.b": "The tracker's signature does not match this total. Do not accept the note.",
     "kit.co.calm": "Calm, not an alarm",
-    "kit.co.calm.b": "The tracker is silent. Your notes are safe; emergency redeem opens after 2\u2009\u2060160 blocks.",
+    "kit.co.calm.b": "The tracker is silent. Your notes stay as they are; emergency redeem opens after 2\u2009\u2060160 blocks.",
     "kit.trust": "Trust, checks, countdowns",
     "kit.trust.n": "next to every tracker",
     "kit.trust.stage": "Stage",
