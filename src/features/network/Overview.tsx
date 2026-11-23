@@ -361,14 +361,15 @@ export function TopUpKey({ r, nftOf }: { r?: ReserveView; nftOf?: (box: string) 
   );
 }
 
-/** The registers exactly as the wallet reads them (tx/reserveaction.ts readReserve): R4 the owner's key, R5 a tree,
- *  R6 our tracker, R7 a Long ≥ 0; a box without R7 is refused there too, although the contract reads it as 0. */
+/** The registers as the wallet reads them (tx/reserveaction.ts readReserve): R4 the owner's key, R5 a tree, R6 our
+ *  tracker, R7 a Long ≥ 0 or absent (the contract's 0, wallet-t3). R8, R9 are not in the view: the wallet ignores them
+ *  too (the contract never reads them, anyone's top-up can add them). */
 function walletReadsRegisters(r: ReserveView): boolean {
   const g = r.regs;
   const r4 = g.R4?.toLowerCase() ?? "";
+  const r7 = g.R7 === undefined ? r.r7 === null : /^05[0-9a-f]{2,20}$/.test(g.R7.toLowerCase()) && r.r7 !== null && r.r7 >= 0;
   return /^07(02|03)[0-9a-f]{64}$/.test(r4) && !!r.owner && r.owner.key.toLowerCase() === r4.slice(2) &&
-    /^64[0-9a-f]+$/.test(g.R5?.toLowerCase() ?? "") && g.R6?.toLowerCase() === `0e20${OUR_TRACKER.nft}` &&
-    /^05[0-9a-f]{2,20}$/.test(g.R7?.toLowerCase() ?? "") && r.r7 !== null && r.r7 >= 0;
+    /^64[0-9a-f]+$/.test(g.R5?.toLowerCase() ?? "") && g.R6?.toLowerCase() === `0e20${OUR_TRACKER.nft}` && r7;
 }
 
 /** What our tracker says about one reserve: the fields of its /reserves entry the key needs. It names the reserve by
@@ -384,7 +385,7 @@ export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null, nf
   if (r.kind !== "erg" || r.collateral) return "token";
   if (!r.nft || r.r6 !== OUR_TRACKER.nft) return "tracker";
   if (!walletReadsRegisters(r)) return "shape";
-  if (r.r7 !== 0) return "refund";
+  if ((r.r7 ?? 0) !== 0) return "refund";
   if (tracked === null) return "unknown";
   const nft = r.nft.id, owner = r.owner!.key.toLowerCase();
   // tracked as its owner's only ERG reserve (as the wallet's trackedAs): a second one of that owner is not picked between

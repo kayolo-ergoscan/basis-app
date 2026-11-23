@@ -1,5 +1,5 @@
 // The observatory's Top up key: open (a link into the mainnet wallet) only for what the wallet tops up, shut with the
-// reason otherwise: the registers exactly as readReserve takes them (a box without R7 is refused), and only a reserve
+// reason otherwise: the registers as readReserve takes them (no R7 reads as 0, R8/R9 are ignored), and only a reserve
 // our tracker tracks as its owner's (review 2: anyone can plant a box that looks like a reserve). The wallet reads the
 // reserve and the tracker again before anything is signed.
 import { describe, expect, it } from "vitest";
@@ -33,9 +33,9 @@ describe("topUpShut", () => {
     expect(topUpShut(view({ nft: null }), TRACKED)).toBe("tracker");
     expect(topUpShut(view({ r7: 1_923_000, regs: { ...view().regs, R7: "05f0e4ea01" } }), TRACKED)).toBe("refund");
   });
-  it("the registers as the wallet reads them: no R7 (the contract's 0) or an odd type stays shut", () => {
+  it("the registers as the wallet reads them: no R7 (the contract's 0) is taken; an odd type stays shut", () => {
     const { R7: _, ...noR7 } = view().regs;
-    expect(topUpShut(view({ r7: null, regs: noR7 }), TRACKED)).toBe("shape");
+    expect(topUpShut(view({ r7: null, regs: noR7 }), TRACKED)).toBeNull();
     expect(topUpShut(view({ regs: { ...view().regs, R7: "0400" } }), TRACKED)).toBe("shape"); // an Int
     expect(topUpShut(view({ regs: { ...view().regs, R4: "0e0102" } }), TRACKED)).toBe("shape");
     expect(topUpShut(view({ regs: { ...view().regs, R5: "0e00" } }), TRACKED)).toBe("shape");
