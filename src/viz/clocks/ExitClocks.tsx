@@ -107,7 +107,7 @@ export function ExitClocks(p: ExitClocksProps) {
               <p className="vz-clock-line">{t(p.boxPending ? "viz.clock.checking" : "viz.clock.noBox")}</p>
             )}
             {/* a tracker with a heartbeat keeps the window closed while it runs; the generic text says an idle one opens it */}
-            <p className="vz-small">{t(p.quiet !== undefined ? "viz.clock.emSubBeat" : "viz.clock.emSub")}</p>
+            <p className="vz-small">{t("viz.clock.emSub")} {t(p.quiet !== undefined ? "viz.clock.emSubBeat" : "viz.clock.emSubIdle")}</p>
           </div>
         ) : null}
         {show !== "emergency" ? (
