@@ -13,6 +13,8 @@ import { OurTrackerBlock } from "./Ours";
 // FeedRow lives in feed.tsx (Ours.tsx uses it too); re-exported for the pages that import it from here
 import { FeedRow } from "./feed";
 import { Capped } from "./parts";
+// ErgoScan's tracker: its heartbeat sets the dial's bands
+import { OUR_TRACKER, STALE_AFTER_BLOCKS } from "@/chain";
 
 export { FeedRow };
 
@@ -257,7 +259,7 @@ export function TrackerPanel({ tr, tip, compact, idle = true }: { tr: TrackerVie
             <span className="s">{approx(age, lang)} {t("network.trk.lastBox")}</span>
             <span className="s2">{t("network.trk.lastBoxAt", { h: fmtH(box.height), date: date(box.at, lang) })} · {box.zero ? t("network.trk.digestZero") : box.empty ? t("network.trk.digestEmpty") : t("network.trk.digestHas")}</span>
           </div>
-          <Dial blocks={Math.min(age, EMERGENCY_BLOCKS)} size={compact ? 64 : 76} labels={false} />
+          <Dial blocks={Math.min(age, EMERGENCY_BLOCKS)} size={compact ? 64 : 76} labels={false} quiet={tr.nft === OUR_TRACKER.nft ? STALE_AFTER_BLOCKS : undefined} />
         </div>
       )}
       {!hasBox && <p className="nw-trk-gone"><span className="g" aria-hidden="true">{tr.status === "burned" ? "✕" : tr.status === "locked" ? "⊘" : "○"}</span>{goneLine(tr, t)}</p>}

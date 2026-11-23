@@ -9,6 +9,8 @@ import seedJson from "@/chain/seed.json";
 import { buildObservatory, contractIndex, CURRENT_TEMPLATES, emptyLive, interpretTx, liveBoxFromApi, OUR_TRACKER, p2sAddress, type ApiBox, type Seed } from "@/chain";
 import chainStrings from "@/chain/i18n";
 import { idleStatus } from "@/chain/model";
+import uiStrings from "@/ui/i18n";
+import { TrackerPanel } from "./Overview";
 import { OurRedemptions } from "./Ours";
 import strings from "./strings";
 
@@ -37,6 +39,7 @@ function liveData(listed: boolean) {
 beforeAll(() => {
   addI18n(strings);
   addI18n(chainStrings);
+  addI18n(uiStrings);
   setLang("en");
 });
 
@@ -72,5 +75,16 @@ describe("our tracker page: redemptions found on chain", () => {
     const failed = html(<OurRedemptions obs={buildObservatory({ seed, live: emptyLive(), tip: H + 600, status: { ...idleStatus(), lastError: "HTTP 503" } })} />);
     expect(failed).toContain("Not checked live yet");
     expect(failed).not.toContain("None.");
+  });
+});
+
+describe("tracker cards", () => {
+  it("our tracker's dial is on time between heartbeats; another tracker of the same age is late", () => {
+    const obs = buildObservatory({ seed, live: emptyLive(), tip: H });
+    const other = obs.trackers.find((x) => x.status === "live" && x.lastTrackerBox?.unspent)!;
+    const tip = other.lastTrackerBox!.height + 681;
+    const aria = (nft: string) => html(<TrackerPanel tr={{ ...other, nft, emergency: other.emergency && { ...other.emergency, age: 681 } }} tip={tip} />).match(/class="dial"[^>]*aria-label="([^"]*)"/)?.[1] ?? "";
+    expect(aria(OUR_TRACKER.nft)).toMatch(/on time/i);
+    expect(aria(other.nft)).toMatch(/late/i);
   });
 });
