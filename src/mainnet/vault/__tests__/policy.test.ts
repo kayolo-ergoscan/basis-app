@@ -55,8 +55,8 @@ const actJson = (trees: string[], owner: string, o: { id?: string; values?: (str
     `"ergoTree":"${RESERVE_TREE_HEX}","assets":[],"additionalRegisters":{"R4":"07${owner}","R5":"64","R6":"0e20${o.r6 ?? TRACKER_NFT}","R7":"0500"}`);
 
 /** A signed redemption in node JSON: one input with #0 (action 0, output 0 = "0200"), output 0 a reserve of `owner`. */
-const redeemJson = (trees: string[], o: { id?: string; owner?: string; ext0?: string; inputs?: number; values?: (string | number)[] } = {}) => {
-  const input = `{"boxId":"${"dd".repeat(32)}","spendingProof":{"proofBytes":"${"ab".repeat(56)}","extension":{"0":"${o.ext0 ?? "0200"}","1":"07${"02".padEnd(66, "1")}"}}}`;
+const redeemJson = (trees: string[], o: { id?: string; owner?: string; ext0?: string; inputs?: number; values?: (string | number)[]; boxId?: string } = {}) => {
+  const input = `{"boxId":"${o.boxId ?? "dd".repeat(32)}","spendingProof":{"proofBytes":"${"ab".repeat(56)}","extension":{"0":"${o.ext0 ?? "0200"}","1":"07${"02".padEnd(66, "1")}"}}}`;
   const regs = (i: number) => (i === 0 ? `{"R4":"07${o.owner ?? randomPub()}","R5":"64","R6":"0e20","R7":"0500"}` : "{}");
   return `{"id":"${o.id ?? "ab".repeat(32)}","inputs":[${Array(o.inputs ?? 1).fill(input).join(",")}],"dataInputs":[{"boxId":"${"ee".repeat(32)}"}],"outputs":[${trees.map((ergoTree, i) => `{"value":${o.values?.[i] ?? 1000000},"ergoTree":"${ergoTree}","assets":[],"additionalRegisters":${regs(i)},"creationHeight":1}`).join(",")}]}`;
 };
@@ -86,17 +86,32 @@ describe("mainnet vault: the passphrase rules", () => {
     const { v } = await ready();
     const own = `0008cd${ME}`;
     let n = 0;
-    const w = (trees: string[]) => () => {
+    // the coin a withdrawal spends, bound to its id (re-review LOW: only this key's boxes, no context variables)
+    const coin = p2pkBox(ME, 30_000_000n, { index: 7 });
+    const spending = (raw: string, b: { boxId: string } = coin, ext = "{}") =>
+      raw.replace('"inputs":[]', `"inputs":[{"boxId":"${b.boxId}","spendingProof":{"proofBytes":"${"ab".repeat(56)}","extension":${ext}}}]`);
+    const mine = { inputBoxes: [coin] };
+    const w = (trees: string[], b: { boxId: string } = coin, ext = "{}") => () => {
       const id = (++n).toString(16).padStart(2, "0").repeat(32);
-      return { txId: id, signedRaw: txJson(trees, id), inputs: ["dd".repeat(32)] };
+      return { txId: id, signedRaw: spending(txJson(trees, id), b, ext), inputs: [b.boxId] };
     };
-    expect((await v.signToJournal("withdraw", w([own, FEE_TREE_HEX]))).state).toBe("signed");
+    expect((await v.signToJournal("withdraw", w([own, FEE_TREE_HEX]), mine)).state).toBe("signed");
     const foreign = `0008cd${randomPub()}`;
-    expect(await code(v.signToJournal("withdraw", w([foreign, own, FEE_TREE_HEX])))).toBe("passphrase-required");
-    expect(await code(v.signToJournal("withdraw", w([])))).toBe("passphrase-required");
-    expect(await code(v.signToJournal("withdraw", () => ({ txId: "cc".repeat(32), signedRaw: "not json", inputs: [] })))).toBe("passphrase-required");
+    expect(await code(v.signToJournal("withdraw", w([foreign, own, FEE_TREE_HEX]), mine))).toBe("passphrase-required");
+    expect(await code(v.signToJournal("withdraw", w([]), mine))).toBe("passphrase-required");
+    expect(await code(v.signToJournal("withdraw", () => ({ txId: "cc".repeat(32), signedRaw: "not json", inputs: [] }), mine))).toBe("bad-input");
+    // a refund completion pays [this key, the fee] too: under "withdraw" it is refused, passphrase or not
+    const reserve = reserveBox(ME, 2_000_000_000n);
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX], reserve, '{"0":"021e"}'), { inputBoxes: [reserve] }))).toBe("bad-input");
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX], reserve), { inputBoxes: [reserve], passphrase: PASS }))).toBe("bad-input");
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX], coin, '{"0":"021e"}'), mine))).toBe("bad-input");
+    // the boxes are required, must hash to the inputs' ids, and be this key's
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX])))).toBe("bad-input");
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX]), { inputBoxes: [{ ...coin, value: coin.value + 1n }] }))).toBe("bad-input");
+    const theirCoin = p2pkBox(randomPub(), 30_000_000n);
+    expect(await code(v.signToJournal("withdraw", w([own, FEE_TREE_HEX], theirCoin), { inputBoxes: [theirCoin], passphrase: PASS }))).toBe("bad-input");
     expect(await v.journal.list({ kind: "withdraw" })).toHaveLength(1);
-    expect((await v.signToJournal("withdraw", w([foreign, own, FEE_TREE_HEX]), { passphrase: PASS })).state).toBe("signed");
+    expect((await v.signToJournal("withdraw", w([foreign, own, FEE_TREE_HEX]), { passphrase: PASS, ...mine })).state).toBe("signed");
     // the real signer's JSON: Combine (back to this key) goes through; a withdrawal elsewhere does not
     const boxes = [p2pkBox(ME, 30_000_000n), p2pkBox(ME, 40_000_000n, { index: 1 })];
     const combine = planCombine(boxes, ME, p2pkAddress(ME), 1_922_400);
@@ -105,10 +120,10 @@ describe("mainnet vault: the passphrase rules", () => {
       const r = signP2pkTransaction(tx, inputs, SK);
       return { txId: r.txId, signedRaw: r.nodeJson, inputs: inputs.map((x) => x.boxId) };
     };
-    expect((await v.signToJournal("withdraw", signed(combine.tx, combine.inputs))).state).toBe("signed");
+    expect((await v.signToJournal("withdraw", signed(combine.tx, combine.inputs), { inputBoxes: combine.inputs })).state).toBe("signed");
     const away = planWithdraw(boxes, ME, p2pkAddress(randomPub()), 50_000_000n, 1_000_000n, 1_922_400);
     if (!away.ok) throw new Error("no withdraw plan");
-    expect(await code(v.signToJournal("withdraw", signed(away.tx, away.inputs)))).toBe("passphrase-required");
+    expect(await code(v.signToJournal("withdraw", signed(away.tx, away.inputs), { inputBoxes: away.inputs }))).toBe("passphrase-required");
     expect(p2pkTree(ME)).toBe(own);
     expect(paysOnlyOwnKey(txJson([own]), ME)).toBe(true);
     expect(paysOnlyOwnKey(txJson([own.toUpperCase()]), ME)).toBe(false);
@@ -120,10 +135,10 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(paysOnlyOwnKey(txJson([own, FEE_TREE_HEX], undefined, [5, 1000000]).replace(`"inputs"`, `"outputs":[],"inputs"`), ME)).toBe(false); // duplicate key
     const toFee = (() => {
       const id = "ee".repeat(32);
-      return () => ({ txId: id, signedRaw: txJson([own, FEE_TREE_HEX], id, [1000, 68_000_000]), inputs: ["dd".repeat(32)] });
+      return () => ({ txId: id, signedRaw: spending(txJson([own, FEE_TREE_HEX], id, [1000, 68_000_000])), inputs: [coin.boxId] });
     })();
     const sent = await v.journal.list({ kind: "withdraw" });
-    expect(await code(v.signToJournal("withdraw", toFee))).toBe("passphrase-required");
+    expect(await code(v.signToJournal("withdraw", toFee, mine))).toBe("passphrase-required");
     expect(await v.journal.list({ kind: "withdraw" })).toHaveLength(sent.length);
     v.close();
   });
@@ -152,11 +167,19 @@ describe("mainnet vault: the passphrase rules", () => {
     const real = signRedemption(l1, secretBytes(syn.recipient.secret));
     expect(redemptionPaysOwnKey(real.signedRaw, syn.expect.recipient)).toBe(true);
     expect(redemptionPaysOwnKey(real.signedRaw, syn.expect.issuer)).toBe(false);
-    const r = (raw: string, id: string) => () => ({ txId: id, signedRaw: raw, unsignedRaw: "{}", inputs: ["dd".repeat(32)] });
-    expect(await code(v.signToJournal("redeem", r(redeemJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], { id: "a1".repeat(32) }), "a1".repeat(32))))).toBe("bad-input");
-    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a3".repeat(32), ext0: "0214", owner: ME }), "a3".repeat(32))))).toBe("bad-input");
+    // the reviewed reserve box, bound to the input's id (re-review LOW: input 0 is a reserve-contract box)
+    const rb = reserveBox(randomPub(), 2_000_000_000n);
+    const reviewed = { inputBoxes: [rb] };
+    const r = (raw: string, id: string) => () => ({ txId: id, signedRaw: raw, unsignedRaw: "{}", inputs: [rb.boxId] });
+    expect(await code(v.signToJournal("redeem", r(redeemJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], { id: "a1".repeat(32), boxId: rb.boxId }), "a1".repeat(32)), reviewed))).toBe("bad-input");
+    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a3".repeat(32), ext0: "0214", owner: ME, boxId: rb.boxId }), "a3".repeat(32)), reviewed))).toBe("bad-input");
+    // the same bytes, but the input is a box of this key (a "redemption" that spends the wallet's own coin), or unbound
+    const coin = p2pkBox(ME, 3_000_000_000n);
+    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a4".repeat(32), boxId: coin.boxId }), "a4".repeat(32)), { inputBoxes: [coin] }))).toBe("bad-input");
+    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a5".repeat(32), boxId: rb.boxId }), "a5".repeat(32))))).toBe("bad-input");
+    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a6".repeat(32), boxId: rb.boxId }), "a6".repeat(32)), { inputBoxes: [{ ...rb, value: 1n }] }))).toBe("bad-input");
     expect(await v.journal.list({ kind: "redeem" })).toEqual([]);
-    expect((await v.signToJournal("redeem", r(redeemJson(R, { id: "a2".repeat(32) }), "a2".repeat(32)))).state).toBe("signed");
+    expect((await v.signToJournal("redeem", r(redeemJson(R, { id: "a2".repeat(32), boxId: rb.boxId }), "a2".repeat(32)), reviewed)).state).toBe("signed");
     v.close();
   });
 

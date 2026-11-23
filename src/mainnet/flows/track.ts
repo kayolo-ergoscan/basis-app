@@ -19,6 +19,18 @@ export interface ChainSighting {
   conflict?: boolean;
   /** Redemption only: the tracker box it reads was spent by a commit before it confirmed. */
   trackerBoxSpent?: boolean;
+  /** Refund start only: the tip reached its R7, so no next block may hold it (refundStartExpired). */
+  expired?: boolean;
+}
+
+/**
+ * A refund start is valid only in a block at a height ≤ its R7 (basis.es: `selfOut.R7 >= HEIGHT`): once the tip has
+ * reached R7, the next block is past it and the transaction can never confirm (re-review P2).
+ */
+export function refundStartExpired(e: Pick<JournalEntry, "kind" | "meta">, tip: number | null): boolean {
+  if (e.kind !== "refund-start" || tip === null) return false;
+  const r7 = typeof e.meta.r7 === "string" && /^\d{1,15}$/.test(e.meta.r7) ? Number(e.meta.r7) : 0;
+  return r7 > 0 && tip >= r7;
 }
 
 export type TrackStep =
@@ -30,7 +42,8 @@ export function nextTrackState(e: Pick<JournalEntry, "state" | "inclusionHeight"
   if (e.state === "failed") {
     // only the chain can reopen it: seen in a block or in the mempool after all
     if (s.status) return { state: s.status.confirmations >= FINAL_DEPTH ? "final" : "confirmed", inclusionHeight: s.status.inclusionHeight };
-    if (s.inMempool) return { state: "mempool", inclusionHeight: null };
+    // an expired refund start still listed by a mempool is not alive: no block can hold it
+    if (s.inMempool && !s.expired) return { state: "mempool", inclusionHeight: null };
     return null;
   }
   if (e.state === "final" && !s.status) {
@@ -41,6 +54,7 @@ export function nextTrackState(e: Pick<JournalEntry, "state" | "inclusionHeight"
     const state: JournalState = s.status.confirmations >= FINAL_DEPTH ? "final" : "confirmed";
     return state === e.state && e.inclusionHeight === s.status.inclusionHeight ? null : { state, inclusionHeight: s.status.inclusionHeight };
   }
+  if (s.expired) return { state: "failed", error: "The refund height R7 passed before the refund start reached a block: it can never confirm. No funds moved; start again." };
   if (s.inMempool) return e.state === "mempool" ? null : { state: "mempool", inclusionHeight: null };
   if (s.conflict) return { state: "failed", error: "Another transaction spent the same boxes; this one can never confirm. No funds moved." };
   if (s.trackerBoxSpent) return { state: "failed", error: "The tracker committed meanwhile; no funds moved. Build again." };

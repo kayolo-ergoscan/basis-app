@@ -21,7 +21,7 @@ export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", 
   const entry = await vault.signToJournal(kind, (sk) => {
     const s = signP2pkTransaction(tx, inputs, sk);
     return { txId: s.txId, signedRaw: s.nodeJson, inputs: inputs.map((b) => b.boxId), meta, height };
-  }, passphrase ? { passphrase } : {});
+  }, { ...(passphrase ? { passphrase } : {}), ...(kind === "withdraw" ? { inputBoxes: inputs } : {}) });
   return send(vault, entry);
 }
 
@@ -167,6 +167,9 @@ export function EntryProgress({ vault, entry, tip, extra, timeKey }: { vault: Ma
     setBusy(true);
     try {
       setProblem(entry.state === "signed" ? (await send(vault, entry)).problem : await resend(vault, entry));
+    } catch (e) {
+      // the journal write before the send (markSending) can throw: shown, never lost in a rejected promise
+      setProblem(localProblem("network", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200)));
     } finally { setBusy(false); }
   };
   return (

@@ -9,6 +9,7 @@ import { holdsSecret, toB64 } from "../bytes";
 import { isVaultError } from "../errors";
 import { FakeBrowser, OTHER_PASS, PASS } from "./fakes";
 import { openTab, randomPub, settle } from "./helpers";
+import { p2pkBox } from "../../tx/testkit";
 
 type Inspect = (v: unknown, o?: Record<string, unknown>) => string;
 const nodeUtil = (globalThis as { process?: { getBuiltinModule?: (id: string) => { inspect?: Inspect } | undefined } }).process?.getBuiltinModule?.("node:util");
@@ -71,7 +72,8 @@ describe("mainnet vault: the secret never leaves", () => {
     results.push(await v.withSecret("build-request", (s) => bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes())));
     const txId = "ab".repeat(32);
     const own = `0008cd${bytesToHex(secp256k1.getPublicKey(sk, true))}`;
-    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, proof: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()), outputs: [{ value: 1000, ergoTree: own }] }), inputs: ["cd".repeat(32)] })));
+    const coin = p2pkBox(bytesToHex(secp256k1.getPublicKey(sk, true)), 2_000_000n);
+    results.push(await v.signToJournal("withdraw", (s) => ({ txId, signedRaw: JSON.stringify({ id: txId, inputs: [{ boxId: coin.boxId, spendingProof: { proofBytes: bytesToHex(secp256k1.sign(msg, s).toCompactRawBytes()), extension: {} } }], outputs: [{ value: 1000, ergoTree: own }] }), inputs: [coin.boxId] }), { inputBoxes: [coin] }));
     // more refusals: locked, weak, malformed, a second key, another tab
     v.lock();
     await attempt(v.withSecret("t1", () => 1));

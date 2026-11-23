@@ -93,7 +93,9 @@ progress. The design expects 0.5–1.5 s on phones.
   - `t1` (a reserve creation moves the whole reserve) and `export-hex`: always;
   - `withdraw`: unless every output of the signed transaction pays this key's own P2PK tree or the miner-fee tree, and
     the fee outputs add up to at most `MINER_FEE_NANOERG` (Combine, a cancel back to the key); `signToJournal` reads the
-    signed bytes with the strict parser and drops them when the rule is broken;
+    signed bytes with the strict parser and drops them when the rule is broken. Whatever the passphrase, a withdrawal
+    spends only boxes at this key's P2PK without context variables (`spendsOnlyOwnBoxes`; `opts.inputBoxes`, required,
+    each bound to its input by its id), so it can never sign a reserve's refund completion;
   - `note`: when the notes signed since the passphrase was last typed (the unlock counts, so does any use with
     `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
     read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
@@ -107,7 +109,8 @@ progress. The design expects 0.5–1.5 s on phones.
   - `redeem`, `build-request`: never. A redemption pays only this key: `signToJournal("redeem")` refuses (`bad-input`)
     signed bytes that are not exactly [the reserve, P2PK(this key), a miner fee of at most `REDEEM_MAX_FEE_NANOERG`],
     or that are not a redemption: one input whose #0 is action 0, and an output 0 that is not this key's own reserve
-    (a refund start or a top-up with change has the same output layout).
+    (a refund start or a top-up with change has the same output layout); that one input is a reserve-contract box
+    (`redeemsReserveBox`: `opts.inputBoxes` = the reviewed box, required, bound to the input by its id).
 
   A direct `withSecret` for `t1`, `withdraw`, `note`, `topup`, `refund-start` or `refund-end` always needs `passphrase` (the vault cannot see what such a
   callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule

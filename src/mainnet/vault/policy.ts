@@ -14,6 +14,8 @@
 // of the key with the passphrase typed again. The count lives in the session only.
 import { FEE_TREE_HEX, MINER_FEE_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, TRACKER_NFT } from "../tx/constants";
 import { asArray, asObject, asString, asU64, member, parseJson, type JsonObject } from "../tx/json";
+import { boxIdHolds } from "../tx/serialize";
+import type { ErgoBox } from "../tx/model";
 import { noteMessage, verifyBasis } from "../tx/messages";
 import { VaultError } from "./errors";
 import { isObject } from "./record";
@@ -158,6 +160,50 @@ export function paysOnlyOwnKey(signedRaw: string, pub: Hex): boolean {
     else if (o.tree !== own) return false;
   }
   return fee <= MINER_FEE_NANOERG;
+}
+
+/** The ids of a signed transaction's inputs and whether each carries a context extension, or null when unreadable. */
+function inputsOf(signedRaw: string): { boxId: string; extension: boolean }[] | null {
+  const o = strictObject(signedRaw);
+  if (!o) return null;
+  try {
+    return asArray(member(o, "inputs"), "inputs").items.map((x, i) => {
+      const b = asObject(x, `inputs[${i}]`);
+      const proof = member(b, "spendingProof");
+      const ext = proof ? member(asObject(proof, `inputs[${i}].spendingProof`), "extension") : undefined;
+      return { boxId: asString(member(b, "boxId"), `inputs[${i}].boxId`).toLowerCase(), extension: !!ext && asObject(ext, `inputs[${i}].extension`).entries.length > 0 };
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** The boxes a caller says the inputs are, each bound to its id (its bytes hash to it), in the inputs' order. */
+function boundInputs(signedRaw: string, boxes: readonly ErgoBox[] | undefined): ErgoBox[] | null {
+  const ins = inputsOf(signedRaw);
+  if (!ins || !boxes || boxes.length !== ins.length) return null;
+  try {
+    return ins.every((x, i) => boxes[i].boxId === x.boxId && boxIdHolds(boxes[i])) ? [...boxes] : null;
+  } catch {
+    return null; // a box that cannot even be serialized is no box
+  }
+}
+
+/**
+ * A withdrawal (Withdraw, Combine, Cancel) spends only this key's own boxes, with no context variables (re-review,
+ * LOW): its inputs, bound to their ids, are P2PK(this key). So "withdraw" can never sign a reserve's refund
+ * completion (which needs #0 and spends the reserve contract) without the passphrase, or at all.
+ */
+export function spendsOnlyOwnBoxes(signedRaw: string, pub: Hex, boxes: readonly ErgoBox[] | undefined): boolean {
+  const ins = inputsOf(signedRaw);
+  const bound = boundInputs(signedRaw, boxes);
+  return !!ins && ins.length > 0 && !ins.some((x) => x.extension) && !!bound && bound.every((b) => b.ergoTree === `0008cd${pub}` && b.ergoTree !== RESERVE_TREE_HEX);
+}
+
+/** A redemption's one input is a reserve-contract box (re-review, LOW): the box the screen reviewed, bound to its id. */
+export function redeemsReserveBox(signedRaw: string, boxes: readonly ErgoBox[] | undefined): boolean {
+  const bound = boundInputs(signedRaw, boxes);
+  return !!bound && bound.length === 1 && bound[0].ergoTree === RESERVE_TREE_HEX;
 }
 
 /** The redemption's context variable #0: action 0 (redeem), output 0 (basis.es: a Byte, action × 10 + index). */

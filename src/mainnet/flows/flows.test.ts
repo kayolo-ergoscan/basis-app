@@ -19,7 +19,7 @@ import {
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
-import { FAILED_FOLLOW_BLOCKS, FINAL_RECHECK_DEPTH, depthAt, followsFailed, followsFinal, nextTrackState } from "./track";
+import { FAILED_FOLLOW_BLOCKS, FINAL_RECHECK_DEPTH, depthAt, followsFailed, followsFinal, nextTrackState, refundStartExpired } from "./track";
 import { localProblem, problemOf } from "../net";
 import { parseWatchStore, unwatchIssuer, watchExtras, watchIssuer } from "./watch";
 
@@ -393,6 +393,28 @@ describe("watched issuers", () => {
     expect(parseWatchStore("{")).toEqual({});
     expect(watchExtras(l)).toEqual({ watchedIssuers: [A], contacts: [{ pub: A, name: "Alice" }] });
     expect(unwatchIssuer(l, A)).toEqual([]);
+  });
+});
+
+describe("an expired refund start (re-review P2)", () => {
+  const start = (r7: string | undefined): Pick<JournalEntry, "kind" | "meta"> => ({ kind: "refund-start", meta: r7 === undefined ? {} : { r7 } });
+  it("is dead once the tip reaches R7 (basis.es: R7 >= HEIGHT), and only then", () => {
+    expect(refundStartExpired(start("1000"), 999)).toBe(false);
+    expect(refundStartExpired(start("1000"), 1000)).toBe(true);
+    expect(refundStartExpired(start("1000"), 1200)).toBe(true);
+    expect(refundStartExpired(start("1000"), null)).toBe(false);
+    expect(refundStartExpired(start(undefined), 5000)).toBe(false);
+    expect(refundStartExpired(start("x"), 5000)).toBe(false);
+    expect(refundStartExpired({ kind: "topup", meta: { r7: "1000" } }, 5000)).toBe(false);
+    expect(refundStartExpired({ kind: "refund-end", meta: { r7: "1000" } }, 5000)).toBe(false);
+  });
+  it("fails when it is in no block; a block still wins; a mempool listing does not revive it", () => {
+    const e = (state: "sent" | "mempool" | "failed") => ({ state, inclusionHeight: null, sendAttempts: 1 });
+    expect(nextTrackState(e("sent"), { status: null, inMempool: false, expired: true })).toMatchObject({ state: "failed" });
+    expect(nextTrackState(e("mempool"), { status: null, inMempool: true, expired: true })).toMatchObject({ state: "failed" });
+    expect(nextTrackState(e("sent"), { status: { inclusionHeight: 990, confirmations: 3 }, inMempool: false, expired: true })).toEqual({ state: "final", inclusionHeight: 990 });
+    expect(nextTrackState(e("failed"), { status: null, inMempool: true, expired: true })).toBeNull();
+    expect(nextTrackState(e("failed"), { status: { inclusionHeight: 990, confirmations: 1 }, inMempool: false, expired: true })).toEqual({ state: "confirmed", inclusionHeight: 990 });
   });
 });
 

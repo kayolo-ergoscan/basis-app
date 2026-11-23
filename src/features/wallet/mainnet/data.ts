@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type UnspentBox, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, trustedNft, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, refundStartExpired, trustedNft, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
 import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
 import { RESERVE_TREE_HEX, readReserve } from "@/mainnet/tx";
 
@@ -284,7 +284,7 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
             }
             conflict = await spentElsewhere(e, height);
           }
-          const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent });
+          const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent, expired: refundStartExpired(e, height) });
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
           else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
           // a T1 or Withdraw nobody sees: the same bytes again (idempotent), at most every 10 minutes

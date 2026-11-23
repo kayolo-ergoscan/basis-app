@@ -22,7 +22,8 @@ import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } 
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
-import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, reserveActionPaysRight, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
+import type { ErgoBox } from "../tx/model";
+import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redeemsReserveBox, redemptionPaysOwnKey, reserveActionPaysRight, spendsOnlyOwnBoxes, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
@@ -78,6 +79,10 @@ export interface SecretOptions {
   /** signToJournal("topup") only, and required there: the owner (R4) of the reserve the screen reviewed; the signed
    *  reserve output must keep it (a refund start must keep this key). */
   reserveOwner?: Hex;
+  /** signToJournal("withdraw") and ("redeem") only, and required there: the boxes the inputs spend, in order (each
+   *  checked against its id). A withdrawal spends only P2PK(this key) boxes, without context variables; a redemption
+   *  spends one reserve-contract box. */
+  inputBoxes?: readonly ErgoBox[];
 }
 
 export interface TakeOverOptions {
@@ -629,6 +634,8 @@ export class MainnetVault {
     const intent = given as NoteIntent;
     const ownerGiven: unknown = typeof opts === "object" && opts !== null ? opts.reserveOwner : undefined;
     const reserveOwner = typeof ownerGiven === "string" && /^0[23][0-9a-f]{64}$/.test(ownerGiven) ? ownerGiven : null;
+    const boxesGiven: unknown = typeof opts === "object" && opts !== null ? opts.inputBoxes : undefined;
+    const inputBoxes = Array.isArray(boxesGiven) ? (boxesGiven as ErgoBox[]) : undefined;
     type Part = Omit<JournalRecordInput, "kind" | "pub">;
     const guard: Guard<Part> = {
       before(s, typed) {
@@ -642,8 +649,10 @@ export class MainnetVault {
       },
       after(part, s, typed) {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
+        if (kind === "withdraw" && !spendsOnlyOwnBoxes(part.signedRaw, s.pub, inputBoxes)) throw new VaultError("bad-input", "a withdrawal spends only this key's own boxes (opts.inputBoxes), without context variables");
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
         if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: one input (action 0, another key's reserve), outputs [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
+        if (kind === "redeem" && !redeemsReserveBox(part.signedRaw, inputBoxes)) throw new VaultError("bad-input", "a redemption spends one reserve-contract box: the reviewed box (opts.inputBoxes)");
         if (RESERVE_ACTION_KINDS.includes(kind) && !reserveActionPaysRight(part.signedRaw, s.pub, kind as ReserveActionKind, reserveOwner)) {
           throw new VaultError("bad-input", "a top-up or a refund pays only [the reserve (our tracker, the reviewed owner) or this key, change to this key, a miner fee of at most 0.001 ERG]");
         }

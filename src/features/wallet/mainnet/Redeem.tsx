@@ -229,7 +229,7 @@ export function RedeemScreen() {
         const rebuilt = submitBodyOf({ signedRaw: s.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: meta.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount, newRedeemed: l1.build.newAlreadyRedeemed });
         if (rebuilt !== body) throw new Error("the submit body cannot be rebuilt from the journal");
         return { txId: s.txId, signedRaw: s.signedRaw, unsignedRaw: l1.build.unsignedRaw, inputs: [l1.build.reserveBoxId], meta, height: tip };
-      });
+      }, { inputBoxes: phase.chain.inputs });
     } catch (e) { return stop("l2", { text: isVaultError(e) ? verr(e) : t("mw.red.signFailed"), atSigning: true }); }
     // recorded: from here on the entry tells what happened, never "nothing was signed"
     const r = await submitEntry(vault, entry);
