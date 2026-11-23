@@ -353,6 +353,13 @@ export interface RedemptionView extends Omit<SeedRedemption, "amount" | "fee" | 
   ownerLabel: string | null;
   receiverLabel: string | null;
   source: Source;
+  /** Known from the two reserve boxes only (the box it spent and the box it made, same NFT and script): the transaction
+   *  itself is not read yet, so the receiver, the time, the tracker box and its age, the fee and the size are unknown
+   *  (null / 0) until it is. Amount, owner, block and the reserve's R6 tracker NFT are exact. */
+  fromBoxes: boolean;
+  /** The tracker NFT this redemption was checked against: the tracker data input's NFT, or (fromBoxes) the reserve's R6,
+   *  which the contract requires the data input to hold. */
+  trackerNft: Hex | null;
 }
 
 export interface DetectedBox {
@@ -480,6 +487,7 @@ export interface LiveBox {
   regs: Partial<Record<"R4" | "R5" | "R6" | "R7" | "R8" | "R9", Hex>>;
   basis: BasisRegisters;
   spentTx: Hex | null;
+  settled?: number | null;       // height of the block that holds the creating tx (API `settlementHeight`); null = not sent
 }
 
 export interface TrackerLive {
@@ -493,7 +501,7 @@ export interface LiveData {
   trackers: Record<Hex, TrackerLive>;
   templates: Record<Hex, { total: number; newest: Hex | null; checkedAt: number; checkedHeight: number | null; changed: boolean }>;
   spent: Record<Hex, { tx: Hex | null; height: number | null; seenAt: number }>;   // seed-unspent reserves seen spent
-  extraReserves: Record<Hex, LiveBox>;   // boxes found at known reserve templates after the snapshot
+  extraReserves: Record<Hex, LiveBox>;   // reserve boxes made after the snapshot (found at known templates or in a tx), spent ones too
   txs: Record<Hex, TxDetail>;            // reserve txs seen live (redemptions, top-ups, refunds), interpreted
   checks: Record<string, { height: number | null; at: number }>;   // "box:<id>" focus checks that found the box unspent
   detector: { found: Record<Hex, DetectedBox>; templates: Record<Hex, { total: number; checkedAt: number; checkedHeight: number | null }>; checkedAt: number | null; checkedHeight: number | null };

@@ -145,7 +145,9 @@ export function ContractTag({ c, withRole = true }: { c: ContractView | null; wi
 }
 
 /* ---------- people (key seals: art identifies, it never proves) ---------- */
-export function KeyName({ pk, addr, label, size = "sm", to, sub }: { pk?: Hex | null; addr?: string | null; label?: string | null; size?: "sm" | "md" | "lg" | number; to?: string; sub?: ReactNode }) {
+/** `unknown`: what to say when there is no address yet (a receiver not read yet); without it a missing address is the
+ *  malformed owner key of a reserve. */
+export function KeyName({ pk, addr, label, size = "sm", to, sub, unknown }: { pk?: Hex | null; addr?: string | null; label?: string | null; size?: "sm" | "md" | "lg" | number; to?: string; sub?: ReactNode; unknown?: ReactNode }) {
   const t = useT();
   const key = pk ?? keyOfAddress(addr);
   return (
@@ -153,7 +155,7 @@ export function KeyName({ pk, addr, label, size = "sm", to, sub }: { pk?: Hex | 
       {key ? <KeySeal pk={key} size={size} /> : <span className="nw-noseal" aria-hidden="true" style={{ width: typeof size === "number" ? size : size === "sm" ? 28 : size === "md" ? 40 : 56 }} />}
       <span className="nw-who-t">
         <span className="nw-who-n">
-          {addr ? (to ? <Link to={to} className="hex">{sAddr(addr)}</Link> : <span className="hex">{sAddr(addr)}</span>) : <span className="dim">{t("network.owner.malformed")}</span>}
+          {addr ? (to ? <Link to={to} className="hex">{sAddr(addr)}</Link> : <span className="hex">{sAddr(addr)}</span>) : <span className="dim">{unknown ?? t("network.owner.malformed")}</span>}
           {label && <span className="nw-label" title={t("network.label.title")}>{label}</span>}
           {addr && <Ext kind="address" id={addr} />}
         </span>

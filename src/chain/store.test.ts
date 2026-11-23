@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import seedJson from "./seed.json";
 import { createChainApi, type ChainApiConfig } from "./api";
-import { CURRENT_TEMPLATES, p2sAddress } from "./decode";
+import { CURRENT_TEMPLATES, p2pkAddress, p2sAddress } from "./decode";
 import { contractIndex } from "./model";
 import { createChainStore, FIRST_LOOK_NFTS } from "./store";
 import type { ApiBox, Seed } from "./types";
@@ -43,6 +43,17 @@ function liveReserve(id: string, r6: string, height: number): ApiBox {
     boxId: id, transactionId: "aa".repeat(32), value: "550000000", creationHeight: height, ergoTree: CURRENT_ERG.ergoTree, address: p2sAddress(CURRENT_ERG.ergoTree),
     assets: [{ tokenId: id.slice(0, 62) + "bb", amount: "1" }], additionalRegisters: { R4: r.regs.R4, R5: r.regs.R5, R6: `0e20${r6}` }, spentTransactionId: null,
   };
+}
+
+/** Block time of the snapshot's block in these fakes; block H + n is n × 2 min later. */
+const TS0 = 1_795_000_000_000;
+
+/** The tx that made `out` from a plain wallet box (a reserve creation), mined at `height`; its output as a tx answer kept
+ *  from before any spend shows it (unspent). */
+function creationTx(out: ApiBox, height: number) {
+  const key = seed.reserves.find((x) => x.owner)!.owner!.key;
+  const funding: ApiBox = { boxId: out.assets[0].tokenId, transactionId: "0f".repeat(32), value: "250000000", creationHeight: height - 1, ergoTree: `0008cd${key}`, address: "", assets: [], additionalRegisters: {}, spentTransactionId: out.transactionId };
+  return { id: out.transactionId, inclusionHeight: height, timestamp: TS0 + (height - H) * 120_000, inputs: [funding], dataInputs: [], outputs: [{ ...out, spentTransactionId: null, settlementHeight: height }], size: 600 };
 }
 
 /** A tracker box (a key in R4, a tree in R5) that holds `nft`. */
@@ -260,25 +271,29 @@ describe("chain store", () => {
     routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [liveReserve(id, OURS, H + 2)], total: 1 }));
     routes.set(`/boxes/${id}`, () => liveReserve(id, OURS, H + 2));
     routes.set(`/boxes/unspent/byTokenId/${OURS}`, () => ({ items: [boxHolding(OURS, "7c".repeat(32), H + 1)], total: 1 }));
+    routes.set(`/transactions/${"aa".repeat(32)}`, () => creationTx(liveReserve(id, OURS, H + 2), H + 2));
     const { chain, fake, api } = setup(routes);
     chain.acquire();
     chain.focus("reserve", id);
     chain.onHeight(H + 3, Date.now());
     await vi.advanceTimersByTimeAsync(5000);
-    // all in the first block: two detector lists (background) + the reserve's box, its contract's mempool and its
-    // tracker NFT (interactive) — nobody waits for the next block
+    // all in the first block: two detector lists (background) + the reserve's box, its contract's mempool, its tracker
+    // NFT and the tx that made it (interactive) — nobody waits for the next block
     expect(new Set(fake.calls)).toEqual(new Set([
       `/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}?limit=20`,
       `/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.multiToken}?limit=20`,
       `/boxes/${id}`,
       `/mempool/transactions/byAddress/${CURRENT_ERG.p2sFull}`,
       `/boxes/unspent/byTokenId/${OURS}`,
+      `/transactions/${"aa".repeat(32)}`,
     ]));
-    expect(api.stats().byLane).toMatchObject({ background: 2, interactive: 3 });
+    expect(api.stats().byLane).toMatchObject({ background: 2, interactive: 4 });
     const r = chain.getObservatory()!.index.reserves.get(id)!;
     expect(r.exit?.class).toBe("refund+redeem");
     expect(r.pending).toBe(0);
     expect(r.checked?.height).toBe(H + 3);
+    // its "created" line has the block's time and the creation, read from that tx
+    expect(r).toMatchObject({ origin: "creation", at: new Date(TS0 + 2 * 120_000).toISOString().replace(/\.\d{3}Z$/, "Z") });
     // later blocks: re-checks are background work, at most 2 per block
     for (let h = H + 4; h <= H + 14; h++) {
       const before = api.stats().byLane.interactive;
@@ -333,6 +348,170 @@ describe("chain store", () => {
     await q;
     expect(chain.store.getState().txs[txId].state).toBe("ok");
     expect(fake.calls.filter((c) => c === `/transactions/${txId}`).length).toBe(1);
+  });
+
+  // ── after the snapshot: a reserve under the current ERG contract, 1 → 0.9 → 0.65 ERG (the shape of ErgoScan's test
+  //    reserve on 22 Nov 2026), its first two boxes made and spent after the snapshot ──
+  const TRK = "4e2eef33d424388d6efec14a792020738dd47663007a2025afb1891b95e4e8b5";   // a live tracker of the seed
+  const [C0, R1, R2, R3] = ["c0", "d1", "d2", "d3"].map((x) => x.repeat(32));
+  const [A, B, C, D] = ["a1", "b1", "c1", "e1"].map((x) => x.repeat(32));
+  const curBox = (id: string, tx: string, value: string, height: number, spentTx: string | null): ApiBox => {
+    const r = seed.reserves.find((x) => !x.spent && x.owner && x.regs.R5)!;
+    return {
+      boxId: id, transactionId: tx, value, creationHeight: height, settlementHeight: height + 1, ergoTree: CURRENT_ERG.ergoTree, address: p2sAddress(CURRENT_ERG.ergoTree),
+      assets: [{ tokenId: "0c".repeat(32), amount: "1" }], additionalRegisters: { R4: r.regs.R4, R5: r.regs.R5, R6: `0e20${TRK}` }, spentTransactionId: spentTx,
+    };
+  };
+  const RECEIVER = p2pkAddress(seed.reserves.find((x) => x.owner)!.owner!.key);
+  /** The tx that spent `from` and made `to`, paying the difference to RECEIVER, against a tracker box of TRK. */
+  const redemptionTx = (from: ApiBox, to: ApiBox) => {
+    const h = to.settlementHeight!;
+    const key = seed.reserves.find((x) => x.owner)!.owner!.key;
+    return {
+      id: to.transactionId, inclusionHeight: h, timestamp: TS0 + (h - H) * 120_000, size: 700,
+      inputs: [{ ...from, spentTransactionId: to.transactionId }],
+      dataInputs: [trackerBox(TRK, "7d".repeat(32), h - 30, "ab".repeat(32) + "02")],
+      outputs: [{ ...to, spentTransactionId: null }, { boxId: `${to.boxId.slice(0, 62)}99`, transactionId: to.transactionId, value: String(BigInt(from.value) - BigInt(to.value)), creationHeight: h - 1, ergoTree: `0008cd${key}`, address: RECEIVER, assets: [], additionalRegisters: {}, spentTransactionId: null }],
+    };
+  };
+  const boxA = curBox(A, C0, "1000000000", H + 463, R1), boxB = curBox(B, R1, "900000000", H + 473, R2), boxC = curBox(C, R2, "650000000", H + 485, null);
+
+  it("counts redemptions after the snapshot from the detector's boxes at once, then reads their txs in the budget, newest first", async () => {
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [boxC, boxB, boxA], total: 3 }));
+    routes.set(`/transactions/${C0}`, () => creationTx(boxA, H + 464));
+    routes.set(`/transactions/${R1}`, () => redemptionTx(boxA, boxB));
+    routes.set(`/transactions/${R2}`, () => redemptionTx(boxB, boxC));
+    const { chain, fake, api } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    // the first block: the two detector lists, nothing else — and every redemption the boxes show already counts
+    expect(fake.calls.length).toBe(2);
+    let obs = chain.getObservatory()!;
+    expect(obs.totals.redemptions).toBe(43);
+    expect(obs.redemptions.slice(0, 2).map((x) => [x.tx, x.fromBoxes, x.amount])).toEqual([[R2, true, 250_000_000n], [R1, true, 100_000_000n]]);
+    expect(obs.index.trackers.get(TRK)!.redemptions.slice(0, 2)).toEqual([R2, R1]);
+    // the box made and spent after the snapshot is a known reserve box: that reserve's earlier state
+    expect(obs.index.reserves.get(A)).toMatchObject({ unspent: false, next: B, spent: { tx: R1 } });
+    expect(obs.index.reserves.get(B)).toMatchObject({ prev: A, next: C });
+    expect(obs.unspent.length).toBe(58 + 1);
+    // later blocks: the txs are read in the background budget, newest first, each once
+    for (let h = H + 601; h <= H + 608; h++) {
+      const before = fake.calls.length;
+      await block(chain, h);
+      expect(fake.calls.length - before).toBeLessThanOrEqual(2);
+    }
+    const txCalls = fake.calls.filter((c) => c.startsWith("/transactions/"));
+    expect(txCalls).toEqual([`/transactions/${R2}`, `/transactions/${R1}`, `/transactions/${C0}`]);
+    expect(api.stats().byLane.interactive).toBe(0);
+    obs = chain.getObservatory()!;
+    expect(obs.totals.redemptions).toBe(43);
+    expect(obs.index.redemptions.get(R2)).toMatchObject({ fromBoxes: false, receiver: RECEIVER, tracker: { box: "7d".repeat(32), age: 30 } });
+    // its creation is read too; the tx's copy of the box does not undo the spend the detector saw
+    expect(obs.index.reserves.get(A)).toMatchObject({ origin: "creation", unspent: false, at: new Date(TS0 + 464 * 120_000).toISOString().replace(/\.\d{3}Z$/, "Z") });
+    expect(obs.unspent.length).toBe(58 + 1);
+    expect(obs.index.reserves.get(B)?.at).not.toBeNull();
+    expect(obs.live.lastError).toBeNull();
+  });
+
+  it("replaces a box it saw unspent once the detector sees it spent: one unspent box per reserve", async () => {
+    let spent = false;
+    const boxD = curBox(D, R3, "600000000", H + 620, null);
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => (spent
+      ? { items: [boxD, { ...boxC, spentTransactionId: R3 }, boxB, boxA], total: 4 }
+      : { items: [boxC, boxB, boxA], total: 3 }));
+    const { chain } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(chain.getObservatory()!.index.reserves.get(C)?.unspent).toBe(true);
+    spent = true;
+    for (let h = H + 601; h <= H + 612; h++) await block(chain, h);
+    const obs = chain.getObservatory()!;
+    expect(obs.unspent.filter((r) => r.source === "live").map((r) => r.id)).toEqual([D]);
+    expect(obs.index.reserves.get(C)).toMatchObject({ unspent: false, next: D });
+    expect(obs.totals.redemptions).toBe(41 + 3);
+  });
+
+  it("knows a reserve box made and spent after the snapshot from a tx the user opens, even when the detector never listed it", async () => {
+    const routes = quietChain();
+    routes.set(`/transactions/${R1}`, () => redemptionTx(boxA, boxB));
+    const { chain } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    const p = chain.fetchTx(R1);
+    await vi.advanceTimersByTimeAsync(3000);
+    await p;
+    const obs = chain.getObservatory()!;
+    expect(obs.index.reserves.get(A)).toMatchObject({ source: "live", unspent: false, next: B });
+    expect(obs.index.reserves.get(B)).toMatchObject({ prev: A, origin: "redemption" });
+    expect(obs.index.redemptions.get(R1)).toMatchObject({ fromBoxes: false, reserveIn: A, receiver: RECEIVER });
+    expect(obs.totals.redemptions).toBe(42);
+  });
+
+  it("does not merge a transaction from before the snapshot when it is opened (the seed already has its block)", async () => {
+    const x = seed.reserves.find((r) => !r.spent && r.kind === "erg" && r.nft)!;
+    const tx = "9b".repeat(32);
+    const out = { ...reserveBox(x.id), boxId: "9c".repeat(32), transactionId: tx, value: String(BigInt(x.value) + 100_000_000n) };
+    const routes = new Map<string, () => unknown>([[`/transactions/${tx}`, () => ({
+      id: tx, inclusionHeight: H - 5, timestamp: TS0, inputs: [{ ...reserveBox(x.id), spentTransactionId: tx }], dataInputs: [], outputs: [out],
+    })]]);
+    const { chain } = setup(routes);
+    chain.onHeight(H + 10, Date.now());
+    await chain.ensureSeed();
+    const p = chain.fetchTx(tx);
+    await vi.advanceTimersByTimeAsync(1000);
+    await p;
+    expect(chain.store.getState().txs[tx].data?.kind).toBe("top-up");
+    const obs = chain.getObservatory()!;
+    expect([obs.totals.topUps, obs.unspent.length, obs.reserves.length]).toEqual([seed.totals.topUps, 58, 99]);
+  });
+
+  it("looks up a reserve box id it does not know: a box made after the snapshot joins, spent or not", async () => {
+    const routes = new Map<string, () => unknown>([[`/boxes/${A}`, () => boxA]]);
+    const { chain } = setup(routes);
+    await chain.ensureSeed();
+    expect(chain.getObservatory()!.index.reserves.has(A)).toBe(false);
+    const p = chain.fetchBox(A);
+    await vi.advanceTimersByTimeAsync(1000);
+    await p;
+    expect(chain.store.getState().boxes[A].state).toBe("ok");
+    expect(chain.getObservatory()!.index.reserves.get(A)).toMatchObject({ source: "live", unspent: false, spent: { tx: R1 } });
+    // a plain box is decoded, not taken for a reserve
+    const plain = "5e".repeat(32);
+    routes.set(`/boxes/${plain}`, () => ({ ...boxA, boxId: plain, ergoTree: `0008cd${seed.reserves.find((x) => x.owner)!.owner!.key}` }));
+    const q = chain.fetchBox(plain);
+    await vi.advanceTimersByTimeAsync(1000);
+    await q;
+    expect(chain.getObservatory()!.index.reserves.has(plain)).toBe(false);
+  });
+
+  it("takes a 404 for a tx as an answer: no error, asked again only some blocks later", async () => {
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [boxB, boxA], total: 2 }));
+    routes.set(`/transactions/${C0}`, () => 404);
+    routes.set(`/transactions/${R1}`, () => 404);
+    routes.set(`/transactions/${R2}`, () => 404);
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    for (let h = H + 601; h <= H + 606; h++) await block(chain, h);
+    const reads = (id: string) => fake.calls.filter((c) => c === `/transactions/${id}`).length;
+    expect([reads(R2), reads(R1), reads(C0)]).toEqual([1, 1, 1]);
+    expect(chain.getObservatory()!.live.lastError).toBeNull();
+    expect(chain.getObservatory()!.index.redemptions.get(R1)?.fromBoxes).toBe(true);
+    // asked again, but never twice within INTERVALS.detector (6) blocks
+    const at: number[] = [];
+    for (let h = H + 607; h <= H + 620; h++) {
+      const n = reads(R1);
+      await block(chain, h);
+      if (reads(R1) > n) at.push(h);
+    }
+    expect(at.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(6);
   });
 
   it("does nothing while no hook is mounted", async () => {

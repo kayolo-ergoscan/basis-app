@@ -20,6 +20,7 @@ const big = (v: string | number | bigint | null | undefined): bigint => {
   return BigInt(v);
 };
 const isZeroHex = (h: string) => /^0+$/.test(h);
+const blockHeight = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : typeof v === "string" && /^\d+$/.test(v) ? Number(v) : null);
 const iso = (ms: number | null | undefined) => (ms ? new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z") : null);
 
 export const emptyLive = (): LiveData => ({
@@ -118,6 +119,7 @@ export function liveBoxFromApi(b: ApiBox): LiveBox {
     regs,
     basis: decodeBasisRegisters(regs, assets),
     spentTx: b.spentTransactionId ?? null,
+    settled: blockHeight(b.settlementHeight) ?? blockHeight(b.inclusionHeight),
   };
 }
 
@@ -197,10 +199,6 @@ function trackerView(seed: Seed, t: SeedTracker, live: LiveData, tip: number, re
     ...reserves.filter((r) => r.r6 === t.nft).map((r) => ({ id: r.id, unspent: !r.spent && !live.spent[r.id], h: r.height })),
     ...extra.filter((b) => b.basis.nft === t.nft).map((b) => ({ id: b.id, unspent: !b.spentTx && !live.spent[b.id], h: b.height })),
   ].sort((a, b) => Number(b.unspent) - Number(a.unspent) || b.h - a.h);
-  const served = [
-    ...seed.redemptions.filter((x) => x.tracker.nft === t.nft).map((x) => x.tx),
-    ...Object.values(live.txs).filter((x) => x.kind === "redemption" && x.tracker?.tokens[0]?.id === t.nft && !seed.redemptions.some((s) => s.tx === x.id)).map((x) => x.id),
-  ];
   return {
     nft: t.nft,
     name: t.name,
@@ -218,7 +216,7 @@ function trackerView(seed: Seed, t: SeedTracker, live: LiveData, tip: number, re
     emergency: trackerHeight !== null ? emergencyClock(trackerHeight, tip) : null,
     silentBlocks: lastTrackerBox ? Math.max(0, tip - lastTrackerBox.height) : null,
     reserves: refs.map((r) => r.id),
-    redemptions: served,
+    redemptions: [],               // filled by buildObservatory from the merged redemptions (seed, read live, from boxes)
     source,
     checkedAt: L?.checkedAt ?? null,
   };
@@ -328,6 +326,7 @@ function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, lo
     : null;
   const coll = c.kind === "erg" ? null : b.assets[1] ?? null;
   const madeBy = Object.values(live.txs).find((x) => x.reserveOut?.boxId === b.id);
+  const origin: ReserveView["origin"] = madeBy?.kind === "creation" ? "creation" : madeBy?.kind === "redemption" ? "redemption" : "unknown";
   return {
     id: b.id,
     source: "live",
@@ -336,7 +335,7 @@ function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, lo
     height: b.height,
     at: madeBy ? iso(madeBy.timestamp) : null,
     tx: b.tx,
-    origin: madeBy ? (madeBy.kind === "redemption" ? "redemption" : "unknown") : "unknown",
+    origin,
     unspent,
     spent: b.spentTx ? { tx: b.spentTx, height: null, at: null, seenLive: true } : seen ? { tx: seen.tx, height: seen.height, at: null, seenLive: true } : null,
     prev: prev.get(b.id) ?? null,
@@ -370,6 +369,8 @@ function redemptionFromSeed(seed: Seed, x: Seed["redemptions"][number]): Redempt
     ownerLabel: seed.labels[x.owner.addr] ?? null,
     receiverLabel: seed.labels[x.receiver] ?? null,
     source: "seed",
+    fromBoxes: false,
+    trackerNft: x.tracker?.nft ?? null,
   };
 }
 
@@ -406,6 +407,58 @@ function redemptionFromLive(seed: Seed, d: TxDetail): RedemptionView | null {
     ownerLabel: ownerAddr ? seed.labels[ownerAddr] ?? null : null,
     receiverLabel: d.receiver ? seed.labels[d.receiver] ?? null : null,
     source: "live",
+    fromBoxes: false,
+    trackerNft: t?.tokens[0]?.id ?? d.reserveIn.registers.nft ?? null,
+  };
+}
+
+/** The value (ERG reserve) or the collateral (token reserve) that left a reserve between two of its boxes, the way
+ *  interpretTx() measures it; null when nothing left (a top-up, a refund start, a box that only moved). */
+export function boxDelta(from: Pick<ReserveView, "kind" | "value" | "collateral">, to: Pick<ReserveView, "value" | "collateral">): { unit: "erg" | Hex; raw: bigint } | null {
+  if (from.kind === "erg") {
+    const d = from.value - to.value;
+    return d > 0n ? { unit: "erg", raw: d } : null;
+  }
+  if (!from.collateral) return null;
+  const out = to.collateral && to.collateral.id === from.collateral.id ? to.collateral.amount : 0n;
+  const d = from.collateral.amount - out;
+  return d > 0n ? { unit: from.collateral.id, raw: d } : null;
+}
+
+/** A redemption seen only as two reserve boxes: `from` was spent by the transaction that made `to` (same reserve NFT,
+ *  same script) and less is in `to`. Exact: amount, owner, block, contract, the R6 tracker NFT. Unknown until the
+ *  transaction is read: receiver, time, tracker box and age, fee, size (fromBoxes). */
+function redemptionFromBoxes(seed: Seed, from: ReserveView, to: ReserveView, height: number): RedemptionView | null {
+  const amt = boxDelta(from, to);
+  if (!amt || !to.tx) return null;
+  return {
+    tx: to.tx,
+    height,
+    at: "",
+    ts: null,
+    contract: from.contract?.id ?? "",
+    reserveIn: from.id,
+    reserveOut: to.id,
+    reserveNft: from.nft?.id ?? "",
+    owner: { key: from.owner?.key ?? null, addr: from.owner?.addr ?? null },
+    receiver: null,
+    amount: amt.raw,
+    unit: amt.unit,
+    tracker: null,
+    emergencyWindow: false,
+    firstOfPair: false,
+    treeWasEmpty: !!from.r5?.empty,
+    fee: null,
+    size: null,
+    inputs: 0,
+    outputs: 0,
+    feePayers: [],
+    token: amt.unit === "erg" ? null : tokenAmount(seed, amt.unit, amt.raw),
+    ownerLabel: from.owner?.label ?? null,
+    receiverLabel: null,
+    source: "live",
+    fromBoxes: true,
+    trackerNft: from.r6,
   };
 }
 
@@ -440,7 +493,7 @@ export function computeTotals(seed: Seed, reserves: ReserveView[], redemptions: 
   const keys = new Set(reserves.filter((r) => r.owner).map((r) => r.owner!.key));
   const liveTx = Object.values(live.txs).filter((d) => !seed.redemptions.some((s) => s.tx === d.id));
   const newCommits = Object.values(live.trackers).reduce((s, t) => s + t.newCommits.length, 0);
-  const liveCreations = reserves.filter((r) => r.source === "live" && r.origin === "unknown" && !r.prev);
+  const liveCreations = reserves.filter((r) => r.source === "live" && r.origin !== "redemption" && !r.prev);
   const S = seed.totals;
   return {
     reserveBoxes: reserves.length,
@@ -468,6 +521,30 @@ export function computeTotals(seed: Seed, reserves: ReserveView[], redemptions: 
 
 // ─── the whole model ────────────────────────────────────────────────────────────────────────────
 
+/** Reserve boxes linked by their boxes alone: box X was spent by tx T, and T made box Y with the same reserve NFT
+ *  (tokens(0)) under the same script template — Y is X's next state. Returns Y → X. X may be a seed reserve seen spent
+ *  live or a box found live; Y is a box found live (the seed links its own boxes). */
+export function boxLinks(seed: Seed, live: LiveData, extra: LiveBox[]): Map<Hex, Hex> {
+  const { byId } = contractIndex(seed);
+  const key = (nft: Hex | undefined | null, tx: Hex | null | undefined, tpl: Hex | undefined) => (nft && tx && tpl ? `${nft}|${tx}|${tpl}` : null);
+  const spentBy = new Map<string, Hex>();
+  for (const r of seed.reserves) {
+    const k = key(r.nft?.id, live.spent[r.id]?.tx, byId.get(r.contract)?.templateHash);
+    if (k && !r.spent) spentBy.set(k, r.id);
+  }
+  for (const b of extra) {
+    const k = key(b.assets[0]?.tokenId, b.spentTx ?? live.spent[b.id]?.tx, b.templateHash);
+    if (k) spentBy.set(k, b.id);
+  }
+  const out = new Map<Hex, Hex>();
+  for (const b of extra) {
+    const k = key(b.assets[0]?.tokenId, b.tx, b.templateHash);
+    const from = k ? spentBy.get(k) : undefined;
+    if (from && from !== b.id) out.set(b.id, from);
+  }
+  return out;
+}
+
 export interface BuildInput { seed: Seed; live: LiveData; tip: number | null; status?: LiveStatus }
 
 /** Seed + live facts → Observatory. Pure; store.ts memoizes it on (seed, live, tip). */
@@ -484,23 +561,45 @@ export function buildObservatory({ seed, live, tip, status }: BuildInput): Obser
     return lookups.get(nft)!;
   };
 
-  // lineage of live boxes: a live redemption links reserveIn → reserveOut
+  // lineage of live boxes: a transaction read live links reserveIn → reserveOut; the boxes alone link a box to the one
+  // made by the transaction that spent it (same reserve NFT, same script), before that transaction is read
   const prev = new Map<Hex, Hex>();
   const next = new Map<Hex, Hex>();
-  for (const d of Object.values(live.txs)) {
-    if (d.reserveIn && d.reserveOut) { prev.set(d.reserveOut.boxId, d.reserveIn.boxId); next.set(d.reserveIn.boxId, d.reserveOut.boxId); }
-  }
+  const link = (from: Hex, to: Hex) => { if (!prev.has(to) && !next.has(from)) { prev.set(to, from); next.set(from, to); } };
+  for (const d of Object.values(live.txs)) if (d.reserveIn && d.reserveOut) link(d.reserveIn.boxId, d.reserveOut.boxId);
+  const linked = boxLinks(seed, live, extra);
+  for (const [to, from] of linked) link(from, to);
   const reserves: ReserveView[] = [
     ...extra.map((b) => reserveFromLive(seed, b, live, height, lookup, prev, next)).filter((r): r is ReserveView => !!r),
     ...seed.reserves.map((r) => reserveFromSeed(seed, r, live, height, lookup, next)),
   ].sort((a, b) => b.height - a.height);
   const reserveMap = new Map(reserves.map((r) => [r.id, r]));
 
-  const redemptions: RedemptionView[] = [
-    ...Object.values(live.txs).filter((d) => !seed.redemptions.some((s) => s.tx === d.id)).map((d) => redemptionFromLive(seed, d)).filter((x): x is RedemptionView => !!x),
-    ...seed.redemptions.map((x) => redemptionFromSeed(seed, x)),
-  ].sort((a, b) => b.height - a.height || (b.ts ?? 0) - (a.ts ?? 0));
+  const seedTxs = new Set(seed.redemptions.map((x) => x.tx));
+  const fromTx = Object.values(live.txs).filter((d) => !seedTxs.has(d.id)).map((d) => redemptionFromLive(seed, d)).filter((x): x is RedemptionView => !!x);
+  // a redemption whose transaction is not read yet, from its two boxes; a read transaction always wins
+  const fromBoxes: RedemptionView[] = [];
+  const extraById = new Map(extra.map((b) => [b.id, b]));
+  for (const [to, from] of linked) {
+    const out = reserveMap.get(to), inp = reserveMap.get(from);
+    if (!out || !inp || out.source !== "live" || !out.tx || seedTxs.has(out.tx) || live.txs[out.tx]) continue;
+    const b = extraById.get(to);
+    const x = redemptionFromBoxes(seed, inp, out, b?.settled ?? out.height);
+    if (!x) continue;
+    fromBoxes.push(x);
+    if (out.origin === "unknown") out.origin = "redemption";
+  }
+  // the block of a spend the boxes show: the block that holds the box it made
+  for (const r of reserves) {
+    if (r.source !== "live" || !r.spent || r.spent.height !== null || !r.next) continue;
+    const nb = extraById.get(r.next);
+    if (nb && nb.tx === r.spent.tx && nb.settled) r.spent = { ...r.spent, height: nb.settled };
+  }
+  const redemptions: RedemptionView[] = [...fromTx, ...fromBoxes, ...seed.redemptions.map((x) => redemptionFromSeed(seed, x))]
+    .sort((a, b) => b.height - a.height || (b.ts ?? 0) - (a.ts ?? 0));
   const redemptionMap = new Map(redemptions.map((x) => [x.tx, x]));
+  // each tracker's redemptions, from the same list the totals count (newest first)
+  for (const t of trackers) t.redemptions = redemptions.filter((x) => x.trackerNft === t.nft).map((x) => x.tx);
 
   const owners = ownerRows(seed, reserves);
   const receivers = receiverRows(seed, redemptions);
@@ -685,11 +784,16 @@ export function interpretTx(seed: Seed | null, tx: ApiTx): TxDetail {
   for (const i of inputs) if (i.role === "other" && p2pkKeyOfTree(tx.inputs.find((x) => x.boxId === i.boxId)?.ergoTree ?? "")) i.role = "funding";
   for (const o of outputs) if (o.role === "other" && isFee(o)) o.role = "fee";
   let receiver: Address | null = null;
+  const funders = new Set(inputs.filter((i) => i.role === "funding").map((i) => i.address));
   if (kind === "redemption" && amount) {
-    const payout = outputs.find((o) => o.role === "other" && (amount!.unit === "erg" ? o.value >= amount!.raw : o.tokens.some((t) => t.id === amount!.unit && t.amount >= amount!.raw)));
+    const a = amount;
+    let payout = outputs.find((o) => o.role === "other" && (a.unit === "erg" ? o.value >= a.raw : o.tokens.some((t) => t.id === a.unit && t.amount >= a.raw)));
+    // no other input paying the miner fee: it comes out of the redeemed ERG (ErgoScan's tracker builds them so: 0.02 ERG
+    // redeemed = 0.019 to the receiver + 0.001 fee)
+    const minerFee = outputs.filter((o) => o.role === "fee").reduce((s, o) => s + o.value, 0n);
+    if (!payout && a.unit === "erg" && minerFee > 0n) payout = outputs.find((o) => o.role === "other" && !funders.has(o.address) && o.value + minerFee >= a.raw);
     if (payout) { payout.role = "payout"; receiver = payout.address; }
   }
-  const funders = new Set(inputs.filter((i) => i.role === "funding").map((i) => i.address));
   for (const o of outputs) if (o.role === "other" && funders.has(o.address)) o.role = "change";
 
   const fee = outputs.filter((o) => o.role === "fee").reduce((s, o) => s + o.value, 0n);

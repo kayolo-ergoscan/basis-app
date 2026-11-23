@@ -193,6 +193,10 @@ type UnitKey = "erg" | "use" | "use-lookalike" | "other";
 const UNIT_ORDER: UnitKey[] = ["erg", "use", "use-lookalike", "other"];
 export const unitOf = (r: RedemptionView): UnitKey => (r.unit === "erg" ? "erg" : (r.token?.kind ?? "other"));
 const decOf = (r: RedemptionView) => (r.unit === "erg" ? 9 : r.token?.decimals ?? 0);
+/** "date · tracker box age N" of a redemption; block and "checking…" while its transaction is not read (fromBoxes). */
+const whenLine = (r: RedemptionView, lang: Lang, t: ReturnType<typeof useT>) => r.fromBoxes
+  ? `${t("network.rd.block", { h: fmtH(r.height) })} · ${t("network.rd.unread")}`
+  : `${date(r.at, lang)} · ${t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}`;
 export const redemptionAmount = (r: RedemptionView, lang: Lang) => `${amount(r.amount, decOf(r))} ${tokenUnit(unitOf(r), lang)}`;
 
 export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[]; clock: ChainClock; tip: number }) {
@@ -264,7 +268,7 @@ export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[
               <Link key={r.tx} to={`/network/tx/${r.tx}`}
                 className={cx("nw-stem", r.emergencyWindow && "em", r.firstOfPair && "first", active === r.tx && "on")}
                 style={{ left: labelW + p.x, bottom, height: p.hPx }}
-                aria-label={`${redemptionAmount(r, lang)} · ${date(r.at, lang)} · ${t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}${r.emergencyWindow ? ` · ${t("network.rd.em")}` : ""}`}
+                aria-label={`${redemptionAmount(r, lang)} · ${whenLine(r, lang, t)}${r.emergencyWindow ? ` · ${t("network.rd.em")}` : ""}`}
                 onMouseEnter={() => setActive(r.tx)} onMouseLeave={() => setActive((a) => (a === r.tx ? null : a))}
                 onFocus={() => setActive(r.tx)} onBlur={() => setActive((a) => (a === r.tx ? null : a))}>
                 <i />
@@ -275,7 +279,7 @@ export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[
             <div className="nw-tip" role="presentation"
               style={{ left: Math.min(Math.max(labelW + actPos.x, 110), w - 110), bottom: PH - (actPos.lane + 1) * LANE + 14 + actPos.hPx + 14 }}>
               <b>{redemptionAmount(act, lang)}</b>
-              <span>{date(act.at, lang)} · {t("network.rd.age", { age: blocks(act.tracker?.age ?? 0, lang) })}</span>
+              <span>{whenLine(act, lang, t)}</span>
               {act.emergencyWindow && <span className="em">⚑ {t("network.rd.em")}</span>}
             </div>
           )}
@@ -297,7 +301,8 @@ export function flowModel(list: RedemptionView[]) {
   const edges = new Map<string, FlowEdge>();
   const owners = new Map<string, FlowNode>(), receivers = new Map<string, FlowNode>();
   for (const r of list) {
-    const o = r.owner.addr ?? r.owner.key ?? "?", rc = r.receiver ?? "?";
+    // "?": the transaction is not read yet (seen in the reserve's boxes); "—": read, and no output pays the amount
+    const o = r.owner.addr ?? r.owner.key ?? "?", rc = r.receiver ?? (r.fromBoxes ? "?" : "—");
     const k = `${o}|${rc}`;
     const e = edges.get(k) ?? { owner: o, receiver: rc, n: 0, sums: new Map(), dec: new Map() };
     e.n++;
@@ -329,6 +334,9 @@ export function FlowGraph({ list }: { list: RedemptionView[] }) {
   const [ref, w] = useWidth<HTMLDivElement>();
   const [hot, setHot] = useState<string | null>(null);
   const m = useMemo(() => flowModel(list), [list]);
+  // "?" gathers redemptions whose transaction is not read yet (seen in the reserve's boxes): no receiver to show yet
+  const unread = t("network.rd.unread");
+  const nodeName = (id: string) => (id === "?" ? unread : sAddr(id));
   const phone = w < 640;
   const ROW = phone ? 46 : 58;
   const NODE = phone ? 118 : 236;
@@ -343,10 +351,10 @@ export function FlowGraph({ list }: { list: RedemptionView[] }) {
   const node = (n: FlowNode, side: "o" | "r", y: number) => (
     <button key={side + n.id} type="button" className={cx("nw-fnode", side, hot === n.id && "on")} style={{ left: side === "o" ? 0 : x1, top: y - ROW / 2, height: ROW, width: side === "o" ? NODE : Math.max(80, w - x1) }}
       onMouseEnter={() => setHot(n.id)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(n.id)} onBlur={() => setHot(null)}
-      aria-label={`${n.label ?? sAddr(n.id)}: ${t("network.rp.count", { n: n.n })}`}>
+      aria-label={`${n.label ?? nodeName(n.id)}: ${t("network.rp.count", { n: n.n })}`}>
       {n.key ? <KeySeal pk={n.key} size={phone ? 28 : 36} /> : <span className="nw-noseal" style={{ width: phone ? 28 : 36 }} />}
       <span className="t">
-        <span className="hex">{phone ? n.id.slice(0, 6) + "…" : sAddr(n.id)}</span>
+        {n.id === "?" ? <span className="dim">{unread}</span> : <span className="hex">{phone ? n.id.slice(0, 6) + "…" : sAddr(n.id)}</span>}
         {n.label && <span className="nw-label">{n.label}</span>}
         <span className="c">{n.n}×</span>
       </span>

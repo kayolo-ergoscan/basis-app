@@ -282,7 +282,8 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               [t("network.rv.f.value"), <span className="num">{ergs(r.value, 3)}&nbsp;ERG</span>],
               ...(tok ? [[t("network.rv.f.token"), <span className="nw-inl"><span className="num">{tokenStr(tok, lang)}</span><Ext kind="token" id={tok.id} /></span>] as [ReactNode, ReactNode]] : []),
               [t("network.rv.f.tx"), r.tx ? <IdLink id={r.tx} kind="tx" a={8} b={6} /> : "—"],
-              [t("network.rv.f.height"), <span className="num">{fmtH(r.height)} · {date(r.at, lang)}</span>],
+              // a box found live has its time once the tx that made it is read (the page's first look asks for it)
+              [t("network.rv.f.height"), <span className="num">{fmtH(r.height)} · {r.at || r.source === "seed" ? date(r.at, lang) : <span className="dim" title={t("network.rv.atUnreadTitle")}>{t("network.rv.atUnread")}</span>}</span>],
               [t("network.rv.f.contract"), <span className="nw-inl"><ContractTag c={r.contract} withRole={false} /><span className="t-small">{r.contract ? t(`chain.contract.${r.contract.role}`) : "—"}</span></span>],
               [t("network.rv.f.template"), r.contract ? <span className="hex" title={r.contract.templateHash}>{sid(r.contract.templateHash, 8, 6)}</span> : "—"],
               [t("network.rv.f.nft"), r.nft ? <span className="nw-inl"><span className="hex">{sid(r.nft.id, 6, 4)}</span><UntrustedName name={r.nft.name} /><Ext kind="token" id={r.nft.id} /></span> : "—"],
@@ -432,7 +433,7 @@ function PerPair({ r, list }: { r: ReserveView; list: RedemptionView[] }) {
   const rows = useMemo(() => {
     const m = new Map<string, { receiver: string; label: string | null; n: number; sums: Map<string, { raw: bigint; dec: number; unit: string }> }>();
     for (const x of list) {
-      const k = x.receiver ?? "?";
+      const k = x.receiver ?? (x.fromBoxes ? "?" : "—");   // "?": its transaction not read yet
       const e = m.get(k) ?? { receiver: k, label: x.receiverLabel, n: 0, sums: new Map() };
       e.n++;
       const u = unitOf(x), dec = x.unit === "erg" ? 9 : x.token?.decimals ?? 0;
@@ -451,7 +452,7 @@ function PerPair({ r, list }: { r: ReserveView; list: RedemptionView[] }) {
           <li key={p.receiver}>
             <KeyName pk={r.owner?.key} addr={r.owner?.addr} label={r.owner?.label} size={28} />
             <span className="arr" aria-hidden="true">→</span>
-            <KeyName addr={p.receiver} label={p.label} size={28} />
+            <KeyName addr={p.receiver === "?" || p.receiver === "—" ? null : p.receiver} label={p.label} size={28} unknown={p.receiver === "?" ? t("network.rd.unread") : "—"} />
             <span className="sum num">{[...p.sums.values()].map((s) => `${amount(s.raw, s.dec)} ${s.unit}`).join(" + ")}</span>
             <span className="n label">{t("network.rp.count", { n: p.n })}</span>
           </li>

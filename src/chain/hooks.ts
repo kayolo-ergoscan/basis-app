@@ -5,6 +5,7 @@
 // for new blocks instead of polling the height itself.
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useHeight as useShellHeight } from "@/app/height";
+import { isHex } from "./decode";
 import { chain, type ChainState, type Fetched } from "./store";
 import type { BoxDetail, DetectorState, Hex, LiveStatus, Observatory, RedemptionView, ReserveView, TrackerView, TxDetail } from "./types";
 
@@ -41,20 +42,27 @@ export function useChainStatus(): LiveStatus {
 }
 
 export interface ReserveResult {
-  loading: boolean;              // seed not loaded yet
+  loading: boolean;              // seed not loaded yet, or an unknown box id is being looked up
   reserve: ReserveView | null;   // null = not a known reserve box (yet)
   tracker: TrackerView | null;   // the tracker its R6 names
   lineage: ReserveView[];        // the chain of boxes of this reserve (same NFT), oldest first
   redemptions: RedemptionView[]; // redemptions that spent a box of this lineage, newest first
 }
 
-/** One reserve box (any of the 99, or one found live). Focus: checked at once, then every 10 blocks; its P2S mempool every 3. */
+/** One reserve box (any of the 99, or one found live). Focus: checked at once, then every 10 blocks; its P2S mempool every 3.
+ *  A box id the observatory does not know yet is looked up once (interactive, kept for the tab): a reserve box made after
+ *  the snapshot — still unspent or already spent — then joins the live layer, anything else is "not a known reserve". */
 export function useReserve(boxId: string | null | undefined): ReserveResult {
   useLive({ kind: "reserve", id: boxId });
   const obs = useChainSelector(selObservatory);
+  const id = (boxId || "").toLowerCase();
+  const lookup = !!obs && !obs.index.reserves.has(id) && isHex(id, 32);
+  const sel = useCallback((s: ChainState) => (lookup ? s.boxes[id] : undefined), [lookup, id]);
+  const fetched = useChainSelector(sel);
+  useEffect(() => { if (lookup) void chain.fetchBox(id); }, [lookup, id]);
+  const looking = lookup && (!fetched || fetched.state === "loading");
   return useMemo(() => {
-    if (!obs) return { loading: true, reserve: null, tracker: null, lineage: [], redemptions: [] };
-    const id = (boxId || "").toLowerCase();
+    if (!obs || looking) return { loading: true, reserve: null, tracker: null, lineage: [], redemptions: [] };
     const reserve = obs.index.reserves.get(id) ?? null;
     if (!reserve) return { loading: false, reserve: null, tracker: null, lineage: [], redemptions: [] };
     const lineage: ReserveView[] = [];
@@ -65,7 +73,7 @@ export function useReserve(boxId: string | null | undefined): ReserveResult {
     const ids = new Set(lineage.map((r) => r.id));
     const redemptions = obs.redemptions.filter((x) => ids.has(x.reserveIn));
     return { loading: false, reserve, tracker: reserve.r6 ? obs.index.trackers.get(reserve.r6) ?? null : null, lineage, redemptions };
-  }, [obs, boxId]);
+  }, [obs, id, looking]);
 }
 
 export interface TrackerResult {

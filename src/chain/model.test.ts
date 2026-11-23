@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import seedJson from "./seed.json";
 import type { ApiBox, ApiTx, ExitClass, Seed } from "./types";
 import { EMPTY_DIGEST, USE_LOOKALIKE_ID, USE_TOKEN_ID, assessExit, describeExit, formatUnits, p2sAddress } from "./decode";
-import { boxDetail, buildObservatory, contractIndex, emptyLive, idleStatus, interpretTx, liveBoxFromApi, liveTrackerLookup, totalsSource, trackerLookup } from "./model";
+import { boxDelta, boxDetail, boxLinks, buildObservatory, contractIndex, emptyLive, idleStatus, interpretTx, liveBoxFromApi, liveTrackerLookup, totalsSource, trackerLookup } from "./model";
 import { CURRENT_TEMPLATES } from "./decode";
 
 const seed = seedJson as unknown as Seed;
@@ -227,5 +227,110 @@ describe("interpreters for /v1 boxes and transactions", () => {
     expect(d.receiver).toBe(x.receiver);
     expect(d.fee).toBe(BigInt(x.fee));
     expect(d.outputs.map((o) => o.role)).toEqual(["reserve-out", "payout", "fee"]);
+  });
+
+  it("finds the receiver when the miner fee comes out of the redeemed amount (no fee payer: ErgoScan's tracker, tx 378566d0)", () => {
+    const CUR = contractIndex(seed).list.find((c) => c.current && c.kind === "erg")!;
+    const own = seed.reserves.find((x) => !x.spent && x.owner && x.regs.R5)!;
+    const nft = "0c".repeat(32), tx = "37".repeat(32);
+    const res = (id: string, value: string, txId: string): ApiBox => ({
+      boxId: id, transactionId: txId, value, creationHeight: H + 700, ergoTree: CUR.ergoTree, address: p2sAddress(CUR.ergoTree),
+      assets: [{ tokenId: nft, amount: "1" }], additionalRegisters: { R4: own.regs.R4, R5: own.regs.R5, R6: `0e20${"f5".repeat(32)}` }, spentTransactionId: null,
+    });
+    const receiver = seed.redemptions[0].receiver;
+    const out = (id: string, value: string, ergoTree: string, address: string): ApiBox => ({ boxId: id, transactionId: tx, value, creationHeight: H + 713, ergoTree, address, assets: [], additionalRegisters: {}, spentTransactionId: null });
+    const d = interpretTx(seed, {
+      id: tx, inclusionHeight: H + 714, timestamp: 1_795_380_957_650, size: 634,
+      inputs: [{ ...res("d4".repeat(32), "100000000", "36".repeat(32)), spentTransactionId: tx }], dataInputs: [],
+      outputs: [res("37".repeat(32), "80000000", tx), out("46".repeat(32), "19000000", "0008cd" + own.owner!.key, receiver),
+        out("3a".repeat(32), "1000000", "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a70173007301", "2iHkR7CW")],
+    });
+    expect(d).toMatchObject({ kind: "redemption", amount: { unit: "erg", raw: 20_000_000n }, receiver, fee: 1_000_000n });
+    expect(d.outputs.map((o) => o.role)).toEqual(["reserve-out", "payout", "fee"]);
+  });
+});
+
+// ── after the snapshot: reserve boxes found live, spent ones included (the real case of 22–23 Nov 2026: ErgoScan's
+//    test reserve 1 → 0.9 → … ERG, a box made and spent after the snapshot) ──
+describe("reserves and redemptions after the snapshot, from the boxes alone", () => {
+  const CUR = contractIndex(seed).list.find((c) => c.current && c.kind === "erg")!;
+  const own = seed.reserves.find((x) => !x.spent && x.owner && x.regs.R5)!;
+  const TRK = "4e2eef33d424388d6efec14a792020738dd47663007a2025afb1891b95e4e8b5";   // a live tracker of the seed
+  const NFT = "0c".repeat(32);
+  const [C0, R1, R2] = ["c0", "d1", "d2"].map((x) => x.repeat(32));
+  const [A, B, C] = ["a1", "b1", "c1"].map((x) => x.repeat(32));
+  const box = (id: string, tx: string, value: string, height: number, spentTx: string | null): ApiBox => ({
+    boxId: id, transactionId: tx, value, creationHeight: height, settlementHeight: height + 1, ergoTree: CUR.ergoTree, address: p2sAddress(CUR.ergoTree),
+    assets: [{ tokenId: NFT, amount: "1" }], additionalRegisters: { R4: own.regs.R4, R5: own.regs.R5, R6: `0e20${TRK}` }, spentTransactionId: spentTx,
+  });
+  // A (1 ERG, made by C0) → R1 → B (0.9) → R2 → C (0.65, unspent)
+  const boxes = [box(A, C0, "1000000000", H + 463, R1), box(B, R1, "900000000", H + 473, R2), box(C, R2, "650000000", H + 485, null)];
+  const live = () => {
+    const l = emptyLive();
+    for (const b of boxes) l.extraReserves[b.boxId] = liveBoxFromApi(b);
+    return l;
+  };
+  const S = seed.totals;
+
+  it("counts each redemption once: in the totals, the list, the reserve's lineage and its tracker", () => {
+    const o = buildObservatory({ seed, live: live(), tip: H + 600 });
+    expect(o.totals.redemptions).toBe(41 + 2);
+    expect(o.redemptions.length).toBe(43);
+    expect(o.totals.redeemedNano - BigInt(seed.totals.redeemedNano)).toBe(100_000_000n + 250_000_000n);
+    expect(o.totals.byContract[CUR.id]).toMatchObject({ boxes: 3, unspent: 1, redemptions: 2 });
+    const [r2, r1] = o.redemptions.filter((x) => x.fromBoxes);
+    expect(r2).toMatchObject({ tx: R2, height: H + 486, reserveIn: B, reserveOut: C, amount: 250_000_000n, unit: "erg", receiver: null, tracker: null, trackerNft: TRK, source: "live" });
+    expect(r2.owner).toEqual({ key: own.owner!.key, addr: own.owner!.addr });
+    expect(r1).toMatchObject({ tx: R1, reserveIn: A, reserveOut: B, amount: 100_000_000n });
+    // the lineage: a box made and spent after the snapshot is that reserve's earlier box, not an unknown one
+    expect(o.index.reserves.get(A)).toMatchObject({ source: "live", unspent: false, next: B, prev: null, spent: { tx: R1, height: H + 474 } });
+    expect(o.index.reserves.get(B)).toMatchObject({ prev: A, next: C, origin: "redemption", unspent: false });
+    expect(o.index.reserves.get(C)).toMatchObject({ prev: B, origin: "redemption", unspent: true });
+    expect(o.unspent.filter((r) => r.source === "live").map((r) => r.id)).toEqual([C]);
+    // deposited: the reserve's first box, not its latest
+    expect(o.totals.depositedNano - BigInt(S.depositedNano)).toBe(1_000_000_000n);
+    // per tracker: the same list the totals count
+    const t = o.index.trackers.get(TRK)!;
+    expect(t.redemptions.slice(0, 2)).toEqual([R2, R1]);
+    expect(t.redemptions.length).toBe(seed.redemptions.filter((x) => x.tracker.nft === TRK).length + 2);
+  });
+
+  it("swaps in the read transaction without counting it twice", () => {
+    const l = live();
+    const key = seed.trackers.find((x) => x.nft === TRK)!.lastTrackerBox!.key;
+    const receiver = seed.redemptions[0].receiver;
+    const tx: ApiTx = {
+      id: R1, inclusionHeight: H + 474, timestamp: 1_795_380_000_000, size: 700,
+      inputs: [boxes[0]],
+      dataInputs: [{ boxId: "7d".repeat(32), transactionId: "ee".repeat(32), value: "1000000", creationHeight: H + 400, ergoTree: `0008cd${key}`, address: "", assets: [{ tokenId: TRK, amount: "1" }], additionalRegisters: { R4: `07${key}`, R5: `64${"ab".repeat(32)}02032000` }, spentTransactionId: null }],
+      outputs: [boxes[1], { boxId: "11".repeat(32), transactionId: R1, value: "100000000", creationHeight: H + 473, ergoTree: "0008cd" + own.owner!.key, address: receiver, assets: [], additionalRegisters: {}, spentTransactionId: null }],
+    };
+    l.txs[R1] = interpretTx(seed, tx);
+    const o = buildObservatory({ seed, live: l, tip: H + 600 });
+    expect(o.redemptions.length).toBe(43);
+    expect(o.index.redemptions.get(R1)).toMatchObject({ fromBoxes: false, receiver, trackerNft: TRK, tracker: { box: "7d".repeat(32), age: 74 } });
+    expect(o.index.redemptions.get(R2)?.fromBoxes).toBe(true);
+    expect(o.index.reserves.get(B)?.at).toBe("2026-11-22T20:40:00Z");
+  });
+
+  it("measures a token reserve by its collateral, and calls a top-up or a refund start no redemption", () => {
+    const tok = (amount: bigint) => ({ id: USE_TOKEN_ID, amount, decimals: 3, name: "USE", kind: "use" as const, label: "USE" });
+    expect(boxDelta({ kind: "token", value: 3_000_000n, collateral: tok(3400n) }, { value: 3_000_000n, collateral: tok(3000n) })).toEqual({ unit: USE_TOKEN_ID, raw: 400n });
+    expect(boxDelta({ kind: "token", value: 3_000_000n, collateral: tok(3400n) }, { value: 1_000_000n, collateral: tok(3400n) })).toBeNull();
+    expect(boxDelta({ kind: "erg", value: 900n, collateral: null }, { value: 1000n, collateral: null })).toBeNull();
+    expect(boxDelta({ kind: "erg", value: 900n, collateral: null }, { value: 900n, collateral: null })).toBeNull();
+  });
+
+  it("links a seed reserve seen spent live to the box its spending tx made", () => {
+    const r = seed.reserves.find((x) => !x.spent && x.kind === "erg" && x.nft)!;
+    const c = contractIndex(seed).byId.get(r.contract)!;
+    const l = emptyLive();
+    l.spent[r.id] = { tx: R1, height: null, seenAt: 1 };
+    const next = liveBoxFromApi({ boxId: B, transactionId: R1, value: String(BigInt(r.value) - 1000n), creationHeight: H + 10, ergoTree: c.ergoTree, address: "", assets: [{ tokenId: r.nft!.id, amount: "1" }], additionalRegisters: r.regs, spentTransactionId: null });
+    l.extraReserves[B] = next;
+    expect(boxLinks(seed, l, [next]).get(B)).toBe(r.id);
+    const o = buildObservatory({ seed, live: l, tip: H + 20 });
+    expect(o.index.reserves.get(r.id)?.next).toBe(B);
+    expect(o.index.redemptions.get(R1)).toMatchObject({ fromBoxes: true, amount: 1000n, reserveIn: r.id });
   });
 });

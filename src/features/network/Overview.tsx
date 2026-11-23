@@ -180,8 +180,18 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
         </div>
         <div className="fig">
           <dt>{t("network.strip.redemptions")}</dt>
-          <dd><span className="v num">{obs.redemptions.length}</span></dd>
-          <dd className="s">{t("network.strip.redemptionsSub", { n: recent })}</dd>
+          {/* the live layer counts redemptions after the snapshot from the same first look as the reserves (the detector's
+              boxes): no figure that jumps a second later, the snapshot's own count at its block if it failed */}
+          {src === "live" ? (<>
+            <dd><span className="v num">{obs.redemptions.length}</span></dd>
+            <dd className="s">{t("network.strip.redemptionsSub", { n: recent })}</dd>
+          </>) : src === "snapshot" ? (<>
+            <dd><span className="v num">{S.redemptions}</span></dd>
+            <dd className="s">{t("network.strip.redemptionsSub", { n: recent })} · {asOfSnap}</dd>
+          </>) : (<>
+            <dd><span className="v num">—</span></dd>
+            <dd className="s">{t("chain.checking")}</dd>
+          </>)}
         </div>
       </dl>
     </section>
@@ -430,9 +440,11 @@ export function FeedRow({ r }: { r: RedemptionView }) {
   const t = useT();
   const lang = t.lang as Lang;
   const rk = keyOfAddress(r.receiver);
+  // seen in the reserve's boxes, its transaction not read yet: the receiver, the time and the tracker box are unknown
+  const unread = r.fromBoxes ? t("network.rd.unread") : null;
   return (
     <li className={cx("nw-rd", r.emergencyWindow && "em")}>
-      <Link to={`/network/tx/${r.tx}`} className="nw-rd-a" aria-label={t("network.rd.open", { id: sid(r.tx) })}>
+      <Link to={`/network/tx/${r.tx}`} className="nw-rd-a" aria-label={t("network.rd.open", { id: sid(r.tx) })} title={unread ? t("network.rd.unreadTitle") : undefined}>
         <span className="nw-rd-amt num">{redemptionAmount(r, lang)}</span>
         <span className="nw-rd-who" aria-hidden="true">
           {r.owner.key ? <KeySeal pk={r.owner.key} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
@@ -440,11 +452,11 @@ export function FeedRow({ r }: { r: RedemptionView }) {
           {rk ? <KeySeal pk={rk} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
         </span>
         <span className="nw-rd-pair">
-          {t("network.rd.pair", { owner: r.ownerLabel ?? sAddr(r.owner.addr), receiver: r.receiverLabel ?? sAddr(r.receiver) })}
+          {t("network.rd.pair", { owner: r.ownerLabel ?? sAddr(r.owner.addr), receiver: r.receiverLabel ?? (r.receiver ? sAddr(r.receiver) : unread ?? sAddr(null)) })}
         </span>
         <span className="nw-rd-m">
-          <span>{date(r.at, lang)}</span>
-          <span>{t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}</span>
+          <span>{unread ? t("network.rd.block", { h: fmtH(r.height) }) : date(r.at, lang)}</span>
+          <span>{unread ?? t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}</span>
           {r.emergencyWindow && <span className="flag em" title={pick(copy.emergencyRule, lang)}>⚑ {t("network.rd.em")}</span>}
           {r.firstOfPair && <span className="flag" title={t("network.rd.firstTitle")}>◇ {t("network.rd.first")}</span>}
         </span>

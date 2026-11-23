@@ -8,7 +8,10 @@
 //   3. the detector: all boxes at the two current templates (ERG 6e7d9a0e…, multi-token 8699a557…);
 //   4. tracker NFTs that can still change (live, stale, unused): the unspent box that holds each NFT, including NFTs
 //      outside the seed that a reserve found live names in R6 (its exit depends on where that NFT is);
-//   5. one cheap "signature" per legacy template with unspent reserves (total + newest box, limit=1).
+//   5. one cheap "signature" per legacy template with unspent reserves (total + newest box, limit=1);
+//   6. each reserve transaction the boxes above reveal but that is not read yet (the tx that made a reserve box found
+//      live, the tx that spent one): read once per tab, newest first, so a redemption gets its receiver, time and
+//      tracker box. The boxes alone already count it (model.ts, redemptions "from boxes").
 // The first look at what the user opened (the focused reserve or tracker, and the tracker NFT of a reserve found live)
 // is a user-started load: it goes out at once on the interactive lane, outside the background budget; every later
 // re-check is background work. A change found by 4 becomes a pulse (`pulse.commit({ source: "mainnet", … })`) and a new
@@ -19,7 +22,7 @@ import { pulse as appPulse, type Pulse } from "@/app/pulse";
 import { chainApi, ChainApiError, finalBox, finalTx, paths, type ChainApi, type Lane } from "./api";
 import { CURRENT_TEMPLATES, isHex, p2pkKeyOfTree, templateHash } from "./decode";
 import { boxDetail, buildObservatory, contractIndex, contractOf, detectedBox, emptyLive, idleStatus, interpretTx, isTrackerShaped, liveBoxFromApi, liveTrackerStatus } from "./model";
-import type { ApiBox, ApiList, ApiTx, BoxDetail, DetectedBox, Hex, LiveData, LiveStatus, Observatory, Seed, TrackerCommit, TxDetail } from "./types";
+import type { ApiBox, ApiList, ApiTx, BoxDetail, DetectedBox, Hex, LiveBox, LiveData, LiveStatus, Observatory, Seed, TrackerCommit, TxDetail } from "./types";
 
 export interface Fetched<T> { state: "loading" | "ok" | "missing" | "error"; data: T | null; error: string | null; at: number }
 
@@ -42,7 +45,7 @@ export interface ChainStoreOptions {
 }
 
 /** Check intervals in blocks (CHAIN_API.md "Request budget" has the arithmetic). */
-export const INTERVALS = { followUp: 0, focusTracker: 2, focusReserve: 10, mempool: 3, detector: 6, tracker: 6, trackerQuiet: 20, template: 12, hostIndex: 360 } as const;
+export const INTERVALS = { followUp: 0, focusTracker: 2, focusReserve: 10, mempool: 3, detector: 6, tracker: 6, trackerQuiet: 20, template: 12, hostIndex: 360, txRead: 1 } as const;
 
 type TaskKind = "tracker" | "template" | "templateFull" | "box" | "tx" | "detector" | "mempool" | "hostIndex";
 /** `user`: the first run of this task in the tab is a user-started load (interactive lane), see firstLooks(). */
@@ -123,6 +126,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
   const followUps: Task[] = [];
   const emptyStreak = new Map<Hex, number>();
   const recheck = new Set<string>();           // task keys to run again on the next block, whatever their interval
+  const readTxs = new Set<Hex>();              // reserve txs read in this tab (merged, or older than the snapshot)
+  const missingTxs = new Map<Hex, number>();   // tx id → height of a 404: asked again only after INTERVALS.detector blocks
   let running = false;
 
   function isUnspentNow(id: Hex): boolean {
@@ -170,6 +175,32 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     return out;
   }
 
+  /** Reserve txs known only by id: the tx that made each reserve box found live, the tx that spent one (a box found live
+   *  or a seed reserve seen spent). Newest first; `focused` when the box is the reserve the user opened. Bounded by the
+   *  boxes the live layer holds (≤ 20 per current template from the detector, ≤ 50 per legacy template), and each is
+   *  read once per tab (a final answer, kept by api.ts). */
+  function unreadTxs(seed: Seed): { id: Hex; h: number; focused: boolean }[] {
+    const { live } = get();
+    const tip = tipOrSeed() ?? 0;
+    const seedTxs = new Set(seed.redemptions.map((x) => x.tx));
+    const out = new Map<Hex, { id: Hex; h: number; focused: boolean }>();
+    const note = (id: Hex | null | undefined, h: number, focused: boolean) => {
+      if (!id || !isHex(id, 32) || live.txs[id] || readTxs.has(id) || seedTxs.has(id) || inflight.has(`tx:${id}`)) return;
+      const miss = missingTxs.get(id);
+      if (miss !== undefined && tip - miss < INTERVALS.detector) return;
+      const had = out.get(id);
+      out.set(id, { id, h: Math.max(h, had?.h ?? 0), focused: focused || !!had?.focused });
+    };
+    for (const b of Object.values(live.extraReserves)) {
+      const focused = focusReserves.has(b.id);
+      const h = b.settled ?? b.height;
+      note(b.tx, h, focused);
+      note(b.spentTx ?? live.spent[b.id]?.tx, h + 1, focused);
+    }
+    for (const [id, x] of Object.entries(live.spent)) if (!live.extraReserves[id]) note(x.tx, x.height ?? 0, focusReserves.has(id));
+    return [...out.values()].sort((a, b) => b.h - a.h);
+  }
+
   function targets(): Task[] {
     const { seed } = get();
     if (!seed) return [];
@@ -209,6 +240,10 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const byId = contractIndex(seed).byId;
     for (const r of seed.reserves) if (isUnspentNow(r.id)) { const c = byId.get(r.contract); if (c && !c.current) hashes.add(c.templateHash); }
     for (const h of hashes) add({ key: `template:${h}`, kind: "template", arg: h, prio: 5, every: INTERVALS.template });
+    // a reserve tx not read yet: once each, newest first; the focused reserve's own txs are part of its first look
+    for (const x of unreadTxs(seed)) {
+      add({ key: `tx:${x.id}`, kind: "tx", arg: x.id, prio: x.focused ? 1 : 4, every: INTERVALS.txRead, user: x.focused });
+    }
     add({ key: "hostIndex", kind: "hostIndex", arg: "", prio: 7, every: INTERVALS.hostIndex });
     return [...out.values()];
   }
@@ -231,6 +266,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
   function followUp(kind: TaskKind, arg: string) {
     const key = `${kind}:${arg}`;
     if (followUps.some((t) => t.key === key)) return;
+    if (kind === "tx" && (readTxs.has(arg) || looking.has(key))) return;   // read already, or its first look is on its way
     followUps.push({ key, kind, arg, prio: 0, every: INTERVALS.followUp });
   }
 
@@ -422,22 +458,45 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     }
   }
 
+  /** A box as a tx answer shows it, without losing a spend already known: a kept (final) answer may be older than it. */
+  const keepSpend = (had: LiveBox | undefined, b: LiveBox): LiveBox => (had?.spentTx && !b.spentTx ? { ...b, spentTx: had.spentTx } : b);
+
+  /** A reserve tx after the snapshot (the seed has everything up to its block, so an older one would count twice). */
+  const isLiveReserveTx = (d: TxDetail) => {
+    const seed = get().seed;
+    return !!seed && d.height > seed.asOf.height && !!(d.reserveIn || d.reserveOut) && !seed.redemptions.some((x) => x.tx === d.id);
+  };
+
   function applyTx(d: TxDetail, tx: ApiTx) {
     const at = now();
+    const seedIds = new Set(get().seed?.reserves.map((r) => r.id) ?? []);
     patchLive((l) => {
       const spent = { ...l.spent };
       if (d.reserveIn && !spent[d.reserveIn.boxId]?.tx) spent[d.reserveIn.boxId] = { tx: d.id, height: d.height, seenAt: at };
       const extra = { ...l.extraReserves };
       const out = d.reserveOut ? tx.outputs.find((o) => o.boxId === d.reserveOut!.boxId) : null;
-      if (out && !get().seed?.reserves.some((r) => r.id === out.boxId)) extra[out.boxId] = liveBoxFromApi({ ...out, transactionId: out.transactionId || tx.id });
+      if (out && !seedIds.has(out.boxId)) extra[out.boxId] = keepSpend(extra[out.boxId], liveBoxFromApi({ ...out, transactionId: out.transactionId || tx.id, settlementHeight: out.settlementHeight ?? d.height }));
+      // the reserve box it spent, when that box is not in the seed: made and spent after the snapshot
+      const inp = d.reserveIn ? tx.inputs.find((i) => i.boxId === d.reserveIn!.boxId) : null;
+      if (inp && !seedIds.has(inp.boxId) && !extra[inp.boxId]?.spentTx) extra[inp.boxId] = liveBoxFromApi({ ...inp, spentTransactionId: d.id });
       return { ...l, spent, extraReserves: extra, txs: { ...l.txs, [d.id]: d }, changes: l.changes + 1 };
     });
   }
 
   async function loadTx(id: Hex, o: { lane: Lane }) {
-    const tx = await api.get<ApiTx>(paths.tx(id), { ...o, final: finalTx });
+    let tx: ApiTx;
+    try {
+      tx = await api.get<ApiTx>(paths.tx(id), { ...o, final: finalTx });
+    } catch (e) {
+      // not (yet) in the index: an answer, not a failure; asked again a few blocks later
+      if (e instanceof ChainApiError && e.status === 404) { missingTxs.set(id, tipOrSeed() ?? 0); return; }
+      throw e;
+    }
+    if (!tx || tx.id !== id) throw new ChainApiError("parse", paths.tx(id), "the answer is not this transaction");
+    missingTxs.delete(id);
+    readTxs.add(id);
     const d = interpretTx(get().seed, tx);
-    applyTx(d, tx);
+    if (isLiveReserveTx(d)) applyTx(d, tx);
     set({ txs: { ...get().txs, [id]: { state: "ok", data: d, error: null, at: now() } } });
   }
 
@@ -455,11 +514,18 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
         if (!prev) fresh++;
         found[b.id] = detectedBox(seed, b, contractOf(seed, b.ergoTree, b.templateHash), prev?.firstSeenAt ?? at);
       }
+      // every box at the template, spent ones too (an earlier state of a reserve: its redemption counts, its page and
+      // lineage know it); a box seen unspent before and spent now is replaced, a spend already known is kept
       const extra = { ...l.extraReserves };
-      for (const b of boxes) if (!b.spentTx && !extra[b.id]) extra[b.id] = b;
+      let spends = 0;
+      for (const b of boxes) {
+        const had = extra[b.id];
+        if (!had) extra[b.id] = b;
+        else if (!had.spentTx && b.spentTx) { extra[b.id] = b; spends++; }
+      }
       return {
         ...l,
-        changes: l.changes + fresh,
+        changes: l.changes + fresh + spends,
         extraReserves: extra,
         detector: {
           found,
@@ -514,12 +580,20 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
         try { th = await templateHash(b.ergoTree); } catch { th = null; }
         const d = boxDetail(get().seed, b, th);
         ok();
-        set({ boxes: { ...get().boxes, [key]: { state: "ok", data: d, error: null, at: now() } } });
+        // the live layer first, then the answer: a page waiting on this box finds the reserve as soon as it sees "ok"
         // a reserve we track turned out spent: let the live layer know
         if (d.spentTx && (get().seed?.reserves.some((r) => r.id === key && !r.spent) || get().live.extraReserves[key])) {
           const tx = d.spentTx;
           patchLive((l) => (l.spent[key] ? null : { ...l, changes: l.changes + 1, spent: { ...l.spent, [key]: { tx, height: null, seenAt: now() } } }));
         }
+        // a reserve box the live layer has not met (made after the snapshot, perhaps spent since): it joins it, so its
+        // page, its lineage and the transactions around it know it
+        const seed = get().seed;
+        if (d.role === "reserve" && seed && !seed.reserves.some((r) => r.id === key) && !get().live.extraReserves[key]) {
+          const lb = liveBoxFromApi(b);
+          patchLive((l) => (l.extraReserves[key] ? null : { ...l, changes: l.changes + 1, extraReserves: { ...l.extraReserves, [key]: lb } }));
+        }
+        set({ boxes: { ...get().boxes, [key]: { state: "ok", data: d, error: null, at: now() } } });
       } catch (e) {
         const missing = e instanceof ChainApiError && e.status === 404;
         if (!missing) fail(e);
@@ -549,9 +623,9 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
         const tx = await api.get<ApiTx>(paths.tx(key), { lane: "interactive", final: finalTx });
         const d = interpretTx(get().seed, tx);
         ok();
-        const rin = d.reserveIn?.boxId;
-        const tracked = !!rin && (!!get().seed?.reserves.some((r) => r.id === rin) || !!get().live.extraReserves[rin]);
-        if (tracked && !get().seed?.redemptions.some((x) => x.tx === key)) applyTx(d, tx);
+        // any reserve tx after the snapshot joins the live layer: a box made and spent since then is recognised too
+        readTxs.add(key);
+        if (isLiveReserveTx(d)) applyTx(d, tx);
         set({ txs: { ...get().txs, [key]: { state: "ok", data: d, error: null, at: now() } } });
       } catch (e) {
         const missing = e instanceof ChainApiError && e.status === 404;
@@ -645,7 +719,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       return t;
     },
     /** Test/dev: forget everything (seed stays). */
-    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
+    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); readTxs.clear(); missingTxs.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
     dispose: () => { unsubApi(); if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility); },
   };
 }

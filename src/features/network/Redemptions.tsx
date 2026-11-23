@@ -38,14 +38,15 @@ export function RedemptionsPage({ obs }: { obs: Observatory }) {
     return [...m.values()];
   }, [list]);
   const ownersN = new Set(list.map((r) => r.owner.addr ?? r.owner.key)).size;
-  const receiversN = new Set(list.map((r) => r.receiver)).size;
+  const receiversN = new Set(list.map((r) => r.receiver).filter(Boolean)).size;   // a receiver not read yet is no receiver
   const emN = list.filter((r) => r.emergencyWindow).length;
   const listCols: Column<RedemptionView>[] = [
-    { key: "d", label: t("network.c.date"), lead: true, render: (r) => <Link to={`/network/tx/${r.tx}`}>{date(r.at, lang)}</Link> },
+    // a redemption seen in the reserve's boxes, its transaction not read yet: block instead of date, "checking…" for the rest
+    { key: "d", label: t("network.c.date"), lead: true, render: (r) => <Link to={`/network/tx/${r.tx}`} title={r.fromBoxes ? t("network.rd.unreadTitle") : undefined}>{r.fromBoxes ? t("network.rd.block", { h: fmtH(r.height) }) : date(r.at, lang)}</Link> },
     { key: "a", label: t("network.c.amount"), align: "right", render: (r) => <span className="num">{redemptionAmount(r, lang)}</span> },
     { key: "o", label: t("network.c.owner"), render: (r) => <KeyName pk={r.owner.key} addr={r.owner.addr} label={r.ownerLabel} size={24} /> },
-    { key: "r", label: t("network.c.receiver"), render: (r) => <KeyName addr={r.receiver} label={r.receiverLabel} size={24} /> },
-    { key: "age", label: t("network.c.age"), align: "right", render: (r) => <span className="num">{blocks(r.tracker?.age ?? 0, lang)}</span> },
+    { key: "r", label: t("network.c.receiver"), render: (r) => <KeyName addr={r.receiver} label={r.receiverLabel} size={24} unknown={r.fromBoxes ? t("network.rd.unread") : "—"} /> },
+    { key: "age", label: t("network.c.age"), align: "right", render: (r) => r.fromBoxes ? <span className="dim">{t("network.rd.unread")}</span> : <span className="num">{blocks(r.tracker?.age ?? 0, lang)}</span> },
     { key: "f", label: t("network.c.flags"), render: (r) => <span className="nw-inl">{r.emergencyWindow && <span className="nw-flag em">⚑ {t("network.rd.em")}</span>}{r.firstOfPair && <span className="nw-flag">◇ {t("network.rd.first")}</span>}</span> },
     { key: "tx", label: t("network.c.tx"), render: (r) => <IdLink id={r.tx} kind="tx" to={`/network/tx/${r.tx}`} /> },
   ];
@@ -95,12 +96,12 @@ function GraphView({ list }: { list: RedemptionView[] }) {
   const phone = useIsPhone();
   const [mode, setMode] = useState<"graph" | "table">("graph");
   const m = useMemo(() => flowModel(list), [list]);
-  const nodeName = (id: string, label: string | null) => label ?? sAddr(id);
+  const nodeName = (id: string, label: string | null) => label ?? (id === "?" ? t("network.rd.unread") : sAddr(id));
   const ownerOf = new Map(m.owners.map((o) => [o.id, o]));
   const recOf = new Map(m.receivers.map((o) => [o.id, o]));
   const cols: Column<FlowEdge>[] = [
     { key: "o", label: t("network.gr.from"), lead: true, render: (e) => <KeyName pk={ownerOf.get(e.owner)?.key} addr={e.owner} label={ownerOf.get(e.owner)?.label} size={24} /> },
-    { key: "r", label: t("network.gr.to"), render: (e) => <KeyName addr={e.receiver} label={recOf.get(e.receiver)?.label} size={24} /> },
+    { key: "r", label: t("network.gr.to"), render: (e) => <KeyName addr={e.receiver === "?" || e.receiver === "—" ? null : e.receiver} label={recOf.get(e.receiver)?.label} size={24} unknown={e.receiver === "?" ? t("network.rd.unread") : "—"} /> },
     { key: "n", label: t("network.gr.n"), align: "right", render: (e) => <span className="num">{e.n}</span> },
     { key: "s", label: t("network.gr.sum"), align: "right", render: (e) => <span className="num">{sumsText(e, lang)}</span> },
   ];
@@ -181,6 +182,8 @@ function TxInner({ txId, obs, lang, t, onRetry }: { txId: string; obs: Observato
   }
   const amt = rd ? redemptionAmount(rd, lang) : detail?.amount ? amountOfDetail(detail, lang) : null;
   const ownerKey = rd?.owner.key ?? detail?.reserveIn?.registers.key ?? null;
+  // a redemption known from the reserve's boxes only (its transaction not read yet): no zeros for what is unknown
+  const known = rd && !rd.fromBoxes ? rd : null;
   const receiver = rd?.receiver ?? detail?.receiver ?? null;
   const recvKey = keyOfAddress(receiver);
   const pairKey = ownerKey && recvKey ? bytesToHex(blake2b256(new Uint8Array([...hexToBytes(ownerKey), ...hexToBytes(recvKey)]))) : null;
@@ -199,7 +202,7 @@ function TxInner({ txId, obs, lang, t, onRetry }: { txId: string; obs: Observato
             <div className="nw-tx-pair">
               <KeyName pk={ownerKey} addr={rd?.owner.addr ?? null} label={rd?.ownerLabel ?? null} size={40} />
               <span className="arr" aria-hidden="true">→</span>
-              <KeyName addr={receiver} label={rd?.receiverLabel ?? null} size={40} />
+              <KeyName addr={receiver} label={rd?.receiverLabel ?? null} size={40} unknown={detail ? "—" : t("network.rd.unread")} />
             </div>
           )}
           <div className="nw-rv-tags">
@@ -249,7 +252,7 @@ function TxInner({ txId, obs, lang, t, onRetry }: { txId: string; obs: Observato
               [t("network.tx.f.time"), rd?.at ? dateTime(rd.at, lang) : detail ? dateTime(new Date(detail.timestamp).toISOString(), lang) : "—"],
               [t("network.tx.f.fee"), rd?.fee != null ? `${ergs(rd.fee, 3)} ERG` : detail?.fee != null ? `${ergs(detail.fee, 3)} ERG` : "—"],
               [t("network.tx.f.size"), rd?.size ? t("network.tx.bytes", { n: fmtH(rd.size) }) : detail?.size ? t("network.tx.bytes", { n: fmtH(detail.size) }) : "—"],
-              [t("network.tx.f.io"), rd ? `${rd.inputs} · ${rd.outputs}` : detail ? `${detail.inputs.length} · ${detail.outputs.length}` : "—"],
+              [t("network.tx.f.io"), known ? `${known.inputs} · ${known.outputs}` : detail ? `${detail.inputs.length} · ${detail.outputs.length}` : "—"],
               ...(detail?.confirmations != null ? [[t("network.tx.f.conf"), <span className="num">{fmtH(detail.confirmations)}</span>] as [ReactNode, ReactNode]] : []),
               ...(rd?.feePayers.length ? [[t("network.tx.f.feePayers"), <span className="nw-stackv">{rd.feePayers.map((a) => <IdLink key={a} id={a} kind="address" />)}</span>] as [ReactNode, ReactNode]] : []),
             ]} />
@@ -258,7 +261,7 @@ function TxInner({ txId, obs, lang, t, onRetry }: { txId: string; obs: Observato
           {rd && (
             <Block label={t("network.tx.flags")}>
               <ul className="nw-flags">
-                <li className={cx(!rd.emergencyWindow && "off")}><span className="g" aria-hidden="true">⚑</span>{rd.emergencyWindow ? t("chain.receipt.emergency") : t("chain.receipt.trackerAge", { age: fmtH(rd.tracker?.age ?? 0) })}</li>
+                <li className={cx(!rd.emergencyWindow && "off")}><span className="g" aria-hidden="true">⚑</span>{rd.emergencyWindow ? t("chain.receipt.emergency") : rd.fromBoxes ? t("network.rd.unread") : t("chain.receipt.trackerAge", { age: fmtH(rd.tracker?.age ?? 0) })}</li>
                 {rd.firstOfPair && <li><span className="g" aria-hidden="true">◇</span>{t("network.tx.firstOfPair")}</li>}
                 {rd.treeWasEmpty && <li><span className="g" aria-hidden="true">○</span>{t("network.tx.treeWasEmpty")}</li>}
               </ul>
