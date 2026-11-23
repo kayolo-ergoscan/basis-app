@@ -100,7 +100,9 @@ function simBox(b: BoxCandidate & { boxId: Hex }, where: string, opaque = false)
     try {
       registers[REGISTER_NAMES[i]] = registerValue(hex, `${where} ${REGISTER_NAMES[i]}`);
     } catch (e) {
-      if (!lenient || !(e instanceof Unmappable)) throw e;
+      // basis.es reads R4–R7 only (SELF, its output, the tracker box, the other inputs' R4): an R8 or R9 of a type the
+      // engine does not model is left out on any box (anyone's top-up may add one to a reserve, wallet-t3)
+      if (!(e instanceof Unmappable) || (!lenient && i < 4)) throw e;
     }
   });
   return { boxId: b.boxId, script: scriptOf(b.ergoTree), value: b.value, tokens: b.tokens.map((t) => ({ ...t })), registers, creationHeight: b.creationHeight };

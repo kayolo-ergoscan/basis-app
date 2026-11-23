@@ -235,6 +235,13 @@ describe("signing a redemption (synthetic keys)", () => {
     });
   }
 
+  it("a reserve with R8 and R9 (anyone's top-up may add them): L1 passes; the tracker's output drops them", () => {
+    const s = syntheticRedemption({ reserveExtra: ["0402", "0500"] });
+    expect(s.chain.inputs[0].registers).toHaveLength(6);
+    const l1 = checkRedemption(parseBuildResponse(s.text), s.chain, s.expect);
+    if (!l1.ok) throw new Error(`${l1.rule}: ${l1.message}`);
+  });
+
   it("a failed check cannot be signed", () => {
     const s = syntheticRedemption();
     const l1 = checkRedemption(parseBuildResponse(s.text), s.chain, { ...s.expect, amount: 1n });

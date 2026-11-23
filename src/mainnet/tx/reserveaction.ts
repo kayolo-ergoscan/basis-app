@@ -17,11 +17,13 @@
 //
 // The wallet's own rules on top (stricter than the contract): only an ERG reserve under the pinned tree and bound to
 // our tracker; no top-up of a reserve in refund (the contract allows it, the money would only wait for the owner's
-// completion); exactly the outputs above, the registers byte for byte (R4–R6, and R7 unless the start writes it), the
+// completion); exactly the outputs above, the registers byte for byte (all of them, except the R7 a start writes), the
 // miner fee exactly 0.001 ERG, every token of the wallet's boxes to its change, the reserve NFT kept (a completion puts
 // it into the owner's output: nothing is burned). A reserve without R7 reads as R7 = 0, as the contract reads it
 // (`SELF.R7[Long].getOrElse(0L)`, l. 234: "Absent or 0 = no refund pending"): a top-up keeps it without R7 (l. 443
-// compares getOrElse(0L)), a refund start writes R7 (l. 454 reads `selfOut.R7[Long].get`).
+// compares getOrElse(0L)), a refund start writes R7 (l. 454 reads `selfOut.R7[Long].get`). R8 and R9 are read nowhere
+// in the contract (selfPreserved, l. 248–253, compares the script, the tokens, R4 and R6; each action R5 and R7), so
+// anyone's top-up may add them to a reserve: the wallet takes such a reserve as it is and keeps them byte for byte.
 import { bytesToHex, hexToBytes } from "../../protocol/bytes";
 import { isValidPublicKey } from "../../protocol/keys";
 import { decodeRegister, encodeAvlTree } from "../../protocol/registerCodec";
@@ -69,8 +71,9 @@ export interface ReserveInfo {
 /**
  * Reads a reserve box the wallet may act on: it hashes to its id, sits under the pinned ERG contract (a legacy template
  * or a token reserve is refused), holds exactly its NFT, R4 a valid key, R5 an AvlTree, R6 our tracker's NFT and R7 a
- * Long ≥ 0, each one canonical constant and nothing after R7. R7 may be absent (nothing after R6): it reads as 0, as
- * the contract reads it (l. 234, getOrElse(0L)) and the tracker too (wallet-t3).
+ * Long ≥ 0, each one canonical constant. R7 may be absent (nothing after R6): it reads as 0, as the contract reads it
+ * (l. 234, getOrElse(0L)) and the tracker too (wallet-t3). R8 and R9 may follow R7 with any value: the contract never
+ * reads them, so anyone's top-up can add them (they mean nothing here and every action keeps them).
  */
 export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { ok: false; rule: ReserveReadRule; message: string } {
   const no = (rule: ReserveReadRule, message: string) => ({ ok: false as const, rule, message });
@@ -78,7 +81,7 @@ export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { o
   if (box.ergoTree !== RESERVE_TREE_HEX) return no("contract", "the box is not under the current Basis ERG reserve contract (a legacy test version, a token reserve or another contract)");
   if (box.tokens.length !== 1 || box.tokens[0].amount !== 1n) return no("tokens", "the reserve does not hold exactly one NFT");
   const [r4, r5, r6, r7] = box.registers;
-  if (box.registers.length !== 3 && box.registers.length !== 4) return no("registers", "the reserve does not have exactly R4–R6, or R4–R7");
+  if (box.registers.length < 3) return no("registers", "the reserve does not have R4–R6");
   let owner = "", refundHeight = -1n;
   try {
     const d4 = decodeRegister(r4);
@@ -174,7 +177,8 @@ export interface RefundStartInput {
   add?: bigint;
 }
 
-/** The unsigned refund start: inputs [reserve (#0 = 20), owner boxes…], outputs [reserve with R7 set, change?, fee]. */
+/** The unsigned refund start: inputs [reserve (#0 = 20), owner boxes…], outputs [reserve with R7 set, change?, fee].
+ *  R4–R6 and any R8, R9 stay byte for byte (l. 454 asks only that the new R7 is a Long ≥ HEIGHT). */
 export function buildRefundStart(t: RefundStartInput): UnsignedTx {
   if (t.inputs.length === 0) throw new Error("a refund start needs a box of the owner for the miner fee");
   const add = t.add ?? 0n;
@@ -187,7 +191,7 @@ export function buildRefundStart(t: RefundStartInput): UnsignedTx {
     inputs: [reserveInput(r, "refund-start"), ...t.inputs.map((b) => ({ boxId: b.boxId, extension: [] }))],
     dataInputs: [],
     outputs: [
-      { value: r.value + add, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: [r.registers[0], r.registers[1], r.registers[2], encodeLong(t.refundHeight)] },
+      { value: r.value + add, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: [r.registers[0], r.registers[1], r.registers[2], encodeLong(t.refundHeight), ...r.registers.slice(4)] },
       ...changeOutputs(t.owner, t.inputs, change, h),
       { value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] },
     ],
@@ -256,7 +260,7 @@ export interface ReserveActionWant {
  * L1 for a top-up, a refund start or a completion: the reserve box is one the wallet acts on and in the right refund
  * state; the transaction spends exactly it (input 0, #0 the action, nothing else in its extension) and the signer's
  * own verified boxes; the outputs are exactly the layout above with the registers byte for byte (a top-up keeps all
- * of them, R7 absent stays absent; a refund start keeps R4–R6 and writes R7), the fee exactly 0.001 ERG
+ * of them, R7 absent stays absent; a refund start keeps R4–R6 and R8–R9 and writes R7), the fee exactly 0.001 ERG
  * (MINER_FEE_NANOERG), every token of the signer's boxes in its change, ERG in = ERG out, no data inputs.
  */
 export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], want: ReserveActionWant): CheckResult<ReserveActionRule> {
@@ -313,10 +317,10 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
       if (outs.length !== 2 && outs.length !== 3) refuse("outputs", `${outs.length} outputs; this action has [reserve, change?, fee]`);
       const r = outs[0];
       const tokensOk = r.tokens.length === reserve.tokens.length && reserve.tokens.every((t, i) => r.tokens[i].tokenId === t.tokenId && r.tokens[i].amount === t.amount);
-      const regs = want.kind === "topup" ? reserve.registers.length : 4;
-      if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its NFT and ${regs === 4 ? "R4–R7" : "R4–R6 (the reserve has no R7)"}`);
-      const keep = want.kind === "topup" ? regs : 3;
-      for (let i = 0; i < keep; i++) if (r.registers[i] !== reserve.registers[i]) refuse("reserve-output", `output 0 changes R${4 + i}`);
+      // a top-up keeps every register (no R7 stays no R7); a start keeps them too but writes R7 (index 3)
+      const regs = want.kind === "topup" ? reserve.registers.length : Math.max(4, reserve.registers.length);
+      if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its NFT and its registers R4–R${3 + regs}`);
+      for (let i = 0; i < regs; i++) if ((want.kind === "topup" || i !== 3) && r.registers[i] !== reserve.registers[i]) refuse("reserve-output", `output 0 changes R${4 + i}`);
       if (want.kind === "topup") {
         if (r.value !== reserve.value + want.amount!) refuse("reserve-output", `output 0 holds ${r.value}; the reserve ${reserve.value} plus ${want.amount} is ${reserve.value + want.amount!}`);
       } else {

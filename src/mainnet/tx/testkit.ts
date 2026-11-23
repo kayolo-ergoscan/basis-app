@@ -134,6 +134,8 @@ export interface SyntheticOptions {
   timestamp?: bigint;
   /** Default true: keys {0…6, 8}; false adds #7. */
   first?: boolean;
+  /** R8, R9 on the reserve input (the tracker's output drops them). */
+  reserveExtra?: Hex[];
   height?: number;
 }
 
@@ -159,7 +161,7 @@ export function syntheticRedemption(o: SyntheticOptions = {}): SyntheticRedempti
     ergoTree: RESERVE_TREE_HEX,
     creationHeight: height - 30,
     tokens: [{ tokenId: "ab".repeat(32), amount: 1n }],
-    registers: [`07${issuer.pubHex}`, basisAvlRegister("11".repeat(33)), `0e20${nft}`, "0500"],
+    registers: [`07${issuer.pubHex}`, basisAvlRegister("11".repeat(33)), `0e20${nft}`, "0500", ...(o.reserveExtra ?? [])],
     transactionId: "c1".repeat(32),
     index: 0,
   };
@@ -242,13 +244,13 @@ export function p2pkBox(owner: Hex, value: bigint, opts: { tokens?: Token[]; cre
 }
 
 /** A reserve box of `owner` under the pinned contract and our tracker, with a real id (top-up and refund tests). */
-export function reserveBox(owner: Hex, value: bigint, opts: { nft?: Hex; r5?: Hex; r6?: Hex; /** null: no R7 */ r7?: bigint | null; tree?: Hex; creationHeight?: number; tokens?: Token[]; transactionId?: Hex } = {}): ErgoBox {
+export function reserveBox(owner: Hex, value: bigint, opts: { nft?: Hex; r5?: Hex; r6?: Hex; /** null: no R7 */ r7?: bigint | null; /** R8, R9 after R7 */ extra?: Hex[]; tree?: Hex; creationHeight?: number; tokens?: Token[]; transactionId?: Hex } = {}): ErgoBox {
   const body = {
     value,
     ergoTree: opts.tree ?? RESERVE_TREE_HEX,
     creationHeight: opts.creationHeight ?? 1_922_314,
     tokens: opts.tokens ?? [{ tokenId: opts.nft ?? "a7".repeat(32), amount: 1n }],
-    registers: [`07${owner}`, opts.r5 ?? basisAvlRegister(EMPTY_AVL_DIGEST_HEX), opts.r6 ?? `0e20${TRACKER_NFT}`, ...(opts.r7 === null ? [] : [encodeLong(opts.r7 ?? 0n)])],
+    registers: [`07${owner}`, opts.r5 ?? basisAvlRegister(EMPTY_AVL_DIGEST_HEX), opts.r6 ?? `0e20${TRACKER_NFT}`, ...(opts.r7 === null ? [] : [encodeLong(opts.r7 ?? 0n), ...(opts.extra ?? [])])],
     transactionId: opts.transactionId ?? "d4".repeat(32),
     index: 0,
   };

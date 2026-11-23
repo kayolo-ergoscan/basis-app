@@ -109,5 +109,19 @@ describe("simTxOf (the review screens' TxLens)", () => {
     expect(sim?.contextVars[0][1]).toEqual({ type: "GroupElement", value: RECEIVER_B });
     const odd = { ...R3.v1.inputs[0], registers: [...R3.v1.inputs[0].registers.slice(0, 3), "0101"] };
     expect(simTxOf({ ...input(R3), inputs: [odd] })).toBeNull();
+    // an R8 of a type the engine does not model (the contract never reads R8, R9): left out, not refused
+    const extra = { ...R3.v1.inputs[0], registers: [...R3.v1.inputs[0].registers, "0402"] };
+    const withExtra = simTxOf({ ...input(R3), inputs: [extra] });
+    expect(withExtra?.inputs[0].registers.R8).toBeUndefined();
+    expect(withExtra?.inputs[0].registers.R7).toEqual(sim?.inputs[0].registers.R7);
+  });
+
+  it("L2 of the real redemption is the same with an R8 on the reserve input", () => {
+    const l1 = checkRedemption(parseBuildResponse(trackerBuildResponse(r3Parts())), r3Chain(), r3Expect());
+    if (!l1.ok) throw new Error(l1.message);
+    const chain = r3Chain();
+    chain.inputs[0] = { ...chain.inputs[0], registers: [...chain.inputs[0].registers, "0402"] };
+    const r = checkRedemptionContract(l1, chain, R3.v1.inclusionHeight!, avl);
+    if (!r.ok) throw new Error(`${r.rule}: ${r.message}`);
   });
 });

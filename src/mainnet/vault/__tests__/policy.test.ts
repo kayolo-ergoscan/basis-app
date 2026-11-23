@@ -292,6 +292,12 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(reserveActionPaysRight(bareTop.nodeJson, ME, "topup", ME)).toBe(true);
     const bareStart = signReserveAction(buildRefundStart({ reserve: bare, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [bare, coin], SK, "refund-start");
     expect(reserveActionPaysRight(bareStart.nodeJson, ME, "refund-start")).toBe(true);
+    // one a stranger's top-up gave an R8 and an R9 (the contract never reads them): the same
+    const extra = reserveBox(ME, 2_000_000_000n, { extra: ["0402", `08cd${OTHER}`] });
+    const extraTop = signReserveAction(buildTopUp({ reserve: extra, payer: ME, inputs: [coin], amount: 100_000_000n, fee: 1_000_000n, height: 1_925_000 }), [extra, coin], SK, "topup");
+    expect(reserveActionPaysRight(extraTop.nodeJson, ME, "topup", ME)).toBe(true);
+    const extraStart = signReserveAction(buildRefundStart({ reserve: extra, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [extra, coin], SK, "refund-start");
+    expect(reserveActionPaysRight(extraStart.nodeJson, ME, "refund-start")).toBe(true);
     // the reserve output: our tracker (R6), the reviewed owner for a top-up, this key for a refund start
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "topup", ME)).toBe(false);
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "refund-start")).toBe(false);

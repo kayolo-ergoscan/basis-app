@@ -64,7 +64,7 @@ describe("the reserve box", () => {
       return { ...body, boxId: computeBoxId(body) };
     };
     expect(readReserve(withRegs(b.registers)).ok).toBe(true);
-    for (const regs of [[...b.registers.slice(0, 3), "0400"], [...b.registers.slice(0, 3), "058000"], [b.registers[0], "0e0100", b.registers[2], b.registers[3]], [...b.registers, "0500"]]) {
+    for (const regs of [[...b.registers.slice(0, 3), "0400"], [...b.registers.slice(0, 3), "058000"], [b.registers[0], "0e0100", b.registers[2], b.registers[3]], b.registers.slice(0, 2)]) {
       const r = readReserve(withRegs(regs));
       expect(r.ok ? "ok" : r.rule).toBe("registers");
     }
@@ -389,5 +389,76 @@ describe("a reserve without R7 (wallet-t3: the contract reads SELF.R7[Long].getO
     // no completion before a start: R7 absent is no refund
     const end = buildRefundComplete({ reserve: bare, owner: owner.pubHex, fee: FEE, height: TIP + REFUND_PERIOD_BLOCKS });
     expect(checkReserveAction(end, [bare], { kind: "refund-end", signer: owner.pubHex, height: TIP + REFUND_PERIOD_BLOCKS, fee: FEE })).toMatchObject({ ok: false, rule: "refund-state" });
+  });
+});
+
+describe("a reserve with R8 and R9 (wallet-t3: the contract never reads them, so anyone's top-up may add them)", () => {
+  // an Int and a SigmaProp: types the engine does not model, which it must leave out, not refuse
+  const EXTRA = ["0402", `08cd${stranger.pubHex}`];
+  const reserve = reserveBox(owner.pubHex, 400_000_000n);
+  const coins = [p2pkBox(owner.pubHex, 300_000_000n, { index: 7 })];
+  const strangerCoins = [p2pkBox(stranger.pubHex, 300_000_000n, { index: 8 })];
+
+  it("a stranger's top-up that adds them passes the contract: the grief the wallet must survive", () => {
+    const tx = clone(buildTopUp({ reserve, payer: stranger.pubHex, inputs: strangerCoins, amount: 100_000_000n, fee: FEE, height: TIP }));
+    tx.outputs[0].registers = [...reserve.registers, ...EXTRA];
+    const r = checkReserveActionContract(tx, [reserve, ...strangerCoins], "topup", [stranger.pubHex], TIP + 1, avl);
+    if (!r.ok) throw new Error(`${r.rule}: ${r.message}`);
+  });
+
+  const grieved = reserveBox(owner.pubHex, 500_000_000n, { extra: EXTRA });
+  const inputs = [grieved, ...coins];
+
+  it("reads as the owner's reserve, R8 and R9 ignored; R7 is still read strictly", () => {
+    expect(grieved.registers).toHaveLength(6);
+    const r = readReserve(grieved);
+    if (!r.ok) throw new Error(r.message);
+    expect(r.info).toMatchObject({ owner: owner.pubHex, refundHeight: 0n });
+    expect(readReserve(reserveBox(owner.pubHex, ERG, { extra: ["0500"] })).ok).toBe(true);
+  });
+
+  it("a top-up keeps them byte for byte: L1, L2, the signer; dropping or changing one is refused", () => {
+    const amount = 200_000_000n;
+    const tx = buildTopUp({ reserve: grieved, payer: owner.pubHex, inputs: coins, amount, fee: FEE, height: TIP });
+    const want: ReserveActionWant = { kind: "topup", signer: owner.pubHex, height: TIP, fee: FEE, amount };
+    expect(tx.outputs[0].registers).toEqual(grieved.registers);
+    expect(checkReserveAction(tx, inputs, want)).toEqual({ ok: true });
+    const l2 = checkReserveActionContract(tx, inputs, "topup", [owner.pubHex], TIP + 1, avl);
+    if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
+    expect(verifyReserveAction(signReserveAction(tx, inputs, sk(owner), "topup").signed, inputs, "topup")).toBe(true);
+    const dropped = clone(tx);
+    dropped.outputs[0].registers = grieved.registers.slice(0, 4);
+    expect(checkReserveAction(dropped, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+    const changed = clone(tx);
+    changed.outputs[0].registers[4] = "0404";
+    expect(checkReserveAction(changed, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+  });
+
+  it("a refund start writes R7 and keeps R8 and R9 (l. 454 asks nothing of them): L1, L2, the signer", () => {
+    const r7 = BigInt(TIP + REFUND_START_AHEAD);
+    const tx = buildRefundStart({ reserve: grieved, owner: owner.pubHex, inputs: coins, fee: FEE, height: TIP, refundHeight: r7 });
+    const want: ReserveActionWant = { kind: "refund-start", signer: owner.pubHex, height: TIP, fee: FEE, refundHeight: r7 };
+    expect(tx.outputs[0].registers).toEqual([...grieved.registers.slice(0, 3), encodeLong(r7), ...EXTRA]);
+    expect(checkReserveAction(tx, inputs, want)).toEqual({ ok: true });
+    const l2 = checkReserveActionContract(tx, inputs, "refund-start", [owner.pubHex], TIP + 1, avl);
+    if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
+    expect(verifyReserveAction(signReserveAction(tx, inputs, sk(owner), "refund-start").signed, inputs, "refund-start")).toBe(true);
+    const dropped = clone(tx);
+    dropped.outputs[0].registers = dropped.outputs[0].registers.slice(0, 4);
+    expect(checkReserveAction(dropped, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+    // and a reserve without R7 still gets exactly R4–R7
+    const bare = reserveBox(owner.pubHex, 400_000_000n, { r7: null });
+    expect(buildRefundStart({ reserve: bare, owner: owner.pubHex, inputs: coins, fee: FEE, height: TIP, refundHeight: r7 }).outputs[0].registers).toHaveLength(4);
+  });
+
+  it("the completion of a started one with R8 and R9: L1, L2, the signer", () => {
+    const r7 = 1_900_000n;
+    const unlock = Number(r7) + REFUND_PERIOD_BLOCKS;
+    const started = reserveBox(owner.pubHex, 400_000_000n, { r7, extra: EXTRA });
+    const tx = buildRefundComplete({ reserve: started, owner: owner.pubHex, fee: FEE, height: unlock - 1 });
+    expect(checkReserveAction(tx, [started], { kind: "refund-end", signer: owner.pubHex, height: unlock - 1, fee: FEE })).toEqual({ ok: true });
+    const l2 = checkReserveActionContract(tx, [started], "refund-end", [owner.pubHex], unlock, avl);
+    if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
+    expect(verifyReserveAction(signReserveAction(tx, [started], sk(owner), "refund-end").signed, [started], "refund-end")).toBe(true);
   });
 });
