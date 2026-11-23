@@ -36,6 +36,9 @@ export interface ChainState {
   txs: Record<Hex, Fetched<TxDetail>>;      // useRedemption(…, { detail: true })
 }
 
+/** The detector's next page of a template (DETECTOR). */
+interface DetectorPage { cursor: string; page: number; deep: boolean }
+
 export interface ChainStoreOptions {
   api?: ChainApi;
   loadSeed?: () => Promise<Seed>;
@@ -47,7 +50,14 @@ export interface ChainStoreOptions {
 /** Check intervals in blocks (CHAIN_API.md "Request budget" has the arithmetic). */
 export const INTERVALS = { followUp: 0, focusTracker: 2, focusReserve: 10, mempool: 3, detector: 6, tracker: 6, trackerQuiet: 20, template: 12, hostIndex: 360, txRead: 1 } as const;
 
-type TaskKind = "tracker" | "template" | "templateFull" | "box" | "tx" | "detector" | "mempool" | "hostIndex";
+/** The detector lists every box at a current template, newest first, `limit` per page. Only a full page is followed by
+ *  the next one (cursor), and never past `pages` pages (`limit × pages` boxes per template). It walks to the end (or the
+ *  cap) on the first sweep in a tab and every `deepEvery` blocks after it: an older box changes only by being spent, and
+ *  a spend that makes no new reserve box (a completed refund) shows only on its own page. In between, it goes on to the
+ *  next page only while a page brought a box not seen before or one newly spent. Every page is background work. */
+export const DETECTOR = { limit: 20, pages: 5, deepEvery: 36 } as const;
+
+type TaskKind = "tracker" | "template" | "templateFull" | "box" | "tx" | "detector" | "detectorPage" | "mempool" | "hostIndex";
 /** `user`: the first run of this task in the tab is a user-started load (interactive lane), see firstLooks(). */
 interface Task { key: string; kind: TaskKind; arg: string; prio: number; every: number; user?: boolean }
 
@@ -128,6 +138,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
   const recheck = new Set<string>();           // task keys to run again on the next block, whatever their interval
   const readTxs = new Set<Hex>();              // reserve txs read in this tab (merged, or older than the snapshot)
   const missingTxs = new Map<Hex, number>();   // tx id → height of a 404: asked again only after INTERVALS.detector blocks
+  const detectorNext = new Map<Hex, DetectorPage>();   // template → the next page the detector asks for
+  const detectorSwept = new Map<Hex, number>();        // template → height of its last walk to the end (or the cap)
   let running = false;
 
   function isUnspentNow(id: Hex): boolean {
@@ -223,6 +235,8 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       if (c) add({ key: `mempool:${c.p2sFull}`, kind: "mempool", arg: c.p2sFull, prio: 2, every: INTERVALS.mempool, user: true });
     }
     for (const h of [CURRENT_TEMPLATES.erg, CURRENT_TEMPLATES.multiToken]) add({ key: `detector:${h}`, kind: "detector", arg: h, prio: 3, every: INTERVALS.detector });
+    // the next page of a full one: due at once, after both templates' first pages (same prio, listed later)
+    for (const h of detectorNext.keys()) add({ key: `detectorPage:${h}`, kind: "detectorPage", arg: h, prio: 3, every: 0 });
     for (const t of seed.trackers) {
       const st = trackerStatusNow(t.nft);
       if (st === "live") add({ key: `tracker:${t.nft}`, kind: "tracker", arg: t.nft, prio: 4, every: INTERVALS.tracker });
@@ -343,6 +357,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       case "box": return checkBox(t.arg, o);
       case "tx": return loadTx(t.arg, o);
       case "detector": return detect(t.arg, o);
+      case "detectorPage": return detect(t.arg, o, detectorNext.get(t.arg));
       case "mempool": return checkMempool(t.arg, o);
       case "hostIndex": return checkHostIndex(o);
     }
@@ -500,12 +515,14 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     set({ txs: { ...get().txs, [id]: { state: "ok", data: d, error: null, at: now() } } });
   }
 
-  async function detect(hash: Hex, o: { lane: Lane }) {
-    const res = await api.get<ApiList<ApiBox>>(paths.boxesByTemplate(hash, 20), o);
+  async function detect(hash: Hex, o: { lane: Lane }, cont?: DetectorPage) {
+    const page = cont?.page ?? 1;
+    const res = await api.get<ApiList<ApiBox>>(paths.boxesByTemplate(hash, DETECTOR.limit, cont?.cursor), o);
     const seed = get().seed!;
     const at = now();
     const h = tipOrSeed();
     const boxes = (res.items || []).map(liveBoxFromApi);
+    let news = 0;
     patchLive((l) => {
       const found: Record<Hex, DetectedBox> = { ...l.detector.found };
       let fresh = 0;
@@ -523,18 +540,24 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
         if (!had) extra[b.id] = b;
         else if (!had.spentTx && b.spentTx) { extra[b.id] = b; spends++; }
       }
-      return {
-        ...l,
-        changes: l.changes + fresh + spends,
-        extraReserves: extra,
-        detector: {
-          found,
-          templates: { ...l.detector.templates, [hash]: { total: res.total ?? boxes.length, checkedAt: at, checkedHeight: h } },
-          checkedAt: at,
-          checkedHeight: h,
-        },
-      };
+      news = fresh + spends;
+      // the template's total and "checked" come with its first page; later pages only add boxes
+      const detector = page === 1
+        ? { found, templates: { ...l.detector.templates, [hash]: { total: res.total ?? boxes.length, checkedAt: at, checkedHeight: h } }, checkedAt: at, checkedHeight: h }
+        : { ...l.detector, found };
+      return { ...l, changes: l.changes + fresh + spends, extraReserves: extra, detector };
     });
+    // the next page: only after a full one, never past the cap; to the end on a deep walk, else while pages bring news
+    const tip = h ?? 0;
+    const swept = detectorSwept.get(hash);
+    const deep = cont ? cont.deep : swept === undefined || tip - swept >= DETECTOR.deepEvery;
+    const full = boxes.length >= DETECTOR.limit && res.hasMore !== false && !!res.nextCursor;
+    if (full && page < DETECTOR.pages && (deep || news > 0)) {
+      detectorNext.set(hash, { cursor: res.nextCursor!, page: page + 1, deep });
+    } else {
+      detectorNext.delete(hash);
+      if (deep) detectorSwept.set(hash, tip);
+    }
   }
 
   async function checkMempool(address: string, o: { lane: Lane }) {
@@ -719,7 +742,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       return t;
     },
     /** Test/dev: forget everything (seed stays). */
-    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); readTxs.clear(); missingTxs.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
+    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); readTxs.clear(); missingTxs.clear(); detectorNext.clear(); detectorSwept.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
     dispose: () => { unsubApi(); if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility); },
   };
 }
