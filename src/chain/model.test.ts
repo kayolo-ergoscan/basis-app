@@ -313,6 +313,33 @@ describe("reserves and redemptions after the snapshot, from the boxes alone", ()
     expect(o.index.reserves.get(B)?.at).toBe("2026-11-22T20:40:00Z");
   });
 
+  it("names who paid for the box from the tx that made it: checking until it is read, then the depositor or the fee", () => {
+    // nothing read yet: every box found live waits for its tx (the page says "checking…", never "—")
+    let o = buildObservatory({ seed, live: live(), tip: H + 600 });
+    for (const id of [A, B, C]) expect(o.index.reserves.get(id)).toMatchObject({ creator: null, creatorState: "checking" });
+    const l = live();
+    const depositor = own.owner!.addr;
+    const other = seed.redemptions[0].receiver;
+    const wallet = (id: string, addr: string, value: string, tx: string): ApiBox => ({ boxId: id, transactionId: "0f".repeat(32), value, creationHeight: H + 400, ergoTree: `0008cd${own.owner!.key}`, address: addr, assets: [], additionalRegisters: {}, spentTransactionId: tx });
+    // the creation: two wallet inputs, the one with more ERG paid (the snapshot's rule)
+    l.txs[C0] = interpretTx(seed, { id: C0, inclusionHeight: H + 464, timestamp: 1_795_379_000_000, inputs: [wallet("e1".repeat(32), other, "10000000", C0), wallet("e2".repeat(32), depositor, "1200000000", C0)], dataInputs: [], outputs: [{ ...boxes[0], spentTransactionId: null }] });
+    // R1: a redemption whose fee a wallet input paid; R2: one with no other input (the fee came out of the redeemed ERG)
+    l.txs[R1] = interpretTx(seed, { id: R1, inclusionHeight: H + 474, timestamp: 1_795_380_000_000, inputs: [boxes[0], wallet("e3".repeat(32), other, "5000000", R1)], dataInputs: [], outputs: [boxes[1]] });
+    l.txs[R2] = interpretTx(seed, { id: R2, inclusionHeight: H + 486, timestamp: 1_795_381_000_000, inputs: [boxes[1]], dataInputs: [], outputs: [boxes[2]] });
+    expect([l.txs[C0].kind, l.txs[R1].kind, l.txs[R2].kind]).toEqual(["creation", "redemption", "redemption"]);
+    o = buildObservatory({ seed, live: l, tip: H + 600 });
+    expect(o.index.reserves.get(A)).toMatchObject({ creator: depositor, creatorState: "known" });
+    expect(o.index.reserves.get(B)).toMatchObject({ creator: other, creatorState: "known" });
+    expect(o.index.reserves.get(C)).toMatchObject({ creator: null, creatorState: "redeemed" });
+    // the snapshot: a creation names its depositor, a box made by a redemption that redemption's fee payer
+    for (const r of seed.reserves) {
+      const v = obs.index.reserves.get(r.id)!;
+      const want = r.creator ?? seed.redemptions.find((x) => x.reserveOut === r.id)?.feePayers[0] ?? null;
+      expect([r.id, v.creator, v.creatorState]).toEqual([r.id, want, want ? "known" : "none"]);
+    }
+    expect(obs.reserves.filter((r) => r.creatorState === "known").length).toBe(99);
+  });
+
   it("measures a token reserve by its collateral, and calls a top-up or a refund start no redemption", () => {
     const tok = (amount: bigint) => ({ id: USE_TOKEN_ID, amount, decimals: 3, name: "USE", kind: "use" as const, label: "USE" });
     expect(boxDelta({ kind: "token", value: 3_000_000n, collateral: tok(3400n) }, { value: 3_000_000n, collateral: tok(3000n) })).toEqual({ unit: USE_TOKEN_ID, raw: 400n });

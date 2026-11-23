@@ -42,7 +42,11 @@ Snapshot totals (checked by `model.test.ts`): 99 reserve boxes, 58 unspent, 41 r
   (`seenLive` when the live layer saw it go), prev/next (lineage; for live boxes also from the boxes alone: box X was
   spent by tx T and T made box Y with the same reserve NFT and template, so Y follows X before T is read). A live box's
   `at` and `origin` creation come from its creating tx once read (`at: null` until then: the reserve page says
-  "checking…"); `value: bigint`, owner `{key, addr, label}`, nft,
+  "checking…"); `creator` ("Paid by": the address with the most ERG among the inputs of the tx that made the box,
+  other than the reserve box it spent — the depositor of a creation, the fee payer of a redemption or top-up; the seed
+  names creations, a box made by a seed redemption takes that redemption's fee payer) with `creatorState` known |
+  checking (a box found live, its tx not read yet) | redeemed (a redemption with no other input: the fee came out of
+  the redeemed ERG) | none; `value: bigint`, owner `{key, addr, label}`, nft,
   `collateral: TokenAmount`, r5 (AVL info), r6, r7, raw regs, issues, `legacy`, `exit: ExitAssessment` (unspent only,
   recomputed with live tracker states), `pending` (mempool txs, focus only; −1 unknown), `checked` (last live confirmation).
 - `ExitAssessment` — `class` locked | refund | refund+redeem | redeem-if-tracker | redeem | refund+redeem-if-tracker |

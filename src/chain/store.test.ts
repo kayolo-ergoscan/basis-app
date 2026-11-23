@@ -412,6 +412,9 @@ describe("chain store", () => {
     expect(obs.index.reserves.get(A)).toMatchObject({ origin: "creation", unspent: false, at: new Date(TS0 + 464 * 120_000).toISOString().replace(/\.\d{3}Z$/, "Z") });
     expect(obs.unspent.length).toBe(58 + 1);
     expect(obs.index.reserves.get(B)?.at).not.toBeNull();
+    // "Paid by" from the same reads: the depositor of the creation; the redemptions had no other input
+    expect(obs.index.reserves.get(A)).toMatchObject({ creatorState: "known", creator: p2pkAddress(seed.reserves.find((x) => x.owner)!.owner!.key) });
+    expect([obs.index.reserves.get(B)?.creatorState, obs.index.reserves.get(C)?.creatorState]).toEqual(["redeemed", "redeemed"]);
     expect(obs.live.lastError).toBeNull();
   });
 

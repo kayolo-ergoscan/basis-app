@@ -265,8 +265,33 @@ type Lookup = (nft: Hex) => TrackerLookup | null;
 
 // ─── reserves ───────────────────────────────────────────────────────────────────────────────────
 
+/** The snapshot names the payer of a creation only; a box made by a redemption takes that redemption's fee payer. */
+const seedPayers = new WeakMap<Seed, Map<Hex, Address>>();
+function seedPayerOf(seed: Seed, r: SeedReserve): Address | null {
+  if (r.creator) return r.creator;
+  let m = seedPayers.get(seed);
+  if (!m) {
+    m = new Map();
+    for (const x of seed.redemptions) if (x.feePayers?.[0]) m.set(x.reserveOut, x.feePayers[0]);
+    seedPayers.set(seed, m);
+  }
+  return m.get(r.id) ?? null;
+}
+
+/** Who paid for a transaction that made a reserve box: the address with the most ERG among its inputs other than the
+ *  reserve box it spent (the snapshot's rule for creations, research creators.json). null when there is no such input. */
+export function payerOf(d: Pick<TxDetail, "inputs">): Address | null {
+  const m = new Map<Address, bigint>();
+  for (const i of d.inputs) if (i.role !== "reserve-in" && i.address) m.set(i.address, (m.get(i.address) ?? 0n) + i.value);
+  let best: Address | null = null;
+  let most = -1n;
+  for (const [a, v] of m) if (v > most) { best = a; most = v; }
+  return best;
+}
+
 function reserveFromSeed(seed: Seed, r: SeedReserve, live: LiveData, tip: number, lookup: Lookup, next: Map<Hex, Hex>): ReserveView {
   const { byId } = contractIndex(seed);
+  const creator = seedPayerOf(seed, r);
   const c = byId.get(r.contract) ?? null;
   const seen = live.spent[r.id];
   const unspent = !r.spent && !seen;
@@ -294,7 +319,8 @@ function reserveFromSeed(seed: Seed, r: SeedReserve, live: LiveData, tip: number
     r6: r.r6,
     r7: r.r7,
     regs: r.regs,
-    creator: r.creator,
+    creator,
+    creatorState: creator ? "known" : "none",
     issues: r.issues,
     legacy: !c?.current,
     exit,
@@ -325,8 +351,11 @@ function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, lo
     ? assessExit({ ownerExit: c.ownerExit, ownerKey: key, tree: b.basis.tree, r6: b.basis.nft, ownNft: b.basis.ownNft, r7, tracker: b.basis.nft ? lookup(b.basis.nft) : null, tip })
     : null;
   const coll = c.kind === "erg" ? null : b.assets[1] ?? null;
-  const madeBy = Object.values(live.txs).find((x) => x.reserveOut?.boxId === b.id);
+  const madeBy = (b.tx ? live.txs[b.tx] : undefined) ?? Object.values(live.txs).find((x) => x.reserveOut?.boxId === b.id);
   const origin: ReserveView["origin"] = madeBy?.kind === "creation" ? "creation" : madeBy?.kind === "redemption" ? "redemption" : "unknown";
+  // "Paid by" comes from the tx that made the box, so it waits for that tx like the time does ("checking…")
+  const creator = madeBy ? payerOf(madeBy) : null;
+  const creatorState: ReserveView["creatorState"] = creator ? "known" : !madeBy ? "checking" : madeBy.kind === "redemption" ? "redeemed" : "none";
   return {
     id: b.id,
     source: "live",
@@ -348,7 +377,8 @@ function reserveFromLive(seed: Seed, b: LiveBox, live: LiveData, tip: number, lo
     r6: b.basis.nft,
     r7,
     regs: { R4: b.regs.R4, R5: b.regs.R5, R6: b.regs.R6, R7: b.regs.R7 },
-    creator: null,
+    creator,
+    creatorState,
     issues: b.basis.issues,
     legacy: !c.current,
     exit,
