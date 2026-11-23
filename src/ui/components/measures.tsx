@@ -165,11 +165,15 @@ export function BacksBar({ items, locked, dp = 2 }: { items: BacksItem[]; locked
 
 /* ---------- Dial ---------- */
 export type TrackerBand = "ontime" | "late" | "silent" | "emergency";
-/** On time < 120 · Late ≥ 120 · Silent ≥ 720 (product choices) · Emergency ≥ 2 160 (the contract). */
-export const trackerBand = (blocks: number): TrackerBand => (blocks < 120 ? "ontime" : blocks < 720 ? "late" : blocks < 2160 ? "silent" : "emergency");
-export interface DialProps { blocks: number; size?: number; labels?: boolean; max?: number }
-/** Dead-man switch dial: 72 ticks over 2 160 blocks, late (dashed) and silent (alarm) arcs, the hand at `blocks`. */
-export function Dial({ blocks, size = 150, labels = true, max = 2160 }: DialProps) {
+/** On time < 120 · Late ≥ 120 · Silent ≥ 720 (product choices) · Emergency ≥ 2 160 (the contract). A tracker with a known
+ *  heartbeat (`quiet`: the age its box reaches by design while nothing changes, e.g. ErgoScan's 720 + 30 blocks) is on
+ *  time up to it and silent after it, never "late": an idle tracker that only re-commits on its heartbeat is not late. */
+export const trackerBand = (blocks: number, quiet?: number): TrackerBand =>
+  blocks >= 2160 ? "emergency" : quiet !== undefined ? (blocks <= quiet ? "ontime" : "silent") : blocks < 120 ? "ontime" : blocks < 720 ? "late" : "silent";
+export interface DialProps { blocks: number; size?: number; labels?: boolean; max?: number; quiet?: number }
+/** Dead-man switch dial: 72 ticks over 2 160 blocks, late (dashed) and silent (alarm) arcs, the hand at `blocks`. With
+ *  `quiet` (a known heartbeat) there is no late arc and the silent arc starts at it. */
+export function Dial({ blocks, size = 150, labels = true, max = 2160, quiet }: DialProps) {
   const t = useT();
   const body = useMemo(() => {
     const c = 75, r = 60, a = (p: number) => ((-90 + 360 * Math.min(1, p / max)) * Math.PI) / 180;
@@ -184,12 +188,12 @@ export function Dial({ blocks, size = 150, labels = true, max = 2160 }: DialProp
     const em = blocks >= max;
     const hx = c + (r - 6) * Math.cos(a(blocks)), hy = c + (r - 6) * Math.sin(a(blocks));
     return `<circle cx="${c}" cy="${c}" r="${r}" fill="${em ? "color-mix(in srgb, var(--alarm) 16%, var(--surface-2))" : "var(--surface-2)"}" stroke="${em ? "var(--alarm)" : "var(--rule-2)"}"/>
-      <path d="${arcP(max / 3, max - 0.1, r - 2)}" fill="none" stroke="var(--alarm)" stroke-opacity=".35" stroke-width="4"/>
-      <path d="${arcP(max / 18, max / 3, r - 2)}" fill="none" stroke="var(--ink-3)" stroke-opacity=".5" stroke-width="4" stroke-dasharray="1.5 2"/>
+      <path d="${arcP(quiet ?? max / 3, max - 0.1, r - 2)}" fill="none" stroke="var(--alarm)" stroke-opacity=".35" stroke-width="4"/>
+      ${quiet === undefined ? `<path d="${arcP(max / 18, max / 3, r - 2)}" fill="none" stroke="var(--ink-3)" stroke-opacity=".5" stroke-width="4" stroke-dasharray="1.5 2"/>` : ""}
       ${ticks}
       <line x1="${c}" y1="${c}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="${em ? "var(--alarm)" : "var(--ink)"}" stroke-width="2" stroke-linecap="round"/><circle cx="${c}" cy="${c}" r="4" fill="${em ? "var(--alarm)" : "var(--ink)"}"/>`;
-  }, [blocks, max]);
-  const band = trackerBand(blocks);
+  }, [blocks, max, quiet]);
+  const band = trackerBand(blocks, quiet);
   return (
     <span className="dial" style={{ width: size, height: size }} role="img" aria-label={t("ui.dial.aria", { state: t(`ui.tracker.${band}`), n: int(blocks), max: int(max) })}>
       <svg viewBox="0 0 150 150" width={size} height={size} aria-hidden="true">

@@ -144,6 +144,13 @@ describe("clocks", () => {
     expect(emergencyModel(1120, 1000).zone).toBe("late");
     expect(emergencyModel(1720, 1000).zone).toBe("silent");
   });
+  test("a tracker with a known heartbeat (ErgoScan's 720 + 30) is on time up to it, silent after it, never late", () => {
+    expect(emergencyModel(1000 + 675, 1000, 750).zone).toBe("on-time");      // our tracker idle between heartbeats
+    expect(emergencyModel(1000 + 750, 1000, 750).zone).toBe("on-time");
+    expect(emergencyModel(1000 + 751, 1000, 750).zone).toBe("silent");
+    expect(emergencyModel(1000 + EMERGENCY_BLOCKS + 1, 1000, 750).zone).toBe("emergency");
+    for (let age = 0; age <= EMERGENCY_BLOCKS + 5; age += 7) expect(emergencyModel(1000 + age, 1000, 750).zone).not.toBe("late");
+  });
   test("the owner's exit unlocks at R7 + 43 200", () => {
     expect(exitModel(5000, 5000)).toMatchObject({ unlockAt: 5000 + REFUND_PERIOD_BLOCKS, open: false, left: 43_200, progress: 0 });
     expect(exitModel(5000 + 43_200, 5000)).toMatchObject({ open: true, left: 0, progress: 1 });

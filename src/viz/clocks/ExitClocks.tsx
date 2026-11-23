@@ -23,6 +23,9 @@ export interface ExitClocksProps {
   /** Which clocks to show (default both). */
   show?: "both" | "emergency" | "exit";
   trackerName?: string;
+  /** The age the tracker's box reaches by design while idle (its heartbeat plus slack), when known: the dial then says
+   *  "on time" up to it and "silent" after it, never "late". */
+  quiet?: number;
   title?: ReactNode;
   className?: string;
 }
@@ -40,7 +43,7 @@ function arc(b0: number, b1: number, r: number): string {
   return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-export function DeadManDial({ age, open, label, sub }: { age: number; open: boolean; label: string; sub: string }) {
+export function DeadManDial({ age, open, label, sub, quiet }: { age: number; open: boolean; label: string; sub: string; quiet?: number }) {
   const ticks: ReactNode[] = [];
   for (let b = 0; b < EMERGENCY_BLOCKS; b += 30) {
     const major = b % 180 === 0;
@@ -52,8 +55,8 @@ export function DeadManDial({ age, open, label, sub }: { age: number; open: bool
   return (
     <svg className={`vz-dial${open ? " open" : ""}`} viewBox="0 0 120 120" role="img" aria-label={`${label} · ${sub}`}>
       <circle cx={C} cy={C} r={R} className="face" />
-      <path d={arc(120, 720, R - 2)} className="z-late" />
-      <path d={arc(720, EMERGENCY_BLOCKS - 0.01, R - 2)} className="z-silent" />
+      {quiet === undefined && <path d={arc(120, 720, R - 2)} className="z-late" />}
+      <path d={arc(quiet ?? 720, EMERGENCY_BLOCKS - 0.01, R - 2)} className="z-silent" />
       {ticks}
       <line x1={C} y1={C} x2={hx} y2={hy} className="hand" />
       <circle cx={C} cy={C} r={3} className="hub" />
@@ -71,7 +74,7 @@ export function ExitClocks(p: ExitClocksProps) {
   const t = useVizT();
   const lang = useVizLang();
   const show = p.show ?? "both";
-  const em = p.boxCreationHeight === null ? null : emergencyModel(p.height, p.boxCreationHeight);
+  const em = p.boxCreationHeight === null ? null : emergencyModel(p.height, p.boxCreationHeight, p.quiet);
   const r7 = p.r7 && p.r7 > 0 ? p.r7 : null;
   const ex = r7 === null ? null : exitModel(p.height, r7);
   return (
@@ -92,7 +95,7 @@ export function ExitClocks(p: ExitClocksProps) {
             {em ? (
               <>
                 <div className="vz-clock-dial">
-                  <DeadManDial age={em.age} open={em.open} label={fmtBlocks(em.age, lang)} sub={t(`viz.clock.zone.${em.zone}`)} />
+                  <DeadManDial age={em.age} open={em.open} label={fmtBlocks(em.age, lang)} sub={t(`viz.clock.zone.${em.zone}`)} quiet={p.quiet} />
                 </div>
                 <p className="vz-clock-line">{t("viz.clock.age", { age: fmtBlocksTime(em.age, lang) })}</p>
                 <p className={`vz-clock-line strong${em.open ? " open" : ""}`}>

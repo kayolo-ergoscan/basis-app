@@ -8,7 +8,7 @@ import { blockWord, CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, rati
 import { copy, pick } from "@/content";
 import {
   p2pkAddress,
-  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, totalsSource, useAgo, useNow, useOurTracker,
+  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, STALE_AFTER_BLOCKS, isOurTestReserve, totalsSource, useAgo, useNow, useOurTracker,
   type Observatory, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import { amount, approx, blocks, ergs, height as fmtH, sid, type Lang } from "./fmt";
@@ -153,7 +153,7 @@ export function OurTrackerCard({ v }: { v: OurView }) {
       <div className="nw-ours-b">
         <OurFigures v={v} />
         <div className="nw-ours-dial" aria-hidden={v.age === null}>
-          {v.age !== null ? <Dial blocks={Math.min(v.age, EMERGENCY_BLOCKS)} size={phone ? 96 : 112} labels={false} /> : <span className="nw-ours-nodial" />}
+          {v.age !== null ? <Dial blocks={Math.min(v.age, EMERGENCY_BLOCKS)} size={phone ? 96 : 112} labels={false} quiet={STALE_AFTER_BLOCKS} /> : <span className="nw-ours-nodial" />}
         </div>
       </div>
       <OurIds v={v} />
@@ -295,7 +295,7 @@ export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
         <div className="nw-main">
           <Block label={t("network.td.window")} className="nw-window">
             <div className="nw-window-g">
-              <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS)} size={phone ? 128 : 160} />
+              <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS)} size={phone ? 128 : 160} quiet={STALE_AFTER_BLOCKS} />
               <div className="nw-window-t">
                 <span className="label">{t("network.td.ageOf")}</span>
                 <span className="t-measure-l num">{v.age !== null ? fmtH(v.age) : DASH}</span>
