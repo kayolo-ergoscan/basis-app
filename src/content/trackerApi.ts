@@ -597,7 +597,7 @@ export const trackerApi = {
   ),
   noPublicTracker: t(
     "ErgoScan's tracker on mainnet (beta) opens its public read routes and the routes that take notes and redemptions: POST /notes, POST /tracker/signature, POST /redemption/build and POST /redemption/submit. Its own rules for these four are listed under each of them. The Mainnet console on this site only reads: it signs nothing and sends nothing to the tracker. To try every call, run the reference server yourself.",
-    "Трекер ErgoScan в mainnet (бета) открывает публичные маршруты чтения и маршруты, которые принимают расписки и погашения: POST /notes, POST /tracker/signature, POST /redemption/build и POST /redemption/submit. Его собственные правила для этих четырёх указаны у каждого из них. Консоль основной сети на этом сайте только читает: она ничего не подписывает и ничего не отправляет трекеру. Чтобы попробовать все запросы, запустите эталонный сервер сами.",
+    "Трекер ErgoScan в основной сети (бета) открывает публичные маршруты чтения и маршруты, которые принимают расписки и погашения: POST /notes, POST /tracker/signature, POST /redemption/build и POST /redemption/submit. Его собственные правила для этих четырёх указаны у каждого из них. Консоль основной сети на этом сайте только читает: она ничего не подписывает и ничего не отправляет трекеру. Чтобы попробовать все запросы, запустите эталонный сервер сами.",
   ),
   envelope: {
     title: t("Response envelope", "Конверт ответа"),

@@ -100,7 +100,7 @@ const defs = {
   // ---- Telegram (t.me/chaincashtalks, "ChainCash & Basis") ----
   "tg": { kind: "telegram", title: t("Telegram group ChainCash & Basis", "Telegram-группа ChainCash & Basis"), url: "https://t.me/chaincashtalks", note: t("The community chat linked from both READMEs.", "Чат сообщества, ссылка есть в обоих README.") },
   "tg-1317": { kind: "telegram", title: t("Personas of a Basis community", "Роли в сообществе Basis"), url: TG(1317), date: "2026-01-22", by: "Fitz" },
-  "tg-1396": { kind: "telegram", title: t("First redemption on mainnet", "Первое погашение в mainnet"), url: TG(1396), date: "2026-03-26", by: "kushti" },
+  "tg-1396": { kind: "telegram", title: t("First redemption on mainnet", "Первое погашение в основной сети"), url: TG(1396), date: "2026-03-26", by: "kushti" },
   "tg-1417": { kind: "telegram", title: t("New deck", "Новая презентация"), url: TG(1417), date: "2026-04-22", by: "kushti" },
   "tg-1419": { kind: "telegram", title: t("A consumer app should hide the blockchain", "Потребительское приложение должно прятать блокчейн"), url: TG(1419), date: "2026-04-24", by: "bob" },
   "tg-1433": { kind: "telegram", title: t("First note passed off the grid", "Первая расписка передана без интернета"), url: TG(1433), date: "2026-05-18", by: "kushti" },

@@ -246,7 +246,7 @@ export const trust = {
       title: t("Testnet addresses are not parsed (#23)", "Адреса тестнета не разбираются (#23)"),
       status: "open",
       since: "2026-11-12",
-      text: t("Address handling accepts mainnet addresses only.", "Обработка адресов принимает только адреса mainnet."),
+      text: t("Address handling accepts mainnet addresses only.", "Обработка адресов принимает только адреса основной сети."),
       impact: t("Running the reference tracker on testnet needs a patch.", "Чтобы запустить эталонный трекер в тестнете, нужен патч."),
       sources: ["bt-23"],
     },

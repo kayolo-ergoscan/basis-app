@@ -132,7 +132,7 @@ const ru: Partial<typeof en> = {
   "app.banner.close": "Скрыть до следующего визита",
 
   "app.footer.line": "Независимый интерфейс к протоколу Basis.",
-  "app.footer.prelaunch": "Трекер ErgoScan для Basis работает в mainnet (бета); в песочнице игровые деньги.",
+  "app.footer.prelaunch": "Трекер ErgoScan для Basis работает в основной сети (бета); в песочнице игровые деньги.",
   "app.footer.sources": "Источники",
   "app.footer.code": "Трекер и контракты Basis",
   "app.footer.chat": "Чат сообщества",

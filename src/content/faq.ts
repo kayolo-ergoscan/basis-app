@@ -182,7 +182,7 @@ export const faq: Faq[] = [
         "The wallet's Mainnet tab holds one key for Ergo mainnet: with it you create a reserve, pay with notes and redeem the notes paid to you. Keep the backup file and the passphrase: without both, nobody can restore the key, not even us. The Sandbox tab and the Play section still run on play money.",
         "Во вкладке «Основная сеть» кошелька — один ключ для основной сети Ergo: с ним вы создаёте резерв, платите расписками и погашаете расписки, выданные вам. Храните файл копии и пароль: без них ключ не восстановит никто, даже мы. Вкладка «Песочница» и раздел «Песочница» по-прежнему на игровых деньгах.",
       ),
-      t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в mainnet Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
+      t("ErgoScan's tracker has run on Ergo mainnet in beta since 22 November 2026. Reserves under the contracts reviewed in October 2026 can bind to it; the Network page shows them as the chain and the tracker report them.", "Трекер ErgoScan работает в основной сети Ergo в бета-режиме с 22 ноября 2026 года. К нему можно привязать резервы под контрактами, прошедшими ревью в октябре 2026 года; страница «Сеть» показывает их так, как их видят блокчейн и трекер."),
       t("Older contract versions hold the early test use: 99 reserve boxes (58 unspent, holding 8.995 ERG) and 41 redemptions at the last snapshot.", "Под старыми версиями контракта — ранние тесты: 99 боксов резервов (58 непотраченных, в них 8,995 ERG) и 41 погашение на момент последнего снимка."),
       t("A first community tracker was proposed on 2026-09-30. On 2026-11-19 the author was still fixing review findings.", "Первый трекер сообщества предложили 2026-09-30. На 2026-11-19 автор всё ещё исправлял находки ревью."),
     ],
@@ -228,7 +228,7 @@ export const faq: Faq[] = [
     a: [
       t("Basis is public-domain (CC0) work by kushti and Better Money Labs. This site reads their contracts and code and runs the protocol in your browser.", "Basis — общественное достояние (CC0), его авторы — kushti и Better Money Labs. Этот сайт читает их контракты и код и запускает протокол в вашем браузере."),
       copy.noEndorsement,
-      t("Mainnet data comes from ErgoScan, and links to transactions go to ergoscan.me.", "Данные mainnet берутся из ErgoScan, ссылки на транзакции ведут на ergoscan.me."),
+      t("Mainnet data comes from ErgoScan, and links to transactions go to ergoscan.me.", "Данные основной сети берутся из ErgoScan, ссылки на транзакции ведут на ergoscan.me."),
       t("Questions about the protocol belong in the ChainCash & Basis Telegram group or on the Ergo forum.", "Вопросы о протоколе лучше задавать в Telegram-группе ChainCash & Basis или на форуме Ergo."),
     ],
     tags: ["site"],
