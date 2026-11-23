@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import { FEE_TREE_HEX, RESERVE_TREE_HEX, TRACKER_NFT, p2pkTree } from "../../tx/constants";
 import { p2pkAddress } from "../../tx/address";
 import { signP2pkTransaction } from "../../tx/p2pk";
-import { p2pkBox } from "../../tx/testkit";
+import { p2pkBox, secretBytes, syntheticRedemption } from "../../tx/testkit";
+import { checkRedemption, parseBuildResponse, signRedemption } from "../../tx/redemption";
 import { planCombine, planWithdraw } from "../../flows/coins";
 import { signNote } from "../../flows/notes";
 import { checkNoteBody, notePolicy, paysOnlyOwnKey, redemptionPaysOwnKey, reserveActionPaysRight, type NoteIntent } from "../policy";
@@ -138,6 +139,13 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(redemptionPaysOwnKey(redeemJson(R, { inputs: 0 }), ME)).toBe(false);
     expect(redemptionPaysOwnKey(txJson(R), ME)).toBe(false); // no input at all
     expect(redemptionPaysOwnKey(redeemJson(R).replace('"0":"0200",', ""), ME)).toBe(false); // no #0
+    // a real signed redemption (the synthetic build that passes L1, signed by its receiver) passes
+    const syn = syntheticRedemption();
+    const l1 = checkRedemption(parseBuildResponse(syn.text), syn.chain, syn.expect);
+    if (!l1.ok) throw new Error(l1.message);
+    const real = signRedemption(l1, secretBytes(syn.recipient.secret));
+    expect(redemptionPaysOwnKey(real.signedRaw, syn.expect.recipient)).toBe(true);
+    expect(redemptionPaysOwnKey(real.signedRaw, syn.expect.issuer)).toBe(false);
     const r = (raw: string, id: string) => () => ({ txId: id, signedRaw: raw, unsignedRaw: "{}", inputs: ["dd".repeat(32)] });
     expect(await code(v.signToJournal("redeem", r(redeemJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], { id: "a1".repeat(32) }), "a1".repeat(32))))).toBe("bad-input");
     expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a3".repeat(32), ext0: "0214", owner: ME }), "a3".repeat(32))))).toBe("bad-input");
