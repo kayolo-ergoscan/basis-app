@@ -18,6 +18,7 @@ import { evaluateReserveSpend, type ContextVar, type RegisterValue, type Reserve
 import { FEE_TREE_HEX, RESERVE_TREE_HEX, p2pkKeyOfTree } from "./constants";
 import { REGISTER_NAMES, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type UnsignedTx } from "./model";
 import type { ChainBoxes, CheckedRedemption } from "./redemption";
+import type { ReserveActionKind } from "./reserveaction";
 import { computeTxId, outputBoxes } from "./serialize";
 
 /** Loads avl.wasm once and returns its backend (with the stateless verifier). Does not switch the global backend. */
@@ -40,7 +41,7 @@ export interface ContractInput {
 }
 
 /** "adapter": the real transaction cannot be mapped faithfully; the others are the contract's own checks. */
-export type L2Rule = "adapter" | "verifier" | "tree-params" | "redeem-shape" | "redeemed-total" | ReserveCheckId;
+export type L2Rule = "adapter" | "verifier" | "tree-params" | "redeem-shape" | "redeemed-total" | "action-shape" | ReserveCheckId;
 
 export interface L2Result {
   ok: boolean;
@@ -181,7 +182,8 @@ export function checkReserveContract(c: ContractInput, avl: AvlBackend): L2Resul
     const rule = (ev.error?.check ?? ev.failed[0] ?? "adapter") as L2Rule;
     return { ok: false, eval: ev, rule, message: ev.error?.message ?? "the contract does not accept this spend" };
   }
-  if (ev.proofMode !== "verified") return { ok: false, eval: ev, rule: "verifier", message: "the AVL proofs were not verified statelessly" };
+  // only a redemption reads AVL proofs; top-up and refund compare R5 whole and never touch a proof
+  if (ev.action === 0 && ev.proofMode !== "verified") return { ok: false, eval: ev, rule: "verifier", message: "the AVL proofs were not verified statelessly" };
 
   // The contract compares whole AvlTree values: SELF.R5.insert…(…).get == selfOut.R5 keeps SELF's flags, key length
   // and value length, and insert / insertOrUpdate need the matching flags. The engine compares digests only.
@@ -212,5 +214,21 @@ export function checkRedemptionContract(checked: CheckedRedemption, chain: Chain
   if (ev.newRedeemedTotal !== checked.build.newAlreadyRedeemed) {
     return { ok: false, eval: ev, rule: "redeemed-total", message: `the reserve tree records ${ev.newRedeemedTotal} redeemed in total; the build says ${checked.build.newAlreadyRedeemed}` };
   }
+  return r;
+}
+
+/**
+ * L2 for a top-up, a refund start or a completion that passed L1 (reserveaction.ts): the contract accepts input 0 as
+ * exactly this action into output 0, at `height` (tip + 1), with `signers` (the wallet's key) as the transaction's
+ * proveDlog. The engine also reports, for the review, every check it ran.
+ */
+export function checkReserveActionContract(tx: UnsignedTx, inputs: readonly ErgoBox[], kind: ReserveActionKind, signers: readonly Hex[], height: number, avl: AvlBackend): L2Result {
+  const r = checkReserveContract({ tx, inputs, dataInputs: [], signers, height }, avl);
+  if (!r.ok || !r.eval) return r;
+  const want = kind === "topup" ? 1 : kind === "refund-start" ? 2 : 3;
+  if (r.eval.action !== want || r.eval.outputIndex !== 0) return { ok: false, eval: r.eval, rule: "action-shape", message: `the contract sees action ${r.eval.action} into output ${r.eval.outputIndex}, not ${want} into 0` };
+  // the engine compares R5 digests only; the contract compares whole AvlTree values (l. 442, 453): L1 already holds R5
+  // byte for byte, this keeps the rule next to the contract's
+  if (kind !== "refund-end" && tx.outputs[0]?.registers[1] !== inputs[0]?.registers[1]) return { ok: false, eval: r.eval, rule: "treePreserved", message: "output 0's R5 is not the reserve's R5 byte for byte" };
   return r;
 }

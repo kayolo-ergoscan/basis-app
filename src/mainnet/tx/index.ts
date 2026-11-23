@@ -12,4 +12,5 @@ export * from "./model";
 export * from "./p2pk";
 export * from "./provedlog";
 export * from "./redemption";
+export * from "./reserveaction";
 export * from "./serialize";

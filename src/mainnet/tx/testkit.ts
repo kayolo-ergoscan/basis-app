@@ -11,9 +11,9 @@
 //   • the answer — {"success":true,"data":{RedemptionBuildResponse fields in struct order},"error":null}.
 import { bigToBytes, bytesToHex } from "../../protocol/bytes";
 import { keyPairFromSecret, type KeyPair } from "../../protocol/keys";
-import { basisAvlRegister, encodeCollByte, encodeLong } from "../../protocol/registers";
+import { EMPTY_AVL_DIGEST_HEX, basisAvlRegister, encodeCollByte, encodeLong } from "../../protocol/registers";
 import { p2pkAddress } from "./address";
-import { FEE_TREE_HEX, RESERVE_TREE_HEX, p2pkTree } from "./constants";
+import { FEE_TREE_HEX, RESERVE_TREE_HEX, TRACKER_NFT, p2pkTree } from "./constants";
 import { jsonString as q } from "./json";
 import { noteMessage, signBasis } from "./messages";
 import { REGISTER_NAMES, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type Token, type UnsignedTx } from "./model";
@@ -238,5 +238,19 @@ export function secretBytes(secret: bigint): Uint8Array {
 /** A P2PK box of `owner` with a real id (for T1 / Withdraw tests). */
 export function p2pkBox(owner: Hex, value: bigint, opts: { tokens?: Token[]; creationHeight?: number; transactionId?: Hex; index?: number } = {}): ErgoBox {
   const body = { value, ergoTree: p2pkTree(owner), creationHeight: opts.creationHeight ?? 1_922_000, tokens: opts.tokens ?? [], registers: [], transactionId: opts.transactionId ?? "e3".repeat(32), index: opts.index ?? 0 };
+  return { ...body, boxId: computeBoxId(body) };
+}
+
+/** A reserve box of `owner` under the pinned contract and our tracker, with a real id (top-up and refund tests). */
+export function reserveBox(owner: Hex, value: bigint, opts: { nft?: Hex; r5?: Hex; r6?: Hex; r7?: bigint; tree?: Hex; creationHeight?: number; tokens?: Token[]; transactionId?: Hex } = {}): ErgoBox {
+  const body = {
+    value,
+    ergoTree: opts.tree ?? RESERVE_TREE_HEX,
+    creationHeight: opts.creationHeight ?? 1_922_314,
+    tokens: opts.tokens ?? [{ tokenId: opts.nft ?? "a7".repeat(32), amount: 1n }],
+    registers: [`07${owner}`, opts.r5 ?? basisAvlRegister(EMPTY_AVL_DIGEST_HEX), opts.r6 ?? `0e20${TRACKER_NFT}`, encodeLong(opts.r7 ?? 0n)],
+    transactionId: opts.transactionId ?? "d4".repeat(32),
+    index: 0,
+  };
   return { ...body, boxId: computeBoxId(body) };
 }
