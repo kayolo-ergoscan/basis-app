@@ -6,7 +6,9 @@ import { useQuery } from "./query";
 import { rich, useT, useTitle } from "@/app";
 import { Digest, Empty, FaceTabs, Faces, Icon, KeySeal, Seg, Table, Tag, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
-import { decodeConstant, describeExit, isOurTestReserve, OUR_TRACKER, OurTestReserveTag, REFUND_BLOCKS, STALE_AFTER_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
+import { decodeConstant, describeExit, isOurTestReserve, OurTestReserveTag, REFUND_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
+// ErgoScan's tracker: its heartbeat sets the emergency dial's bands (own line, apart from the import above)
+import { OUR_TRACKER, STALE_AFTER_BLOCKS } from "@/chain";
 import { amount, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, EXIT_ORDER, ExitTag, Ext, Facts, IdLink, KeyName, NetLoading, NftTile, TrackerTag, trackerSilent, UntrustedName, useProgressive } from "./parts";
 import { FeedRow, r7Word, reserveRank, TopUpClosed, TrackerPanel, treeWord, unitKind, VaultCard } from "./Overview";
