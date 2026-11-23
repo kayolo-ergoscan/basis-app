@@ -66,9 +66,11 @@ export interface VaultOptions {
 
 export interface SecretOptions {
   /**
-   * The passphrase typed again (re-derived, ~1 s). Always required for "export-hex" and "t1"; for "withdraw" unless the
-   * transaction pays only this key (signToJournal checks); for "note" when the notes since the last passphrase entry
-   * promise more than 25 % of the reserve (policy.ts). A direct withSecret() for t1, withdraw or note always needs it.
+   * The passphrase typed again (re-derived, ~1 s). Always required for "export-hex", "t1", "topup", "refund-start" and
+   * "refund-end"; for "withdraw" unless the transaction pays only this key (signToJournal checks); for "note" when the
+   * notes since the last passphrase entry promise more than 25 % of the reserve (policy.ts); never for "redeem" (its
+   * signed transaction must be a redemption paying this key). A direct withSecret() for t1, withdraw, note or a
+   * reserve action always needs it.
    */
   passphrase?: string;
   /** signToJournal("note") only, and required there: what the note promises, checked before and after signing. */
@@ -635,7 +637,7 @@ export class MainnetVault {
       after(part, s, typed) {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
-        if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
+        if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: one input (action 0, another key's reserve), outputs [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
         if (RESERVE_ACTION_KINDS.includes(kind) && !reserveActionPaysRight(part.signedRaw, s.pub, kind as ReserveActionKind)) {
           throw new VaultError("bad-input", "a top-up or a refund pays only [the reserve or this key, change to this key, a miner fee of at most 0.001 ERG]");
         }

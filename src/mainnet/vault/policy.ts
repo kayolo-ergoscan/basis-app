@@ -6,7 +6,8 @@
 //   • note: when the notes signed since the last passphrase entry, this one included, promise more than 25 % of the
 //     reserve's value read on chain (/v1, never the tracker's figure). A note promises its increment: the new total
 //     minus the pair's previous total, which must be a note of this key (its signature is checked here);
-//   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below);
+//   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below, and it
+//     must be a redemption: one input, action 0, another key's reserve);
 //   • topup, refund-start, refund-end (the reserve's own actions): always, and the signed outputs must be exactly the
 //     action's layout (reserveActionPaysRight, below): a top-up can send money to another key's reserve for good.
 // "Since the last passphrase entry" = since the session opened (an unlock is a passphrase entry) or since the last use
@@ -156,14 +157,32 @@ export function paysOnlyOwnKey(signedRaw: string, pub: Hex): boolean {
   return fee <= MINER_FEE_NANOERG;
 }
 
+/** The redemption's context variable #0: action 0 (redeem), output 0 (basis.es: a Byte, action × 10 + index). */
+const REDEEM_ACTION_VAR = "0200";
+
 /**
  * True when a signed redemption pays this key: exactly [the reserve's continuation, P2PK(this key), the miner fee of at
- * most REDEEM_MAX_FEE_NANOERG], as the wallet's own checks require before it signs (tx/redemption.ts L1).
+ * most REDEEM_MAX_FEE_NANOERG], as the wallet's own checks require before it signs (tx/redemption.ts L1); and it is
+ * a redemption, not another reserve action of the same layout (a refund start with change is [reserve, own, fee] too):
+ * one input, the reserve, whose #0 is action 0, and a reserve that is not this key's own (R4 of output 0).
  */
 export function redemptionPaysOwnKey(signedRaw: string, pub: Hex): boolean {
   const outs = outputsOf(signedRaw);
-  return !!outs && outs.length === 3 && outs[0].tree === RESERVE_TREE_HEX && outs[1].tree === `0008cd${pub}` &&
-    outs[2].tree === FEE_TREE_HEX && outs[2].value <= REDEEM_MAX_FEE_NANOERG;
+  if (!outs || outs.length !== 3 || outs[0].tree !== RESERVE_TREE_HEX || outs[1].tree !== `0008cd${pub}` ||
+    outs[2].tree !== FEE_TREE_HEX || outs[2].value > REDEEM_MAX_FEE_NANOERG) return false;
+  const o = strictObject(signedRaw);
+  if (!o) return false;
+  try {
+    const ins = asArray(member(o, "inputs"), "inputs").items;
+    if (ins.length !== 1) return false;
+    const proof = asObject(member(asObject(ins[0], "inputs[0]"), "spendingProof"), "inputs[0].spendingProof");
+    if (asString(member(asObject(member(proof, "extension"), "extension"), "0"), "extension.0").toLowerCase() !== REDEEM_ACTION_VAR) return false;
+    const out0 = asObject(asArray(member(o, "outputs"), "outputs").items[0], "outputs[0]");
+    const r4 = asString(member(asObject(member(out0, "additionalRegisters"), "outputs[0].additionalRegisters"), "R4"), "outputs[0].R4");
+    return r4.toLowerCase() !== `07${pub}`;
+  } catch {
+    return false;
+  }
 }
 
 /** The reserve's own actions (journal kinds topup, refund-start, refund-end). */

@@ -283,9 +283,9 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
           }
           const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent });
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
+          else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
           // a completed refund closed the reserve: the key may create a new one (the journal's one-reserve rule)
           if (e.kind === "refund-end" && (step?.state ?? e.state) === "final") await retireReserveOf(vault, e.pub);
-          else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
           // a T1 or Withdraw nobody sees: the same bytes again (idempotent), at most every 10 minutes
           if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && !conflict && REBROADCAST.has(e.kind) && (step?.state ?? e.state) === "sent" &&
               e.lastSendAt !== null && Date.now() - e.lastSendAt > RESEND_EVERY_MS) {

@@ -47,6 +47,13 @@ const prevOf = (to: string, total: bigint, ts: bigint) => ({ total, timestamp: t
 const txJson = (trees: string[], id = "ab".repeat(32), values: (string | number)[] = []) =>
   `{"id":"${id}","inputs":[],"dataInputs":[],"outputs":[${trees.map((ergoTree, i) => `{"value":${values[i] ?? 1000000},"ergoTree":"${ergoTree}","assets":[],"additionalRegisters":{},"creationHeight":1}`).join(",")}]}`;
 
+/** A signed redemption in node JSON: one input with #0 (action 0, output 0 = "0200"), output 0 a reserve of `owner`. */
+const redeemJson = (trees: string[], o: { id?: string; owner?: string; ext0?: string; inputs?: number; values?: (string | number)[] } = {}) => {
+  const input = `{"boxId":"${"dd".repeat(32)}","spendingProof":{"proofBytes":"${"ab".repeat(56)}","extension":{"0":"${o.ext0 ?? "0200"}","1":"07${"02".padEnd(66, "1")}"}}}`;
+  const regs = (i: number) => (i === 0 ? `{"R4":"07${o.owner ?? randomPub()}","R5":"64","R6":"0e20","R7":"0500"}` : "{}");
+  return `{"id":"${o.id ?? "ab".repeat(32)}","inputs":[${Array(o.inputs ?? 1).fill(input).join(",")}],"dataInputs":[{"boxId":"${"ee".repeat(32)}"}],"outputs":[${trees.map((ergoTree, i) => `{"value":${o.values?.[i] ?? 1000000},"ergoTree":"${ergoTree}","assets":[],"additionalRegisters":${regs(i)},"creationHeight":1}`).join(",")}]}`;
+};
+
 describe("mainnet vault: the passphrase rules", () => {
   it("a reserve creation always needs the passphrase; t1, withdraw and note need it through withSecret too", async () => {
     const { v } = await ready();
@@ -117,15 +124,25 @@ describe("mainnet vault: the passphrase rules", () => {
   it("a redemption must pay this key: [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]", async () => {
     const { v } = await ready();
     const own = `0008cd${ME}`;
-    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX]), ME)).toBe(true);
-    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX]), ME)).toBe(false);
-    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], undefined, [1, 1, 1000001]), ME)).toBe(false);
-    expect(redemptionPaysOwnKey(txJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX]), ME)).toBe(false);
-    expect(redemptionPaysOwnKey(txJson([own, RESERVE_TREE_HEX, FEE_TREE_HEX]), ME)).toBe(false);
-    const r = (trees: string[], id: string) => () => ({ txId: id, signedRaw: txJson(trees, id), unsignedRaw: "{}", inputs: ["dd".repeat(32)] });
-    expect(await code(v.signToJournal("redeem", r([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], "a1".repeat(32))))).toBe("bad-input");
+    const R = [RESERVE_TREE_HEX, own, FEE_TREE_HEX];
+    expect(redemptionPaysOwnKey(redeemJson(R), ME)).toBe(true);
+    expect(redemptionPaysOwnKey(redeemJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX]), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(redeemJson(R, { values: [1, 1, 1000001] }), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(redeemJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX]), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(redeemJson([own, RESERVE_TREE_HEX, FEE_TREE_HEX]), ME)).toBe(false);
+    // the same layout is a refund start with change, a top-up with change: only a redemption passes
+    expect(redemptionPaysOwnKey(redeemJson(R, { ext0: "0214" }), ME)).toBe(false); // action 2
+    expect(redemptionPaysOwnKey(redeemJson(R, { ext0: "020a" }), ME)).toBe(false); // action 1
+    expect(redemptionPaysOwnKey(redeemJson(R, { owner: ME }), ME)).toBe(false); // this key's own reserve
+    expect(redemptionPaysOwnKey(redeemJson(R, { inputs: 2 }), ME)).toBe(false); // the reserve plus a box of this key
+    expect(redemptionPaysOwnKey(redeemJson(R, { inputs: 0 }), ME)).toBe(false);
+    expect(redemptionPaysOwnKey(txJson(R), ME)).toBe(false); // no input at all
+    expect(redemptionPaysOwnKey(redeemJson(R).replace('"0":"0200",', ""), ME)).toBe(false); // no #0
+    const r = (raw: string, id: string) => () => ({ txId: id, signedRaw: raw, unsignedRaw: "{}", inputs: ["dd".repeat(32)] });
+    expect(await code(v.signToJournal("redeem", r(redeemJson([RESERVE_TREE_HEX, `0008cd${randomPub()}`, FEE_TREE_HEX], { id: "a1".repeat(32) }), "a1".repeat(32))))).toBe("bad-input");
+    expect(await code(v.signToJournal("redeem", r(redeemJson(R, { id: "a3".repeat(32), ext0: "0214", owner: ME }), "a3".repeat(32))))).toBe("bad-input");
     expect(await v.journal.list({ kind: "redeem" })).toEqual([]);
-    expect((await v.signToJournal("redeem", r([RESERVE_TREE_HEX, own, FEE_TREE_HEX], "a2".repeat(32)))).state).toBe("signed");
+    expect((await v.signToJournal("redeem", r(redeemJson(R, { id: "a2".repeat(32) }), "a2".repeat(32)))).state).toBe("signed");
     v.close();
   });
 

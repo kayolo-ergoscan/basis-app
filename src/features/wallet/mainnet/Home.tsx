@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Card, Key, Lamp, Tag, int } from "@/ui";
 import { balanceOf, reserveLife, spendable } from "@/mainnet/flows";
-import { isOpenState } from "@/mainnet/vault";
+import { blocksNewT1, isOpenState } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent, useWatchList } from "./data";
 import { ChainLink, Erg, ProblemText, ReserveTag, Steps, ergText } from "./ui";
@@ -23,7 +23,8 @@ export function HomeScreen() {
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
   const open = mine.filter((e) => isOpenState(e.state));
   const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned");
-  const t1 = mine.find((e) => e.kind === "t1" && e.state !== "failed" && e.state !== "abandoned");
+  // a T1 retired after a completed refund no longer counts (the key may create a new reserve)
+  const t1 = mine.find(blocksNewT1);
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
   const step = !funded ? "fund" : !reserve && !t1 ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
   return (
