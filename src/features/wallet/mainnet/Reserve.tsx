@@ -137,6 +137,8 @@ export function ReserveScreen() {
   const reserve = gate.value?.k === "own" ? gate.value.r : null;
   const unproven = gate.value?.k === "unproven" ? gate.value.rs : null;
   const onChainOnly = gate.value?.k === "chain";
+  // the form waits for the gate's first answer (a problem shows the form too: prepare() reads it again and says why)
+  const gateKnown = gate.value !== null || gate.problem !== null;
 
   const fail = (p: Partial<Extract<Phase, { k: "error" }>>) => setPhase({ k: "error", ...p });
 
@@ -264,7 +266,8 @@ export function ReserveScreen() {
               <p className="t-small mw-dim">{t("mw.res.combineAfter")}</p>
             </Card>
           )}
-          {!reserve && !unproven && !onChainOnly && !t1 && !combineEntry && (
+          {!gateKnown && !t1 && !combineEntry && <p className="t-small mw-dim">{t("mw.top.loading")}</p>}
+          {gateKnown && !reserve && !unproven && !onChainOnly && !t1 && !combineEntry && (
             <Gate vault={vault} state={state} unlocked why={t("mw.res.unlockWhy")}>
               <Card title={t("mw.res.createT")}>
                 {phase.k === "review" ? (

@@ -28,7 +28,7 @@ export function HomeScreen() {
   // a T1 retired after a completed refund no longer counts (the key may create a new reserve)
   const t1 = mine.find(blocksNewT1);
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
-  const step = !funded ? "fund" : !reserve && !t1 && !unproven ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
+  const step = !funded ? "fund" : !reserve && !t1 && gate.value?.k === "none" ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
   return (
     <div className="mw-grid">
       <div className="mw-main">
@@ -67,6 +67,8 @@ export function HomeScreen() {
               <p className="t-small">{t("mw.home.t1Open", { state: t(`mw.state.${t1.state}`) })} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
             ) : unproven ? (
               <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
+            ) : gate.value === null && !gate.problem ? (
+              <p className="t-small mw-dim">{t("mw.top.loading")}</p>
             ) : (
               <p className="t-small mw-dim">{t("mw.home.noReserve")}</p>
             )}
