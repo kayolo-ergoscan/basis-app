@@ -68,6 +68,12 @@ export const FIRST_LOOK_NFTS = 3;
 /** Background tx reads per block while other checks are due (pick()). */
 export const TX_READS_PER_BLOCK = 1;
 
+/** First reads: the unread redemption txs a page shows first (its newest `perPage` rows) are what the user opened, so
+ *  they are read at once through one queue per tab (readFirst): one request at a time on the interactive lane (the token
+ *  bucket keeps it ≤ 1/s), each tx at most once per tab whichever pages ask, and at most `perTab` in all; anything more
+ *  waits for the background backlog. */
+export const FIRST_READS = { perPage: 8, perTab: 16 } as const;
+
 const defaultLoadSeed = async (): Promise<Seed> => (await import("./seed.json")).default as unknown as Seed;
 
 export type ChainStore = ReturnType<typeof createChainStore>;
@@ -200,7 +206,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     const seedTxs = new Set(seed.redemptions.map((x) => x.tx));
     const out = new Map<Hex, { id: Hex; h: number; focused: boolean }>();
     const note = (id: Hex | null | undefined, h: number, focused: boolean) => {
-      if (!id || !isHex(id, 32) || live.txs[id] || readTxs.has(id) || seedTxs.has(id) || inflight.has(`tx:${id}`)) return;
+      if (!id || !isHex(id, 32) || live.txs[id] || readTxs.has(id) || seedTxs.has(id) || inflight.has(`tx:${id}`) || firstQueue.includes(id)) return;
       const miss = missingTxs.get(id);
       if (miss !== undefined && tip - miss < INTERVALS.detector) return;
       const had = out.get(id);
@@ -683,6 +689,38 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     return p;
   }
 
+  // ── first reads: one queue per tab (FIRST_READS) ──
+  const firstAsked = new Set<Hex>();
+  const firstQueue: Hex[] = [];
+  let firstBusy = false;
+
+  /** Queues the txs of rows a page shows first; returns how many were new to the queue. Ids already read, asked or
+   *  being read are skipped, and the tab's budget (`FIRST_READS.perTab`) is never exceeded. */
+  function readFirst(ids: readonly string[]): number {
+    let n = 0;
+    for (const raw of ids.slice(0, FIRST_READS.perPage)) {
+      const id = raw.toLowerCase();
+      if (firstAsked.size >= FIRST_READS.perTab) break;
+      if (!isHex(id, 32) || firstAsked.has(id) || readTxs.has(id) || get().live.txs[id] || get().txs[id] || inflight.has(`tx:${id}`)) continue;
+      firstAsked.add(id);
+      firstQueue.push(id);
+      n++;
+    }
+    if (n) void drainFirst();
+    return n;
+  }
+
+  async function drainFirst() {
+    if (firstBusy) return;
+    firstBusy = true;
+    try {
+      // one at a time: a page's reads never queue up in the bucket ahead of what the user opens next
+      while (firstQueue.length) await fetchTx(firstQueue[0]).finally(() => { firstQueue.shift(); });
+    } finally {
+      firstBusy = false;
+    }
+  }
+
   // ── lifecycle ──
   const onVisibility = () => { refreshStatus(); if (!hidden()) void tick(); };
 
@@ -753,6 +791,9 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     tick,
     fetchBox,
     fetchTx,
+    readFirst,
+    /** Test/dev: how many first reads this tab has asked for (≤ FIRST_READS.perTab). */
+    firstReads: () => firstAsked.size,
     getObservatory,
     /** Test/dev: what the scheduler would run next, without running it. */
     peek: () => {

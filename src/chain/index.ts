@@ -21,9 +21,9 @@ export { createChainApi, chainApi, ChainApiError, paths, CHAIN_BUDGET } from "./
 export type { ChainApi, ChainApiConfig, ChainApiErrorKind, GetOptions, Lane, RequestLogEntry } from "./api";
 export { buildObservatory, interpretTx, boxDetail, liveBoxFromApi, contractIndex, contractOf, trackerLookup, liveTrackerLookup, emptyLive, decodeBeats, tokenAmount, totalsSource } from "./model";
 export type { TotalsSource } from "./model";
-export { chain, createChainStore, INTERVALS } from "./store";
+export { chain, createChainStore, FIRST_READS, INTERVALS } from "./store";
 export type { ChainState, ChainStore, ChainStoreOptions, Fetched } from "./store";
-export { useHeight, getHeight, useObservatory, useChainStatus, useReserve, useTracker, useRedemption, useDetector, useBox } from "./hooks";
+export { useHeight, getHeight, useObservatory, useChainStatus, useReserve, useTracker, useRedemption, useDetector, useBox, useFirstReads, firstUnread } from "./hooks";
 export type { HeightState, ReserveResult, TrackerResult, RedemptionResult, BoxResult } from "./hooks";
 export { explorer, explorerLink, EXPLORER_ORIGIN } from "./links";
 export type { ExplorerKind } from "./links";

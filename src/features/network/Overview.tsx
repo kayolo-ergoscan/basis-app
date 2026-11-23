@@ -14,7 +14,7 @@ import { OurTrackerBlock } from "./Ours";
 import { FeedRow } from "./feed";
 import { Capped } from "./parts";
 // ErgoScan's tracker: its heartbeat sets the dial's bands
-import { OUR_TRACKER, STALE_AFTER_BLOCKS } from "@/chain";
+import { OUR_TRACKER, STALE_AFTER_BLOCKS, useFirstReads } from "@/chain";
 
 export { FeedRow };
 
@@ -428,6 +428,8 @@ function RedemptionsColumn({ obs }: { obs: Observatory }) {
   const [all, setAll] = useState(false);
   const phone = useIsPhone();
   const list = obs.redemptions;
+  // the newest rows are what the user sees first: their txs are read at once, through the tab's one queue
+  useFirstReads(list);
   // three columns side by side: 20 rows keep this column about as tall as the trackers and reserves next to it
   const cap = phone ? 10 : 20;
   const shown = useProgressive(all ? list : list.slice(0, cap), 6);

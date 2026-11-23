@@ -6,12 +6,12 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeAll, describe, expect, it } from "vitest";
 import { addI18n, setLang } from "@/app/lang";
 import seedJson from "@/chain/seed.json";
-import { buildObservatory, contractIndex, CURRENT_TEMPLATES, emptyLive, interpretTx, liveBoxFromApi, OUR_TRACKER, p2sAddress, type ApiBox, type Seed } from "@/chain";
+import { buildObservatory, contractIndex, CURRENT_TEMPLATES, emptyLive, FIRST_READS, firstUnread, interpretTx, liveBoxFromApi, OUR_TRACKER, p2sAddress, type ApiBox, type Seed } from "@/chain";
 import chainStrings from "@/chain/i18n";
 import { idleStatus } from "@/chain/model";
 import uiStrings from "@/ui/i18n";
 import { TrackerPanel } from "./Overview";
-import { OUR_REDEMPTION_READS, OurRedemptions, ourRedemptionReads } from "./Ours";
+import { OurRedemptions } from "./Ours";
 import strings from "./strings";
 
 const seed = seedJson as unknown as Seed;
@@ -61,11 +61,11 @@ describe("our tracker page: redemptions found on chain", () => {
     expect(obs.totals.redemptions).toBe(seed.redemptions.length + 2);
     // the page reads the box-only one itself (a first look), not the one already read
     const mine = obs.redemptions.filter((x) => x.trackerNft === OUR_TRACKER.nft);
-    expect(ourRedemptionReads(mine)).toEqual([R2]);
+    expect(firstUnread(mine)).toEqual([R2]);
     // only the rows shown first, so a long list costs at most that many reads
     const many = Array.from({ length: 20 }, (_, i) => ({ ...mine.find((x) => x.tx === R2)!, tx: i.toString(16).padStart(64, "0") }));
-    expect(ourRedemptionReads(many)).toHaveLength(OUR_REDEMPTION_READS);
-    expect(ourRedemptionReads(null)).toEqual([]);
+    expect(firstUnread(many)).toHaveLength(FIRST_READS.perPage);
+    expect(firstUnread(null)).toEqual([]);
   });
 
   it("says «checking…», not «None», before this tab has listed the current templates", () => {

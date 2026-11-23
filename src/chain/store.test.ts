@@ -6,7 +6,7 @@ import seedJson from "./seed.json";
 import { createChainApi, type ChainApiConfig } from "./api";
 import { CURRENT_TEMPLATES, p2pkAddress, p2sAddress } from "./decode";
 import { contractIndex } from "./model";
-import { createChainStore, DETECTOR, FIRST_LOOK_NFTS } from "./store";
+import { createChainStore, DETECTOR, FIRST_LOOK_NFTS, FIRST_READS } from "./store";
 import type { ApiBox, Seed } from "./types";
 import type { Pulse } from "@/app/pulse";
 
@@ -419,6 +419,65 @@ describe("chain store", () => {
     expect(obs.index.reserves.get(A)).toMatchObject({ creatorState: "known", creator: p2pkAddress(seed.reserves.find((x) => x.owner)!.owner!.key) });
     expect([obs.index.reserves.get(B)?.creatorState, obs.index.reserves.get(C)?.creatorState]).toEqual(["redeemed", "redeemed"]);
     expect(obs.live.lastError).toBeNull();
+  });
+
+  it("reads the redemptions a page shows first at once, through one queue per tab: each tx once, one at a time, the background skips them", async () => {
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [boxC, boxB, boxA], total: 3 }));
+    routes.set(`/transactions/${C0}`, () => creationTx(boxA, H + 464));
+    routes.set(`/transactions/${R1}`, () => redemptionTx(boxA, boxB));
+    routes.set(`/transactions/${R2}`, () => redemptionTx(boxB, boxC));
+    // a slow node: each tx answer takes 1.5 s, longer than the token bucket's 1 s, so two reads in parallel would overlap
+    const fake: Fake = { routes, calls: [] };
+    const inner = fakeFetch(fake);
+    const at: number[] = [];
+    let open = 0, most = 0;
+    const fetchImpl = (async (url: string) => {
+      if (String(url).includes("/transactions/")) {
+        at.push(Date.now()); open++; most = Math.max(most, open);
+        await new Promise((r) => setTimeout(r, 1500));
+        open--;
+      }
+      return inner(url);
+    }) as ChainApiConfig["fetchImpl"];
+    const api = createChainApi({ fetchImpl, isHidden: () => false, random: () => 0 });
+    const chain = createChainStore({ api, loadSeed: async () => seed, pulse: { commit: () => {} }, isHidden: () => false });
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    const obs = chain.getObservatory()!;
+    expect(obs.redemptions.slice(0, 2).map((x) => x.fromBoxes)).toEqual([true, true]);
+    // three pages of the same tab ask for the same newest rows (overview column, redemptions page, our tracker page)
+    const first = obs.redemptions.slice(0, FIRST_READS.perPage).filter((x) => x.fromBoxes).map((x) => x.tx);
+    expect(first).toEqual([R2, R1]);
+    expect(chain.readFirst(first)).toBe(2);
+    expect(chain.readFirst(first)).toBe(0);
+    expect(chain.readFirst([R1.toUpperCase(), R2])).toBe(0);
+    await vi.advanceTimersByTimeAsync(6000);
+    const reads = fake.calls.filter((c) => c.startsWith("/transactions/"));
+    expect(reads).toEqual([`/transactions/${R2}`, `/transactions/${R1}`]);
+    expect(most).toBe(1);
+    expect(at[1] - at[0]).toBeGreaterThanOrEqual(1500);          // the next one starts when the last one answered
+    expect(chain.getObservatory()!.redemptions.slice(0, 2).map((x) => x.fromBoxes)).toEqual([false, false]);
+    // later blocks: the background reads what is left (the creation), never a tx the queue read
+    for (let h = H + 601; h <= H + 604; h++) await block(chain, h);
+    expect(fake.calls.filter((c) => c.startsWith("/transactions/"))).toEqual([`/transactions/${R2}`, `/transactions/${R1}`, `/transactions/${C0}`]);
+    expect(chain.readFirst([C0, R1, R2])).toBe(0);
+    expect(chain.firstReads()).toBe(2);
+  });
+
+  it("never reads more than FIRST_READS.perTab txs first in one tab, and at most perPage from one call", async () => {
+    const routes = quietChain();
+    const ids = Array.from({ length: 30 }, (_, i) => (i + 16).toString(16).padStart(2, "0").repeat(32));
+    for (const id of ids) routes.set(`/transactions/${id}`, () => 404);
+    const { chain, fake } = setup(routes);
+    chain.onHeight(H + 10, Date.now());
+    expect(chain.readFirst(ids.slice(0, 12))).toBe(FIRST_READS.perPage);
+    expect(chain.readFirst(ids.slice(12, 20))).toBe(FIRST_READS.perTab - FIRST_READS.perPage);
+    expect(chain.readFirst(ids.slice(20, 28))).toBe(0);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fake.calls.filter((c) => c.startsWith("/transactions/")).length).toBe(FIRST_READS.perTab);
+    expect(chain.firstReads()).toBe(FIRST_READS.perTab);
   });
 
   it("replaces a box it saw unspent once the detector sees it spent: one unspent box per reserve", async () => {

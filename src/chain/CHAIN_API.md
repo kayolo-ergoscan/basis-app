@@ -113,6 +113,7 @@ noble fallback) / `templateHashSync`, `p2pkAddress`, `p2sAddress`, `parseAddress
 | ≤ 2 requests per second for the whole app | src/chain: token bucket, capacity 1, refill 1/s (starts ≥ 1 s apart). The shell's `/v1/info` (once per 30 s) is the only other `/v1` traffic, so any 1-second window holds ≤ 1 src/chain request + ≤ 1 height poll. |
 | background ≤ 6 requests per block per visitor | block ≈ 120 s; the shell polls `/v1/info` every 30 s ≈ 4 per block → `heightReserve: 4`, the background checks spend 2 data requests per block. |
 | user-started loads are not held by it | what the user opens — a page's first look at a focused reserve or tracker (its box, its contract's mempool, its R6 tracker NFT, and for a box found live the tx that made it and the tx that spent it), a tx, a box (`useBox`, tx detail, a reserve id the live layer does not know yet), the first fee read of our tracker — goes on the interactive lane: at once, through the same token bucket (FIFO). Safety net: `userPerBlock: 30` per block per tab; over it a request waits for the next block (never fails), and background work yields while one waits. |
+| first reads | a page that lists redemptions (the overview column, `/network/redemptions`, our tracker's page) reads the unread ones among its newest `FIRST_READS.perPage` = 8 rows at once (`useFirstReads` → `chain.readFirst`): one queue per tab, one request at a time on the interactive lane (≤ 1/s), each tx at most once per tab whichever pages ask, at most `FIRST_READS.perTab` = 16 per tab; the background backlog skips queued txs and reads the rest one per block. 23 Nov 2026: the 6 newest are the same on all three pages, so a tab spends 6 GETs once. |
 | final answers kept for the tab | a transaction 3 blocks deep (`finalTx`) and a spent box (`finalBox`) never change: `get(path, { final })` keeps them in memory (120) and sessionStorage (24, ≤ 150 000 chars each), and that path is answered from there with no request — also after a reload of the tab. |
 | hidden tab | background requests are refused and nothing is scheduled; the shell's poller is the shell's. |
 | slow chain | no new block for 240 s → a new budget epoch by time. |
@@ -219,10 +220,8 @@ use the background lane, at most every 30 min or when the tracker box moved.
   Home's "Trackers by status" and its mainnet door). `/network/tracker/<our nft>` is served from the tracker API, not
   from the chain store, except its "Redemptions it served": `obs.redemptions` filtered by `trackerNft` (the same merged
   list the totals and the redemptions page count, so nothing twice; "checking…" until both current templates are listed,
-  "Not checked live yet" when the live layer failed first: the snapshot predates this tracker). The rows shown first
-  (`OUR_REDEMPTION_READS` = 8) whose tx is not read yet are read by the page itself with `chain.fetchTx` (interactive
-  lane, 1/s, once each per tab), like a focused reserve's own txs, so their recipient and date do not wait one block
-  per tx behind the background backlog.
+  "Not checked live yet" when the live layer failed first: the snapshot predates this tracker). Its unread rows are read
+  first, like the overview's and the redemptions page's (below).
 - ErgoScan's own test reserve (closed test of 22 Nov): `OUR_TRACKER.testReserveOwner` is its owner key, and
   `isOurTestReserve(key)` matches only that exact key. `OurTestReserveTag` (`tag.tsx`) is the quiet tag shown next to
   that owner wherever reserves are listed: the console's reserves table, tape and key lookup; on Network, our tracker's
