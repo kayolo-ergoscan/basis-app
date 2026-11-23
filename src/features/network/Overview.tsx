@@ -7,7 +7,7 @@ import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
 import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
-import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
+import { Capped, ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, VaultCoin } from "./viz";
 import { OurTrackerBlock } from "./Ours";
 import { FeedRow } from "./feed";
@@ -111,11 +111,14 @@ function Detector({ obs }: { obs: Observatory }) {
         {n === 0 ? (
           <p className="nw-det-p">{pick(copy.currentContractsEmpty, lang)} {t("network.det.willShow")}</p>
         ) : (
-          <ul className="nw-det-found" aria-label={t("network.det.found")}>
-            {live.map((b) => (
-              <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} />{isOurTestReserve(b.owner?.key) && <OurTestReserveTag />}</li>
-            ))}
-          </ul>
+          // a test group can make dozens of reserves: the newest few, the rest behind "show all"
+          <Capped rows={live} n={6}>{(rows) => (
+            <ul className="nw-det-found" aria-label={t("network.det.found")}>
+              {rows.map((b) => (
+                <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} />{isOurTestReserve(b.owner?.key) && <OurTestReserveTag />}</li>
+              ))}
+            </ul>
+          )}</Capped>
         )}
         {spent > 0 && <p className="nw-det-p dim">{t.p("network.det.spent", spent)}</p>}
         <span className="nw-det-c">
