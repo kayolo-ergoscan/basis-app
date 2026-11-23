@@ -152,8 +152,9 @@ export function trackedGate<T extends { box: string; owner: string; token: strin
 export type TrustedNft =
   | { ok: true; nft: string }
   /** none: no T1 here and the tracker follows no reserve of this key; untrusted: no T1 and the tracker is not read, or
-   *  it follows several genuine reserves of this key; unproven: it names reserves, none minted by this key */
-  | { ok: false; why: "none" | "untrusted" | "unproven" }
+   *  it follows several genuine reserves of this key; unproven: it names reserves, none minted by this key; unchecked:
+   *  it names reserves whose minting box /v1 does not have yet (genuine null: the index lags, calm, try again) */
+  | { ok: false; why: "none" | "untrusted" | "unproven" | "unchecked" }
   /** this wallet's T1 NFT is not among the genuine reserves the tracker follows for this key */
   | { ok: false; why: "disagree"; t1: string; tracker: string[] };
 
@@ -180,7 +181,7 @@ export function trustedNft(o: { owner: string; t1Nft: string | null; tracked: re
   if (named === null || proven === null) return { ok: false, why: "untrusted" };
   if (proven.length === 1) return { ok: true, nft: proven[0] };
   if (proven.length > 1) return { ok: false, why: "untrusted" };
-  return { ok: false, why: named.length > 0 ? "unproven" : "none" };
+  return { ok: false, why: named.length === 0 ? "none" : named.every((r) => r.genuine === null) ? "unchecked" : "unproven" };
 }
 
 /**
@@ -216,16 +217,22 @@ export function trackedAs(owner: string, nft: string, tracked: readonly TrackedR
 
 /** The tracker names this NFT as the owner's reserve, but the owner did not mint it (re-review P1-1). */
 export function namedUnproven(owner: string, nft: string, tracked: readonly TrackedRef[] | null): boolean {
-  return !!tracked && tracked.some((r) => r.owner === owner && r.nft === nft && !r.genuine);
+  return !!tracked && tracked.some((r) => r.owner === owner && r.nft === nft && r.genuine === false);
+}
+
+/** The tracker names this NFT as the owner's reserve and /v1 does not have its minting box yet (wallet-t3 LOW-1). */
+function namedUnchecked(owner: string, nft: string, tracked: readonly TrackedRef[] | null): boolean {
+  return !!tracked && tracked.some((r) => r.owner === owner && r.nft === nft && r.genuine === null);
 }
 
 /**
  * A `?nft=` link's reserve (the observatory's Top up key): this key's own only when it is the trusted one (ownReserve),
  * another key's only when our tracker tracks it as that owner's and that owner minted it. "unproven": the tracker
- * names it, the owner did not mint it; "untrusted": refuse.
+ * names it, the owner did not mint it; "unchecked": it names it, /v1 cannot show who minted it yet (refused, calmly);
+ * "untrusted": refuse.
  */
-export function linkTarget(o: { me: string; nft: string; owner: string; own: OwnReserve; trackedOfOwner: readonly TrackedRef[] | null }): "own" | "other" | "untrusted" | "unproven" {
-  if (o.owner === o.me) return o.own.ok && o.own.nft === o.nft ? "own" : !o.own.ok && o.own.why === "unproven" ? "unproven" : "untrusted";
+export function linkTarget(o: { me: string; nft: string; owner: string; own: OwnReserve; trackedOfOwner: readonly TrackedRef[] | null }): "own" | "other" | "untrusted" | "unproven" | "unchecked" {
+  if (o.owner === o.me) return o.own.ok && o.own.nft === o.nft ? "own" : !o.own.ok && (o.own.why === "unproven" || o.own.why === "unchecked") ? o.own.why : "untrusted";
   if (trackedAs(o.owner, o.nft, o.trackedOfOwner)) return "other";
-  return namedUnproven(o.owner, o.nft, o.trackedOfOwner) ? "unproven" : "untrusted";
+  return namedUnproven(o.owner, o.nft, o.trackedOfOwner) ? "unproven" : namedUnchecked(o.owner, o.nft, o.trackedOfOwner) ? "unchecked" : "untrusted";
 }

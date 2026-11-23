@@ -112,7 +112,7 @@ describe("which reserve is the key's own (review 2: planted boxes; re-review P1-
   const real = ub(NFT, me, 1_923_000);
   const planted = ub(PLANT, me, 1_924_900); // newer: /v1 lists it first
   // genuine: the owner minted it (the box with id = NFT sat at the owner's P2PK); the tracker can name a planted one
-  const tr = (nft: string, owner = me, genuine = true) => ({ box: `b${nft.slice(1)}`, owner, nft, token: null, genuine });
+  const tr = (nft: string, owner = me, genuine: boolean | null = true) => ({ box: `b${nft.slice(1)}`, owner, nft, token: null, genuine });
   const own = (t1Nft: string | null, tracked: ReturnType<typeof tr>[] | null, held: typeof real | null, boxes: (typeof real)[] | null = null) =>
     ownReserve({ owner: me, trusted: trustedNft({ owner: me, t1Nft, tracked }), held, listing: boxes && { boxes } });
 
@@ -136,6 +136,10 @@ describe("which reserve is the key's own (review 2: planted boxes; re-review P1-
     // P minted from the attacker's box with R4 = victim, named by the tracker: refused in words
     expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(PLANT, me, false)] })).toEqual({ ok: false, why: "unproven" });
     expect(own(null, [tr(PLANT, me, false)], planted, [planted])).toEqual({ ok: false, why: "unproven" });
+    // /v1 has not got the minting box yet: not checked yet (calm), unless another one is proven foreign (LOW-1)
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(NFT, me, null)] })).toEqual({ ok: false, why: "unchecked" });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(NFT, me, null), tr(PLANT, me, false)] })).toEqual({ ok: false, why: "unproven" });
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: [tr(NFT, me, null)] })).toEqual({ ok: true, nft: NFT });
   });
 
   it("takes the box the exact lookup finds, checked; the listing only for the warning", () => {
@@ -184,6 +188,10 @@ describe("which reserve is the key's own (review 2: planted boxes; re-review P1-
     // the tracker names it, but Alice did not mint it (an attacker's box with R4 = Alice): refused, in words
     expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, other, false)] })).toBe("unproven");
     expect(trackedAs(other, PLANT, [tr(PLANT, other, false)])).toBe(false);
+    // /v1 cannot show who minted it yet: refused all the same, calmly (LOW-1)
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, other, null)] })).toBe("unchecked");
+    expect(trackedAs(other, PLANT, [tr(PLANT, other, null)])).toBe(false);
+    expect(linkTarget({ me, nft: NFT, owner: me, own: own(null, [tr(NFT, me, null)], real), trackedOfOwner: null })).toBe("unchecked");
     // ... and it does not count as her second reserve either
     expect(linkTarget({ me, nft: NFT, owner: other, own: mine, trackedOfOwner: [tr(NFT, other), tr(PLANT, other, false)] })).toBe("other");
     // the tracker follows two genuine ERG reserves of that owner: not picked

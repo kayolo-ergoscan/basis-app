@@ -82,7 +82,7 @@ function TopUpForm() {
     : !theirs ? (own ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own, trackedOfOwner: null }) : "loading")
     : trackedTheirs.value !== null ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own: own ?? { ok: false, why: "untrusted" }, trackedOfOwner: trackedTheirs.value })
     : trackedTheirs.problem ? "down" : "loading";
-  const trustKey = link === "untrusted" ? (theirs ? "mw.trust.untracked" : "mw.trust.ownLink") : link === "unproven" ? "mw.trust.unproven" : link === "down" ? "mw.trust.trackerDown" : null;
+  const trustKey = link === "untrusted" ? (theirs ? "mw.trust.untracked" : "mw.trust.ownLink") : link === "unproven" ? "mw.trust.unproven" : link === "unchecked" ? "mw.trust.unchecked" : link === "down" ? "mw.trust.trackerDown" : null;
   const refusal = shapeRefusal ?? trustKey;
   const ready = !!info && !refusal && link !== "loading";
   const own_ = !!(info && me && info.owner === me.pub);
@@ -246,7 +246,7 @@ function TopUpForm() {
                   <div className="mw-figure"><span className="label">{t("mw.top.nft")}</span><span className="mono t-small">{short(box.tokens[0]?.tokenId ?? "", 8, 6)}</span></div>
                 </div>
                 <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={box.boxId} />{target.value?.height ? <> · {t("mw.res.updated", { h: int(target.value.height) })}</> : null}</p>
-                {refusal && <Callout tone="alarm" title={t("mw.top.noT")}>{t(refusal)}{read && !read.ok && <span className="mw-reason">{t("mw.rule")} <code>{read.rule}: {read.message}</code></span>}</Callout>}
+                {refusal && <Callout tone={link === "unchecked" && !shapeRefusal ? "calm" : "alarm"} title={t("mw.top.noT")}>{t(refusal)}{read && !read.ok && <span className="mw-reason">{t("mw.rule")} <code>{read.rule}: {read.message}</code></span>}</Callout>}
                 {!refusal && link === "loading" && <p className="t-small mw-dim">{t("mw.top.loading")}</p>}
                 {isOwn && own?.ok && <OtherBoxesNote own={own} />}
                 {ready && !isOwn && <Callout tone="alarm" title={t("mw.top.otherT")}>{t("mw.top.otherB")}</Callout>}
