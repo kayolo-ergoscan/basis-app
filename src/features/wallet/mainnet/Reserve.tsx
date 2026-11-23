@@ -2,8 +2,10 @@
 // it: precheck (the tracker, the journal, the mempool) → plan (coins, the final amount) → the tracker's template,
 // checked byte for byte against the app's pinned constants → the transaction, checked → review → the passphrase again
 // (a T1 moves the whole reserve: the vault asks every time) → hold to sign → journal → broadcast → depth 2 → tracked →
-// active. One reserve per key: a second one would be quarantined and block
-// every new note for 60 days. Once it exists: its state (active, refund running, refund available) and the actions
+// active. One reserve per key: a second one would be quarantined and block every new note for 60 days, so one rule
+// stops a T1 on the screen and in prepare() (wallet-t3 P2, t1GateOf): any ERG reserve the tracker lists for the key
+// (one whose NFT this key did not mint is said to be so, never shown as the key's reserve), or a reserve box at the
+// key whose NFT this key minted. Once it exists: its state (active, refund running, refund available) and the actions
 // that apply (Top up: TopUp.tsx; refund start and completion: Refund.tsx).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -19,7 +21,7 @@ import { RESERVE_ACTION_KINDS, blocksNewT1, isOpenState, isVaultError, type Jour
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
-import { R, inFlightOf, mintedAmong, net, trackedRefs, useResource, useUnspent } from "./data";
+import { R, inFlightOf, net, t1GateOf, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
 
@@ -78,13 +80,27 @@ export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
   );
 }
 
+/** Reserves the tracker lists under this key whose NFT this key did not mint (wallet-t3 P2): said plainly, never shown
+ *  as the key's reserve; no T1 is offered either, since the tracker would quarantine a second reserve of the key. */
+function UnprovenReserve({ rs }: { rs: TrackedReserve[] }) {
+  const t = useT();
+  return (
+    <Callout tone="alarm" title={t("mw.res.unprovenT")}>
+      <p>{t("mw.res.unprovenB")}</p>
+      <ul className="mw-facts">
+        {rs.map((r) => <li key={r.box}>{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · <Erg nano={r.collateral} /></li>)}
+      </ul>
+    </Callout>
+  );
+}
+
 function T1Progress({ entry }: { entry: JournalEntry }) {
   const t = useT();
   const { vault, me, height } = useMw();
   const waiting = entry.state === "final" || entry.state === "confirmed";
-  const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: waiting ? 30_000 : 120_000 });
-  const reserveBox = typeof entry.meta.reserveBox === "string" ? entry.meta.reserveBox : null;
-  const tracked = (res.value ?? []).find((r) => r.box === reserveBox) ?? (res.value ?? [])[0] ?? null;
+  const gate = useResource(me ? R.trackedGate(me.pub) : null, { everyMs: waiting ? 30_000 : 120_000 });
+  // the tracker's entry whose NFT this key minted (trackedGateOf): never one planted under the key (wallet-t3 P2)
+  const tracked = gate.value?.k === "own" ? gate.value.r : null;
   const active = tracked && tracked.refundHeight === 0;
   const late = entry.state === "final" && !tracked && entry.inclusionHeight !== null && height !== null && height - entry.inclusionHeight > 15;
   return (
@@ -103,19 +119,24 @@ export function ReserveScreen() {
   const t = useT();
   const { vault, state, me, height, entries } = useMw();
   const verr = useVaultError();
-  const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
+  const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
+  // what stops a T1 (t1GateOf), read while no T1 of this browser is open (T1Progress follows that one)
+  const gate = useResource(me ? R.t1Gate(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp && !t1 });
   const un = useUnspent(me, height, state.backedUp);
   const [amountText, setAmountText] = useState(() => ergInput(RESERVE_DEFAULT_CAP_NANOERG / 2n));
   const [big, setBig] = useState(false);
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [pass, setPass] = useState("");
   const [passWrong, setPassWrong] = useState(false);
-  const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
   const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
   const actions = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && RESERVE_ACTION_KINDS.includes(e.kind) && isOpenState(e.state)) : []), [entries, me]);
   const cap = big ? RESERVE_HARD_CAP_NANOERG : RESERVE_DEFAULT_CAP_NANOERG;
   const amount = parseErg(amountText);
-  const reserve = (res.value ?? [])[0] ?? null;
+  // the key's own reserve, the ones the tracker lists under it that this wallet cannot prove, or one this key minted
+  // that the tracker does not list yet: each stops a T1, and the form is not shown
+  const reserve = gate.value?.k === "own" ? gate.value.r : null;
+  const unproven = gate.value?.k === "unproven" ? gate.value.rs : null;
+  const onChainOnly = gate.value?.k === "chain";
 
   const fail = (p: Partial<Extract<Phase, { k: "error" }>>) => setPhase({ k: "error", ...p });
 
@@ -127,23 +148,16 @@ export function ReserveScreen() {
     if (!me || amount === null) return;
     if (height === null) return fail({ text: t("mw.res.noHeight") });
     setPhase({ k: "working", step: "precheck" });
-    const mine = await net().reservesOf(me.pub, { priority: "user" });
-    if (!mine.ok) return fail({ problem: mine.problem });
-    res.refresh();
-    // a reserve the tracker follows for this key, when this key minted it (re-review P1-1: the tracker can be made to
-    // name a planted box, which must not stop the owner from creating a reserve)
-    const tracked = await trackedRefs(mine.value);
-    if (!tracked.ok) return fail({ problem: tracked.problem });
-    if (tracked.value.some((r) => r.owner === me.pub && r.genuine)) return fail({ text: t("mw.res.hasReserve") });
+    // the screen's rule, read fresh (wallet-t3 P2, t1GateOf): any ERG reserve the tracker lists for this key, proven or
+    // not, since the tracker would quarantine a second one (the words say whether this key minted it); then a reserve
+    // this key minted that the tracker does not list yet (money review P2-4)
+    const g = await t1GateOf(me.pub, { priority: "user" });
+    if (!g.ok) return fail({ problem: g.problem });
+    void gate.refresh();
+    if (g.value.k === "own") return fail({ text: t("mw.res.hasReserve") });
+    if (g.value.k === "unproven") return fail({ text: t("mw.res.hasUnproven") });
+    if (g.value.k === "chain") return fail({ text: t("mw.res.hasReserveChain") });
     if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
-    // the chain too (money review P2-4): a reserve this key minted on another device that the tracker does not show
-    // yet. Boxes it did not mint are planted and ignored. The listing is best effort (re-review P1-2): an incomplete
-    // one does not block, since the tracker shows no reserve of this key and this browser has no T1.
-    const onChain = await net().reservesOnChain(me.pub, { priority: "user" });
-    if (!onChain.ok) return fail({ problem: onChain.problem });
-    const minted = await mintedAmong(onChain.value.boxes, me.pub);
-    if (!minted.ok) return fail({ problem: minted.problem });
-    if (minted.value) return fail({ text: t("mw.res.hasReserveChain") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
     if (mempoolCreatesReserve(mem.value, me)) return fail({ text: t("mw.res.inMempool") });
@@ -236,6 +250,8 @@ export function ReserveScreen() {
             <p className="t-lede">{t("mw.res.lede")}</p>
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
+          {unproven && !t1 && <UnprovenReserve rs={unproven} />}
+          {onChainOnly && !t1 && <Callout tone="calm" title={t("mw.res.chainT")}>{t("mw.res.hasReserveChain")}</Callout>}
           {t1 && <T1Progress entry={t1} />}
           {actions.map((e) => (
             <Card key={e.id} title={t(`mw.kind.${e.kind}`)}>
@@ -248,7 +264,7 @@ export function ReserveScreen() {
               <p className="t-small mw-dim">{t("mw.res.combineAfter")}</p>
             </Card>
           )}
-          {!reserve && !t1 && !combineEntry && (
+          {!reserve && !unproven && !onChainOnly && !t1 && !combineEntry && (
             <Gate vault={vault} state={state} unlocked why={t("mw.res.unlockWhy")}>
               <Card title={t("mw.res.createT")}>
                 {phase.k === "review" ? (
@@ -312,7 +328,7 @@ export function ReserveScreen() {
             <TimeHint k="t1" />
           </Card>
           <Callout tone="calm" title={t("mw.honest.t")}>{t("mw.honest.b")}</Callout>
-          {res.problem && <p className="t-small"><ProblemText p={res.problem} what="read" /></p>}
+          {gate.problem && <p className="t-small"><ProblemText p={gate.problem} what="read" /></p>}
         </aside>
       </div>
     </Gate>

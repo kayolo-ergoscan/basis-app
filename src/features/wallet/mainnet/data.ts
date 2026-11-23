@@ -4,10 +4,10 @@
 // to depth 2 and sends the same bytes again when one was dropped.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
-import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type UnspentBox, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, refundStartExpired, trustedNft, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
+import { backoffMs, localProblem, walletNet, type NetOptions, type Problem, type Result, type UnspentBox, type WalletNet } from "@/mainnet/net";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, refundStartExpired, trackedGate, trustedNft, type OwnReserve, type TrackedGate, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
 import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
-import { RESERVE_TREE_HEX, readReserve } from "@/mainnet/tx";
+import { RESERVE_TREE_HEX, boxIdHolds, readReserve } from "@/mainnet/tx";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
 
@@ -168,6 +168,10 @@ export const R = {
   reservesOf: (pk: string) => resource(`reserves:${pk}`, (o) => net().reservesOf(pk, o)),
   /** The tracker's reserves of a key as reserve NFTs (trackedRefs): which reserve is whose, for top-up and refund. */
   trackedOf: (pk: string) => resource(`tracked-of:${pk}`, (o) => trackedOf(pk, o)),
+  /** The tracker's side of a new T1 for a key (trackedGateOf): its own ERG reserve, one this wallet cannot prove, or none. */
+  trackedGate: (pk: string) => resource(`tracked-gate:${pk}`, (o) => trackedGateOf(pk, o)),
+  /** What stops a new T1 for a key (t1GateOf): the tracker's side, then the chain's. */
+  t1Gate: (pk: string) => resource(`t1-gate:${pk}`, (o) => t1GateOf(pk, o)),
   /** The key's reserves as the chain shows them (/v1): what top-up and refund act on. */
   reservesOnChain: (pk: string) => resource(`chain-reserves:${pk}`, (o) => net().reservesOnChain(pk, o)),
   /** The box that holds a reserve NFT now (/v1). */
@@ -336,6 +340,9 @@ export function t1NftOf(entries: readonly JournalEntry[], pub: string): string |
   return entries.find((e) => e.pub === pub && blocksNewT1(e))?.inputs[0] ?? null;
 }
 
+/** boxIdHolds, false for a box that cannot even be serialized (an answer missing a field). */
+const hashesToId = (b: Parameters<typeof boxIdHolds>[0]): boolean => { try { return boxIdHolds(b); } catch { return false; } };
+
 /** nft → the key whose P2PK held the box with that id (null: another tree). Per tab: a box never changes. */
 const minters = new Map<string, string | null>();
 const P2PK_TREE = /^0008cd(0[23][0-9a-f]{64})$/;
@@ -343,12 +350,14 @@ const P2PK_TREE = /^0008cd(0[23][0-9a-f]{64})$/;
 /**
  * Who minted a reserve NFT (re-review P1-1): a token id is the id of its minting transaction's first input, so the box
  * with that id (spent, still indexed by /v1) is the minter's. The key of its P2PK tree, null for any other tree or no
- * such box (not cached: the index may lag), or the read's problem.
+ * such box (not cached: the index may lag), or the read's problem. Its tree is believed only when the box hashes to
+ * that id (wallet-t3): an answer that does not is a problem, not an answer.
  */
 export async function minterOf(nft: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<string | null>> {
   if (minters.has(nft)) return { ok: true, value: minters.get(nft)! };
   const b = await box(nft, { priority: "user" });
   if (!b.ok) return b.problem.kind === "not-found" ? { ok: true, value: null } : b;
+  if (!hashesToId(b.value.box)) return { ok: false, problem: localProblem("shape", "the box an NFT was minted from does not hash to its id") };
   const key = P2PK_TREE.exec(b.value.box.ergoTree)?.[1] ?? null;
   minters.set(nft, key);
   return { ok: true, value: key };
@@ -374,13 +383,14 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
     if (!rr.ok || rr.info.owner !== r.owner) continue;
     const m = await minterOf(rr.info.nft, box);
     if (!m.ok) return m;
-    out.push({ owner: r.owner, nft: rr.info.nft, token: r.token, genuine: m.value === rr.info.owner });
+    out.push({ box: r.box, owner: r.owner, nft: rr.info.nft, token: r.token, genuine: m.value === rr.info.owner });
   }
   return { ok: true, value: out };
 }
 
-/** Reserve boxes of the listing a T1 must not duplicate: whether one of them (the first 10, by box id) holds an NFT
- *  this key minted. The others are planted and do not count. */
+/** Reserve boxes of the listing a T1 must not duplicate: whether one of them (the first 10 distinct boxes, in the
+ *  order the /v1 listing gives them; the wallet does not sort it) holds an NFT this key minted. The others are planted
+ *  and do not count. */
 export const MINTED_CHECK_MAX = 10;
 export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<boolean>> {
   const seen = new Set<string>();
@@ -400,6 +410,43 @@ export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box
 export async function trackedOf(pub: string, o?: NetOptions): Promise<Result<TrackedRef[]>> {
   const l = await net().reservesOf(pub, o ?? { priority: "user" });
   return l.ok ? trackedRefs(l.value, (id) => net().box(id, o ?? { priority: "user" })) : l;
+}
+
+/**
+ * The tracker's side of a new T1 for a key, from one read (wallet-t3 P2, trackedGate): every ERG reserve it lists for
+ * the key blocks; those boxes are read for their NFT and who minted it (only when there are any), so that the screen
+ * shows the key's own reserve as its own and any other one as a reserve this wallet cannot prove.
+ */
+export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box"> = net()): Promise<Result<TrackedGate<TrackedReserve>>> {
+  const opts = o ?? { priority: "user" };
+  const l = await n.reservesOf(pub, opts);
+  if (!l.ok) return l;
+  const erg = l.value.filter((r) => r.owner === pub && r.token === null);
+  if (erg.length === 0) return { ok: true, value: { k: "none" } };
+  const refs = await trackedRefs(erg, (id) => n.box(id, opts));
+  if (!refs.ok) return refs;
+  return { ok: true, value: trackedGate(pub, erg, refs.value) };
+}
+
+/** What stops a new T1: the tracker's side (TrackedGate), or "chain", a reserve box at the key whose NFT this key
+ *  minted that the tracker does not list yet (made on another device; money review P2-4). */
+export type T1Gate = TrackedGate<TrackedReserve> | { k: "chain" };
+
+/**
+ * One rule for the reserve screen and its prepare() (wallet-t3 P2): any ERG reserve the tracker lists for the key,
+ * proven or not (trackedGateOf); when it lists none, any reserve box at the key whose NFT this key minted (mintedAmong
+ * over the best-effort listing: boxes it did not mint are planted and do not count, an incomplete listing does not
+ * block).
+ */
+export async function t1GateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box" | "reservesOnChain"> = net()): Promise<Result<T1Gate>> {
+  const opts = o ?? { priority: "user" };
+  const tracked = await trackedGateOf(pub, opts, n);
+  if (!tracked.ok || tracked.value.k !== "none") return tracked;
+  const onChain = await n.reservesOnChain(pub, opts);
+  if (!onChain.ok) return onChain;
+  const minted = await mintedAmong(onChain.value.boxes, pub, (id) => n.box(id, opts));
+  if (!minted.ok) return minted;
+  return { ok: true, value: minted.value ? { k: "chain" } : { k: "none" } };
 }
 
 /**

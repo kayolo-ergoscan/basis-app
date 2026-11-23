@@ -14,11 +14,13 @@ export function HomeScreen() {
   const t = useT();
   const { state, me, height, entries } = useMw();
   const un = useUnspent(me, height);
-  const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000 });
+  // the key's own reserve, never one planted under it (wallet-t3 P2: the reserve screen's rule, trackedGateOf)
+  const gate = useResource(me ? R.trackedGate(me.pub) : null, { everyMs: 120_000 });
   const [watch] = useWatchList(me?.pub ?? null);
   const usable = useMemo(() => (me && un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : []), [me, un.value, entries]);
   const bal = un.value ? balanceOf(un.value.boxes, usable) : null;
-  const reserve = (res.value ?? [])[0] ?? null;
+  const reserve = gate.value?.k === "own" ? gate.value.r : null;
+  const unproven = gate.value?.k === "unproven";
   const life = reserve ? reserveLife(reserve.refundHeight, height) : null;
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
   const open = mine.filter((e) => isOpenState(e.state));
@@ -26,7 +28,7 @@ export function HomeScreen() {
   // a T1 retired after a completed refund no longer counts (the key may create a new reserve)
   const t1 = mine.find(blocksNewT1);
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
-  const step = !funded ? "fund" : !reserve && !t1 ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
+  const step = !funded ? "fund" : !reserve && !t1 && !unproven ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
   return (
     <div className="mw-grid">
       <div className="mw-main">
@@ -63,6 +65,8 @@ export function HomeScreen() {
               </>
             ) : t1 ? (
               <p className="t-small">{t("mw.home.t1Open", { state: t(`mw.state.${t1.state}`) })} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
+            ) : unproven ? (
+              <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
             ) : (
               <p className="t-small mw-dim">{t("mw.home.noReserve")}</p>
             )}
@@ -90,7 +94,7 @@ export function HomeScreen() {
             <Key size="sm" variant="quiet" to="/wallet/mainnet/activity">{t("mw.nav.activity")}</Key>
           </Card>
         )}
-        {(un.problem || res.problem) && <p className="t-small"><ProblemText p={(un.problem ?? res.problem)!} what="read" /></p>}
+        {(un.problem || gate.problem) && <p className="t-small"><ProblemText p={(un.problem ?? gate.problem)!} what="read" /></p>}
       </div>
       <aside className="mw-side">
         <Card title={t("mw.home.checkT")}>
