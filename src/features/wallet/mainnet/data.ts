@@ -5,9 +5,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
 import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
-import { readReserve } from "@/mainnet/tx";
+import { RESERVE_TREE_HEX, readReserve } from "@/mainnet/tx";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
 
@@ -287,8 +287,6 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
           const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent });
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
           else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
-          // a completed refund closed the reserve: the key may create a new one (the journal's one-reserve rule)
-          if (e.kind === "refund-end" && (step?.state ?? e.state) === "final") await retireReserveOf(vault, e.pub);
           // a T1 or Withdraw nobody sees: the same bytes again (idempotent), at most every 10 minutes
           if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && !conflict && REBROADCAST.has(e.kind) && (step?.state ?? e.state) === "sent" &&
               e.lastSendAt !== null && Date.now() - e.lastSendAt > RESEND_EVERY_MS) {
@@ -298,18 +296,37 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
       } catch { /* the next block tries again */ } finally { busy.current = false; }
     })();
   }, [vault, me, visible, height, open, mem.value]);
+  // a completed refund closed the reserve: once the completion is 10 deep, the key may create a new one (the journal's
+  // one-reserve rule); checked once per block while it is due, so a tab that was closed at depth 10 catches up
+  const retireDue = useMemo(() => {
+    if (!me || height === null) return null;
+    const t1 = entries.find((e) => e.pub === me.pub && blocksNewT1(e) && e.state === "final");
+    return t1 ? entries.find((e) => e.pub === me.pub && e.kind === "refund-end" && e.state === "final" && e.meta.nft === t1.inputs[0] && depthAt(e.inclusionHeight, height) >= RETIRE_DEPTH) ?? null : null;
+  }, [entries, me, height]);
+  useEffect(() => {
+    if (!vault || !me || !visible || height === null || !retireDue) return;
+    void retireReserveOf(vault, me.pub, retireDue, height).catch(() => { /* the next block tries again */ });
+  }, [vault, me, visible, height, retireDue]);
 }
 
+/** How deep the completion must be before the T1 is retired (a reorg that undoes it is then out of reach). */
+export const RETIRE_DEPTH = 10;
+
 /**
- * After a completed refund (final, 2 confirmations): the key's final T1 stops blocking a new reserve, but only when
- * the chain shows no reserve of this key any more (journal.retireT1's rule: the reserve fully refunded, seen on chain;
- * an incomplete listing proves nothing). The watcher calls it on every check until depth 10, so a failed read retries.
+ * After a completed refund: the key's final T1 stops blocking a new reserve once the reserve with the T1's NFT is gone
+ * from the reserve contract, spent by this completion of that NFT, at least 10 blocks deep (journal.retireT1's rule:
+ * the reserve fully refunded, seen on chain). Other reserve boxes at the key (anyone can plant one) do not block it.
  */
-export async function retireReserveOf(vault: Pick<MainnetVault, "journal">, pub: string, reserves: WalletNet["reservesOnChain"] = (pk) => net().reservesOnChain(pk)): Promise<boolean> {
+export async function retireReserveOf(
+  vault: Pick<MainnetVault, "journal">, pub: string, done: Pick<JournalEntry, "kind" | "state" | "inclusionHeight" | "meta">, height: number,
+  byNft: WalletNet["reserveByNft"] = (nft) => net().reserveByNft(nft),
+): Promise<boolean> {
   const t1 = await vault.journal.activeT1(pub);
-  if (!t1 || t1.state !== "final") return false;
-  const left = await reserves(pub);
-  if (!left.ok || !left.value.complete || left.value.boxes.length > 0) return false;
+  const nft = t1?.inputs[0];
+  if (!t1 || t1.state !== "final" || !nft) return false;
+  if (done.kind !== "refund-end" || done.state !== "final" || done.meta.nft !== nft || depthAt(done.inclusionHeight, height) < RETIRE_DEPTH) return false;
+  const left = await byNft(nft);
+  if (!left.ok || (left.value !== null && left.value.box.ergoTree === RESERVE_TREE_HEX)) return false;
   await vault.journal.retireT1(t1.id);
   return true;
 }

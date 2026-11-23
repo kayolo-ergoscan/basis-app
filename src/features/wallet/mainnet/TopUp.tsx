@@ -20,7 +20,7 @@ import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
-import { BackLink, ChainLink, Erg, Gate, OwnReserveRefusal, ProblemText, TxReview, ergText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
 
 type Phase =
   | { k: "edit"; notice?: string }
@@ -99,7 +99,7 @@ function TopUpForm() {
     if (r.owner === me.pub) {
       const o = await ownReserveNow(me.pub, entries);
       if (!o.ok) { fail({ problem: o.problem }); return false; }
-      if (!o.value.ok || o.value.nft !== r.nft) { fail({ text: t(o.value.ok ? "mw.trust.ownLink" : o.value.why === "incomplete" ? "mw.res.chainIncomplete" : o.value.why === "none" ? "mw.top.noOwn" : `mw.trust.${o.value.why}`, o.value.ok || o.value.why !== "several" ? undefined : { n: o.value.boxes.length }) }); return false; }
+      if (!o.value.ok || o.value.nft !== r.nft) { fail({ text: o.value.ok ? t("mw.trust.ownLink") : trustText(t, o.value) }); return false; }
       return true;
     }
     if (!asked) { fail({ text: t("mw.trust.ownLink") }); return false; }
@@ -244,6 +244,7 @@ function TopUpForm() {
                 <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={box.boxId} />{target.value?.height ? <> · {t("mw.res.updated", { h: int(target.value.height) })}</> : null}</p>
                 {refusal && <Callout tone="alarm" title={t("mw.top.noT")}>{t(refusal)}{read && !read.ok && <span className="mw-reason">{t("mw.rule")} <code>{read.rule}: {read.message}</code></span>}</Callout>}
                 {!refusal && link === "loading" && <p className="t-small mw-dim">{t("mw.top.loading")}</p>}
+                {isOwn && own?.ok && <OtherBoxesNote own={own} />}
                 {ready && !isOwn && <Callout tone="alarm" title={t("mw.top.otherT")}>{t("mw.top.otherB")}</Callout>}
               </div>
             )}

@@ -231,20 +231,42 @@ export function BackLink({ to = "/wallet/mainnet", children }: { to?: string; ch
   return <Link className="mw-back textlink t-small" to={to}>← {children ?? t("mw.nav.home")}</Link>;
 }
 
-/** Why the wallet does not act on "your reserve" (review 2: never a planted box), in words; the boxes when several. */
+/** Why the wallet does not act on "your reserve" (review 2: never a planted box), in words; the boxes when listed. */
 export function OwnReserveRefusal({ own }: { own: Exclude<OwnReserve, { ok: true }> }) {
   const t = useT();
   if (own.why === "none") return <p className="t-small">{t("mw.top.noOwn")}</p>;
   if (own.why === "incomplete") return <p className="t-small">{t("mw.res.chainIncomplete")}</p>;
   return (
     <Callout tone="alarm" title={t("mw.top.trustT")}>
-      {t(`mw.trust.${own.why}`, own.why === "several" ? { n: own.boxes.length } : undefined)}
-      {own.why === "several" && (
-        <ul className="mw-facts mw-facts-tight">
-          {own.boxes.map((b) => <li key={b.box.boxId}><ChainLink kind="box" id={b.box.boxId} /> <span className="mono t-small mw-dim">{b.box.tokens[0]?.tokenId.slice(0, 8) ?? "—"}…</span></li>)}
-        </ul>
-      )}
-      {own.why === "mismatch" && <span className="mw-reason"><ChainLink kind="box" id={own.box.box.boxId} /></span>}
+      {t(`mw.trust.${own.why}`, own.why === "mismatch" ? { nft: `${own.nft.slice(0, 8)}…` } : undefined)}
+      {(own.why === "twice" || own.why === "mismatch") && <BoxList boxes={own.boxes} />}
     </Callout>
   );
+}
+
+/** Reserve-tree boxes at the key that are not its reserve: ignored for signing, listed so nobody is surprised. */
+export function OtherBoxesNote({ own }: { own: Extract<OwnReserve, { ok: true }> }) {
+  const t = useT();
+  if (own.others.length === 0) return null;
+  return (
+    <Callout tone="policy" title={t("mw.trust.othersT")}>
+      {t("mw.trust.others", { nft: `${own.nft.slice(0, 8)}…` })}
+      <BoxList boxes={own.others} />
+    </Callout>
+  );
+}
+
+function BoxList({ boxes }: { boxes: readonly { box: { boxId: string; tokens: readonly { tokenId: string }[] } }[] }) {
+  return (
+    <ul className="mw-facts mw-facts-tight">
+      {boxes.map((b) => <li key={b.box.boxId}><ChainLink kind="box" id={b.box.boxId} /> <span className="mono t-small mw-dim">{b.box.tokens[0]?.tokenId.slice(0, 8) ?? "—"}…</span></li>)}
+    </ul>
+  );
+}
+
+/** The same refusal as one line of text (a stop callout after Prepare). */
+export function trustText(t: ReturnType<typeof useT>, own: Exclude<OwnReserve, { ok: true }>): string {
+  if (own.why === "none") return t("mw.top.noOwn");
+  if (own.why === "incomplete") return t("mw.res.chainIncomplete");
+  return t(`mw.trust.${own.why}`, own.why === "mismatch" ? { nft: `${own.nft.slice(0, 8)}…` } : undefined);
 }

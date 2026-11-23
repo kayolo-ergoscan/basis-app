@@ -19,7 +19,7 @@ import { freshHeight, refreshHeight } from "@/app/height";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource } from "./data";
 import { EntryProgress, send, signReserve, stuckCompletion } from "./send";
-import { BackLink, ChainLink, Erg, Gate, OwnReserveRefusal, ProblemText, TimeHint, TxReview, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, trustText, useVaultError } from "./ui";
 
 /** A refund start is signed only while its R7 (tip + 10 at the review) is ahead: at most 5 blocks after the review,
  *  and the next block at least 2 below R7 (review 1 item 2, review 2 stale tip). */
@@ -100,7 +100,7 @@ export function RefundScreen() {
     if (!o.ok) { fail({ problem: o.problem }); return null; }
     if (!o.value.ok) {
       const w = o.value;
-      fail({ text: t(w.why === "incomplete" ? "mw.res.chainIncomplete" : w.why === "none" ? "mw.ref.gone" : `mw.trust.${w.why}`, w.why === "several" ? { n: w.boxes.length } : undefined) });
+      fail({ text: w.why === "none" ? t("mw.ref.gone") : trustText(t, w) });
       return null;
     }
     if (o.value.nft !== info.nft) { fail({ text: t("mw.res.changed") }); return null; }
@@ -337,6 +337,7 @@ export function RefundScreen() {
             <p className="t-lede">{t("mw.ref.lede")}</p>
           </header>
           {open.filter((e) => e.id !== openStart?.id).map((e) => <RefundProgress key={e.id} entry={e} />)}
+          {own?.ok && <OtherBoxesNote own={own} />}
           {body}
         </div>
         <aside className="mw-side">

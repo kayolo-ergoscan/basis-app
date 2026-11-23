@@ -81,27 +81,36 @@ describe("a refused or unseen completion (review 1, item 3)", () => {
   });
 });
 
-describe("retiring the T1 after a completed refund (review 2)", () => {
-  const t1 = { id: "t1", kind: "t1", state: "final" } as unknown as JournalEntry;
+describe("retiring the T1 after a completed refund (review 2, coordinator's decision)", () => {
+  const NFT = "9f".repeat(32);
+  const t1 = { id: "t1", kind: "t1", state: "final", inputs: [NFT] } as unknown as JournalEntry;
+  const done = { kind: "refund-end", state: "final", inclusionHeight: 1_000, meta: { nft: NFT } } as unknown as JournalEntry;
   const fake = (active: JournalEntry | null) => {
     const retired: string[] = [];
     const vault = { journal: { activeT1: async () => active, retireT1: async (id: string) => { retired.push(id); return active!; } } } as unknown as Pick<MainnetVault, "journal">;
     return { vault, retired };
   };
-  const chain = (boxes: number, complete = true) => async () => ({ ok: true as const, value: { boxes: Array.from({ length: boxes }, () => ({}) as never), complete } });
-  it("only when the chain shows no reserve of the key, in a complete listing", async () => {
+  const p2pk = reserveBox(`02${"4a".repeat(32)}`, 1n, { nft: NFT, tree: `0008cd02${"4a".repeat(32)}` });
+  const inReserve = reserveBox(`02${"4a".repeat(32)}`, 1n, { nft: NFT });
+  const holder = (box: ChainBox["box"] | null) => async () => ({ ok: true as const, value: box ? { box, height: 1_000 } : null });
+  it("once the T1's reserve NFT left the reserve contract by a completion 10 deep; a planted box does not block it", async () => {
     const a = fake(t1);
-    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(1))).toBe(false);
-    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(0, false))).toBe(false);
-    expect(await retireReserveOf(a.vault, "02".repeat(33), async () => ({ ok: false as const, problem: { kind: "network" as const, status: null, reason: "", retryInMs: null, txId: null } }))).toBe(false);
+    // the reserve contract still holds the NFT, or the completion is 9 deep: not yet
+    expect(await retireReserveOf(a.vault, "02", done, 1_009, holder(inReserve))).toBe(false);
+    expect(await retireReserveOf(a.vault, "02", done, 1_008, holder(p2pk))).toBe(false);
     expect(a.retired).toEqual([]);
-    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(0))).toBe(true);
+    // the NFT is at the owner's address now (or nowhere): retired; other reserve boxes at the key are not looked at
+    expect(await retireReserveOf(a.vault, "02", done, 1_009, holder(p2pk))).toBe(true);
     expect(a.retired).toEqual(["t1"]);
+    const b = fake(t1);
+    expect(await retireReserveOf(b.vault, "02", done, 2_000, holder(null))).toBe(true);
   });
-  it("never a T1 that is not final", async () => {
-    const b = fake({ ...t1, state: "confirmed" } as JournalEntry);
-    expect(await retireReserveOf(b.vault, "02".repeat(33), chain(0))).toBe(false);
-    expect(b.retired).toEqual([]);
+  it("never for a completion of another reserve, a failed read, or a T1 that is not final", async () => {
+    expect(await retireReserveOf(fake(t1).vault, "02", { ...done, meta: { nft: "8a".repeat(32) } } as JournalEntry, 2_000, holder(p2pk))).toBe(false);
+    expect(await retireReserveOf(fake(t1).vault, "02", done, 2_000, async () => ({ ok: false as const, problem: { kind: "network" as const, status: null, reason: "", retryInMs: null, txId: null } }))).toBe(false);
+    const c = fake({ ...t1, state: "confirmed" } as JournalEntry);
+    expect(await retireReserveOf(c.vault, "02", done, 2_000, holder(p2pk))).toBe(false);
+    expect(c.retired).toEqual([]);
   });
 });
 

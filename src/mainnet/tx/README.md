@@ -188,9 +188,11 @@ although the contract itself reads it as 0). Anything else is refused with its r
   deadline, until the completion (l. 56).
 - The vault's `after` guard (`reserveActionPaysRight`) checks the signed outputs again: the reserve tree (R6 our
   tracker, R4 this key or the reviewed owner) or the owner's own address, then the fee.
-- Which reserve is "yours" (`flows/reserveops.ts` `ownReserve`): only the one whose NFT this wallet's T1 or the
-  tracker names (both agree when both are known), and only when the chain shows exactly one reserve box at the key.
-  Anyone can create a box under the reserve contract with R4 = your key; it is never picked by position.
+- Which reserve is "yours" (`flows/reserveops.ts` `ownReserve`): the one box that holds the NFT this wallet's T1 or
+  the tracker names (both agree when both are known). Anyone can create a box under the reserve contract with R4 =
+  your key: such boxes are never picked by position, never signed for, and listed as a warning; a planted box alone,
+  the NFT in two boxes, or a disagreement is refused. The T1 is retired once that NFT has left the reserve contract
+  by a completion 10 blocks deep, whatever else sits at the key.
 - L2 maps the reserve-tree boxes, the outputs and the data inputs strictly; the registers of the payer's other inputs
   are opaque to it (basis.es never reads them).
 

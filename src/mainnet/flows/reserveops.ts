@@ -124,33 +124,37 @@ export function reserveLife(refundHeight: bigint | number, tip: number | null): 
 export interface TrackedRef { owner: string; nft: string; token: string | null }
 
 export type OwnReserve =
-  | { ok: true; box: UnspentBox; nft: string }
-  /** none: no reserve at the key on chain; incomplete: /v1 listed more than it read; untrusted: no NFT known from this
-   *  wallet's T1 nor from the tracker (or the tracker names several) */
+  /** `others`: reserve-tree boxes at the key that do not hold the trusted NFT; ignored for signing, shown as a warning */
+  | { ok: true; box: UnspentBox; nft: string; others: UnspentBox[] }
+  /** none: no reserve box at the key on chain; incomplete: /v1 listed more than it read and the trusted box is not
+   *  among those read; untrusted: no NFT known from this wallet's T1 nor from the tracker (or the tracker names several) */
   | { ok: false; why: "none" | "incomplete" | "untrusted" }
-  | { ok: false; why: "several"; boxes: UnspentBox[] }
+  /** two boxes hold the trusted NFT (a token id cannot, but the wallet does not pick) */
+  | { ok: false; why: "twice"; boxes: UnspentBox[] }
   | { ok: false; why: "disagree"; t1: string; tracker: string[] }
-  | { ok: false; why: "mismatch"; box: UnspentBox; nft: string };
+  /** reserve boxes at the key, none of them holding the trusted NFT (a planted box alone) */
+  | { ok: false; why: "mismatch"; boxes: UnspentBox[]; nft: string };
 
 /**
- * The key's own reserve, never a planted one (review 2, P1). Anyone can make a box under the reserve contract with
- * R4 = this key and R6 = our tracker (a fresh NFT, an empty tree): topped up as "yours", a creditor would redeem the
- * same note from it again. So the NFT comes from what this wallet trusts: its own T1 (the NFT id is the T1's first
- * input) or the tracker's reserve of this key; both must agree when both are known. The chain must show exactly one
- * reserve box for the key, holding exactly that NFT; more than one is refused and listed, never chosen.
+ * The key's own reserve, never a planted one (review 2, P1; coordinator's decision). Anyone can make a box under the
+ * reserve contract with R4 = this key and R6 = our tracker (a fresh NFT, an empty tree): topped up as "yours", a
+ * creditor would redeem the same note from it again. So the NFT comes from what this wallet trusts: its own T1 (the NFT
+ * id is the T1's first input) or the box the tracker names for this key; both must agree when both are known. The
+ * reserve is the one box that holds that NFT; other reserve boxes at the key are ignored for signing and listed as a
+ * warning (refusing them would let anyone lock the owner's top-up and refund for good with one planted box).
  */
 export function ownReserve(o: { owner: string; chain: { boxes: readonly UnspentBox[]; complete: boolean }; t1Nft: string | null; tracked: readonly TrackedRef[] | null }): OwnReserve {
   const { boxes, complete } = o.chain;
-  if (boxes.length > 1) return { ok: false, why: "several", boxes: [...boxes] };
-  if (!complete) return { ok: false, why: "incomplete" };
   const tr = o.tracked === null ? null : [...new Set(o.tracked.filter((r) => r.owner === o.owner && r.token === null).map((r) => r.nft))];
   if (o.t1Nft && tr && tr.length > 0 && !(tr.length === 1 && tr[0] === o.t1Nft)) return { ok: false, why: "disagree", t1: o.t1Nft, tracker: tr };
-  if (boxes.length === 0) return { ok: false, why: "none" };
   const trusted = o.t1Nft ?? (tr && tr.length === 1 ? tr[0] : null);
-  if (!trusted) return { ok: false, why: "untrusted" };
-  const box = boxes[0];
-  if (box.box.tokens.length !== 1 || box.box.tokens[0].tokenId !== trusted) return { ok: false, why: "mismatch", box, nft: trusted };
-  return { ok: true, box, nft: trusted };
+  if (!trusted) return boxes.length === 0 && complete ? { ok: false, why: "none" } : { ok: false, why: "untrusted" };
+  const holding = boxes.filter((b) => b.box.tokens.some((t) => t.tokenId === trusted));
+  if (holding.length > 1) return { ok: false, why: "twice", boxes: holding };
+  if (holding.length === 1) return { ok: true, box: holding[0], nft: trusted, others: boxes.filter((b) => b !== holding[0]) };
+  if (!complete) return { ok: false, why: "incomplete" };
+  if (boxes.length === 0) return { ok: false, why: "none" };
+  return { ok: false, why: "mismatch", boxes: [...boxes], nft: trusted };
 }
 
 /**
