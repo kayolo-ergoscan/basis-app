@@ -3,9 +3,9 @@
 // 30 s → 10 min), the watched issuers kept in this browser, and the journal watcher that follows signed transactions
 // to depth 2 and sends the same bytes again when one was dropped.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { getMainnetVault, attachAutoLock, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
+import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, parseWatchStore, type WatchedIssuer } from "@/mainnet/flows";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type WatchedIssuer } from "@/mainnet/flows";
 import type { Priority } from "@/chain/ours";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
@@ -297,10 +297,31 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
   }, [vault, me, visible, height, open, mem.value]);
 }
 
-/** After a completed refund (final, 2 confirmations): the key's final T1 stops blocking a new reserve. */
-export async function retireReserveOf(vault: MainnetVault, pub: string): Promise<void> {
+/**
+ * After a completed refund (final, 2 confirmations): the key's final T1 stops blocking a new reserve, but only when
+ * the chain shows no reserve of this key any more (journal.retireT1's rule: the reserve fully refunded, seen on chain;
+ * an incomplete listing proves nothing). The watcher calls it on every check until depth 10, so a failed read retries.
+ */
+export async function retireReserveOf(vault: Pick<MainnetVault, "journal">, pub: string, reserves: WalletNet["reservesOnChain"] = (pk) => net().reservesOnChain(pk)): Promise<boolean> {
   const t1 = await vault.journal.activeT1(pub);
-  if (t1 && t1.state === "final") await vault.journal.retireT1(t1.id);
+  if (!t1 || t1.state !== "final") return false;
+  const left = await reserves(pub);
+  if (!left.ok || !left.value.complete || left.value.boxes.length > 0) return false;
+  await vault.journal.retireT1(t1.id);
+  return true;
+}
+
+/** The reserve NFT of this key's own T1 (the token id is the T1's first input), or null when this browser has none. */
+export function t1NftOf(entries: readonly JournalEntry[], pub: string): string | null {
+  return entries.find((e) => e.pub === pub && blocksNewT1(e))?.inputs[0] ?? null;
+}
+
+/** The key's own reserve now (review 2, P1): /v1 and the tracker read fresh, the T1 from the journal (ownReserve). */
+export async function ownReserveNow(pub: string, entries: readonly JournalEntry[]): Promise<Result<OwnReserve>> {
+  const chain = await net().reservesOnChain(pub, { priority: "user" });
+  if (!chain.ok) return chain;
+  const tracked = await net().reservesOf(pub, { priority: "user" });
+  return { ok: true, value: ownReserve({ owner: pub, chain: chain.value, t1Nft: t1NftOf(entries, pub), tracked: tracked.ok ? tracked.value : null }) };
 }
 
 /** Sends a signed T1, Withdraw, top-up or refund again: the exact stored bytes (write-ahead: markSending first). */

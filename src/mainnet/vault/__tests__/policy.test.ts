@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import { FEE_TREE_HEX, RESERVE_TREE_HEX, TRACKER_NFT, p2pkTree } from "../../tx/constants";
 import { p2pkAddress } from "../../tx/address";
 import { signP2pkTransaction } from "../../tx/p2pk";
-import { p2pkBox, secretBytes, syntheticRedemption } from "../../tx/testkit";
+import { p2pkBox, reserveBox, secretBytes, syntheticRedemption } from "../../tx/testkit";
+import { buildRefundStart, buildTopUp, signReserveAction } from "../../tx/reserveaction";
 import { checkRedemption, parseBuildResponse, signRedemption } from "../../tx/redemption";
 import { planCombine, planWithdraw } from "../../flows/coins";
 import { signNote } from "../../flows/notes";
@@ -47,6 +48,11 @@ const prevOf = (to: string, total: bigint, ts: bigint) => ({ total, timestamp: t
 
 const txJson = (trees: string[], id = "ab".repeat(32), values: (string | number)[] = []) =>
   `{"id":"${id}","inputs":[],"dataInputs":[],"outputs":[${trees.map((ergoTree, i) => `{"value":${values[i] ?? 1000000},"ergoTree":"${ergoTree}","assets":[],"additionalRegisters":{},"creationHeight":1}`).join(",")}]}`;
+
+/** A reserve action's node JSON: output 0, when it is the reserve, carries R4 = `owner` and R6 = `r6`. */
+const actJson = (trees: string[], owner: string, o: { id?: string; values?: (string | number)[]; r6?: string } = {}) =>
+  txJson(trees, o.id, o.values).replace(`"ergoTree":"${RESERVE_TREE_HEX}","assets":[],"additionalRegisters":{}`,
+    `"ergoTree":"${RESERVE_TREE_HEX}","assets":[],"additionalRegisters":{"R4":"07${owner}","R5":"64","R6":"0e20${o.r6 ?? TRACKER_NFT}","R7":"0500"}`);
 
 /** A signed redemption in node JSON: one input with #0 (action 0, output 0 = "0200"), output 0 a reserve of `owner`. */
 const redeemJson = (trees: string[], o: { id?: string; owner?: string; ext0?: string; inputs?: number; values?: (string | number)[] } = {}) => {
@@ -236,31 +242,54 @@ describe("mainnet vault: the passphrase rules", () => {
   it("top-up and refund always need the passphrase, and pay only [the reserve or this key, change to this key, fee ≤ 0.001 ERG]", async () => {
     const { v } = await ready();
     const own = `0008cd${ME}`;
-    const other = `0008cd${randomPub()}`;
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX]), ME, "topup")).toBe(true);
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, FEE_TREE_HEX]), ME, "refund-start")).toBe(true);
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, other, FEE_TREE_HEX]), ME, "topup")).toBe(false);
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], undefined, [1, 1, 1000001]), ME, "topup")).toBe(false);
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX]), ME, "topup")).toBe(false);
-    expect(reserveActionPaysRight(txJson([own, FEE_TREE_HEX]), ME, "topup")).toBe(false);
+    const OTHER = randomPub();
+    const other = `0008cd${OTHER}`;
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], OTHER), ME, "topup", OTHER)).toBe(true);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME), ME, "topup", ME)).toBe(true);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME), ME, "refund-start")).toBe(true);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, other, FEE_TREE_HEX], ME), ME, "topup", ME)).toBe(false);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME, { values: [1, 1, 1000001] }), ME, "topup", ME)).toBe(false);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, own, FEE_TREE_HEX], ME), ME, "topup", ME)).toBe(false);
+    expect(reserveActionPaysRight(txJson([own, FEE_TREE_HEX]), ME, "topup", ME)).toBe(false);
     expect(reserveActionPaysRight(txJson([own, FEE_TREE_HEX]), ME, "refund-end")).toBe(true);
     expect(reserveActionPaysRight(txJson([other, FEE_TREE_HEX]), ME, "refund-end")).toBe(false);
-    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, FEE_TREE_HEX]), ME, "refund-end")).toBe(false);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME), ME, "refund-end")).toBe(false);
+    // the real signer's node JSON passes, for the reviewed owner only
+    const coin = p2pkBox(ME, 500_000_000n, { index: 4 });
+    const theirs = reserveBox(OTHER, 2_000_000_000n);
+    const realTop = signReserveAction(buildTopUp({ reserve: theirs, payer: ME, inputs: [coin], amount: 100_000_000n, fee: 1_000_000n, height: 1_925_000 }), [theirs, coin], SK, "topup");
+    expect(reserveActionPaysRight(realTop.nodeJson, ME, "topup", OTHER)).toBe(true);
+    expect(reserveActionPaysRight(realTop.nodeJson, ME, "topup", ME)).toBe(false);
+    const mine = reserveBox(ME, 2_000_000_000n);
+    const realStart = signReserveAction(buildRefundStart({ reserve: mine, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [mine, coin], SK, "refund-start");
+    expect(reserveActionPaysRight(realStart.nodeJson, ME, "refund-start")).toBe(true);
+    // the reserve output: our tracker (R6), the reviewed owner for a top-up, this key for a refund start
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "topup", ME)).toBe(false);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "refund-start")).toBe(false);
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], OTHER), ME, "topup", ME)).toBe(false); // reviewed as own
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], OTHER), ME, "topup")).toBe(false); // no reviewed owner
+    expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], OTHER), ME, "refund-start")).toBe(false);
+    expect(reserveActionPaysRight(txJson([RESERVE_TREE_HEX, FEE_TREE_HEX]), ME, "refund-start")).toBe(false); // no registers
     let touched = 0;
-    const act = (trees: string[], id: string) => () => { touched++; return { txId: id, signedRaw: txJson(trees, id), inputs: ["dd".repeat(32)] }; };
+    const act = (raw: (id: string) => string, id: string) => () => { touched++; return { txId: id, signedRaw: raw(id), inputs: ["dd".repeat(32)] }; };
+    const top = (owner: string, trees = [RESERVE_TREE_HEX, own, FEE_TREE_HEX]) => (id: string) => actJson(trees, owner, { id });
     for (const kind of ["topup", "refund-start", "refund-end"] as const) {
-      const trees = kind === "refund-end" ? [own, FEE_TREE_HEX] : [RESERVE_TREE_HEX, own, FEE_TREE_HEX];
-      expect(await code(v.signToJournal(kind, act(trees, "c1".repeat(32))))).toBe("passphrase-required");
+      const raw = kind === "refund-end" ? (id: string) => txJson([own, FEE_TREE_HEX], id) : top(ME);
+      expect(await code(v.signToJournal(kind, act(raw, "c1".repeat(32)), { reserveOwner: ME }))).toBe("passphrase-required");
       expect(await code(v.withSecret(kind, () => 1))).toBe("passphrase-required");
     }
     expect(touched).toBe(0);
-    expect(await code(v.signToJournal("topup", act([RESERVE_TREE_HEX, other, FEE_TREE_HEX], "c2".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
-    expect(await code(v.signToJournal("refund-end", act([other, FEE_TREE_HEX], "c3".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
+    expect(await code(v.signToJournal("topup", act(top(ME), "c7".repeat(32)), { passphrase: PASS }))).toBe("bad-input"); // no reserveOwner
+    expect(touched).toBe(0);
+    expect(await code(v.signToJournal("topup", act(top(ME, [RESERVE_TREE_HEX, other, FEE_TREE_HEX]), "c2".repeat(32)), { passphrase: PASS, reserveOwner: ME }))).toBe("bad-input");
+    expect(await code(v.signToJournal("topup", act(top(OTHER), "c8".repeat(32)), { passphrase: PASS, reserveOwner: ME }))).toBe("bad-input");
+    expect(await code(v.signToJournal("refund-end", act((id) => txJson([other, FEE_TREE_HEX], id), "c3".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
+    expect(await code(v.signToJournal("refund-start", act(top(OTHER, [RESERVE_TREE_HEX, FEE_TREE_HEX]), "c9".repeat(32)), { passphrase: PASS }))).toBe("bad-input");
     expect(await v.journal.list({ kind: "topup" })).toEqual([]);
-    const e = await v.signToJournal("topup", act([RESERVE_TREE_HEX, own, FEE_TREE_HEX], "c4".repeat(32)), { passphrase: PASS });
+    const e = await v.signToJournal("topup", act(top(OTHER), "c4".repeat(32)), { passphrase: PASS, reserveOwner: OTHER });
     expect([e.kind, e.state, e.txId]).toEqual(["topup", "signed", "c4".repeat(32)]);
-    expect((await v.signToJournal("refund-start", act([RESERVE_TREE_HEX, FEE_TREE_HEX], "c5".repeat(32)), { passphrase: PASS })).kind).toBe("refund-start");
-    expect((await v.signToJournal("refund-end", act([own, FEE_TREE_HEX], "c6".repeat(32)), { passphrase: PASS })).kind).toBe("refund-end");
+    expect((await v.signToJournal("refund-start", act(top(ME, [RESERVE_TREE_HEX, FEE_TREE_HEX]), "c5".repeat(32)), { passphrase: PASS })).kind).toBe("refund-start");
+    expect((await v.signToJournal("refund-end", act((id) => txJson([own, FEE_TREE_HEX], id), "c6".repeat(32)), { passphrase: PASS })).kind).toBe("refund-end");
     v.close();
   });
 });

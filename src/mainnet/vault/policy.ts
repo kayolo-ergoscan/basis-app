@@ -128,13 +128,16 @@ export function checkNoteBody(signedRaw: string, issuer: Hex, intent: NoteIntent
 }
 
 /** The outputs of a signed transaction (node JSON): tree and exact value, or null when it cannot be read. */
-function outputsOf(signedRaw: string): { tree: string; value: bigint }[] | null {
+function outputsOf(signedRaw: string): { tree: string; value: bigint; regs: Record<string, string> }[] | null {
   const o = strictObject(signedRaw);
   if (!o) return null;
   try {
     return asArray(member(o, "outputs"), "outputs").items.map((x, i) => {
       const b = asObject(x, `outputs[${i}]`);
-      return { tree: asString(member(b, "ergoTree"), `outputs[${i}].ergoTree`), value: asU64(member(b, "value"), `outputs[${i}].value`) };
+      const regs: Record<string, string> = {};
+      const r = member(b, "additionalRegisters");
+      if (r) for (const e of asObject(r, `outputs[${i}].additionalRegisters`).entries) regs[e.key] = asString(e.value, `outputs[${i}].${e.key}`).toLowerCase();
+      return { tree: asString(member(b, "ergoTree"), `outputs[${i}].ergoTree`), value: asU64(member(b, "value"), `outputs[${i}].value`), regs };
     });
   } catch {
     return null;
@@ -191,10 +194,11 @@ export type ReserveActionKind = "topup" | "refund-start" | "refund-end";
 /**
  * True when a signed reserve action pays only where the wallet's own checks allow (tx/reserveaction.ts L1): a top-up
  * or a refund start is [the reserve contract, change to this key?, the miner fee]; a completion is [this key, the
- * miner fee]; the fee is at most MINER_FEE_NANOERG. The amounts and registers are L1's; this keeps a screen from
- * signing money to anywhere else under these kinds.
+ * miner fee]; the fee is at most MINER_FEE_NANOERG. The reserve output is our tracker's (R6) and of the right owner
+ * (R4): this key for a refund start, `owner` (the reserve the screen reviewed) for a top-up. The amounts and the other
+ * registers are L1's; this keeps a screen from signing money to anywhere else under these kinds.
  */
-export function reserveActionPaysRight(signedRaw: string, pub: Hex, kind: ReserveActionKind): boolean {
+export function reserveActionPaysRight(signedRaw: string, pub: Hex, kind: ReserveActionKind, owner: Hex | null = null): boolean {
   const outs = outputsOf(signedRaw);
   if (!outs) return false;
   const own = `0008cd${pub}`;
@@ -202,5 +206,7 @@ export function reserveActionPaysRight(signedRaw: string, pub: Hex, kind: Reserv
   if (!fee || fee.tree !== FEE_TREE_HEX || fee.value > MINER_FEE_NANOERG) return false;
   if (kind === "refund-end") return outs.length === 2 && outs[0].tree === own;
   if (outs.length !== 2 && outs.length !== 3) return false;
+  const r4 = kind === "refund-start" ? pub : owner;
+  if (!r4 || outs[0].regs.R4 !== `07${r4}` || outs[0].regs.R6 !== `0e20${TRACKER_NFT}`) return false;
   return outs[0].tree === RESERVE_TREE_HEX && (outs.length === 2 || outs[1].tree === own);
 }

@@ -71,6 +71,20 @@ function stop() {
 const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f); }; };
 export const getHeight = (): HeightState => state;
 
+/** The oldest tip a reserve action is planned or signed on (review 2): a minute, two polls. */
+export const FRESH_HEIGHT_MS = 60_000;
+
+/** Reads /v1/info now through the shared poller (no second request while one is in flight); the state after it. */
+export async function refreshHeight(): Promise<HeightState> {
+  await poll();
+  return state;
+}
+
+/** The height when it is fresh: the last request answered, at most `maxAgeMs` ago; null otherwise (stale, failed). */
+export function freshHeight(s: HeightState, now = Date.now(), maxAgeMs = FRESH_HEIGHT_MS): number | null {
+  return !s.error && s.height !== null && s.updatedAt !== null && now - s.updatedAt <= maxAgeMs && now >= s.updatedAt - 5_000 ? s.height : null;
+}
+
 /** React: the live Ergo height ({ height, lastBlockId, updatedAt, error }). Starts the shared poller while mounted. */
 export function useHeight(): HeightState {
   useEffect(() => { start(); return stop; }, []);

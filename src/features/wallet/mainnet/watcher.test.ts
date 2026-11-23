@@ -2,9 +2,9 @@
 // entries in turns of 10 per block. And when "Cancel" is offered for a refused transaction.
 import { describe, expect, it } from "vitest";
 import type { ChainBox } from "@/mainnet/net";
-import type { JournalEntry } from "@/mainnet/vault";
-import { spentElsewhere } from "./data";
-import { canCancel } from "./send";
+import type { JournalEntry, MainnetVault } from "@/mainnet/vault";
+import { retireReserveOf, spentElsewhere } from "./data";
+import { STUCK_COMPLETION_MS, canCancel, stuckCompletion } from "./send";
 
 const id = (i: number) => i.toString(16).padStart(64, "0");
 const TX = "ab".repeat(32);
@@ -58,5 +58,47 @@ describe("Cancel is offered", () => {
     expect(canCancel(e, [c("sent")])).toBe(false);
     expect(canCancel(e, [c("failed")])).toBe(true);
     expect(canCancel(e, [c("abandoned")])).toBe(true);
+  });
+});
+
+describe("a refused or unseen completion (review 1, item 3)", () => {
+  const NOW = 1_800_000_000_000;
+  const base = { id: "r1", kind: "refund-end", state: "sent", sendAttempts: 1, firstSendAt: NOW - 60_000, meta: {} } as unknown as JournalEntry;
+  it("is stuck when the node refused it, or nobody saw it 10 blocks after the first send", () => {
+    expect(stuckCompletion(base, NOW)).toBe(false);
+    expect(stuckCompletion({ ...base, meta: { nodeRefused: true } }, NOW)).toBe(true);
+    expect(stuckCompletion({ ...base, state: "signed", meta: { nodeRefused: true } }, NOW)).toBe(true);
+    expect(stuckCompletion({ ...base, firstSendAt: NOW - STUCK_COMPLETION_MS - 1 }, NOW)).toBe(true);
+  });
+  it("never when it is in a mempool or a block, was never sent, or is another kind", () => {
+    const old = { ...base, firstSendAt: NOW - 2 * STUCK_COMPLETION_MS, meta: { nodeRefused: true } };
+    expect(stuckCompletion({ ...old, state: "mempool" }, NOW)).toBe(false);
+    expect(stuckCompletion({ ...old, state: "confirmed" }, NOW)).toBe(false);
+    expect(stuckCompletion({ ...old, sendAttempts: 0 }, NOW)).toBe(false);
+    expect(stuckCompletion({ ...old, kind: "refund-start" }, NOW)).toBe(false);
+  });
+});
+
+describe("retiring the T1 after a completed refund (review 2)", () => {
+  const t1 = { id: "t1", kind: "t1", state: "final" } as unknown as JournalEntry;
+  const fake = (active: JournalEntry | null) => {
+    const retired: string[] = [];
+    const vault = { journal: { activeT1: async () => active, retireT1: async (id: string) => { retired.push(id); return active!; } } } as unknown as Pick<MainnetVault, "journal">;
+    return { vault, retired };
+  };
+  const chain = (boxes: number, complete = true) => async () => ({ ok: true as const, value: { boxes: Array.from({ length: boxes }, () => ({}) as never), complete } });
+  it("only when the chain shows no reserve of the key, in a complete listing", async () => {
+    const a = fake(t1);
+    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(1))).toBe(false);
+    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(0, false))).toBe(false);
+    expect(await retireReserveOf(a.vault, "02".repeat(33), async () => ({ ok: false as const, problem: { kind: "network" as const, status: null, reason: "", retryInMs: null, txId: null } }))).toBe(false);
+    expect(a.retired).toEqual([]);
+    expect(await retireReserveOf(a.vault, "02".repeat(33), chain(0))).toBe(true);
+    expect(a.retired).toEqual(["t1"]);
+  });
+  it("never a T1 that is not final", async () => {
+    const b = fake({ ...t1, state: "confirmed" } as JournalEntry);
+    expect(await retireReserveOf(b.vault, "02".repeat(33), chain(0))).toBe(false);
+    expect(b.retired).toEqual([]);
   });
 });

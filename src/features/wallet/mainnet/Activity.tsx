@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { Card, Empty, Key, Lamp, Seg, short, type LampState, int } from "@/ui";
 import { RESERVE_ACTION_KINDS, type JournalEntry, type JournalState } from "@/mainnet/vault";
+import { p2pkAddress } from "@/mainnet/tx";
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
 import { submitEntry } from "./Redeem";
@@ -18,12 +19,17 @@ function amountOf(e: JournalEntry): bigint {
   try { return BigInt(String(v ?? "0")); } catch { return 0n; }
 }
 
+/** Another key's reserve is named by its owner's address, never the raw key (review 1). */
+function addressOf(pub: string): string {
+  try { return /^0[23][0-9a-f]{64}$/.test(pub) ? p2pkAddress(pub) : ""; } catch { return ""; }
+}
+
 function Row({ e }: { e: JournalEntry }) {
   const t = useT();
   const { vault, height } = useMw();
   const [open, setOpen] = useState(false);
   const who = e.kind === "note" ? String(e.meta.to ?? "") : e.kind === "redeem" ? String(e.meta.issuer ?? "") : e.kind === "withdraw" ? String(e.meta.to ?? "") :
-    e.kind === "topup" && e.meta.own === false ? String(e.meta.owner ?? "") : "";
+    e.kind === "topup" && e.meta.own === false ? addressOf(String(e.meta.owner ?? "")) : "";
   return (
     <li className="mw-act">
       <button type="button" className="mw-act-h" aria-expanded={open} onClick={() => setOpen(!open)}>

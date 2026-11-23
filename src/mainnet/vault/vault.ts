@@ -75,6 +75,9 @@ export interface SecretOptions {
   passphrase?: string;
   /** signToJournal("note") only, and required there: what the note promises, checked before and after signing. */
   note?: NoteIntent;
+  /** signToJournal("topup") only, and required there: the owner (R4) of the reserve the screen reviewed; the signed
+   *  reserve output must keep it (a refund start must keep this key). */
+  reserveOwner?: Hex;
 }
 
 export interface TakeOverOptions {
@@ -624,11 +627,14 @@ export class MainnetVault {
     const given: unknown = typeof opts === "object" && opts !== null ? opts.note : undefined;
     if (kind === "note" && !isObject(given)) throw new VaultError("bad-input", "a note needs opts.note: what it promises");
     const intent = given as NoteIntent;
+    const ownerGiven: unknown = typeof opts === "object" && opts !== null ? opts.reserveOwner : undefined;
+    const reserveOwner = typeof ownerGiven === "string" && /^0[23][0-9a-f]{64}$/.test(ownerGiven) ? ownerGiven : null;
     type Part = Omit<JournalRecordInput, "kind" | "pub">;
     const guard: Guard<Part> = {
       before(s, typed) {
         if (kind === "t1" && !typed) throw needPass("a reserve creation needs the passphrase", "t1");
         if (RESERVE_ACTION_KINDS.includes(kind) && !typed) throw needPass("a top-up or a refund moves the reserve: it needs the passphrase", kind);
+        if (kind === "topup" && !reserveOwner) throw new VaultError("bad-input", "a top-up needs opts.reserveOwner: the reviewed reserve's owner");
         if (kind === "note") {
           const p = notePolicy(s.pub, intent, s.promised); // also refuses a previous note that is not this key's
           if (p.passphrase && !typed) throw needPass("the notes since the passphrase was typed promise more than 25 % of the reserve", p.reserveValue > 0n ? "note-over-quarter" : "note-no-reserve");
@@ -638,8 +644,8 @@ export class MainnetVault {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
         if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: one input (action 0, another key's reserve), outputs [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
-        if (RESERVE_ACTION_KINDS.includes(kind) && !reserveActionPaysRight(part.signedRaw, s.pub, kind as ReserveActionKind)) {
-          throw new VaultError("bad-input", "a top-up or a refund pays only [the reserve or this key, change to this key, a miner fee of at most 0.001 ERG]");
+        if (RESERVE_ACTION_KINDS.includes(kind) && !reserveActionPaysRight(part.signedRaw, s.pub, kind as ReserveActionKind, reserveOwner)) {
+          throw new VaultError("bad-input", "a top-up or a refund pays only [the reserve (our tracker, the reviewed owner) or this key, change to this key, a miner fee of at most 0.001 ERG]");
         }
         if (kind === "note") {
           checkNoteBody(part.signedRaw, s.pub, intent);

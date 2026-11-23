@@ -8,7 +8,7 @@ import { Callout, Key, int } from "@/ui";
 import { MINER_FEE_NANOERG, checkWithdraw, computeTxId, signP2pkTransaction, signReserveAction, type ErgoBox, type ReserveActionKind, type UnsignedTx } from "@/mainnet/tx";
 import { depthAt, planCancel, spendable, type WithdrawPlan } from "@/mainnet/flows";
 import type { JournalEntry, JournalMetaValue, MainnetVault } from "@/mainnet/vault";
-import type { Problem } from "@/mainnet/net";
+import { localProblem, type Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { broadcastEntry, net, resend } from "./data";
 import { ChainLink, Erg, ProblemText, Steps, TimeHint, TxReview, useVaultError, type StepItem } from "./ui";
@@ -25,21 +25,45 @@ export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", 
   return send(vault, entry);
 }
 
-/** The same for a reserve action (top-up, refund start, completion): input 0 is the reserve box; the vault asks the
- *  passphrase every time and checks the signed outputs (reserveActionPaysRight). */
-export async function signAndSendReserve(vault: MainnetVault, kind: ReserveActionKind, tx: UnsignedTx, inputs: readonly ErgoBox[], meta: Record<string, JournalMetaValue>, height: number, passphrase: string): Promise<SendResult> {
-  const entry = await vault.signToJournal(kind, (sk) => {
+/**
+ * Signs a reserve action (top-up, refund start, completion) into the journal: input 0 is the reserve box; the vault
+ * asks the passphrase every time and checks the signed outputs (reserveActionPaysRight: our tracker, `reserveOwner`
+ * for a top-up). Throws only before the record: a resolved entry is signed and recorded, and the screen then follows
+ * it (send() never throws), so "Nothing was signed" is said only for a throw here.
+ */
+export async function signReserve(vault: MainnetVault, kind: ReserveActionKind, tx: UnsignedTx, inputs: readonly ErgoBox[], meta: Record<string, JournalMetaValue>, height: number, passphrase: string, reserveOwner?: string): Promise<JournalEntry> {
+  return vault.signToJournal(kind, (sk) => {
     const s = signReserveAction(tx, inputs, sk, kind);
     return { txId: s.txId, signedRaw: s.nodeJson, inputs: inputs.map((b) => b.boxId), meta, height };
-  }, { passphrase });
-  return send(vault, entry);
+  }, reserveOwner ? { passphrase, reserveOwner } : { passphrase });
 }
 
 /** Kinds whose stored bytes the wallet broadcasts itself (D1) and sends again when nobody has them. */
 export const BROADCAST_KINDS: ReadonlySet<JournalEntry["kind"]> = new Set(["t1", "withdraw", "topup", "refund-start", "refund-end"]);
 
-/** Sends a recorded entry (first time or again): markSending, then the exact stored text. */
-export const send = (vault: MainnetVault, entry: JournalEntry): Promise<SendResult> => broadcastEntry(vault, entry);
+/** Sends a recorded entry (first time or again): markSending, then the exact stored text. Never throws: the entry is
+ *  signed and recorded, so a failure here (markSending, the network) comes back as a problem to show with its progress. */
+export async function send(vault: MainnetVault, entry: JournalEntry): Promise<SendResult> {
+  try {
+    return await broadcastEntry(vault, entry);
+  } catch (e) {
+    const cur = await vault.journal.get(entry.id).catch(() => null);
+    return { entry: cur ?? entry, problem: localProblem("network", e instanceof Error ? e.message : String(e)) };
+  }
+}
+
+/** An open completion seen by nobody this long after its first send counts as stuck: about 10 blocks. */
+export const STUCK_COMPLETION_MS = 10 * 2 * 60_000;
+
+/**
+ * True when an open refund completion will not confirm as it is (review 1, item 3): the node refused it, or nobody
+ * has seen it 10 blocks after it was first sent. A new completion of the same box may then be signed: any completion
+ * of that box pays the same key, and only one can be mined (the other fails as spent elsewhere).
+ */
+export function stuckCompletion(e: JournalEntry, now = Date.now()): boolean {
+  if (e.kind !== "refund-end" || (e.state !== "signed" && e.state !== "sent") || e.sendAttempts === 0) return false;
+  return e.meta.nodeRefused === true || (e.firstSendAt !== null && now - e.firstSendAt > STUCK_COMPLETION_MS);
+}
 
 /** True when "Cancel" is offered: a T1, Withdraw, top-up or refund start the node refused, seen in no mempool or block (still "signed" when
  *  the first broadcast was refused, "sent" after an earlier one went through), not cancelled yet (or its cancel failed). */

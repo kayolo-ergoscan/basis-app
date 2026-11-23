@@ -6,7 +6,7 @@ import { useT } from "@/app/lang";
 import { explorer } from "@/chain/links";
 import { Callout, Card, CopyButton, CoverageTag, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
 import { TxLens } from "@/viz";
-import { dpOf, reserveTag } from "@/mainnet/flows";
+import { dpOf, reserveTag, type OwnReserve } from "@/mainnet/flows";
 import type { TrackedReserve } from "@/chain/ours";
 import { isVaultError, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
@@ -229,4 +229,22 @@ export function TimeHint({ k }: { k: "deposit" | "t1" | "note" | "redeem" | "ref
 export function BackLink({ to = "/wallet/mainnet", children }: { to?: string; children?: ReactNode }) {
   const t = useT();
   return <Link className="mw-back textlink t-small" to={to}>← {children ?? t("mw.nav.home")}</Link>;
+}
+
+/** Why the wallet does not act on "your reserve" (review 2: never a planted box), in words; the boxes when several. */
+export function OwnReserveRefusal({ own }: { own: Exclude<OwnReserve, { ok: true }> }) {
+  const t = useT();
+  if (own.why === "none") return <p className="t-small">{t("mw.top.noOwn")}</p>;
+  if (own.why === "incomplete") return <p className="t-small">{t("mw.res.chainIncomplete")}</p>;
+  return (
+    <Callout tone="alarm" title={t("mw.top.trustT")}>
+      {t(`mw.trust.${own.why}`, own.why === "several" ? { n: own.boxes.length } : undefined)}
+      {own.why === "several" && (
+        <ul className="mw-facts mw-facts-tight">
+          {own.boxes.map((b) => <li key={b.box.boxId}><ChainLink kind="box" id={b.box.boxId} /> <span className="mono t-small mw-dim">{b.box.tokens[0]?.tokenId.slice(0, 8) ?? "—"}…</span></li>)}
+        </ul>
+      )}
+      {own.why === "mismatch" && <span className="mw-reason"><ChainLink kind="box" id={own.box.box.boxId} /></span>}
+    </Callout>
+  );
 }
