@@ -13,7 +13,7 @@ const TRACKED = [tr()];
 const view = (o: Partial<ReserveView> = {}): ReserveView => ({
   id: BOX, source: "seed", contract: { current: true } as ReserveView["contract"], kind: "erg", height: 1, at: null, tx: null,
   origin: "creation", unspent: true, spent: null, prev: null, next: null, value: 100_000_000n,
-  nft: { id: "9f".repeat(32), name: null }, collateral: null, r5: null, r6: OUR_TRACKER.nft, r7: 0, creator: null, issues: [],
+  nft: { id: "9f".repeat(32), name: null }, collateral: null, r5: null, r6: OUR_TRACKER.nft, r7: 0, creator: null, creatorState: "known", issues: [],
   owner: { key: OWNER, addr: "9f-owner" as NonNullable<ReserveView["owner"]>["addr"], label: null },
   regs: { R4: `07${OWNER}`, R5: `64${"00".repeat(33)}0a2000`, R6: `0e20${OUR_TRACKER.nft}`, R7: "0500" },
   legacy: false, exit: null, snapshotExit: null as unknown as ReserveView["snapshotExit"], pending: 0, checked: null, ...o,

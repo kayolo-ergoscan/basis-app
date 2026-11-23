@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOurTracker, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOurTracker, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
