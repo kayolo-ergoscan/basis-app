@@ -165,11 +165,17 @@ export function Banner() {
   );
 }
 
+/** Routes without the tape: on the mainnet wallet (real ERG) a «ПЕСОЧНИЦА · ЛЕНТА — Ждём следующую фиксацию» bar under
+ *  the key reads as if that key were a play key, and nothing on the tape is about that page. */
+export const tapeHidden = (pathname: string): boolean => /^\/wallet\/mainnet(\/|$)/.test(pathname);
+
 /** Desktop live tape above the footer: the last commitments on the pulse bus and the Ergo height. */
 export function LiveTape() {
   const t = useT();
+  const { pathname } = useLocation();
   const [list, setList] = useState<Pulse[]>(() => { const l = pulse.last(); return l ? [l] : []; });
   usePulse((p) => setList((x) => [p, ...x].slice(0, 6)));
+  if (tapeHidden(pathname)) return null;
   const src = list[0]?.source ?? "sandbox";
   return (
     <div className="shell-tape" aria-label={t(src === "sandbox" ? "ui.tape.sandbox" : "ui.tape.mainnet")}>
