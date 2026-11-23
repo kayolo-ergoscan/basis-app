@@ -60,11 +60,6 @@ export interface ChainReserves {
   complete: boolean;
 }
 
-/** The value the passphrase rule counts against (design §4.2): the smallest of the key's reserves on chain, 0 for none. */
-export function chainReserveValue(r: ChainReserves | null): bigint {
-  if (!r || r.boxes.length === 0) return 0n;
-  return r.boxes.reduce((m, b) => (b.box.value < m ? b.box.value : m), r.boxes[0].box.value);
-}
 
 export interface WalletNet {
   readonly clock: ServerClock;

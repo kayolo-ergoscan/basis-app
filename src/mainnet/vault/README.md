@@ -98,7 +98,8 @@ progress. The design expects 0.5–1.5 s on phones.
     each bound to its input by its id), so it can never sign a reserve's refund completion;
   - `note`: when the notes signed since the passphrase was last typed (the unlock counts, so does any use with
     `passphrase`), this one included, promise more than 25 % of the reserve's value **on chain** (`opts.note.reserveValue`,
-    read from /v1, never the tracker's figure; 0 = none known, then it always asks). A note promises its increment over
+    read from /v1, never the tracker's figure: the box that holds the reserve NFT the wallet trusts, found by an exact
+    lookup, never the listing at the key; 0 = none it can prove, then it always asks). A note promises its increment over
     the pair's previous note, which must be this key's (its signature is checked);
   - `topup`, `refund-start`, `refund-end` (the reserve's own actions, `src/mainnet/tx/reserveaction.ts`): always. A
     top-up may send money to another key's reserve for good; a refund start can never be undone. `signToJournal` also

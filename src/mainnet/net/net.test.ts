@@ -7,7 +7,7 @@ import { RESERVE_TEMPLATE_HASH, p2pkTree } from "../tx";
 import { p2pkBox } from "../tx/testkit";
 import { ISSUER_A, R3_RESERVE_IN, TEXT } from "../tx/fixtures/chain";
 import { backoffMs, problemOf, reasonOf } from "./problems";
-import { REDEMPTION_TIMEOUT_MS, chainReserveValue, createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
+import { REDEMPTION_TIMEOUT_MS, createWalletNet, parseBroadcast, parseMempool, parseUnspentPage, mempoolInflow, type WalletNet } from "./wallet";
 
 const ME = "03" + "ab".repeat(32);
 const OTHER = "02" + "cd".repeat(32);
@@ -172,11 +172,8 @@ describe("wallet routes", () => {
     expect(r.ok && r.value).toMatchObject({ complete: true });
     expect(r.ok && r.value.boxes.map((u) => u.box.boxId)).toEqual([R3_RESERVE_IN.boxId]);
     expect(calls[0]).toMatchObject({ route: `/boxes/unspent/byErgoTreeTemplateHash/${RESERVE_TEMPLATE_HASH}?limit=50`, o: { method: "GET", priority: "poll" } });
-    expect(chainReserveValue(r.ok ? r.value : null)).toBe(650_000_000n);
     const none = await net.reservesOnChain(OTHER);
     expect(none.ok && none.value.boxes).toEqual([]);
-    expect(chainReserveValue(none.ok ? none.value : null)).toBe(0n);
-    expect(chainReserveValue(null)).toBe(0n);
     expect(await net.reservesOnChain("02ab")).toMatchObject({ ok: false, problem: { kind: "refused" } });
     // more reserves than four pages: a missing one is no proof
     const many = fakeNet({ "/boxes/unspent/byErgoTreeTemplateHash/*": ans(200, page([], true)) });
