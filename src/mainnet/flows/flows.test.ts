@@ -15,7 +15,7 @@ import { dpOf, ergInput, ergPlain, parseErg } from "./amount";
 import { setNumberLang, units } from "../../ui/engine/money";
 import { balanceOf, checkDestination, maxWithdraw, mempoolCreatesReserve, planCancel, planCombine, planT1, planWithdraw, spendable, t1CreateBody } from "./coins";
 import {
-  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, laterNoteCovers, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, signNote, storedIsEntry,
+  PREV_NOTE_AHEAD_MS, checkPreviousNote, coverage, laterNoteCovers, noteBody, noteEntryFields, noteTimestamp, pairJournalOf, pairStateOf, reserveCoverage, reserveTag, signNote, storedIsEntry,
 } from "./notes";
 import { decodeReceipt, encodeReceipt, fragmentOf, parseRequest, receiptLink, requestLink, verifyReceipt } from "./receipt";
 import { REDEEM_MIN, noteView, payoutOf, redeemableAmount, submitBodyOf, submitVerdict } from "./redeem";
@@ -151,6 +151,15 @@ describe("notes", () => {
     // a redemption mined, not yet counted by the tracker: the low figure settles (money P2-8)
     expect(reserveCoverage({ collateral: 500_000_000n, debt: 1_000_000_000n, pendingRedemption: 500_000_000n })).toEqual({ pct: 50, settled: 100, settling: true });
     expect(reserveCoverage({ collateral: 500_000_000n, debt: 1_000_000_000n, pendingRedemption: 0n })).toEqual({ pct: 50, settled: 50, settling: false });
+  });
+  it("the tag says settling while a redemption waits and the reserve is covered once it counts; a shortfall keeps its band", () => {
+    // the case seen on 22 Nov: 0.15 ERG against 0.20 promised, 0.05 of it already redeemed → 100 % settled, was «Тревога»
+    expect(reserveTag({ collateral: 150_000_000n, debt: 200_000_000n, pendingRedemption: 50_000_000n })).toEqual({ kind: "settling" });
+    expect(reserveTag({ collateral: 150_000_000n, debt: 100_000_000n, pendingRedemption: 100_000_000n })).toEqual({ kind: "settling" });
+    expect(reserveTag({ collateral: 50_000_000n, debt: 200_000_000n, pendingRedemption: 50_000_000n })).toEqual({ kind: "band", pct: 25 });
+    expect(reserveTag({ collateral: 150_000_000n, debt: 200_000_000n, pendingRedemption: 0n })).toEqual({ kind: "band", pct: 75 });
+    expect(reserveTag({ collateral: 110_000_000n, debt: 100_000_000n, pendingRedemption: 0n })).toEqual({ kind: "band", pct: 110 });
+    expect(reserveTag({ collateral: 150_000_000n, debt: 0n, pendingRedemption: 0n })).toEqual({ kind: "none" });
   });
 });
 

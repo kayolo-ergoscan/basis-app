@@ -3,12 +3,12 @@
 // reserve → first note). Reads within the §6.4 budget, only while visible.
 import { useMemo } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, CoverageTag, Key, Lamp } from "@/ui";
+import { Callout, Card, Key, Lamp } from "@/ui";
 import { balanceOf, spendable } from "@/mainnet/flows";
 import { isOpenState } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent, useWatchList } from "./data";
-import { ChainLink, Erg, ProblemText, Steps, ergText } from "./ui";
+import { ChainLink, Erg, ProblemText, ReserveTag, Steps, ergText } from "./ui";
 
 export function HomeScreen() {
   const t = useT();
@@ -23,7 +23,6 @@ export function HomeScreen() {
   const open = mine.filter((e) => isOpenState(e.state));
   const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned");
   const t1 = mine.find((e) => e.kind === "t1" && e.state !== "failed" && e.state !== "abandoned");
-  const cov = reserve && reserve.debt > 0n ? Number((reserve.collateral * 10000n) / reserve.debt) / 100 : null;
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
   const step = !funded ? "fund" : !reserve && !t1 ? "reserve" : notes.length === 0 && reserve ? "note" : null;
   return (
@@ -41,7 +40,7 @@ export function HomeScreen() {
               <Key size="sm" icon="right" to={bal && bal.nano > 0n ? "/wallet/mainnet/withdraw" : undefined} disabled={!bal || bal.nano === 0n}>{t("mw.home.withdraw")}</Key>
             </div>
           </Card>
-          <Card title={t("mw.home.reserveT")} aside={cov !== null ? <CoverageTag pct={cov} small /> : undefined}>
+          <Card title={t("mw.home.reserveT")} aside={reserve ? <ReserveTag r={reserve} small /> : undefined}>
             {reserve ? (
               <>
                 <div className="mw-figure big"><b><Erg nano={reserve.collateral} /></b><span className="t-small mw-dim">{t("mw.home.promised", { debt: ergText(reserve.debt) })}</span></div>

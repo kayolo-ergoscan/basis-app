@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CoverageTag, Field, Key, Switch, TextInput, int } from "@/ui";
+import { AmountInput, Callout, Card, Field, Key, Switch, TextInput, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
   buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
@@ -20,7 +20,7 @@ import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
-import { ChainLink, Erg, Gate, ProblemText, TimeHint, TxReview, ergText, useVaultError } from "./ui";
+import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
 
 type Phase =
   | { k: "idle" }
@@ -34,10 +34,10 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
   const t = useT();
   const { pct: cov, settled, settling } = reserveCoverage(r);
   // a low figure while redemptions wait for the chain is the tracker's short delay, not a shortfall (money P2-8)
-  // then the tag shows the settled figure too: a red "under" next to the calm note would say the opposite
+  // the tag says "settling" then (ReserveTag): a red band next to the calm note would say the opposite
   const lowOnlyForNow = settling && cov !== null && cov < 100 && (settled === null || settled >= 100);
   return (
-    <Card title={t("mw.res.cardT")} aside={cov !== null ? <CoverageTag pct={lowOnlyForNow && settled !== null ? settled : cov} /> : undefined}>
+    <Card title={t("mw.res.cardT")} aside={<ReserveTag r={r} />}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={r.collateral} /></b></div>
         <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={r.debt} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(cov) }) : t("mw.res.noDebt")}</span>

@@ -66,6 +66,17 @@ export function reserveCoverage(r: { collateral: bigint; debt: bigint; pendingRe
   return { pct, settled: coverage(r.collateral, r.debt - r.pendingRedemption), settling: true };
 }
 
+/**
+ * What a reserve's tag shows. While a redemption waits for the chain and the reserve is covered once it is counted,
+ * the tag says "settling" instead of a band. A band of a figure that changes within minutes would warn about nothing:
+ * at exactly 100 % it said «Тревога» (operator, 23 Nov 2026). A real shortfall still shows its band.
+ */
+export function reserveTag(r: { collateral: bigint; debt: bigint; pendingRedemption: bigint }): { kind: "none" } | { kind: "settling" } | { kind: "band"; pct: number } {
+  const { pct, settled, settling } = reserveCoverage(r);
+  if (settling && (settled === null || settled >= 100)) return { kind: "settling" };
+  return pct === null ? { kind: "none" } : { kind: "band", pct };
+}
+
 // ─── the pair's previous note (keys review P0-1, money review P1-1) ──────────────────────────────
 
 /** A previous note may be dated at most this much after our reading of the tracker's clock: the tracker refuses any

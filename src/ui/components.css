@@ -60,6 +60,11 @@
 .key.hold { overflow: hidden; isolation: isolate; }
 .key.hold::before { content: ''; position: absolute; inset: 0; z-index: -1; transform-origin: left; transform: scaleX(var(--p, 0)); background: var(--hold-fill, var(--foil-metal)); }
 .key.hold .secs { font: 500 11px/1 var(--f-mono); opacity: .6; }
+/* A long hold label wraps onto a second line instead of being cut: on a phone «Подписать +0,25 ERG — удерживайте»
+   lost both the word «hold» and, with a bigger amount, the amount itself (23 Nov 2026). One line where it fits. */
+.key.hold { white-space: normal; height: auto; min-height: var(--h); padding-top: 7px; padding-bottom: 7px; }
+.key.hold .lbl { line-height: 1.25; text-align: center; text-wrap: balance; overflow: visible; }
+.key.hold .secs { white-space: nowrap; flex: none; }
 
 /* kit: keys keep their own shadow under the focus halo */
 .key { --key-sh: 0 1px 0 var(--key2-hi) inset, 0 2px 0 var(--key2-skirt), 0 6px 14px -6px rgba(var(--shade), .5); box-shadow: var(--key-sh); }

@@ -4,9 +4,10 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorer } from "@/chain/links";
-import { Callout, Card, CopyButton, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
+import { Callout, Card, CopyButton, CoverageTag, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
 import { TxLens } from "@/viz";
-import { dpOf } from "@/mainnet/flows";
+import { dpOf, reserveTag } from "@/mainnet/flows";
+import type { TrackedReserve } from "@/chain/ours";
 import { isVaultError, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
 import { simTxOf, type ErgoBox, type UnsignedTx } from "@/mainnet/tx";
@@ -29,6 +30,15 @@ export function Erg({ nano, sign, tone, unit = true }: { nano: bigint; sign?: "f
 export const ergText = (nano: bigint): string => `${units(nano, 9, dpOf(nano))}\u00a0ERG`;
 
 /** A link to ergoscan.me for a transaction, box or address. */
+/** The reserve's tag on Home and Reserve: its coverage band, or a calm "settling" while a redemption waits for the chain. */
+export function ReserveTag({ r, small }: { r: TrackedReserve; small?: boolean }) {
+  const t = useT();
+  const tag = reserveTag(r);
+  if (tag.kind === "none") return null;
+  if (tag.kind === "band") return <CoverageTag pct={tag.pct} small={small} />;
+  return <Tag glyph={small ? undefined : "◷"} style={small ? { height: 18 } : undefined}>{t("mw.res.settlingTag")}</Tag>;
+}
+
 export function ChainLink({ kind, id, children }: { kind: "tx" | "box" | "address"; id: string; children?: ReactNode }) {
   return (
     <a className="mw-link" href={explorer[kind](id)} target="_blank" rel="noreferrer">
