@@ -235,7 +235,7 @@ export function BackLink({ to = "/wallet/mainnet", children }: { to?: string; ch
 export function OwnReserveRefusal({ own }: { own: Exclude<OwnReserve, { ok: true }> }) {
   const t = useT();
   if (own.why === "none") return <p className="t-small">{t("mw.top.noOwn")}</p>;
-  if (own.why === "unchecked") return <Callout tone="calm" title={t("mw.res.uncheckedT")}>{t("mw.trust.unchecked")}</Callout>;
+  if (own.why === "unchecked") return <Callout tone="calm" title={t("mw.res.uncheckedT")}>{t("mw.trust.uncheckedB")}</Callout>;
   return (
     <Callout tone="alarm" title={t("mw.top.trustT")}>
       {t(`mw.trust.${own.why}`, own.why === "mismatch" ? { nft: `${own.nft.slice(0, 8)}…` } : undefined)}
