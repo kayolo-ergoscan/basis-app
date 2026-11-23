@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
-import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
+import { EMERGENCY_BLOCKS, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
@@ -320,7 +320,7 @@ function ReservesColumn({ obs }: { obs: Observatory }) {
           {all ? t("network.col.showLess") : t("network.col.showAll", { n: list.length })}
         </button>
       )}
-      <TopUpClosed />
+      <TopUpKey />
     </section>
   );
 }
@@ -332,17 +332,30 @@ export function exitSub(obs: Observatory, cls: ExitClass, lang: Lang): string {
   return parts.join(" · ");
 }
 
-/** The one metal key of the view, disabled: the site has no top-up yet. On a current-contract reserve page it says who
- *  may top up (basis.es action #1: anyone, ≥ 0.1 ERG, no signature); elsewhere, why the legacy test reserves should not be. */
-export function TopUpClosed({ current = false }: { current?: boolean }) {
+/** The view's one metal key, Top up (basis.es action #1: anyone, ≥ 0.1 ERG, no signature). On a reserve page it opens
+ *  the mainnet wallet's top-up with that reserve chosen, when the wallet tops it up (unspent, current contract, ERG,
+ *  ErgoScan's tracker, no refund); otherwise it stays shut and says why. On the lists it opens the wallet's own reserve.
+ *  The wallet reads the reserve again from the chain before anything is signed. */
+export function TopUpKey({ r }: { r?: ReserveView }) {
   const t = useT();
-  const lang = t.lang as Lang;
+  const why = r ? topUpShut(r) : null;
+  const to = !r ? "/wallet/mainnet/topup" : why || !r.nft ? null : `/wallet/mainnet/topup?nft=${r.nft.id}`;
   return (
     <div className="nw-topup">
-      <Key variant="metal" icon="coin" disabled aria-disabled="true" aria-describedby="nw-topup-why">{t("network.topup.key")}</Key>
-      <p id="nw-topup-why"><b>{pick(copy.topUpClosed, lang)}</b> {t(current ? "network.topup.whyCurrent" : "network.topup.why")}</p>
+      {to ? <Key variant="metal" icon="coin" to={to}>{t("network.topup.key")}</Key>
+        : <Key variant="metal" icon="coin" disabled aria-disabled="true" aria-describedby="nw-topup-why">{t("network.topup.key")}</Key>}
+      <p id="nw-topup-why">{!r ? t("network.topup.list") : why ? <><b>{t("network.topup.shut")}</b> {t(`network.topup.why.${why}`)}</> : t("network.topup.open")}</p>
     </div>
   );
+}
+/** Why the wallet does not top up this reserve (null: it does). The wallet's own rules, tx/reserveaction.ts readReserve. */
+export function topUpShut(r: ReserveView): "spent" | "legacy" | "token" | "tracker" | "refund" | null {
+  if (!r.unspent) return "spent";
+  if (!r.contract?.current || r.legacy) return "legacy";
+  if (r.kind !== "erg" || r.collateral) return "token";
+  if (!r.nft || r.r6 !== OUR_TRACKER.nft) return "tracker";
+  if (r.r7 !== null && r.r7 !== 0) return "refund";
+  return null;
 }
 
 export function unitKind(r: ReserveView): "erg" | "use" | "use-lookalike" | "other" {

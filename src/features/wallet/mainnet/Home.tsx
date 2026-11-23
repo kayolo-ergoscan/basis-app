@@ -3,8 +3,8 @@
 // reserve → first note). Reads within the §6.4 budget, only while visible.
 import { useMemo } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, Key, Lamp } from "@/ui";
-import { balanceOf, spendable } from "@/mainnet/flows";
+import { Callout, Card, Key, Lamp, Tag, int } from "@/ui";
+import { balanceOf, reserveLife, spendable } from "@/mainnet/flows";
 import { isOpenState } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent, useWatchList } from "./data";
@@ -19,6 +19,7 @@ export function HomeScreen() {
   const usable = useMemo(() => (me && un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : []), [me, un.value, entries]);
   const bal = un.value ? balanceOf(un.value.boxes, usable) : null;
   const reserve = (res.value ?? [])[0] ?? null;
+  const life = reserve ? reserveLife(reserve.refundHeight, height) : null;
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
   const open = mine.filter((e) => isOpenState(e.state));
   const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned");
@@ -44,9 +45,19 @@ export function HomeScreen() {
             {reserve ? (
               <>
                 <div className="mw-figure big"><b><Erg nano={reserve.collateral} /></b><span className="t-small mw-dim">{t("mw.home.promised", { debt: ergText(reserve.debt) })}</span></div>
+                {life?.kind === "refund" && (
+                  <p className="t-small"><Tag tone={life.clock.open ? "ok" : "metal"} glyph="◷">{life.clock.open ? t("mw.ref.tagOpen") : t("mw.ref.tagWaiting")}</Tag> {life.clock.open ? t("mw.home.refundOpen") : t("mw.home.refundRun", { h: int(Number(life.clock.unlockAt)) })}</p>
+                )}
                 <div className="mw-actions">
-                  <Key size="sm" icon="pay" variant="primary" to="/wallet/mainnet/pay">{t("mw.nav.pay")}</Key>
-                  <Key size="sm" icon="coin" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key>
+                  {life?.kind === "refund" ? (
+                    <Key size="sm" icon="coin" variant={life.clock.open ? "primary" : undefined} to="/wallet/mainnet/refund">{t("mw.home.refundSee")}</Key>
+                  ) : (
+                    <>
+                      <Key size="sm" icon="pay" variant="primary" to="/wallet/mainnet/pay">{t("mw.nav.pay")}</Key>
+                      <Key size="sm" icon="in" to="/wallet/mainnet/topup">{t("mw.res.topUp")}</Key>
+                    </>
+                  )}
+                  <Key size="sm" icon="coin" variant="quiet" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key>
                 </div>
               </>
             ) : t1 ? (

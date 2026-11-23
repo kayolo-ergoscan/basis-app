@@ -66,10 +66,6 @@ export const copy = {
     "В основной сети Basis пока эксперимент. Ранние тестовые резервы здесь — на старых версиях контракта. С 22 ноября 2026 года работает трекер ErgoScan (бета): к нему можно подключать резервы на текущих контрактах.",
   ),
   currentContractsEmpty: t("No reserve under the current contracts yet.", "Под текущими контрактами резервов пока нет."),
-  topUpClosed: t(
-    "Top-up is not on this site yet.",
-    "Пополнения на этом сайте пока нет.",
-  ),
   legacyBadge: t("legacy contract", "старый контракт"),
 
   /** Sandbox labels (PRODUCT §1: always labelled). */

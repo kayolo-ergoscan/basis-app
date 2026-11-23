@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Key, int } from "@/ui";
-import { MINER_FEE_NANOERG, checkWithdraw, computeTxId, signP2pkTransaction, type ErgoBox, type UnsignedTx } from "@/mainnet/tx";
+import { MINER_FEE_NANOERG, checkWithdraw, computeTxId, signP2pkTransaction, signReserveAction, type ErgoBox, type ReserveActionKind, type UnsignedTx } from "@/mainnet/tx";
 import { depthAt, planCancel, spendable, type WithdrawPlan } from "@/mainnet/flows";
 import type { JournalEntry, JournalMetaValue, MainnetVault } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
@@ -25,13 +25,27 @@ export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", 
   return send(vault, entry);
 }
 
+/** The same for a reserve action (top-up, refund start, completion): input 0 is the reserve box; the vault asks the
+ *  passphrase every time and checks the signed outputs (reserveActionPaysRight). */
+export async function signAndSendReserve(vault: MainnetVault, kind: ReserveActionKind, tx: UnsignedTx, inputs: readonly ErgoBox[], meta: Record<string, JournalMetaValue>, height: number, passphrase: string): Promise<SendResult> {
+  const entry = await vault.signToJournal(kind, (sk) => {
+    const s = signReserveAction(tx, inputs, sk, kind);
+    return { txId: s.txId, signedRaw: s.nodeJson, inputs: inputs.map((b) => b.boxId), meta, height };
+  }, { passphrase });
+  return send(vault, entry);
+}
+
+/** Kinds whose stored bytes the wallet broadcasts itself (D1) and sends again when nobody has them. */
+export const BROADCAST_KINDS: ReadonlySet<JournalEntry["kind"]> = new Set(["t1", "withdraw", "topup", "refund-start", "refund-end"]);
+
 /** Sends a recorded entry (first time or again): markSending, then the exact stored text. */
 export const send = (vault: MainnetVault, entry: JournalEntry): Promise<SendResult> => broadcastEntry(vault, entry);
 
-/** True when "Cancel" is offered: a T1 or Withdraw the node refused, seen in no mempool or block (still "signed" when
+/** True when "Cancel" is offered: a T1, Withdraw, top-up or refund start the node refused, seen in no mempool or block (still "signed" when
  *  the first broadcast was refused, "sent" after an earlier one went through), not cancelled yet (or its cancel failed). */
 export function canCancel(e: JournalEntry, entries: readonly JournalEntry[]): boolean {
-  if ((e.kind !== "t1" && e.kind !== "withdraw") || (e.state !== "sent" && e.state !== "signed") || e.sendAttempts === 0 || e.meta.nodeRefused !== true) return false;
+  // a completion spends only the reserve: none of its inputs is a box at the key, so there is nothing to spend back
+  if (!BROADCAST_KINDS.has(e.kind) || e.kind === "refund-end" || (e.state !== "sent" && e.state !== "signed") || e.sendAttempts === 0 || e.meta.nodeRefused !== true) return false;
   const c = typeof e.meta.cancelledBy === "string" ? entries.find((x) => x.id === e.meta.cancelledBy) : undefined;
   return !c || c.state === "failed" || c.state === "abandoned";
 }
@@ -118,13 +132,13 @@ export function entrySteps(e: JournalEntry, tip: number | null, t: (k: string, v
 }
 
 /** One entry's progress, its id on ergoscan.me, and the actions an open entry offers. */
-export function EntryProgress({ vault, entry, tip, extra, timeKey }: { vault: MainnetVault; entry: JournalEntry; tip: number | null; extra?: StepItem[]; timeKey?: "t1" | "redeem" }) {
+export function EntryProgress({ vault, entry, tip, extra, timeKey }: { vault: MainnetVault; entry: JournalEntry; tip: number | null; extra?: StepItem[]; timeKey?: "t1" | "redeem" | "deposit" }) {
   const t = useT();
   const { entries } = useMw();
   const cancelEntry = typeof entry.meta.cancelledBy === "string" ? entries.find((x) => x.id === entry.meta.cancelledBy) ?? null : null;
   const [problem, setProblem] = useState<Problem | null>(null);
   const [busy, setBusy] = useState(false);
-  const canResend = (entry.kind === "t1" || entry.kind === "withdraw") && (entry.state === "sent" || entry.state === "signed");
+  const canResend = BROADCAST_KINDS.has(entry.kind) && (entry.state === "sent" || entry.state === "signed");
   const again = async () => {
     setBusy(true);
     try {

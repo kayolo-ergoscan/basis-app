@@ -1,10 +1,11 @@
-// /wallet/mainnet/activity — the journal of this key: every signed T1, note, redemption and withdrawal, newest first,
+// /wallet/mainnet/activity — the journal of this key: every signed T1, top-up, refund step, note, redemption and
+// withdrawal, newest first,
 // with its state, its id on ergoscan.me, and the actions an open entry offers (send the same bytes again, discard one
 // that was provably never sent). The journal lives in this browser only.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { Card, Empty, Key, Lamp, Seg, short, type LampState, int } from "@/ui";
-import type { JournalEntry, JournalState } from "@/mainnet/vault";
+import { RESERVE_ACTION_KINDS, type JournalEntry, type JournalState } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
 import { submitEntry } from "./Redeem";
@@ -21,7 +22,8 @@ function Row({ e }: { e: JournalEntry }) {
   const t = useT();
   const { vault, height } = useMw();
   const [open, setOpen] = useState(false);
-  const who = e.kind === "note" ? String(e.meta.to ?? "") : e.kind === "redeem" ? String(e.meta.issuer ?? "") : e.kind === "withdraw" ? String(e.meta.to ?? "") : "";
+  const who = e.kind === "note" ? String(e.meta.to ?? "") : e.kind === "redeem" ? String(e.meta.issuer ?? "") : e.kind === "withdraw" ? String(e.meta.to ?? "") :
+    e.kind === "topup" && e.meta.own === false ? String(e.meta.owner ?? "") : "";
   return (
     <li className="mw-act">
       <button type="button" className="mw-act-h" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -56,7 +58,8 @@ export function ActivityScreen() {
   const { me, entries } = useMw();
   const [f, setF] = useState<Filter>("all");
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
-  const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : e.kind === f));
+  // "Reserve" lists everything that made or moved the reserve: T1, top-ups, the refund's two steps
+  const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : f === "t1" ? e.kind === "t1" || RESERVE_ACTION_KINDS.includes(e.kind) : e.kind === f));
   return (
     <div className="mw-single">
       <header className="mw-screen-h">

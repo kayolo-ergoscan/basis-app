@@ -86,7 +86,7 @@ Annotation { id, from, to, titleEN, titleRU, textEN, textRU, kind, section: "doc
 
 | Group | Keys |
 |---|---|
-| Status | `mainnetHonest`, `currentContractsEmpty`, `experimental`, `legacyBadge`, `topUpClosed` |
+| Status | `mainnetHonest`, `currentContractsEmpty`, `experimental`, `legacyBadge` |
 | Brand | `independence`, `independenceLong`, `brandTag` ("unofficial · ErgoScan"), `brandFull`, `eyebrow`, `heroHeadline {line1, line2}`, `noEndorsement` |
 | Tracker | `trackerLine` (Cannot steal · Can censor), `trackerLineLong` |
 | Fees | `fee` (Protocol fee: none (basis.es) · Miner fee 0.001 ERG), `feeProtocol`, `feeMiner`, `feeOffchain`, `feeDenial` |

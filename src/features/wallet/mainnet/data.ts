@@ -165,6 +165,10 @@ export function useResource<T>(res: Resource<T> | null, o: PollOptions = {}): Vi
 export const R = {
   trackerState: () => resource("state", (o) => net().trackerState(o)),
   reservesOf: (pk: string) => resource(`reserves:${pk}`, (o) => net().reservesOf(pk, o)),
+  /** The key's reserves as the chain shows them (/v1): what top-up and refund act on. */
+  reservesOnChain: (pk: string) => resource(`chain-reserves:${pk}`, (o) => net().reservesOnChain(pk, o)),
+  /** The box that holds a reserve NFT now (/v1). */
+  reserveByNft: (nft: string) => resource(`reserve-nft:${nft}`, (o) => net().reserveByNft(nft, o)),
   keyStatus: (pk: string) => resource(`key:${pk}`, (o) => net().keyStatus(pk, o)),
   pair: (issuer: string, recipient: string) => resource(`pair:${issuer}:${recipient}`, (o) => net().pairNote(issuer, recipient, o)),
   unspent: (address: string, tree: string) => resource(`unspent:${address}`, (o) => net().unspent(address, tree, o)),
@@ -216,7 +220,9 @@ export function useWatchList(me: string | null): [WatchedIssuer[], (fn: (l: Watc
 // ─── the journal watcher ────────────────────────────────────────────────────────────────────────
 
 /** Tx kinds the watcher follows on chain; notes follow the pair route instead. */
-const ON_CHAIN = new Set(["t1", "withdraw", "redeem"]);
+const ON_CHAIN = new Set(["t1", "withdraw", "redeem", "topup", "refund-start", "refund-end"]);
+/** Kinds the wallet broadcasts itself (D1): a dropped one is sent again with the same bytes. */
+const REBROADCAST = new Set(["t1", "withdraw", "topup", "refund-start", "refund-end"]);
 const RESEND_EVERY_MS = 10 * 60_000;
 /** A stuck entry's inputs are looked up at most this many per block (in turns), for a foreign spend. */
 const INPUT_CHECKS_PER_BLOCK = 10;
@@ -277,9 +283,11 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
           }
           const step = nextTrackState(e, { status: st.value, inMempool: inMempool.has(e.txId!), conflict, trackerBoxSpent });
           if (step) await vault.journal.update(e.id, { ...step, lastHeight: height });
+          // a completed refund closed the reserve: the key may create a new one (the journal's one-reserve rule)
+          if (e.kind === "refund-end" && (step?.state ?? e.state) === "final") await retireReserveOf(vault, e.pub);
           else if (e.lastHeight !== height) await vault.journal.update(e.id, { lastHeight: height });
           // a T1 or Withdraw nobody sees: the same bytes again (idempotent), at most every 10 minutes
-          if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && !conflict && e.kind !== "redeem" && (step?.state ?? e.state) === "sent" &&
+          if (e.state !== "failed" && !st.value && !inMempool.has(e.txId!) && !conflict && REBROADCAST.has(e.kind) && (step?.state ?? e.state) === "sent" &&
               e.lastSendAt !== null && Date.now() - e.lastSendAt > RESEND_EVERY_MS) {
             await resend(vault, e);
           }
@@ -289,9 +297,15 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
   }, [vault, me, visible, height, open, mem.value]);
 }
 
-/** Sends a signed T1 or Withdraw again: the exact stored bytes (write-ahead: markSending first). */
+/** After a completed refund (final, 2 confirmations): the key's final T1 stops blocking a new reserve. */
+export async function retireReserveOf(vault: MainnetVault, pub: string): Promise<void> {
+  const t1 = await vault.journal.activeT1(pub);
+  if (t1 && t1.state === "final") await vault.journal.retireT1(t1.id);
+}
+
+/** Sends a signed T1, Withdraw, top-up or refund again: the exact stored bytes (write-ahead: markSending first). */
 export async function resend(vault: MainnetVault, e: JournalEntry): Promise<Problem | null> {
-  if (e.kind !== "t1" && e.kind !== "withdraw") return null;
+  if (!REBROADCAST.has(e.kind)) return null;
   return (await broadcastEntry(vault, e)).problem;
 }
 

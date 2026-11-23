@@ -9,7 +9,7 @@ import { copy, pick } from "@/content";
 import { decodeConstant, describeExit, isOurTestReserve, OurTestReserveTag, REFUND_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
 import { amount, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, EXIT_ORDER, ExitTag, Ext, Facts, IdLink, KeyName, NetLoading, NftTile, TrackerTag, trackerSilent, UntrustedName, useProgressive } from "./parts";
-import { FeedRow, r7Word, reserveRank, TopUpClosed, TrackerPanel, treeWord, unitKind, VaultCard } from "./Overview";
+import { FeedRow, r7Word, reserveRank, TopUpKey, TrackerPanel, treeWord, unitKind, VaultCard } from "./Overview";
 import { ExitClocks } from "./lazyViz";
 import { redemptionAmount, unitOf, VaultCoin } from "./viz";
 
@@ -110,7 +110,7 @@ export function ReservesList({ obs }: { obs: Observatory }) {
           )}
         </>
       )}
-      <TopUpClosed />
+      <TopUpKey />
     </>
   );
 }
@@ -294,7 +294,7 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               ...(r.issues.length ? [[t("network.rv.issues"), <span className="nw-issues">{r.issues.map((i) => <code key={i}>{i}</code>)}</span>] as [ReactNode, ReactNode]] : []),
             ]} />
           </Block>
-          <TopUpClosed current={!!r.contract?.current} />
+          <TopUpKey r={r} />
         </aside>
       </div>
     </>

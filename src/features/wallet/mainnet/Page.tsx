@@ -19,6 +19,8 @@ import { HomeScreen } from "./Home";
 import { StartScreen } from "./Start";
 import { FundScreen } from "./Fund";
 import { ReserveScreen } from "./Reserve";
+import { TopUpScreen } from "./TopUp";
+import { RefundScreen } from "./Refund";
 import { PayScreen } from "./Pay";
 import { ReceiveScreen } from "./Receive";
 import { RedeemScreen } from "./Redeem";
@@ -126,6 +128,8 @@ export default function MainnetWallet() {
             <Route path="setup" element={<StartScreen />} />
             <Route path="fund" element={<FundScreen />} />
             <Route path="reserve" element={<ReserveScreen />} />
+            <Route path="topup" element={<TopUpScreen />} />
+            <Route path="refund" element={<RefundScreen />} />
             <Route path="pay" element={<PayScreen />} />
             <Route path="receive" element={<ReceiveScreen />} />
             <Route path="redeem" element={<RedeemScreen />} />

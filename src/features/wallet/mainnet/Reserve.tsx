@@ -3,18 +3,19 @@
 // checked byte for byte against the app's pinned constants → the transaction, checked → review → the passphrase again
 // (a T1 moves the whole reserve: the vault asks every time) → hold to sign → journal → broadcast → depth 2 → tracked →
 // active. One reserve per key: a second one would be quarantined and block
-// every new note for 60 days. Top-up and refund come later.
+// every new note for 60 days. Once it exists: its state (active, refund running, refund available) and the actions
+// that apply (Top up: TopUp.tsx; refund start and completion: Refund.tsx).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, Field, Key, Switch, TextInput, int } from "@/ui";
+import { AmountInput, Callout, Card, Field, Key, Switch, Tag, TextInput, int } from "@/ui";
 import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
   buildReserveCreation, checkReserveCreation, checkReservePayload, checkWithdraw, computeTxId, outputBoxes, parseReservePayload,
   type ErgoBox, type ReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
-import { ergInput, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
-import { blocksNewT1, isVaultError, type JournalEntry } from "@/mainnet/vault";
+import { blocksToDays, ergInput, isBroadcastLimit, mempoolCreatesReserve, parseErg, planCombine, planT1, reserveCoverage, reserveLife, spendable, t1CreateBody, type WithdrawPlan } from "@/mainnet/flows";
+import { RESERVE_ACTION_KINDS, blocksNewT1, isOpenState, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
@@ -44,11 +45,36 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
           {r.pendingRedemption > 0n && <span className="t-small mw-dim">{t("mw.res.pendingRed", { amount: ergText(r.pendingRedemption) })}</span>}</div>
       </div>
       <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
-      {r.refundHeight > 0 && <Callout tone="alarm">{t("mw.res.inRefund", { h: int(r.refundHeight) })}</Callout>}
       {cov !== null && cov < 100 && (lowOnlyForNow ? <Callout tone="calm">{t("mw.res.settling")}</Callout> : <Callout tone="alarm">{t("mw.res.under")}</Callout>)}
-      <p className="t-small mw-dim">{t("mw.res.lock")}</p>
-      <p className="t-small mw-dim">{t("mw.res.later")}</p>
+      <ReserveLifeBlock refundHeight={r.refundHeight} />
     </Card>
+  );
+}
+
+/** Where the reserve stands (active, refund running, refund available) and the actions that apply (design §9). R7 as
+ *  the tracker reports it; the Top up and Refund screens read the chain again before anything is signed. */
+export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
+  const t = useT();
+  const { height } = useMw();
+  const life = reserveLife(refundHeight, height);
+  if (life.kind === "active") {
+    return (
+      <div className="mw-form">
+        <p className="t-small"><Tag tone="ok" glyph="●">{t("mw.ref.active")}</Tag> {t("mw.res.activeB")}</p>
+        <div className="mw-actions">
+          <Key size="sm" icon="coin" to="/wallet/mainnet/topup">{t("mw.res.topUp")}</Key>
+          <Key size="sm" variant="quiet" to="/wallet/mainnet/refund">{t("mw.res.refundGo")}</Key>
+        </div>
+        <p className="t-small mw-dim">{t("mw.res.lock")}</p>
+      </div>
+    );
+  }
+  const unlock = int(Number(life.clock.unlockAt));
+  return (
+    <Callout tone={life.clock.open ? "info" : "alarm"} title={life.clock.open ? t("mw.res.refundOpenT") : t("mw.res.refundT", { h: int(Number(life.clock.startedAt)) })}>
+      <p>{life.clock.open ? t("mw.res.refundOpenB", { h: unlock }) : height === null ? t("mw.res.refundB0", { h: unlock }) : t("mw.res.refundB", { h: unlock, blocks: int(life.clock.blocksLeft), days: blocksToDays(life.clock.blocksLeft) })}</p>
+      <Key size="sm" variant={life.clock.open ? "primary" : undefined} to="/wallet/mainnet/refund">{life.clock.open ? t("mw.res.refundEnd") : t("mw.res.refundSee")}</Key>
+    </Callout>
   );
 }
 
@@ -86,6 +112,7 @@ export function ReserveScreen() {
   const [passWrong, setPassWrong] = useState(false);
   const t1 = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "t1" && blocksNewT1(e)) ?? null : null), [entries, me]);
   const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
+  const actions = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && RESERVE_ACTION_KINDS.includes(e.kind) && isOpenState(e.state)) : []), [entries, me]);
   const cap = big ? RESERVE_HARD_CAP_NANOERG : RESERVE_DEFAULT_CAP_NANOERG;
   const amount = parseErg(amountText);
   const reserve = (res.value ?? [])[0] ?? null;
@@ -203,6 +230,11 @@ export function ReserveScreen() {
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
           {t1 && <T1Progress entry={t1} />}
+          {actions.map((e) => (
+            <Card key={e.id} title={t(`mw.kind.${e.kind}`)}>
+              <EntryProgress vault={vault} entry={e} tip={height} />
+            </Card>
+          ))}
           {combineEntry && (
             <Card title={t("mw.res.combineProgressT")}>
               <EntryProgress vault={vault} entry={combineEntry} tip={height} />
