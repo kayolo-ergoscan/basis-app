@@ -16,10 +16,10 @@ import {
   type CheckedPrev, type NoteReceipt, type PrevNoteRule,
 } from "@/mainnet/flows";
 import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
-import { chainReserveValue, localProblem, type Problem } from "@/mainnet/net";
+import { localProblem, type Problem } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
-import { R, net, useResource } from "./data";
+import { R, net, ownReserveNow, useResource } from "./data";
 import { Erg, Gate, ProblemText, Steps, TimeHint, ergText, useVaultError } from "./ui";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
@@ -94,7 +94,8 @@ function NoteStatus({ e }: { e: JournalEntry }) {
   );
 }
 
-/** reserve: the tracker's view; onChain: the key's reserve value read from /v1 (the passphrase rule counts this one). */
+/** reserve: the tracker's view; onChain: the value of the key's own reserve read from /v1 (ownReserveNow; the
+ *  passphrase rule counts this one). */
 type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; onChain: bigint; debt: bigint; needPass?: boolean };
 
 /** What the note promises, as the vault checks it (vault/policy.ts). */
@@ -177,12 +178,15 @@ export function PayScreen() {
     const rs = await net().reservesOf(me.pub, { priority: "user" });
     if (!rs.ok) return setPhase({ k: "error", problem: rs.problem });
     const r = rs.value[0] ?? null;
-    // the passphrase rule counts the reserve the chain shows, never the tracker's figure
-    const oc = await net().reservesOnChain(me.pub, { priority: "user" });
-    if (!oc.ok) return setPhase({ k: "error", problem: oc.problem });
+    // the passphrase rule counts the value of this key's own reserve on chain (wallet-t3): the box that holds the NFT
+    // the wallet trusts (ownReserveNow, an exact lookup), never the tracker's figure nor the listing at the key, which
+    // anyone can flood or plant into. No reserve it can prove counts as 0: the passphrase every time.
+    const own = await ownReserveNow(me.pub, entries);
+    if (!own.ok) return setPhase({ k: "error", problem: own.problem });
+    const onChain = own.value.ok ? own.value.box.box.value : 0n;
     const ksDebt = ks.value?.denominations.find((d) => d.id === "erg")?.debt ?? 0n;
     const debt = r && r.debt > ksDebt ? r.debt : ksDebt;
-    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain: chainReserveValue(oc.value), debt } });
+    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain, debt } });
   }
 
   async function signAndPost(d: Draft, retry = 0): Promise<void> {
