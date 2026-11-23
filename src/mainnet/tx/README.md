@@ -194,13 +194,18 @@ before any plan.
 - Which reserve is "yours" (`flows/reserveops.ts` `trustedNft`, `ownReserve`): the NFT of this wallet's T1 always;
   otherwise the one reserve the tracker follows for your key whose NFT your key minted (the box whose id is the NFT
   id sat at your P2PK: a token id is the id of its minting transaction's first input; `minterOf`, one GET per NFT,
-  cached per tab). The tracker can be made to name a planted box, so names that fail this are dropped; with a T1, the
+  cached per tab, believed only when that box hashes to its id). The tracker can be made to name a planted box, so
+  names that fail this are dropped; with a T1, the
   T1 NFT must be among the remaining ones. Nothing proven: refused in words ("unproven"). The reserve is the box an
   exact lookup by token finds (`reserveByNft`), checked: the reserve contract, R4 = your key, R6 = our tracker. The
   listing of reserve boxes at your key (anyone can flood it) only feeds the warning about other boxes and never
   blocks. Another key's reserve counts the same way (owner = its R4). The T1 is retired once that NFT has left the
-  reserve contract by a completion 10 blocks deep, whatever else sits at the key. A T1 is refused only for a reserve
-  your key minted (tracked or listed); an incomplete listing does not stop it.
+  reserve contract by a completion 10 blocks deep, whatever else sits at the key.
+- When a T1 is refused (`features/wallet/mainnet/data.ts` `t1GateOf`, one rule for the reserve screen and its
+  prepare()): any ERG reserve the tracker lists for your key, proven or not, since the tracker keeps one per key and
+  would quarantine a second (one your key did not mint is shown as "a reserve under your key that this wallet cannot
+  prove", never as yours); when it lists none, a reserve box at your key whose NFT your key minted (the listing, best
+  effort: planted boxes there do not count and an incomplete listing does not stop it).
 - A refund start can be mined only at a height ≤ its R7 (`R7 >= HEIGHT`): once the tip reaches R7 and it is in no
   block, the watcher marks it failed (`flows/track.ts` `refundStartExpired`), and it no longer blocks anything.
 - L2 maps the reserve-tree boxes, the outputs and the data inputs strictly; the registers of the payer's other inputs
