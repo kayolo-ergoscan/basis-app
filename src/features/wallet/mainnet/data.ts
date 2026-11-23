@@ -4,8 +4,8 @@
 // to depth 2 and sends the same bytes again when one was dropped.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
-import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type WalletNet } from "@/mainnet/net";
-import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
+import { backoffMs, walletNet, type NetOptions, type Problem, type Result, type UnspentBox, type WalletNet } from "@/mainnet/net";
+import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, trustedNft, type OwnReserve, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
 import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
 import { RESERVE_TREE_HEX, readReserve } from "@/mainnet/tx";
 
@@ -336,11 +336,33 @@ export function t1NftOf(entries: readonly JournalEntry[], pub: string): string |
   return entries.find((e) => e.pub === pub && blocksNewT1(e))?.inputs[0] ?? null;
 }
 
+/** nft → the key whose P2PK held the box with that id (null: another tree). Per tab: a box never changes. */
+const minters = new Map<string, string | null>();
+const P2PK_TREE = /^0008cd(0[23][0-9a-f]{64})$/;
+
+/**
+ * Who minted a reserve NFT (re-review P1-1): a token id is the id of its minting transaction's first input, so the box
+ * with that id (spent, still indexed by /v1) is the minter's. The key of its P2PK tree, null for any other tree or no
+ * such box (not cached: the index may lag), or the read's problem.
+ */
+export async function minterOf(nft: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<string | null>> {
+  if (minters.has(nft)) return { ok: true, value: minters.get(nft)! };
+  const b = await box(nft, { priority: "user" });
+  if (!b.ok) return b.problem.kind === "not-found" ? { ok: true, value: null } : b;
+  const key = P2PK_TREE.exec(b.value.box.ergoTree)?.[1] ?? null;
+  minters.set(nft, key);
+  return { ok: true, value: key };
+}
+
+/** Tests only: forget what minterOf learnt. */
+export function forgetMinters(): void { minters.clear(); }
+
 /**
  * The reserves the tracker follows for a key, as reserve NFTs. The tracker names a reserve by its box id (its `nft` is
  * the tracker's own NFT, not the reserve's), so the reserve NFT is the token of that box, read from /v1: every box of
  * a reserve's chain holds the same NFT, so a box id the tracker has not updated yet still names it. Entries of
- * another tracker, and boxes that do not read as a reserve of that owner, are left out.
+ * another tracker, and boxes that do not read as a reserve of that owner, are left out; each NFT is checked to be
+ * minted by its owner (`genuine`, minterOf: the tracker can be made to name a planted box).
  */
 export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<TrackedRef[]>> {
   const out: TrackedRef[] = [];
@@ -349,9 +371,29 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
     const b = await box(r.box, { priority: "user" });
     if (!b.ok) return b;
     const rr = readReserve(b.value.box);
-    if (rr.ok && rr.info.owner === r.owner) out.push({ owner: r.owner, nft: rr.info.nft, token: r.token });
+    if (!rr.ok || rr.info.owner !== r.owner) continue;
+    const m = await minterOf(rr.info.nft, box);
+    if (!m.ok) return m;
+    out.push({ owner: r.owner, nft: rr.info.nft, token: r.token, genuine: m.value === rr.info.owner });
   }
   return { ok: true, value: out };
+}
+
+/** Reserve boxes of the listing a T1 must not duplicate: whether one of them (the first 10, by box id) holds an NFT
+ *  this key minted. The others are planted and do not count. */
+export const MINTED_CHECK_MAX = 10;
+export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<boolean>> {
+  const seen = new Set<string>();
+  for (const u of boxes) {
+    if (seen.has(u.box.boxId) || seen.size >= MINTED_CHECK_MAX) continue;
+    seen.add(u.box.boxId);
+    const rr = readReserve(u.box);
+    if (!rr.ok || rr.info.owner !== pub) continue;
+    const m = await minterOf(rr.info.nft, box);
+    if (!m.ok) return m;
+    if (m.value === pub) return { ok: true, value: true };
+  }
+  return { ok: true, value: false };
 }
 
 /** The tracker's reserves of a key as reserve NFTs (trackedRefs), read fresh. */
@@ -360,12 +402,19 @@ export async function trackedOf(pub: string, o?: NetOptions): Promise<Result<Tra
   return l.ok ? trackedRefs(l.value, (id) => net().box(id, o ?? { priority: "user" })) : l;
 }
 
-/** The key's own reserve now (review 2, P1): /v1 and the tracker read fresh, the T1 from the journal (ownReserve). */
+/**
+ * The key's own reserve now (review 2, P1; re-review P1-1/2): the tracker read fresh, the T1 from the journal
+ * (trustedNft), the box that holds that NFT by an exact lookup, and the listing at the key only for the warning (a
+ * failed or incomplete listing does not matter).
+ */
 export async function ownReserveNow(pub: string, entries: readonly JournalEntry[]): Promise<Result<OwnReserve>> {
-  const chain = await net().reservesOnChain(pub, { priority: "user" });
-  if (!chain.ok) return chain;
   const tracked = await trackedOf(pub);
-  return { ok: true, value: ownReserve({ owner: pub, chain: chain.value, t1Nft: t1NftOf(entries, pub), tracked: tracked.ok ? tracked.value : null }) };
+  const trusted = trustedNft({ owner: pub, t1Nft: t1NftOf(entries, pub), tracked: tracked.ok ? tracked.value : null });
+  if (!trusted.ok) return { ok: true, value: trusted };
+  const held = await net().reserveByNft(trusted.nft, { priority: "user" });
+  if (!held.ok) return held;
+  const listing = await net().reservesOnChain(pub, { priority: "user" });
+  return { ok: true, value: ownReserve({ owner: pub, trusted, held: held.value, listing: listing.ok ? listing.value : null }) };
 }
 
 /** Sends a signed T1, Withdraw, top-up or refund again: the exact stored bytes (write-ahead: markSending first). */

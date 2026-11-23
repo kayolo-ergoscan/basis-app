@@ -1,11 +1,13 @@
 // The journal watcher's foreign-spend check (money review P2-1, P2-2): every input, not only the first; large
 // entries in turns of 10 per block. And when "Cancel" is offered for a refused transaction.
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { ChainBox } from "@/mainnet/net";
 import type { JournalEntry, MainnetVault } from "@/mainnet/vault";
 import { OUR_TRACKER, type TrackedReserve } from "@/chain/ours";
 import { reserveBox } from "@/mainnet/tx/testkit";
-import { retireReserveOf, spentElsewhere, trackedRefs } from "./data";
+import { MINTED_CHECK_MAX, forgetMinters, mintedAmong, minterOf, retireReserveOf, spentElsewhere, trackedRefs } from "./data";
+import { trackedAs, trustedNft } from "@/mainnet/flows";
+import { ISSUER_A, R3_RESERVE_IN, T1 } from "@/mainnet/tx/fixtures/chain";
 import { STUCK_COMPLETION_MS, canCancel, stuckCompletion } from "./send";
 
 const id = (i: number) => i.toString(16).padStart(64, "0");
@@ -114,22 +116,73 @@ describe("retiring the T1 after a completed refund (review 2, coordinator's deci
   });
 });
 
-describe("the tracker's reserves as reserve NFTs (review 2: the tracker names boxes, its nft is its own)", () => {
+describe("the tracker's reserves as reserve NFTs (review 2: the tracker names boxes; re-review P1-1: minted by the owner)", () => {
   const OWNER = `02${"4a".repeat(32)}`;
+  const ATTACKER = `03${"6c".repeat(32)}`;
   const real = reserveBox(OWNER, 1_000_000_000n, { nft: "9f".repeat(32) });
   const theirs = reserveBox(`03${"5b".repeat(32)}`, 1_000_000_000n, { nft: "8e".repeat(32) });
+  // P: a box under the reserve contract with R4 = the victim, its NFT minted from the attacker's own box
+  const planted = reserveBox(OWNER, 1_000_000_000n, { nft: "8a".repeat(32) });
+  // the boxes whose ids are the NFTs: where each was minted from
+  const mint = (key: string) => ({ ergoTree: `0008cd${key}` }) as ChainBox["box"];
+  const minted = { ["9f".repeat(32)]: mint(OWNER), ["8e".repeat(32)]: mint(`03${"5b".repeat(32)}`), ["8a".repeat(32)]: mint(ATTACKER) };
   const entry = (box: string, o: Partial<TrackedReserve> = {}): TrackedReserve =>
     ({ box, owner: OWNER, collateral: 1n, debt: 0n, nft: OUR_TRACKER.nft, token: null, updatedHeight: 1, updatedAt: 1, ratio: null, refundHeight: 0, pendingRedemption: 0n, ...o }) as TrackedReserve;
-  const reader = (boxes: Record<string, ChainBox["box"]>) => async (id: string) =>
-    id in boxes ? { ok: true as const, value: { text: "", box: boxes[id], spentBy: null } } : { ok: false as const, problem: { kind: "not-found" as const, status: 404, reason: "", retryInMs: null, txId: null } };
-  it("reads the NFT of the box the tracker names (an older box of the reserve names it too)", async () => {
-    const r = await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real }));
-    expect(r).toEqual({ ok: true, value: [{ owner: OWNER, nft: "9f".repeat(32), token: null }] });
+  const reader = (boxes: Record<string, ChainBox["box"]>, asked: string[] = []) => async (id: string) => {
+    asked.push(id);
+    return id in boxes ? { ok: true as const, value: { text: "", box: boxes[id], spentBy: null } } : { ok: false as const, problem: { kind: "not-found" as const, status: 404, reason: "", retryInMs: null, txId: null } };
+  };
+  beforeEach(() => forgetMinters());
+
+  it("reads the NFT of the box the tracker names and checks that its owner minted it", async () => {
+    const r = await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real, ...minted }));
+    expect(r).toEqual({ ok: true, value: [{ owner: OWNER, nft: "9f".repeat(32), token: null, genuine: true }] });
   });
+
+  it("a P minted from the attacker's box with R4 = the victim: named, not genuine, so never the victim's reserve", async () => {
+    const r = await trackedRefs([entry(planted.boxId)], reader({ [planted.boxId]: planted, ...minted }));
+    expect(r).toEqual({ ok: true, value: [{ owner: OWNER, nft: "8a".repeat(32), token: null, genuine: false }] });
+    if (!r.ok) throw new Error("read");
+    expect(trustedNft({ owner: OWNER, t1Nft: null, tracked: r.value })).toEqual({ ok: false, why: "unproven" });
+    expect(trackedAs(OWNER, "8a".repeat(32), r.value)).toBe(false);
+    // next to the victim's own T1 it changes nothing
+    expect(trustedNft({ owner: OWNER, t1Nft: "9f".repeat(32), tracked: r.value })).toEqual({ ok: true, nft: "9f".repeat(32) });
+  });
+
+  it("the live-shaped reserve passes: its NFT is the id of the T1's first input, a box at the owner's P2PK", async () => {
+    const nft = R3_RESERVE_IN.tokens[0].tokenId;
+    const first = T1.v1.inputs[0];
+    expect(first.boxId).toBe(nft);
+    const r = await trackedRefs([entry(R3_RESERVE_IN.boxId, { owner: ISSUER_A })], reader({ [R3_RESERVE_IN.boxId]: R3_RESERVE_IN, [nft]: first as unknown as ChainBox["box"] }));
+    expect(r).toEqual({ ok: true, value: [{ owner: ISSUER_A, nft, token: null, genuine: true }] });
+  });
+
+  it("no minting box on /v1 is not genuine (and not remembered); a failed read is no answer; a known one is read once", async () => {
+    expect(await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real }))).toMatchObject({ ok: true, value: [{ genuine: false }] });
+    const asked: string[] = [];
+    const boxes = reader({ [real.boxId]: real, ...minted }, asked);
+    expect(await trackedRefs([entry(real.boxId)], boxes)).toMatchObject({ ok: true, value: [{ genuine: true }] });
+    expect(await minterOf("9f".repeat(32), boxes)).toEqual({ ok: true, value: OWNER });
+    expect(asked.filter((x) => x === "9f".repeat(32))).toHaveLength(1);
+    const down = async () => ({ ok: false as const, problem: { kind: "network" as const, status: null, reason: "", retryInMs: null, txId: null } });
+    expect((await minterOf("8e".repeat(32), down)).ok).toBe(false);
+  });
+
   it("leaves out another tracker's entry and a box that is not that owner's reserve; a failed read is no answer", async () => {
-    const boxes = reader({ [real.boxId]: real, [theirs.boxId]: theirs });
+    const boxes = reader({ [real.boxId]: real, [theirs.boxId]: theirs, ...minted });
     expect(await trackedRefs([entry(real.boxId, { nft: "11".repeat(32) })], boxes)).toEqual({ ok: true, value: [] });
     expect(await trackedRefs([entry(theirs.boxId)], boxes)).toEqual({ ok: true, value: [] });
     expect((await trackedRefs([entry("77".repeat(32))], boxes)).ok).toBe(false);
+  });
+
+  it("T1 creation: only a reserve this key minted counts; planted boxes, even many, do not block", async () => {
+    const at = (b: typeof real) => ({ box: b, height: 1 });
+    expect(await mintedAmong([at(planted), at(planted)], OWNER, reader(minted))).toEqual({ ok: true, value: false });
+    expect(await mintedAmong([at(planted), at(real)], OWNER, reader(minted))).toEqual({ ok: true, value: true });
+    expect(await mintedAmong([at(theirs)], OWNER, reader(minted))).toEqual({ ok: true, value: false });
+    const flood = Array.from({ length: 40 }, (_, i) => at(reserveBox(OWNER, 1_000_000_000n, { nft: i.toString(16).padStart(64, "c") })));
+    const asked: string[] = [];
+    expect(await mintedAmong(flood, OWNER, reader(minted, asked))).toEqual({ ok: true, value: false });
+    expect(asked.length).toBe(MINTED_CHECK_MAX);
   });
 });

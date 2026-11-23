@@ -13,7 +13,7 @@ import {
   MINER_FEE_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, TOP_UP_MIN_NANOERG, checkReserveAction, checkReserveActionContract, computeTxId,
   loadContractAvl, p2pkAddress, readReserve, reserveAddress, type ErgoBox, type L2Result, type ReserveInfo, type UnsignedTx,
 } from "@/mainnet/tx";
-import { ergInput, isBroadcastLimit, linkTarget, mempoolSpending, ownReserve, parseErg, planTopUp, spendable, topUpMax, trackedAs, type OwnReserve } from "@/mainnet/flows";
+import { ergInput, isBroadcastLimit, linkTarget, mempoolSpending, namedUnproven, ownReserve, parseErg, planTopUp, spendable, topUpMax, trackedAs, trustedNft, type OwnReserve } from "@/mainnet/flows";
 import { isVaultError, type JournalEntry } from "@/mainnet/vault";
 import { freshHeight, refreshHeight } from "@/app/height";
 import type { Problem } from "@/mainnet/net";
@@ -50,13 +50,17 @@ function TopUpForm() {
   const [params] = useSearchParams();
   const asked = (params.get("nft") ?? "").trim().toLowerCase();
   const badParam = asked !== "" && !HEX64.test(asked);
-  // the key's own reserve: by the NFT this wallet trusts (its T1, the tracker), never the chain's newest box (review 2)
+  // the key's own reserve: by the NFT this wallet trusts (its T1, a tracked reserve this key minted), found by an exact
+  // lookup by token, never in the chain's listing (review 2, re-review P1-1/2); the listing only feeds the warning
   const mineOnChain = useResource(me ? R.reservesOnChain(me.pub) : null, { height, enabled: state.backedUp });
   const trackedMine = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
   const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub) : null), [entries, me]);
   const trackerRead = trackedMine.value !== null || !!trackedMine.problem;
-  const own: OwnReserve | null = me && mineOnChain.value && trackerRead
-    ? ownReserve({ owner: me.pub, chain: mineOnChain.value, t1Nft, tracked: trackedMine.value ?? null }) : null;
+  const trust = me && trackerRead ? trustedNft({ owner: me.pub, t1Nft, tracked: trackedMine.value ?? null }) : null;
+  const held = useResource(trust?.ok ? R.reserveByNft(trust.nft) : null, { height, enabled: state.backedUp });
+  const own: OwnReserve | null = !me || !trust ? null : !trust.ok ? trust
+    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: mineOnChain.value }) : null;
+  const ownProblem = trust?.ok && held.problem && !held.value ? held.problem : null;
   const nft = asked && !badParam ? asked : own?.ok ? own.nft : null;
   const target = useResource(nft ? R.reserveByNft(nft) : null, { height, enabled: state.backedUp });
   const un = useUnspent(me, height, state.backedUp);
@@ -78,7 +82,7 @@ function TopUpForm() {
     : !theirs ? (own ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own, trackedOfOwner: null }) : "loading")
     : trackedTheirs.value !== null ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own: own ?? { ok: false, why: "untrusted" }, trackedOfOwner: trackedTheirs.value })
     : trackedTheirs.problem ? "down" : "loading";
-  const trustKey = link === "untrusted" ? (theirs ? "mw.trust.untracked" : "mw.trust.ownLink") : link === "down" ? "mw.trust.trackerDown" : null;
+  const trustKey = link === "untrusted" ? (theirs ? "mw.trust.untracked" : "mw.trust.ownLink") : link === "unproven" ? "mw.trust.unproven" : link === "down" ? "mw.trust.trackerDown" : null;
   const refusal = shapeRefusal ?? trustKey;
   const ready = !!info && !refusal && link !== "loading";
   const own_ = !!(info && me && info.owner === me.pub);
@@ -105,7 +109,7 @@ function TopUpForm() {
     if (!asked) { fail({ text: t("mw.trust.ownLink") }); return false; }
     const tr = await trackedOf(r.owner);
     if (!tr.ok) { fail({ text: t("mw.trust.trackerDown") }); return false; }
-    if (!trackedAs(r.owner, r.nft, tr.value)) { fail({ text: t("mw.trust.untracked") }); return false; }
+    if (!trackedAs(r.owner, r.nft, tr.value)) { fail({ text: t(namedUnproven(r.owner, r.nft, tr.value) ? "mw.trust.unproven" : "mw.trust.untracked") }); return false; }
     return true;
   }
 
@@ -214,9 +218,9 @@ function TopUpForm() {
             {badParam ? (
               <Callout tone="alarm">{t("mw.top.badLink")}</Callout>
             ) : !nft ? (
-              ownRefusal || mineOnChain.problem ? (
+              ownRefusal || ownProblem ? (
                 <div className="mw-form">
-                  {mineOnChain.problem && !mineOnChain.value ? <p className="t-small"><ProblemText p={mineOnChain.problem} what="read" /></p> : ownRefusal && <OwnReserveRefusal own={ownRefusal} />}
+                  {ownProblem ? <p className="t-small"><ProblemText p={ownProblem} what="read" /></p> : ownRefusal && <OwnReserveRefusal own={ownRefusal} />}
                   <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.top.toReserve")}</Key>
                 </div>
               ) : <p className="t-small mw-dim">{t("mw.top.loading")}</p>

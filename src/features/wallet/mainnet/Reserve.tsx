@@ -19,7 +19,7 @@ import { RESERVE_ACTION_KINDS, blocksNewT1, isOpenState, isVaultError, type Jour
 import { localProblem, type Problem } from "@/mainnet/net";
 import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
-import { R, inFlightOf, net, useResource, useUnspent } from "./data";
+import { R, inFlightOf, mintedAmong, net, trackedRefs, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
 
@@ -130,13 +130,20 @@ export function ReserveScreen() {
     const mine = await net().reservesOf(me.pub, { priority: "user" });
     if (!mine.ok) return fail({ problem: mine.problem });
     res.refresh();
-    if (mine.value.length > 0) return fail({ text: t("mw.res.hasReserve") });
+    // a reserve the tracker follows for this key, when this key minted it (re-review P1-1: the tracker can be made to
+    // name a planted box, which must not stop the owner from creating a reserve)
+    const tracked = await trackedRefs(mine.value);
+    if (!tracked.ok) return fail({ problem: tracked.problem });
+    if (tracked.value.some((r) => r.owner === me.pub && r.genuine)) return fail({ text: t("mw.res.hasReserve") });
     if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
-    // the chain too (money review P2-4): a reserve made on another device, or one the tracker does not show yet
+    // the chain too (money review P2-4): a reserve this key minted on another device that the tracker does not show
+    // yet. Boxes it did not mint are planted and ignored. The listing is best effort (re-review P1-2): an incomplete
+    // one does not block, since the tracker shows no reserve of this key and this browser has no T1.
     const onChain = await net().reservesOnChain(me.pub, { priority: "user" });
     if (!onChain.ok) return fail({ problem: onChain.problem });
-    if (onChain.value.boxes.length > 0) return fail({ text: t("mw.res.hasReserveChain") });
-    if (!onChain.value.complete) return fail({ text: t("mw.res.chainIncomplete") });
+    const minted = await mintedAmong(onChain.value.boxes, me.pub);
+    if (!minted.ok) return fail({ problem: minted.problem });
+    if (minted.value) return fail({ text: t("mw.res.hasReserveChain") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
     if (mempoolCreatesReserve(mem.value, me)) return fail({ text: t("mw.res.inMempool") });

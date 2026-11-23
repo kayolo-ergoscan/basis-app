@@ -235,11 +235,10 @@ export function BackLink({ to = "/wallet/mainnet", children }: { to?: string; ch
 export function OwnReserveRefusal({ own }: { own: Exclude<OwnReserve, { ok: true }> }) {
   const t = useT();
   if (own.why === "none") return <p className="t-small">{t("mw.top.noOwn")}</p>;
-  if (own.why === "incomplete") return <p className="t-small">{t("mw.res.chainIncomplete")}</p>;
   return (
     <Callout tone="alarm" title={t("mw.top.trustT")}>
       {t(`mw.trust.${own.why}`, own.why === "mismatch" ? { nft: `${own.nft.slice(0, 8)}…` } : undefined)}
-      {(own.why === "twice" || own.why === "mismatch") && <BoxList boxes={own.boxes} />}
+      {own.why === "mismatch" && <BoxList boxes={own.boxes} />}
     </Callout>
   );
 }
@@ -267,6 +266,5 @@ function BoxList({ boxes }: { boxes: readonly { box: { boxId: string; tokens: re
 /** The same refusal as one line of text (a stop callout after Prepare). */
 export function trustText(t: ReturnType<typeof useT>, own: Exclude<OwnReserve, { ok: true }>): string {
   if (own.why === "none") return t("mw.top.noOwn");
-  if (own.why === "incomplete") return t("mw.res.chainIncomplete");
   return t(`mw.trust.${own.why}`, own.why === "mismatch" ? { nft: `${own.nft.slice(0, 8)}…` } : undefined);
 }

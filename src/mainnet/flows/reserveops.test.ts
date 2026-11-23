@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { keyPairFromSecret } from "../../protocol/keys";
 import { MINER_FEE_NANOERG, MIN_BOX_NANOERG, REFUND_PERIOD_BLOCKS, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, checkReserveAction, p2pkTree } from "../tx";
 import { p2pkBox, reserveBox } from "../tx/testkit";
-import { blocksToDays, linkTarget, mempoolSpending, ownReserve, planRefundComplete, planRefundStart, planTopUp, reserveLife, topUpMax, trackedAs } from "./reserveops";
+import { blocksToDays, linkTarget, mempoolSpending, ownReserve, planRefundComplete, planRefundStart, planTopUp, reserveLife, topUpMax, trackedAs, trustedNft } from "./reserveops";
 
 const FEE = MINER_FEE_NANOERG;
 const ERG = 1_000_000_000n;
@@ -105,69 +105,89 @@ describe("refund completion planning", () => {
   });
 });
 
-describe("which reserve is the key's own (review 2: planted boxes)", () => {
+describe("which reserve is the key's own (review 2: planted boxes; re-review P1-1/2: minted by the owner, exact lookup)", () => {
   const NFT = "9f".repeat(32);
   const PLANT = "8a".repeat(32);
   const ub = (nft: string, owner = me, height = 1_924_000) => ({ box: reserveBox(owner, 2n * ERG, { nft }), height });
   const real = ub(NFT, me, 1_923_000);
   const planted = ub(PLANT, me, 1_924_900); // newer: /v1 lists it first
-  const tr = (nft: string, owner = me) => ({ owner, nft, token: null });
+  // genuine: the owner minted it (the box with id = NFT sat at the owner's P2PK); the tracker can name a planted one
+  const tr = (nft: string, owner = me, genuine = true) => ({ owner, nft, token: null, genuine });
+  const own = (t1Nft: string | null, tracked: ReturnType<typeof tr>[] | null, held: typeof real | null, boxes: (typeof real)[] | null = null) =>
+    ownReserve({ owner: me, trusted: trustedNft({ owner: me, t1Nft, tracked }), held, listing: boxes && { boxes } });
 
-  it("takes the one box that holds the NFT of this wallet's T1 or of the tracker's reserve", () => {
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: true, nft: NFT, others: [] });
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: null, tracked: [tr(NFT)] })).toMatchObject({ ok: true, nft: NFT });
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: NFT, tracked: [tr(NFT)] })).toMatchObject({ ok: true });
-    // the tracker may not list a fresh reserve yet: the T1 alone is enough
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: NFT, tracked: [] })).toMatchObject({ ok: true });
-    // the trusted box is among those read: an incomplete listing does not matter then
-    expect(ownReserve({ owner: me, chain: { boxes: [planted, real], complete: false }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: true, nft: NFT });
+  it("trusts this wallet's T1 always, else the one tracked reserve this key minted", () => {
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: null })).toEqual({ ok: true, nft: NFT });
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: [] })).toEqual({ ok: true, nft: NFT });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(NFT)] })).toEqual({ ok: true, nft: NFT });
+    // with a T1: it must be among the genuine NFTs the tracker names, not "exactly" it
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: [tr(NFT), tr(PLANT)] })).toEqual({ ok: true, nft: NFT });
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: [tr(PLANT)] })).toMatchObject({ ok: false, why: "disagree", tracker: [PLANT] });
+    // a planted box the tracker was made to name: dropped, so it neither replaces nor contradicts the T1
+    expect(trustedNft({ owner: me, t1Nft: NFT, tracked: [tr(PLANT, me, false)] })).toEqual({ ok: true, nft: NFT });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(PLANT, me, false), tr(NFT)] })).toEqual({ ok: true, nft: NFT });
+  });
+
+  it("refuses what it cannot prove: nothing named, several genuine, only unproven names, the tracker unread", () => {
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [] })).toEqual({ ok: false, why: "none" });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(NFT, other)] })).toEqual({ ok: false, why: "none" });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: null })).toEqual({ ok: false, why: "untrusted" });
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(NFT), tr(PLANT)] })).toEqual({ ok: false, why: "untrusted" });
+    // P minted from the attacker's box with R4 = victim, named by the tracker: refused in words
+    expect(trustedNft({ owner: me, t1Nft: null, tracked: [tr(PLANT, me, false)] })).toEqual({ ok: false, why: "unproven" });
+    expect(own(null, [tr(PLANT, me, false)], planted, [planted])).toEqual({ ok: false, why: "unproven" });
+  });
+
+  it("takes the box the exact lookup finds, checked; the listing only for the warning", () => {
+    expect(own(NFT, null, real)).toMatchObject({ ok: true, nft: NFT, others: [] });
+    expect(own(null, [tr(NFT)], real, [real])).toMatchObject({ ok: true, nft: NFT, others: [] });
+    // a flooded listing (incomplete, or not read at all) does not matter: never a block
+    expect(own(NFT, null, real, null)).toMatchObject({ ok: true });
+    expect(own(NFT, [tr(NFT)], real, [planted, planted])).toMatchObject({ ok: true, others: [planted] });
+    // the NFT in no unspent box (the T1 not in a block yet), or out of the reserve contract (a completed refund)
+    expect(own(NFT, null, null, [planted])).toEqual({ ok: false, why: "none" });
+    const paidOut = { box: { ...real.box, ergoTree: p2pkTree(me) }, height: 1_925_000 };
+    expect(own(NFT, null, paidOut)).toEqual({ ok: false, why: "none" });
+    // under the contract but another owner's (or another tracker's): never "yours"
+    const theirs = ub(NFT, other);
+    expect(own(NFT, null, theirs)).toMatchObject({ ok: false, why: "mismatch", nft: NFT });
+    const otherTracker = { box: reserveBox(me, 2n * ERG, { nft: NFT, r6: `0e20${"77".repeat(32)}` }), height: 1 };
+    expect(own(NFT, null, otherTracker)).toMatchObject({ ok: false, why: "mismatch" });
   });
 
   it("a planted box next to the real one: the real one, and the planted one listed as a warning; never boxes[0]", () => {
-    const r = ownReserve({ owner: me, chain: { boxes: [planted, real], complete: true }, t1Nft: NFT, tracked: [tr(NFT)] });
+    const r = own(NFT, [tr(NFT)], real, [planted, real]);
     if (!r.ok) throw new Error(r.why);
     expect(r.box).toBe(real);
     expect(r.others).toEqual([planted]);
-    const byTracker = ownReserve({ owner: me, chain: { boxes: [planted, real], complete: true }, t1Nft: null, tracked: [tr(NFT)] });
+    const byTracker = own(null, [tr(NFT), tr(PLANT, me, false)], real, [planted, real, planted]);
     expect(byTracker.ok && [byTracker.box, byTracker.others]).toEqual([real, [planted]]);
   });
 
-  it("refuses a planted box alone, no trusted NFT, a disagreement, and the trusted NFT in two boxes", () => {
-    expect(ownReserve({ owner: me, chain: { boxes: [planted], complete: true }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: false, why: "mismatch", nft: NFT });
-    expect(ownReserve({ owner: me, chain: { boxes: [planted], complete: true }, t1Nft: null, tracked: [tr(NFT)] })).toMatchObject({ ok: false, why: "mismatch" });
-    // no trusted NFT at all (a wallet restored elsewhere, the tracker silent): refused, not guessed
-    expect(ownReserve({ owner: me, chain: { boxes: [planted], complete: true }, t1Nft: null, tracked: null })).toMatchObject({ ok: false, why: "untrusted" });
-    expect(ownReserve({ owner: me, chain: { boxes: [planted], complete: true }, t1Nft: null, tracked: [] })).toMatchObject({ ok: false, why: "untrusted" });
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: null, tracked: [tr(NFT), tr(PLANT)] })).toMatchObject({ ok: false, why: "untrusted" });
-    // the T1 and the tracker disagree
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: NFT, tracked: [tr(PLANT)] })).toMatchObject({ ok: false, why: "disagree" });
-    // another owner's entries in the tracker's answer do not count
-    expect(ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: null, tracked: [tr(NFT, other)] })).toMatchObject({ ok: false, why: "untrusted" });
-    const twin = ub(NFT, me, 1_924_500);
-    expect(ownReserve({ owner: me, chain: { boxes: [twin, real], complete: true }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: false, why: "twice" });
-    expect(ownReserve({ owner: me, chain: { boxes: [planted], complete: false }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: false, why: "incomplete" });
-    expect(ownReserve({ owner: me, chain: { boxes: [], complete: true }, t1Nft: NFT, tracked: null })).toMatchObject({ ok: false, why: "none" });
-    expect(ownReserve({ owner: me, chain: { boxes: [], complete: true }, t1Nft: null, tracked: null })).toMatchObject({ ok: false, why: "none" });
-  });
-
-  it("a ?nft= link: this key's own only when trusted; another key's only when our tracker tracks it as that owner's", () => {
-    const own = ownReserve({ owner: me, chain: { boxes: [real], complete: true }, t1Nft: NFT, tracked: null });
-    expect(linkTarget({ me, nft: NFT, owner: me, own, trackedOfOwner: null })).toBe("own");
+  it("a ?nft= link: this key's own only when trusted; another key's only when our tracker tracks it and the owner minted it", () => {
+    const mine = own(NFT, null, real);
+    expect(linkTarget({ me, nft: NFT, owner: me, own: mine, trackedOfOwner: null })).toBe("own");
     // a planted box with R4 = this key, linked directly
-    expect(linkTarget({ me, nft: PLANT, owner: me, own, trackedOfOwner: null })).toBe("untrusted");
+    expect(linkTarget({ me, nft: PLANT, owner: me, own: mine, trackedOfOwner: null })).toBe("untrusted");
     // the real one stays linkable next to a planted one; the planted one is not
-    const both = ownReserve({ owner: me, chain: { boxes: [planted, real], complete: true }, t1Nft: NFT, tracked: null });
+    const both = own(NFT, null, real, [planted, real]);
     expect(linkTarget({ me, nft: NFT, owner: me, own: both, trackedOfOwner: null })).toBe("own");
     expect(linkTarget({ me, nft: PLANT, owner: me, own: both, trackedOfOwner: null })).toBe("untrusted");
-    // another key: a box planted with R4 = Alice is not her reserve until the tracker says so
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(NFT, other)] })).toBe("untrusted");
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: null })).toBe("untrusted");
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(PLANT, me)] })).toBe("untrusted");
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [{ owner: other, nft: PLANT, token: "11".repeat(32) }] })).toBe("untrusted");
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(PLANT, other)] })).toBe("other");
+    expect(linkTarget({ me, nft: PLANT, owner: me, own: own(null, [tr(PLANT, me, false)], planted), trackedOfOwner: null })).toBe("unproven");
+    // another key: a box planted with R4 = Alice is not her reserve until the tracker says so and she minted it
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(NFT, other)] })).toBe("untrusted");
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: null })).toBe("untrusted");
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, me)] })).toBe("untrusted");
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [{ owner: other, nft: PLANT, token: "11".repeat(32), genuine: true }] })).toBe("untrusted");
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, other)] })).toBe("other");
     expect(trackedAs(other, PLANT, [tr(PLANT, other)])).toBe(true);
-    // the tracker follows two ERG reserves of that owner: not picked
-    expect(linkTarget({ me, nft: PLANT, owner: other, own, trackedOfOwner: [tr(PLANT, other), tr(NFT, other)] })).toBe("untrusted");
+    // the tracker names it, but Alice did not mint it (an attacker's box with R4 = Alice): refused, in words
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, other, false)] })).toBe("unproven");
+    expect(trackedAs(other, PLANT, [tr(PLANT, other, false)])).toBe(false);
+    // ... and it does not count as her second reserve either
+    expect(linkTarget({ me, nft: NFT, owner: other, own: mine, trackedOfOwner: [tr(NFT, other), tr(PLANT, other, false)] })).toBe("other");
+    // the tracker follows two genuine ERG reserves of that owner: not picked
+    expect(linkTarget({ me, nft: PLANT, owner: other, own: mine, trackedOfOwner: [tr(PLANT, other), tr(NFT, other)] })).toBe("untrusted");
     expect(trackedAs(other, PLANT, [tr(PLANT, other), tr(PLANT, other), tr(NFT, me)])).toBe(true);
   });
 });

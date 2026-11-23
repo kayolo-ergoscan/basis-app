@@ -12,7 +12,7 @@ import {
   MINER_FEE_NANOERG, REFUND_PERIOD_BLOCKS, checkReserveAction, checkReserveActionContract, computeTxId, loadContractAvl, readReserve, refundClock, reserveAddress,
   type ErgoBox, type L2Result, type ReserveActionKind, type ReserveInfo, type UnsignedTx,
 } from "@/mainnet/tx";
-import { isBroadcastLimit, mempoolSpending, ownReserve, planRefundComplete, planRefundStart, spendable } from "@/mainnet/flows";
+import { isBroadcastLimit, mempoolSpending, ownReserve, planRefundComplete, planRefundStart, spendable, trustedNft, type OwnReserve } from "@/mainnet/flows";
 import { RESERVE_ACTION_KINDS, isOpenState, isVaultError, type JournalEntry } from "@/mainnet/vault";
 import type { Problem } from "@/mainnet/net";
 import { freshHeight, refreshHeight } from "@/app/height";
@@ -70,10 +70,14 @@ export function RefundScreen() {
   const [passWrong, setPassWrong] = useState(false);
   const [xray, setXray] = useState(false);
 
-  // the key's own reserve by the NFT this wallet trusts (its T1, the tracker), never the chain's newest box (review 2)
+  // the key's own reserve by the NFT this wallet trusts (its T1, a tracked reserve this key minted), found by an exact
+  // lookup by token, never in the chain's listing (review 2, re-review P1-1/2); the listing only feeds the warning
   const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub) : null), [entries, me]);
-  const own = me && chain.value && (tracked.value !== null || !!tracked.problem)
-    ? ownReserve({ owner: me.pub, chain: chain.value, t1Nft, tracked: tracked.value ?? null }) : null;
+  const trust = me && (tracked.value !== null || !!tracked.problem) ? trustedNft({ owner: me.pub, t1Nft, tracked: tracked.value ?? null }) : null;
+  const held = useResource(trust?.ok ? R.reserveByNft(trust.nft) : null, { height, enabled: state.backedUp });
+  const own: OwnReserve | null = !me || !trust ? null : !trust.ok ? trust
+    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: chain.value }) : null;
+  const ownProblem = trust?.ok && held.problem && !held.value ? held.problem : null;
   const box = own?.ok ? own.box.box : null;
   const read = box ? readReserve(box) : null;
   const info = read && read.ok ? read.info : null;
@@ -252,13 +256,13 @@ export function RefundScreen() {
   );
 
   let body;
-  if (chain.problem && !chain.value) body = <Card title={t("mw.ref.h")}><p className="t-small"><ProblemText p={chain.problem} what="read" /></p></Card>;
-  else if (!chain.value || !own) body = <Card title={t("mw.ref.h")}><p className="t-small mw-dim">{t("mw.top.loading")}</p></Card>;
-  else if (!own.ok && (own.why === "none" || own.why === "incomplete")) {
+  if (ownProblem) body = <Card title={t("mw.ref.h")}><p className="t-small"><ProblemText p={ownProblem} what="read" /></p></Card>;
+  else if (!own) body = <Card title={t("mw.ref.h")}><p className="t-small mw-dim">{t("mw.top.loading")}</p></Card>;
+  else if (!own.ok && own.why === "none") {
     body = (
       <Card title={t("mw.ref.noneT")}>
         <div className="mw-form">
-          <p className="t-small">{own.why === "incomplete" ? t("mw.res.chainIncomplete") : done ? t("mw.ref.doneB") : t("mw.ref.noneB")}</p>
+          <p className="t-small">{done ? t("mw.ref.doneB") : t("mw.ref.noneB")}</p>
           <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.top.toReserve")}</Key>
         </div>
       </Card>
