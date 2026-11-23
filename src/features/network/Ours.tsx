@@ -1,18 +1,19 @@
 // /network: ErgoScan's own tracker (src/chain/ours). The card on the overview and on /network/trackers, and its page
 // at /network/tracker/<nft>. Every figure is the tracker API's answer or the chain's; "—" when it is not known yet.
 // The tracker is judged like every other one, by the age of its box, plus whether its API answers.
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT, useTitle } from "@/app";
 import { blockWord, CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, ratioPct, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
 import {
-  p2pkAddress,
-  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, isOurTestReserve, useAgo, useNow, useOurTracker,
+  FIRST_READS, p2pkAddress, useFirstReads,
+  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, STALE_AFTER_BLOCKS, isOurTestReserve, totalsSource, useAgo, useNow, useOurTracker,
   type Observatory, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import { amount, approx, blocks, ergs, height as fmtH, sid, type Lang } from "./fmt";
-import { AsOf, Block, Ext, Facts, IdLink, KeyName, NftTile, UntrustedName } from "./parts";
+import { AsOf, Block, Capped, Ext, Facts, IdLink, KeyName, NftTile, UntrustedName } from "./parts";
+import { FeedRow } from "./feed";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 const DASH = "—";
@@ -152,7 +153,7 @@ export function OurTrackerCard({ v }: { v: OurView }) {
       <div className="nw-ours-b">
         <OurFigures v={v} />
         <div className="nw-ours-dial" aria-hidden={v.age === null}>
-          {v.age !== null ? <Dial blocks={Math.min(v.age, EMERGENCY_BLOCKS)} size={phone ? 96 : 112} labels={false} /> : <span className="nw-ours-nodial" />}
+          {v.age !== null ? <Dial blocks={Math.min(v.age, EMERGENCY_BLOCKS)} size={phone ? 96 : 112} labels={false} quiet={STALE_AFTER_BLOCKS} /> : <span className="nw-ours-nodial" />}
         </div>
       </div>
       <OurIds v={v} />
@@ -239,6 +240,28 @@ export function OurReserves({ v }: { v: OurView }) {
   );
 }
 
+/** Redemptions found on chain that this tracker served: the same merged list the redemptions page and the totals count
+ *  (the snapshot's, the ones read live, the ones seen in reserve boxes only), filtered by the tracker NFT, so nothing is
+ *  counted twice. The seed predates this NFT: every one of them is from the live layer. */
+export function OurRedemptions({ obs }: { obs: Observatory | null }) {
+  const t = useT();
+  const list = useMemo(() => (obs ? obs.redemptions.filter((x) => x.trackerNft === OUR_TRACKER.nft) : null), [obs]);
+  // the rows shown first are what the user opened: their txs are read at once, through the tab's one queue
+  useFirstReads(list);
+  // before this tab has listed the current templates, an empty list would only mean "not looked yet" (or, when the live
+  // layer failed, that the snapshot predates this tracker)
+  const src = obs ? totalsSource(obs) : "checking";
+  const unknown = !list || (list.length === 0 && src !== "live");
+  return (
+    <Block label={t("network.td.redemptions")} aside={<span className="label num">{list && !unknown ? list.length : DASH}</span>}>
+      <p className="t-small">{t("network.ours.td.redemptionsSub")}</p>
+      {unknown ? <p className="t-small dim">{src === "snapshot" ? t("chain.live.seedOnly") : t("network.rd.unread")}</p>
+        : list!.length ? <Capped rows={list!} n={FIRST_READS.perPage}>{(rows) => <ol className="nw-feed">{rows.map((x) => <FeedRow key={x.tx} r={x} />)}</ol>}</Capped>
+          : <p className="t-small">{t("network.td.none")}</p>}
+    </Block>
+  );
+}
+
 export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
   const t = useT();
   const lang = t.lang as Lang;
@@ -276,7 +299,7 @@ export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
         <div className="nw-main">
           <Block label={t("network.td.window")} className="nw-window">
             <div className="nw-window-g">
-              <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS)} size={phone ? 128 : 160} />
+              <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS)} size={phone ? 128 : 160} quiet={STALE_AFTER_BLOCKS} />
               <div className="nw-window-t">
                 <span className="label">{t("network.td.ageOf")}</span>
                 <span className="t-measure-l num">{v.age !== null ? fmtH(v.age) : DASH}</span>
@@ -291,6 +314,7 @@ export function OurTrackerPage({ obs }: { obs: Observatory | null }) {
           </Block>
 
           <OurReserves v={v} />
+          <OurRedemptions obs={obs} />
 
           <Block label={t("network.ours.td.events")} aside={<span className="label num">{v.events.length}</span>}>
             <OurEvents v={v} />

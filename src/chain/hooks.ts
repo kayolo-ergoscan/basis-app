@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useHeight as useShellHeight } from "@/app/height";
 import { isHex } from "./decode";
-import { chain, type ChainState, type Fetched } from "./store";
+import { chain, FIRST_READS, type ChainState, type Fetched } from "./store";
 import type { BoxDetail, DetectorState, Hex, LiveStatus, Observatory, RedemptionView, ReserveView, TrackerView, TxDetail } from "./types";
 
 export { useHeight, getHeight, type HeightState } from "@/app/height";
@@ -148,4 +148,18 @@ export function useBox(boxId: string | null | undefined): BoxResult {
   useEffect(() => { if (key) void chain.fetchBox(key); }, [key]);
   const refresh = useCallback(() => { if (key) void chain.fetchBox(key, true); }, [key]);
   return useMemo(() => ({ state: fetched?.state ?? "idle", box: fetched?.data ?? null, error: fetched?.error ?? null, refresh }), [fetched, refresh]);
+}
+
+/** The txs to read first for a list of redemptions, newest first: the unread ones (counted from boxes) among the rows a
+ *  page shows first (`FIRST_READS.perPage`). */
+export function firstUnread(list: readonly RedemptionView[] | null | undefined): Hex[] {
+  return (list ?? []).slice(0, FIRST_READS.perPage).filter((x) => x.fromBoxes).map((x) => x.tx);
+}
+
+/** A page that lists redemptions reads the unread ones it shows first at once, through the tab's one first-read queue
+ *  (chain.readFirst: ≤ 1 request per second, each tx once per tab, at most FIRST_READS.perTab per tab), so their
+ *  recipient and date do not wait one block per tx behind the background backlog. */
+export function useFirstReads(list: readonly RedemptionView[] | null | undefined): void {
+  const ids = firstUnread(list).join(" ");
+  useEffect(() => { if (ids) chain.readFirst(ids.split(" ")); }, [ids]);
 }

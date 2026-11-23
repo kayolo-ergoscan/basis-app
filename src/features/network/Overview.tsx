@@ -10,6 +10,13 @@ import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr
 import { ContractTag, Ext, EXIT_ORDER, ExitTag, KeyName, NftTile, TrackerTag, trackerSilent, UntrustedName, useAfterPaint, useProgressive } from "./parts";
 import { BeatStrip, Beacon, ExitBar, redemptionAmount, VaultCoin } from "./viz";
 import { OurTrackerBlock } from "./Ours";
+// FeedRow lives in feed.tsx (Ours.tsx uses it too); re-exported for the pages that import it from here
+import { FeedRow } from "./feed";
+import { Capped } from "./parts";
+// ErgoScan's tracker: its heartbeat sets the dial's bands
+import { OUR_TRACKER, STALE_AFTER_BLOCKS, useFirstReads } from "@/chain";
+
+export { FeedRow };
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -108,11 +115,14 @@ function Detector({ obs }: { obs: Observatory }) {
         {n === 0 ? (
           <p className="nw-det-p">{pick(copy.currentContractsEmpty, lang)} {t("network.det.willShow")}</p>
         ) : (
-          <ul className="nw-det-found" aria-label={t("network.det.found")}>
-            {live.map((b) => (
-              <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} />{isOurTestReserve(b.owner?.key) && <OurTestReserveTag />}</li>
-            ))}
-          </ul>
+          // a test group can make dozens of reserves: the newest few, the rest behind "show all"
+          <Capped rows={live} n={6}>{(rows) => (
+            <ul className="nw-det-found" aria-label={t("network.det.found")}>
+              {rows.map((b) => (
+                <li key={b.boxId}><span className="hex">{sid(b.boxId, 6, 4)}</span> · {ergs(b.value)}&nbsp;ERG · {b.contract?.short ?? "?"}<Ext kind="box" id={b.boxId} />{isOurTestReserve(b.owner?.key) && <OurTestReserveTag />}</li>
+              ))}
+            </ul>
+          )}</Capped>
         )}
         {spent > 0 && <p className="nw-det-p dim">{t.p("network.det.spent", spent)}</p>}
         <span className="nw-det-c">
@@ -249,7 +259,7 @@ export function TrackerPanel({ tr, tip, compact, idle = true }: { tr: TrackerVie
             <span className="s">{approx(age, lang)} {t("network.trk.lastBox")}</span>
             <span className="s2">{t("network.trk.lastBoxAt", { h: fmtH(box.height), date: date(box.at, lang) })} · {box.zero ? t("network.trk.digestZero") : box.empty ? t("network.trk.digestEmpty") : t("network.trk.digestHas")}</span>
           </div>
-          <Dial blocks={Math.min(age, EMERGENCY_BLOCKS)} size={compact ? 64 : 76} labels={false} />
+          <Dial blocks={Math.min(age, EMERGENCY_BLOCKS)} size={compact ? 64 : 76} labels={false} quiet={tr.nft === OUR_TRACKER.nft ? STALE_AFTER_BLOCKS : undefined} />
         </div>
       )}
       {!hasBox && <p className="nw-trk-gone"><span className="g" aria-hidden="true">{tr.status === "burned" ? "✕" : tr.status === "locked" ? "⊘" : "○"}</span>{goneLine(tr, t)}</p>}
@@ -456,6 +466,8 @@ function RedemptionsColumn({ obs }: { obs: Observatory }) {
   const [all, setAll] = useState(false);
   const phone = useIsPhone();
   const list = obs.redemptions;
+  // the newest rows are what the user sees first: their txs are read at once, through the tab's one queue
+  useFirstReads(list);
   // three columns side by side: 20 rows keep this column about as tall as the trackers and reserves next to it
   const cap = phone ? 10 : 20;
   const shown = useProgressive(all ? list : list.slice(0, cap), 6);
@@ -474,35 +486,6 @@ function RedemptionsColumn({ obs }: { obs: Observatory }) {
     </section>
   );
 }
-export function FeedRow({ r }: { r: RedemptionView }) {
-  const t = useT();
-  const lang = t.lang as Lang;
-  const rk = keyOfAddress(r.receiver);
-  // seen in the reserve's boxes, its transaction not read yet: the receiver, the time and the tracker box are unknown
-  const unread = r.fromBoxes ? t("network.rd.unread") : null;
-  return (
-    <li className={cx("nw-rd", r.emergencyWindow && "em")}>
-      <Link to={`/network/tx/${r.tx}`} className="nw-rd-a" aria-label={t("network.rd.open", { id: sid(r.tx) })} title={unread ? t("network.rd.unreadTitle") : undefined}>
-        <span className="nw-rd-amt num">{redemptionAmount(r, lang)}</span>
-        <span className="nw-rd-who" aria-hidden="true">
-          {r.owner.key ? <KeySeal pk={r.owner.key} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
-          <span className="arr">→</span>
-          {rk ? <KeySeal pk={rk} size={24} /> : <span className="nw-noseal" style={{ width: 24 }} />}
-        </span>
-        <span className="nw-rd-pair">
-          {t("network.rd.pair", { owner: r.ownerLabel ?? sAddr(r.owner.addr), receiver: r.receiverLabel ?? (r.receiver ? sAddr(r.receiver) : unread ?? sAddr(null)) })}
-        </span>
-        <span className="nw-rd-m">
-          <span>{unread ? t("network.rd.block", { h: fmtH(r.height) }) : date(r.at, lang)}</span>
-          <span>{unread ?? t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}</span>
-          {r.emergencyWindow && <span className="flag em" title={pick(copy.emergencyRule, lang)}>⚑ {t("network.rd.em")}</span>}
-          {r.firstOfPair && <span className="flag" title={t("network.rd.firstTitle")}>◇ {t("network.rd.first")}</span>}
-        </span>
-      </Link>
-    </li>
-  );
-}
-
 /* ---------------- shared column head ---------------- */
 export function ColHead({ id, title, sub, to, n, extra }: { id: string; title: string; sub?: string; to?: string; n?: number; extra?: ReactNode }) {
   const t = useT();

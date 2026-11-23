@@ -6,7 +6,7 @@ import { useQuery } from "./query";
 import { rich, useT, useTitle } from "@/app";
 import { Empty, ErrorState, Icon, KeySeal, Lamp, Loading, PairSeal, Seg, Table, Tag, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
-import { blake2b256, bytesToHex, CHAIN_BUDGET, chainApi, EMERGENCY_BLOCKS, hexToBytes, useChainStatus, useRedemption, type Observatory, type OwnerRow, type ReceiverRow, type RedemptionView, type TxBoxView, type TxDetail } from "@/chain";
+import { blake2b256, bytesToHex, CHAIN_BUDGET, chainApi, EMERGENCY_BLOCKS, hexToBytes, useChainStatus, useFirstReads, useRedemption, type Observatory, type OwnerRow, type ReceiverRow, type RedemptionView, type TxBoxView, type TxDetail } from "@/chain";
 import { makeClock } from "./clock";
 import { amount, blocks, date, dateTime, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, Ext, Facts, IdLink, KeyName, NetLoading, useAfterPaint, useProgressive } from "./parts";
@@ -27,6 +27,8 @@ export function RedemptionsPage({ obs }: { obs: Observatory }) {
   const later = useAfterPaint(); // the owners tables (seals) mount after the first paint
   const clock = useMemo(() => makeClock(obs), [obs]);
   const list = obs.redemptions;
+  // the newest rows (the list's top, the timeline's right end): their txs are read at once, through the tab's one queue
+  useFirstReads(list);
   const listRows = useProgressive(view === "list" ? list : [], 8);
   const sums = useMemo(() => {
     const m = new Map<string, { raw: bigint; dec: number; unit: string; n: number }>();

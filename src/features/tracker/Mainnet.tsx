@@ -9,7 +9,7 @@ import { useT } from "@/app/lang";
 import { useTitle } from "@/app";
 import { copy, pick } from "@/content";
 import {
-  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, explorer, isOurTestReserve, p2pkAddress, parseKeyInput, useAgo, useKeyLookup, useNow, useOurTracker,
+  EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, STALE_AFTER_BLOCKS, explorer, isOurTestReserve, p2pkAddress, parseKeyInput, useAgo, useKeyLookup, useNow, useOurTracker,
   type KeyDenomination, type KeyStatus, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import {
@@ -168,7 +168,7 @@ function MainnetXL({ v }: { v: OurView }) {
           </div>
 
           <div className="dial-side trk-dial">
-            <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS + 1)} size={phone ? 118 : 150} />
+            <Dial blocks={Math.min(v.age ?? 0, EMERGENCY_BLOCKS + 1)} size={phone ? 118 : 150} quiet={STALE_AFTER_BLOCKS} />
             <div className="trk-dial-t">
               <div className="label">{t("tracker.m.dial")}</div>
               <div className="t-measure trk-spare">{em ? (em.open ? DASH : blk(em.blocksLeft, lang)) : DASH}</div>

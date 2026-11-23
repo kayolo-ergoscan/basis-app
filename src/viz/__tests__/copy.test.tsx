@@ -159,6 +159,16 @@ describe("components render without raw keys (EN and RU)", () => {
     expect(renderToStaticMarkup(<ExitClocks height={5000} boxCreationHeight={null} boxPending />)).toMatch(/Checking where the tracker box is/);
     expect(renderToStaticMarkup(<ExitClocks height={5000} boxCreationHeight={null} />)).toMatch(/no box on chain yet/);
   });
+  test("ExitClocks for a tracker with a heartbeat: on time, and no «an idle tracker opens it too»", () => {
+    setLang("ru");
+    const beat = renderToStaticMarkup(<ExitClocks height={5681} boxCreationHeight={5000} show="emergency" quiet={750} />);
+    expect(beat).toMatch(/ВОВРЕМЯ|вовремя/i);
+    expect(beat).toMatch(/раз\sв\s720\sблоков\s\(пульс\)/);
+    expect(beat).not.toMatch(/простаивающий/);
+    expect(renderToStaticMarkup(<ExitClocks height={5681} boxCreationHeight={5000} show="emergency" />)).toMatch(/простаивающий/);
+    setLang("en");
+    expect(renderToStaticMarkup(<ExitClocks height={5681} boxCreationHeight={5000} show="emergency" quiet={750} />)).toMatch(/at\sleast\severy\s720\sblocks/);
+  });
   test.each(["en", "ru"] as const)("%s", (lang) => {
     setLang(lang);
     const out = html();

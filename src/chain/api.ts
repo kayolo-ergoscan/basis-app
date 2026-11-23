@@ -378,7 +378,8 @@ export const paths = {
   unspentByToken: (tokenId: string) => `/boxes/unspent/byTokenId/${enc(tokenId)}`,
   boxesByToken: (tokenId: string, limit = 50, offset = 0) => `/boxes/byTokenId/${enc(tokenId)}?limit=${limit}&offset=${offset}`,
   unspentByTemplate: (hash: string, limit = 50) => `/boxes/unspent/byErgoTreeTemplateHash/${enc(hash)}?limit=${limit}`,
-  boxesByTemplate: (hash: string, limit = 50) => `/boxes/byErgoTreeTemplateHash/${enc(hash)}?limit=${limit}`,
+  /** All boxes at a template, newest first; the next page with the answer's `nextCursor` ("height:boxId"). */
+  boxesByTemplate: (hash: string, limit = 50, cursor?: string | null) => `/boxes/byErgoTreeTemplateHash/${enc(hash)}?limit=${limit}${cursor ? `&cursor=${enc(cursor)}` : ""}`,
   mempoolByAddress: (address: string) => `/mempool/transactions/byAddress/${enc(address)}`,
   token: (tokenId: string) => `/tokens/${enc(tokenId)}`,
   hostIndex: () => `/defi/basis`,

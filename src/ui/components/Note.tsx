@@ -95,7 +95,11 @@ export function Note(props: NoteProps) {
   const ink = useMemo(() => inksFor(key), [key]);
   const sigs = useMemo(() => (props.sigA && props.sigT ? { sigA: props.sigA, sigT: props.sigT } : demoNoteSigs(key)), [key, props.sigA, props.sigT]);
   const uid = useUid("n");
-  const micro = lite ? "" : `${issuer.toUpperCase()} OWES ${receiver.toUpperCase()} ${amount.toFixed(2)} ${unit} · KEY ${keyHex} · SIG ${sigs.sigA} · `.repeat(2);
+  // the microprint speaks the page's language (the receiver in the form the face uses: «в долгу у Боба»)
+  const microLine = lite ? "" : t("ui.note.micro", {
+    issuer: issuer.toUpperCase(), receiver: owed.toUpperCase(), amount: t.lang === "ru" ? amount.toFixed(2).replace(".", ",") : amount.toFixed(2), unit, key: keyHex, sig: sigs.sigA,
+  });
+  const micro = microLine ? `${microLine} · `.repeat(2) : "";
   const artOpts = { sigA: sigs.sigA, sigT: sigs.sigT, lite: !!lite, ...(micro ? { micro } : null) };
   const liveSvg = useMemo(() => (live ? noteArt(key, { ...artOpts, uid }) : ""), [live, keyHex, micro, sigs.sigA, sigs.sigT, lite, uid]); // eslint-disable-line react-hooks/exhaustive-deps
   const ref = useRef<HTMLDivElement>(null);

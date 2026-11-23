@@ -7,6 +7,8 @@ import { rich, useT, useTitle } from "@/app";
 import { Digest, Empty, FaceTabs, Faces, Icon, KeySeal, Seg, Table, Tag, useIsPhone, type Column } from "@/ui";
 import { copy, pick } from "@/content";
 import { decodeConstant, describeExit, isOurTestReserve, OurTestReserveTag, REFUND_BLOCKS, useReserve, type ExitClass, type Observatory, type RedemptionView, type ReserveView } from "@/chain";
+// ErgoScan's tracker: its heartbeat sets the emergency dial's bands (own line, apart from the import above)
+import { OUR_TRACKER, STALE_AFTER_BLOCKS } from "@/chain";
 import { amount, date, ergs, height as fmtH, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
 import { AsOf, Block, ContractTag, EXIT_ORDER, ExitTag, Ext, Facts, IdLink, KeyName, NetLoading, NftTile, TrackerTag, trackerSilent, UntrustedName, useProgressive } from "./parts";
 import { FeedRow, r7Word, reserveRank, TopUpKey, TrackerPanel, treeWord, unitKind, VaultCard } from "./Overview";
@@ -254,6 +256,7 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               ) : (
                 <>
                   <ExitClocks height={obs.height} boxCreationHeight={trackerBoxH} boxPending={checking} r7={r.r7 && r.r7 > 0 ? r.r7 : null}
+                    quiet={r.r6 === OUR_TRACKER.nft ? STALE_AFTER_BLOCKS : undefined}
                     show={r.contract?.ownerExit ? "both" : "emergency"} trackerName={tracker ? sid(tracker.nft) : undefined}
                     loading={t("network.rv.clocksLoading")}
                     failed={<><ClocksFallback em={em} checking={checking} lang={lang} /><p className="nw-em-idle">{t("network.em.idle")}</p></>} />
@@ -287,7 +290,10 @@ export function ReserveDetail({ obs }: { obs: Observatory | null }) {
               [t("network.rv.f.contract"), <span className="nw-inl"><ContractTag c={r.contract} withRole={false} /><span className="t-small">{r.contract ? t(`chain.contract.${r.contract.role}`) : "—"}</span></span>],
               [t("network.rv.f.template"), r.contract ? <span className="hex" title={r.contract.templateHash}>{sid(r.contract.templateHash, 8, 6)}</span> : "—"],
               [t("network.rv.f.nft"), r.nft ? <span className="nw-inl"><span className="hex">{sid(r.nft.id, 6, 4)}</span><UntrustedName name={r.nft.name} /><Ext kind="token" id={r.nft.id} /></span> : "—"],
-              [t("network.rv.f.creator"), r.creator ? <IdLink id={r.creator} kind="address" /> : "—"],
+              // who paid for the tx that made this box; a box found live waits for that tx like its time does
+              [<span title={t("network.rv.f.creatorTitle")}>{t("network.rv.f.creator")}</span>, r.creator ? <IdLink id={r.creator} kind="address" />
+                : r.creatorState === "checking" ? <span className="dim" title={t("network.rv.creatorUnreadTitle")}>{t("network.rv.atUnread")}</span>
+                  : r.creatorState === "redeemed" ? <span title={t("network.rv.creatorRedeemedTitle")}>{t("network.rv.creatorRedeemed")}</span> : "—"],
               [t("network.rv.f.state"), r.unspent ? t("network.res.unspent") : <span className="nw-inl">{t("network.res.spent")}{r.spent?.tx && <IdLink id={r.spent.tx} kind="tx" to={`/network/tx/${r.spent.tx}`} />}</span>],
               [t("network.rv.f.mempool"), r.pending < 0 ? t("network.rv.mempool.unknown") : r.pending === 0 ? t("network.rv.mempool.none") : <b>{t("network.rv.mempool.some", { n: r.pending })}</b>],
               [t("network.rv.f.checked"), r.checked?.height ? t("chain.live.checked", { height: fmtH(r.checked.height) }) : t("network.rv.notChecked")],

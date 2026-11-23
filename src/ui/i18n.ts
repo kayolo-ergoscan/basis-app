@@ -79,6 +79,8 @@ const en = {
   "ui.note.aria": "Note: {issuer} owes {receiver} {amount} {unit} in total; {state}",
   "ui.note.aria.committed": "committed in digest {digest}, block {block}",
   "ui.note.sentence": "{issuer} owes {receiver}",
+  // the art's microprint line (upper case, repeated along the guilloche): who owes whom, the total, the pair key, the signature
+  "ui.note.micro": "{issuer} OWES {receiver} {amount} {unit} · KEY {key} · SIG {sig}",
 
   "ui.empty.ghost": "your first promise",
   "ui.face.aria": "Faces",
@@ -252,6 +254,7 @@ const ru: Record<string, string> = {
   "ui.note.aria": "Расписка: {issuer} в долгу у {receiver}, итого {amount} {unit}; {state}",
   "ui.note.aria.committed": "зафиксирована в дайджесте {digest}, блок {block}",
   "ui.note.sentence": "{issuer} в долгу у {receiver}",
+  "ui.note.micro": "{issuer} В ДОЛГУ У {receiver} {amount} {unit} · КЛЮЧ {key} · ПОДПИСЬ {sig}",
 
   "ui.empty.ghost": "ваше первое обещание",
   "ui.face.aria": "Стороны",

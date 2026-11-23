@@ -42,7 +42,11 @@ Snapshot totals (checked by `model.test.ts`): 99 reserve boxes, 58 unspent, 41 r
   (`seenLive` when the live layer saw it go), prev/next (lineage; for live boxes also from the boxes alone: box X was
   spent by tx T and T made box Y with the same reserve NFT and template, so Y follows X before T is read). A live box's
   `at` and `origin` creation come from its creating tx once read (`at: null` until then: the reserve page says
-  "checking…"); `value: bigint`, owner `{key, addr, label}`, nft,
+  "checking…"); `creator` ("Paid by": the address with the most ERG among the inputs of the tx that made the box,
+  other than the reserve box it spent — the depositor of a creation, the fee payer of a redemption or top-up; the seed
+  names creations, a box made by a seed redemption takes that redemption's fee payer) with `creatorState` known |
+  checking (a box found live, its tx not read yet) | redeemed (a redemption with no other input: the fee came out of
+  the redeemed ERG) | none; `value: bigint`, owner `{key, addr, label}`, nft,
   `collateral: TokenAmount`, r5 (AVL info), r6, r7, raw regs, issues, `legacy`, `exit: ExitAssessment` (unspent only,
   recomputed with live tracker states), `pending` (mempool txs, focus only; −1 unknown), `checked` (last live confirmation).
 - `ExitAssessment` — `class` locked | refund | refund+redeem | redeem-if-tracker | redeem | refund+redeem-if-tracker |
@@ -109,6 +113,7 @@ noble fallback) / `templateHashSync`, `p2pkAddress`, `p2sAddress`, `parseAddress
 | ≤ 2 requests per second for the whole app | src/chain: token bucket, capacity 1, refill 1/s (starts ≥ 1 s apart). The shell's `/v1/info` (once per 30 s) is the only other `/v1` traffic, so any 1-second window holds ≤ 1 src/chain request + ≤ 1 height poll. |
 | background ≤ 6 requests per block per visitor | block ≈ 120 s; the shell polls `/v1/info` every 30 s ≈ 4 per block → `heightReserve: 4`, the background checks spend 2 data requests per block. |
 | user-started loads are not held by it | what the user opens — a page's first look at a focused reserve or tracker (its box, its contract's mempool, its R6 tracker NFT, and for a box found live the tx that made it and the tx that spent it), a tx, a box (`useBox`, tx detail, a reserve id the live layer does not know yet), the first fee read of our tracker — goes on the interactive lane: at once, through the same token bucket (FIFO). Safety net: `userPerBlock: 30` per block per tab; over it a request waits for the next block (never fails), and background work yields while one waits. |
+| first reads | a page that lists redemptions (the overview column, `/network/redemptions`, our tracker's page) reads the unread ones among its newest `FIRST_READS.perPage` = 8 rows at once (`useFirstReads` → `chain.readFirst`): one queue per tab, one request at a time on the interactive lane (≤ 1/s), each tx at most once per tab whichever pages ask, at most `FIRST_READS.perTab` = 16 per tab; the background backlog skips queued txs and reads the rest one per block. 23 Nov 2026: the 6 newest are the same on all three pages, so a tab spends 6 GETs once. |
 | final answers kept for the tab | a transaction 3 blocks deep (`finalTx`) and a spent box (`finalBox`) never change: `get(path, { final })` keeps them in memory (120) and sessionStorage (24, ≤ 150 000 chars each), and that path is answered from there with no request — also after a reload of the tab. |
 | hidden tab | background requests are refused and nothing is scheduled; the shell's poller is the shell's. |
 | slow chain | no new block for 240 s → a new budget epoch by time. |
@@ -125,19 +130,22 @@ goes out at once on the interactive lane (`firstLooks()`); every later run is ba
 | 1 | the tracker NFT a focused reserve names in R6, when it is outside the seed, first look | `/boxes/unspent/byTokenId/{nft}` | 6 |
 | 2 | mempool of the focused reserve's contract, first look | `/mempool/transactions/byAddress/{P2S}` | 3 |
 | 3 | detector, 2 current templates: every box listed joins the live reserves, spent ones too (a box seen unspent before and spent now is replaced) | `/boxes/byErgoTreeTemplateHash/{hash}?limit=20` | 6 |
+| 3 | the detector's next page, only after a full page (`DETECTOR` in store.ts: 20 per page, at most 5 pages = 100 boxes per template): to the end on the first sweep in a tab and every 36 blocks, in between only while a page brought a box not seen or newly spent | same, `&cursor={nextCursor}` | at once |
 | 3 | a tracker NFT outside the seed named by an unspent reserve (found live), until its first answer; first look for at most `FIRST_LOOK_NFTS` = 3 such NFTs per tab, the rest in the background | `/boxes/unspent/byTokenId/{nft}` | 6 |
 | 4 | live trackers (3), and NFTs outside the seed that sit in a tracker box | `/boxes/unspent/byTokenId/{nft}` | 6 |
-| 4 | a reserve tx not read yet: the tx that made a reserve box found live, the tx that spent one (or a seed reserve seen spent); newest first, once per tab (a final answer, kept); a 404 is an answer, asked again after 6 blocks; the focused reserve's own txs are its first look (prio 1) | `/transactions/{id}` | once |
+| 4 | a reserve tx not read yet: the tx that made a reserve box found live, the tx that spent one (or a seed reserve seen spent); newest first, once per tab (a final answer, kept); a 404 is an answer, asked again after 6 blocks; the focused reserve's own txs are its first look (prio 1); a backlog takes one slot per block while any other task is due (`TX_READS_PER_BLOCK`), both when nothing else is | `/transactions/{id}` | once |
 | 5 | legacy templates with unspent reserves (6) | `/boxes/unspent/byErgoTreeTemplateHash/{hash}?limit=1` (signature); on a change one `?limit=50` full list | 12 |
 | 6 | stale / unused trackers (2) | `/boxes/unspent/byTokenId/{nft}` | 20 |
 | 7 | host index | `/defi/basis` | 360 |
 
 Steady state with no focus: 2/6 + 3/6 + 6/12 + 2/20 + 1/360 ≈ 1.44 requests per block of the 2 available, so a full
 sweep of all 14 targets takes about 7 blocks after page load. Reads of reserve txs are no steady load: each happens once
-per tab and is bounded by the boxes the live layer holds (≤ 20 per current template, ≤ 50 per legacy template), so they
+per tab and is bounded by the boxes the live layer holds (≤ 100 per current template, ≤ 50 per legacy template), so they
 fill the spare slots of the first blocks (23 Nov 2026: 8 txs, 6 redemptions and 2 creations, about 4 blocks of
 budget); the counts do not wait for them, they come from the detector's boxes (tested: 14 distinct targets within 10 blocks, ≤ 2 per
-block). A tracker page adds ≈ 0.33, a reserve page ≈ 0.43 of re-checks; when the sum exceeds 2, low-priority tasks
+block). Paging costs nothing while a template fits one page (23 Nov 2026: 9 and 0 boxes); past that, a fresh tab asks
+up to 4 more pages per template once, and a deep walk every 36 blocks adds at most 8/36 ≈ 0.22 per block (tested in
+`store.test.ts`). A tracker page adds ≈ 0.33, a reserve page ≈ 0.43 of re-checks; when the sum exceeds 2, low-priority tasks
 wait, nothing is dropped. An NFT outside the seed is only located (no commits, no pulse, not a "change"). An NFT is called burned only after empty answers in two different blocks. If the shell's height poll moves
 to 60 s, set `heightReserve: 2` and src/chain gets 4 per block with no other change.
 
@@ -210,7 +218,10 @@ use the background lane, at most every 30 min or when the tracker box moved.
   the Network bar, strip and list, Home and the tracker page's mainnet card) until the seed is regenerated, and counts
   of unspent tracker boxes add it once its API has named its box (`useOursInCounts(obs).withBox`: the Network strip,
   Home's "Trackers by status" and its mainnet door). `/network/tracker/<our nft>` is served from the tracker API, not
-  from the chain store.
+  from the chain store, except its "Redemptions it served": `obs.redemptions` filtered by `trackerNft` (the same merged
+  list the totals and the redemptions page count, so nothing twice; "checking…" until both current templates are listed,
+  "Not checked live yet" when the live layer failed first: the snapshot predates this tracker). Its unread rows are read
+  first, like the overview's and the redemptions page's (below).
 - ErgoScan's own test reserve (closed test of 22 Nov): `OUR_TRACKER.testReserveOwner` is its owner key, and
   `isOurTestReserve(key)` matches only that exact key. `OurTestReserveTag` (`tag.tsx`) is the quiet tag shown next to
   that owner wherever reserves are listed: the console's reserves table, tape and key lookup; on Network, our tracker's
@@ -265,9 +276,9 @@ Keys are in `i18n.ts` (EN + RU). Numbers inside strings use U+2009 U+2060 as the
 
 ## Known gaps
 
-- The detector reads one page of 20 boxes per current template, newest first: once a template holds more than 20
-  boxes, a fresh tab does not see the older ones, nor count their redemptions, until paging with `cursor` is added
-  (23 Nov 2026: 8 boxes at the ERG template, 0 at the multi-token one).
+- The detector pages up to 5 × 20 = 100 boxes per current template, newest first: past that, a fresh tab does not see
+  the older ones, nor count their redemptions (23 Nov 2026: 9 boxes at the ERG template, 0 at the multi-token one).
+  Between deep walks (every 36 blocks) a completed refund of a box on page 2 or later is seen late.
 - Only the current box of a tracker NFT is read: commitments posted between two checks are not seen (the seed's beats
   are complete up to block 1 921 849).
 - Full template lists use one page of 50: if a template ever holds more than 50 unspent boxes, spent boxes there are

@@ -199,6 +199,16 @@ const whenLine = (r: RedemptionView, lang: Lang, t: ReturnType<typeof useT>) => 
   : `${date(r.at, lang)} · ${t("network.rd.age", { age: blocks(r.tracker?.age ?? 0, lang) })}`;
 export const redemptionAmount = (r: RedemptionView, lang: Lang) => `${amount(r.amount, decOf(r))} ${tokenUnit(unitOf(r), lang)}`;
 
+
+/** Stem positions on one lane, oldest first: at least `gap` apart and inside [0, plotW]. A burst at the newest end (six
+ *  redemptions in a day) is pushed back from the right edge instead of past it, which made a phone page scroll sideways. */
+export function spreadStems(xs: number[], gap: number, plotW: number): number[] {
+  const out = [...xs];
+  for (let i = 1; i < out.length; i++) out[i] = Math.max(out[i], out[i - 1] + gap);
+  let next = plotW;
+  for (let i = out.length - 1; i >= 0; i--) { out[i] = Math.min(out[i], next); next = out[i] - gap; }
+  return out.map((x) => Math.max(0, x));
+}
 export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[]; clock: ChainClock; tip: number }) {
   const t = useT();
   const lang = t.lang as Lang;
@@ -220,15 +230,11 @@ export function RedemptionTimeline({ list, clock, tip }: { list: RedemptionView[
       const vals = l.items.map((r) => Number(r.amount) / 10 ** decOf(r));
       const max = Math.max(...vals);
       const sorted = [...l.items].sort((a, b) => a.height - b.height || (a.ts ?? 0) - (b.ts ?? 0));
-      let prev = -Infinity;
-      const gap = w < 640 ? 7 : 9;
-      for (const r of sorted) {
-        let x = ((clock.toTime(r.height) - t0) / (t1 - t0)) * plotW;
-        if (x < prev + gap) x = prev + gap;
-        prev = x;
+      const xs = spreadStems(sorted.map((r) => ((clock.toTime(r.height) - t0) / (t1 - t0)) * plotW), w < 640 ? 7 : 9, plotW);
+      sorted.forEach((r, i) => {
         const v = Number(r.amount) / 10 ** decOf(r);
-        out.set(r.tx, { x, hPx: Math.max(6, (v / max) * (LANE - 34)), lane: li });
-      }
+        out.set(r.tx, { x: xs[i], hPx: Math.max(6, (v / max) * (LANE - 34)), lane: li });
+      });
     });
     return out;
   }, [lanes, clock, t0, t1, plotW, w, LANE]);

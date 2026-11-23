@@ -6,11 +6,12 @@ import seedJson from "./seed.json";
 import { createChainApi, type ChainApiConfig } from "./api";
 import { CURRENT_TEMPLATES, p2pkAddress, p2sAddress } from "./decode";
 import { contractIndex } from "./model";
-import { createChainStore, FIRST_LOOK_NFTS } from "./store";
+import { createChainStore, DETECTOR, FIRST_LOOK_NFTS, FIRST_READS } from "./store";
 import type { ApiBox, Seed } from "./types";
 import type { Pulse } from "@/app/pulse";
 
 const seed = seedJson as unknown as Seed;
+const INTERVALS_DETECTOR = 6;
 const H = seed.asOf.height;
 
 function reserveBox(id: string): ApiBox {
@@ -61,7 +62,9 @@ function boxHolding(nft: string, id: string, height: number): ApiBox {
   return { ...trackerBox("4e2eef33d424388d6efec14a792020738dd47663007a2025afb1891b95e4e8b5", id, height, "ab".repeat(32) + "02"), assets: [{ tokenId: nft, amount: "1" }] };
 }
 
-interface Fake { routes: Map<string, () => unknown>; calls: string[] }
+/** A fake route answers with a body or an HTTP status; it sees the whole path (with its query). */
+type Route = (path: string) => unknown;
+interface Fake { routes: Map<string, Route>; calls: string[] }
 function fakeFetch(f: Fake): ChainApiConfig["fetchImpl"] {
   return (async (url: string) => {
     const path = String(url).replace(/^\/v1/, "");
@@ -69,14 +72,14 @@ function fakeFetch(f: Fake): ChainApiConfig["fetchImpl"] {
     const key = path.split("?")[0];
     const h = f.routes.get(key);
     if (!h) return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 });
-    const body = h();
+    const body = h(path);
     return typeof body === "number" ? new Response("no", { status: body }) : new Response(JSON.stringify(body), { status: 200 });
   }) as ChainApiConfig["fetchImpl"];
 }
 
 /** A quiet chain: every template and tracker NFT answers exactly what the seed expects. */
-function quietChain(): Map<string, () => unknown> {
-  const routes = new Map<string, () => unknown>();
+function quietChain(): Map<string, Route> {
+  const routes = new Map<string, Route>();
   const byId = contractIndex(seed).byId;
   const byHash = new Map<string, ApiBox[]>();
   for (const r of seed.reserves) {
@@ -101,7 +104,7 @@ function quietChain(): Map<string, () => unknown> {
   return routes;
 }
 
-function setup(routes: Map<string, () => unknown>) {
+function setup(routes: Map<string, Route>) {
   const fake: Fake = { routes, calls: [] };
   const pulses: Pulse[] = [];
   const api = createChainApi({ fetchImpl: fakeFetch(fake), isHidden: () => false, random: () => 0 });
@@ -335,7 +338,7 @@ describe("chain store", () => {
 
   it("keeps a final transaction for the tab: opening it again costs no request", async () => {
     const txId = "9a".repeat(32);
-    const routes = new Map<string, () => unknown>([[`/transactions/${txId}`, () => ({ id: txId, inclusionHeight: H, timestamp: 1_790_000_000_000, inputs: [], dataInputs: [], outputs: [] })]]);
+    const routes = new Map<string, Route>([[`/transactions/${txId}`, () => ({ id: txId, inclusionHeight: H, timestamp: 1_790_000_000_000, inputs: [], dataInputs: [], outputs: [] })]]);
     const { chain, fake } = setup(routes);
     chain.onHeight(H + 10, Date.now());
     const p = chain.fetchTx(txId);
@@ -412,7 +415,69 @@ describe("chain store", () => {
     expect(obs.index.reserves.get(A)).toMatchObject({ origin: "creation", unspent: false, at: new Date(TS0 + 464 * 120_000).toISOString().replace(/\.\d{3}Z$/, "Z") });
     expect(obs.unspent.length).toBe(58 + 1);
     expect(obs.index.reserves.get(B)?.at).not.toBeNull();
+    // "Paid by" from the same reads: the depositor of the creation; the redemptions had no other input
+    expect(obs.index.reserves.get(A)).toMatchObject({ creatorState: "known", creator: p2pkAddress(seed.reserves.find((x) => x.owner)!.owner!.key) });
+    expect([obs.index.reserves.get(B)?.creatorState, obs.index.reserves.get(C)?.creatorState]).toEqual(["redeemed", "redeemed"]);
     expect(obs.live.lastError).toBeNull();
+  });
+
+  it("reads the redemptions a page shows first at once, through one queue per tab: each tx once, one at a time, the background skips them", async () => {
+    const routes = quietChain();
+    routes.set(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`, () => ({ items: [boxC, boxB, boxA], total: 3 }));
+    routes.set(`/transactions/${C0}`, () => creationTx(boxA, H + 464));
+    routes.set(`/transactions/${R1}`, () => redemptionTx(boxA, boxB));
+    routes.set(`/transactions/${R2}`, () => redemptionTx(boxB, boxC));
+    // a slow node: each tx answer takes 1.5 s, longer than the token bucket's 1 s, so two reads in parallel would overlap
+    const fake: Fake = { routes, calls: [] };
+    const inner = fakeFetch(fake);
+    const at: number[] = [];
+    let open = 0, most = 0;
+    const fetchImpl = (async (url: string) => {
+      if (String(url).includes("/transactions/")) {
+        at.push(Date.now()); open++; most = Math.max(most, open);
+        await new Promise((r) => setTimeout(r, 1500));
+        open--;
+      }
+      return inner(url);
+    }) as ChainApiConfig["fetchImpl"];
+    const api = createChainApi({ fetchImpl, isHidden: () => false, random: () => 0 });
+    const chain = createChainStore({ api, loadSeed: async () => seed, pulse: { commit: () => {} }, isHidden: () => false });
+    chain.acquire();
+    chain.onHeight(H + 600, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    const obs = chain.getObservatory()!;
+    expect(obs.redemptions.slice(0, 2).map((x) => x.fromBoxes)).toEqual([true, true]);
+    // three pages of the same tab ask for the same newest rows (overview column, redemptions page, our tracker page)
+    const first = obs.redemptions.slice(0, FIRST_READS.perPage).filter((x) => x.fromBoxes).map((x) => x.tx);
+    expect(first).toEqual([R2, R1]);
+    expect(chain.readFirst(first)).toBe(2);
+    expect(chain.readFirst(first)).toBe(0);
+    expect(chain.readFirst([R1.toUpperCase(), R2])).toBe(0);
+    await vi.advanceTimersByTimeAsync(6000);
+    const reads = fake.calls.filter((c) => c.startsWith("/transactions/"));
+    expect(reads).toEqual([`/transactions/${R2}`, `/transactions/${R1}`]);
+    expect(most).toBe(1);
+    expect(at[1] - at[0]).toBeGreaterThanOrEqual(1500);          // the next one starts when the last one answered
+    expect(chain.getObservatory()!.redemptions.slice(0, 2).map((x) => x.fromBoxes)).toEqual([false, false]);
+    // later blocks: the background reads what is left (the creation), never a tx the queue read
+    for (let h = H + 601; h <= H + 604; h++) await block(chain, h);
+    expect(fake.calls.filter((c) => c.startsWith("/transactions/"))).toEqual([`/transactions/${R2}`, `/transactions/${R1}`, `/transactions/${C0}`]);
+    expect(chain.readFirst([C0, R1, R2])).toBe(0);
+    expect(chain.firstReads()).toBe(2);
+  });
+
+  it("never reads more than FIRST_READS.perTab txs first in one tab, and at most perPage from one call", async () => {
+    const routes = quietChain();
+    const ids = Array.from({ length: 30 }, (_, i) => (i + 16).toString(16).padStart(2, "0").repeat(32));
+    for (const id of ids) routes.set(`/transactions/${id}`, () => 404);
+    const { chain, fake } = setup(routes);
+    chain.onHeight(H + 10, Date.now());
+    expect(chain.readFirst(ids.slice(0, 12))).toBe(FIRST_READS.perPage);
+    expect(chain.readFirst(ids.slice(12, 20))).toBe(FIRST_READS.perTab - FIRST_READS.perPage);
+    expect(chain.readFirst(ids.slice(20, 28))).toBe(0);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fake.calls.filter((c) => c.startsWith("/transactions/")).length).toBe(FIRST_READS.perTab);
+    expect(chain.firstReads()).toBe(FIRST_READS.perTab);
   });
 
   it("replaces a box it saw unspent once the detector sees it spent: one unspent box per reserve", async () => {
@@ -455,7 +520,7 @@ describe("chain store", () => {
     const x = seed.reserves.find((r) => !r.spent && r.kind === "erg" && r.nft)!;
     const tx = "9b".repeat(32);
     const out = { ...reserveBox(x.id), boxId: "9c".repeat(32), transactionId: tx, value: String(BigInt(x.value) + 100_000_000n) };
-    const routes = new Map<string, () => unknown>([[`/transactions/${tx}`, () => ({
+    const routes = new Map<string, Route>([[`/transactions/${tx}`, () => ({
       id: tx, inclusionHeight: H - 5, timestamp: TS0, inputs: [{ ...reserveBox(x.id), spentTransactionId: tx }], dataInputs: [], outputs: [out],
     })]]);
     const { chain } = setup(routes);
@@ -470,7 +535,7 @@ describe("chain store", () => {
   });
 
   it("looks up a reserve box id it does not know: a box made after the snapshot joins, spent or not", async () => {
-    const routes = new Map<string, () => unknown>([[`/boxes/${A}`, () => boxA]]);
+    const routes = new Map<string, Route>([[`/boxes/${A}`, () => boxA]]);
     const { chain } = setup(routes);
     await chain.ensureSeed();
     expect(chain.getObservatory()!.index.reserves.has(A)).toBe(false);
@@ -512,6 +577,132 @@ describe("chain store", () => {
     }
     expect(at.length).toBeGreaterThanOrEqual(2);
     for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(6);
+  });
+
+  // ── more boxes at a current template than one page holds (DETECTOR): pages by cursor, within the block budget ──
+  /** `n` reserves made after the snapshot at the current ERG template, each its own reserve (own NFT), newest first. */
+  const manyBoxes = (n: number, top = H + 900): ApiBox[] => Array.from({ length: n }, (_, i) => {
+    const id = (i + 1).toString(16).padStart(4, "0").repeat(16);
+    return { ...curBox(id, `${id.slice(0, 60)}7777`, "500000000", top - i, null), assets: [{ tokenId: `${id.slice(0, 60)}8888`, amount: "1" }] };
+  });
+  /** The template route: `limit` per page, newest first, `cursor` = "height:boxId" of the last box of the page before. */
+  const paged = (list: () => ApiBox[]): Route => (path) => {
+    const q = new URLSearchParams(path.split("?")[1] ?? "");
+    const limit = Number(q.get("limit") ?? 50);
+    const all = list();
+    const cur = q.get("cursor");
+    const from = cur ? all.findIndex((b) => `${b.creationHeight}:${b.boxId}` === cur) + 1 : 0;
+    const items = all.slice(from, from + limit);
+    const hasMore = from + limit < all.length;
+    const last = items[items.length - 1];
+    return { items, total: all.length, offset: 0, limit, hasMore, nextCursor: hasMore && last ? `${last.creationHeight}:${last.boxId}` : null };
+  };
+  const ERG_LIST = `/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.erg}`;
+  const pagesAsked = (calls: string[]) => calls.filter((c) => c.startsWith(ERG_LIST));
+
+  it("pages through a template that holds more than one page, by cursor, at most 2 requests per block", async () => {
+    const list = manyBoxes(45);
+    const routes = quietChain();
+    routes.set(ERG_LIST, paged(() => list));
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 1000, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    for (let h = H + 1001; h <= H + 1004; h++) {
+      const before = fake.calls.length;
+      await block(chain, h);
+      expect(fake.calls.length - before).toBeLessThanOrEqual(2);
+    }
+    // page 1, then the next pages by the cursor of the last box (45 = 20 + 20 + 5); both first pages go first
+    const asked = pagesAsked(fake.calls);
+    expect(asked).toEqual([
+      `${ERG_LIST}?limit=20`,
+      `${ERG_LIST}?limit=20&cursor=${encodeURIComponent(`${H + 881}:${list[19].boxId}`)}`,
+      `${ERG_LIST}?limit=20&cursor=${encodeURIComponent(`${H + 861}:${list[39].boxId}`)}`,
+    ]);
+    expect(fake.calls.indexOf(`/boxes/byErgoTreeTemplateHash/${CURRENT_TEMPLATES.multiToken}?limit=20`)).toBeLessThan(fake.calls.indexOf(asked[1]));
+    const obs = chain.getObservatory()!;
+    expect(obs.detector.found.length).toBe(45);
+    expect(obs.unspent.length).toBe(58 + 45);
+    expect(obs.detector.templates.find((t) => t.hash === CURRENT_TEMPLATES.erg)!.total).toBe(45);
+  });
+
+  it("stops at the cap of pages, and only a full page is followed", async () => {
+    const list = manyBoxes(DETECTOR.limit * DETECTOR.pages + 30);
+    const routes = quietChain();
+    routes.set(ERG_LIST, paged(() => list));
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    chain.onHeight(H + 1000, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    for (let h = H + 1001; h <= H + 1005; h++) await block(chain, h);
+    expect(pagesAsked(fake.calls).length).toBe(DETECTOR.pages);
+    expect(chain.getObservatory()!.detector.found.length).toBe(DETECTOR.limit * DETECTOR.pages);
+    // a list that fits one page is one request, as before
+    const small = quietChain();
+    small.set(ERG_LIST, paged(() => manyBoxes(DETECTOR.limit - 1)));
+    const two = setup(small);
+    two.chain.acquire();
+    two.chain.onHeight(H + 1000, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    for (let h = H + 1001; h <= H + 1012; h++) await block(two.chain, h);
+    expect(pagesAsked(two.fake.calls).every((c) => c === `${ERG_LIST}?limit=20`)).toBe(true);
+  });
+
+  it("after the first sweep asks page 1 only, goes deeper while pages bring news, and walks all again every deepEvery blocks", async () => {
+    let list = manyBoxes(45);
+    const routes = quietChain();
+    routes.set(ERG_LIST, paged(() => list));
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    const T0 = H + 1000;
+    chain.onHeight(T0, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    for (let h = T0 + 1; h <= T0 + 5; h++) await block(chain, h);
+    expect(pagesAsked(fake.calls).length).toBe(3);
+    // quiet chain: the next detector runs (every 6 blocks) ask page 1 only
+    const n0 = pagesAsked(fake.calls).length;
+    for (let h = T0 + 6; h <= T0 + 20; h++) await block(chain, h);
+    const quiet = pagesAsked(fake.calls).slice(n0);
+    expect(quiet.length).toBeGreaterThanOrEqual(2);
+    expect(quiet.every((c) => c === `${ERG_LIST}?limit=20`)).toBe(true);
+    // 25 new boxes on top: page 1 is all news, so page 2 (5 news) and page 3 (none) are asked, then it stops
+    list = [...manyBoxes(25, T0 + 30).map((b) => ({ ...b, boxId: `f${b.boxId.slice(1)}`, assets: [{ tokenId: `f${b.assets[0].tokenId.slice(1)}`, amount: "1" }] })), ...list];
+    const n1 = pagesAsked(fake.calls).length;
+    for (let h = T0 + 21; h <= T0 + 27; h++) await block(chain, h);
+    expect(pagesAsked(fake.calls).slice(n1).length).toBe(3);
+    expect(chain.getObservatory()!.detector.found.length).toBe(70);
+    // a box on an older page spent with no new box (a completed refund): seen by the deep walk within deepEvery blocks
+    const old = list[60].boxId;
+    list = list.map((b) => (b.boxId === old ? { ...b, spentTransactionId: "5f".repeat(32) } : b));
+    for (let h = T0 + 28; h <= T0 + 5 + DETECTOR.deepEvery + INTERVALS_DETECTOR + 2; h++) await block(chain, h);
+    expect(chain.getObservatory()!.index.reserves.get(old)?.unspent).toBe(false);
+  });
+
+  it("lets a long backlog of tx reads take one slot per block while other checks are due", async () => {
+    const list = manyBoxes(45);
+    const routes = quietChain();
+    routes.set(ERG_LIST, paged(() => list));
+    for (const b of list) routes.set(`/transactions/${b.transactionId}`, () => creationTx(b, b.creationHeight + 1));
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    const T0 = H + 1000;
+    chain.onHeight(T0, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    const legacy = () => fake.calls.filter((c) => c.startsWith("/boxes/unspent/byErgoTreeTemplateHash/")).length;
+    const txs = () => fake.calls.filter((c) => c.startsWith("/transactions/")).length;
+    let firstLegacyAll = 0;
+    for (let h = T0 + 1; h <= T0 + 60; h++) {
+      const before = fake.calls.length;
+      await block(chain, h);
+      expect(fake.calls.length - before).toBeLessThanOrEqual(2);
+      if (!firstLegacyAll && legacy() >= 6) firstLegacyAll = h - T0;
+    }
+    // the six legacy templates are checked early, not after the 45 reads; every tx is still read, once
+    expect(firstLegacyAll).toBeGreaterThan(0);
+    expect(firstLegacyAll).toBeLessThanOrEqual(20);           // 17 here; 35 when the reads took both slots
+    expect(txs()).toBe(45);
+    expect(chain.getObservatory()!.reserves.filter((r) => r.source === "live" && r.creatorState === "known").length).toBe(45);
   });
 
   it("does nothing while no hook is mounted", async () => {

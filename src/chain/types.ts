@@ -77,7 +77,7 @@ export interface SeedReserve {
   r6: Hex | null;                // tracker NFT id named by R6; null = missing / not 32 bytes
   r7: number | null;             // refund start height; 0 = none ("0500"); null = register absent (no refund in the script)
   regs: Partial<Record<"R4" | "R5" | "R6" | "R7", Hex>>;
-  creator: Address | null;       // funding address of the creation tx (lineage root) or of the redemption fee box
+  creator: Address | null;       // funding address of the creation tx; null for a box made by a redemption (model.ts takes the redemption's fee payer)
   issues: string[];              // malformed-register flags from the snapshot
   exit: Exclude<ExitClass, "redeem" | "refund+redeem-if-tracker" | "redeem-checking" | "refund+redeem-checking"> | null; // snapshot verdict (unspent only)
 }
@@ -305,9 +305,14 @@ export interface ReserveView {
   r6: Hex | null;
   r7: number | null;
   regs: Partial<Record<"R4" | "R5" | "R6" | "R7", Hex>>;
+  /** "Paid by": who paid for the tx that made this box — the address with the most ERG among its inputs other than the
+   *  reserve box it spent (the depositor of a creation, the fee payer of a redemption or a top-up; the snapshot's rule). */
   creator: Address | null;
+  /** `known`: `creator` is set; `checking`: a box found live whose creating tx is not read yet; `redeemed`: made by a
+   *  redemption with no other input (the network fee came out of the redeemed ERG); `none`: nothing to name. */
+  creatorState: "known" | "checking" | "redeemed" | "none";
   issues: string[];
-  legacy: boolean;               // template is not a current one ("exploitable, refund or migrate", R17)
+  legacy: boolean;              // template is not a current one ("exploitable, refund or migrate", R17)
   exit: ExitAssessment | null;   // unspent only; recomputed with live tracker states
   snapshotExit: SeedReserve["exit"];
   pending: number;               // mempool txs touching this reserve's address (focus polling), -1 = unknown

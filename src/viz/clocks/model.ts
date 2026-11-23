@@ -77,11 +77,14 @@ export interface EmergencyModel {
   zone: "on-time" | "late" | "silent" | "emergency";
 }
 
-export function emergencyModel(height: number, boxCreationHeight: number): EmergencyModel {
+/** `quiet`: the age a tracker's box reaches by design while nothing changes (its heartbeat plus slack, e.g. ErgoScan's
+ *  720 + 30). With it the zones are on time up to it, silent after it (never "late"); without it 120 / 720 blocks. */
+export function emergencyModel(height: number, boxCreationHeight: number, quiet?: number): EmergencyModel {
   const age = Math.max(0, height - boxCreationHeight);
   const opensAt = boxCreationHeight + EMERGENCY_BLOCKS + 1;
   const open = age > EMERGENCY_BLOCKS;
-  return { age, opensAt, open, left: open ? 0 : opensAt - height, zone: open ? "emergency" : age >= 720 ? "silent" : age >= 120 ? "late" : "on-time" };
+  const zone = open ? "emergency" : quiet !== undefined ? (age <= quiet ? "on-time" : "silent") : age >= 720 ? "silent" : age >= 120 ? "late" : "on-time";
+  return { age, opensAt, open, left: open ? 0 : opensAt - height, zone };
 }
 
 export interface ExitModel {
