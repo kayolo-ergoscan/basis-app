@@ -6,5 +6,6 @@ export * from "./coins";
 export * from "./notes";
 export * from "./receipt";
 export * from "./redeem";
+export * from "./reserveops";
 export * from "./track";
 export * from "./watch";

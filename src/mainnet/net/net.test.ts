@@ -192,4 +192,20 @@ describe("wallet routes", () => {
     expect(r.ok && r.value.text).toBe(TEXT.r3ReserveIn);
     expect(await net.box("11".repeat(32))).toMatchObject({ ok: false, problem: { kind: "shape" } });
   });
+
+  it("reserve by NFT: the one unspent box that holds it, any tree, id checked; none, two, or a forged one", async () => {
+    const unspent = TEXT.r3ReserveIn.replace(/"spentTransactionId":"[0-9a-f]{64}"/, `"spentTransactionId":null`);
+    const nft = R3_RESERVE_IN.tokens[0].tokenId;
+    const page = (items: string[], more = false) => `{"items":[${items.join(",")}],"total":${items.length},"offset":0,"limit":5,"hasMore":${more}}`;
+    const one = fakeNet({ "/boxes/unspent/byTokenId/*": ans(200, page([unspent])) });
+    const r = await one.net.reserveByNft(nft);
+    expect(r.ok && r.value?.box.boxId).toBe(R3_RESERVE_IN.boxId);
+    expect(one.calls[0]).toMatchObject({ route: `/boxes/unspent/byTokenId/${nft}?limit=5`, o: { method: "GET" } });
+    expect(await fakeNet({ "/boxes/unspent/byTokenId/*": ans(200, page([])) }).net.reserveByNft(nft)).toEqual({ ok: true, value: null });
+    expect(await fakeNet({ "/boxes/unspent/byTokenId/*": ans(404, "") }).net.reserveByNft(nft)).toEqual({ ok: true, value: null });
+    expect(await fakeNet({ "/boxes/unspent/byTokenId/*": ans(200, page([unspent, unspent])) }).net.reserveByNft(nft)).toMatchObject({ ok: false, problem: { kind: "shape" } });
+    const forged = unspent.replace(`"value":"650000000"`, `"value":"6500000000"`);
+    expect(await fakeNet({ "/boxes/unspent/byTokenId/*": ans(200, page([forged])) }).net.reserveByNft(nft)).toMatchObject({ ok: false, problem: { kind: "shape" } });
+    expect(await one.net.reserveByNft("zz")).toMatchObject({ ok: false, problem: { kind: "refused" } });
+  });
 });

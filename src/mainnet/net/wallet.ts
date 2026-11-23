@@ -87,6 +87,11 @@ export interface WalletNet {
   reservesOnChain(owner: string, o?: NetOptions): Promise<Result<ChainReserves>>;
   /** null: not in a block (yet). */
   txStatus(txId: string, o?: NetOptions): Promise<Result<TxStatus | null>>;
+  /**
+   * The confirmed, unspent box that holds a reserve NFT now (/v1, never the tracker), under any tree: the caller reads it
+   * (tx.readReserve) and refuses what it does not act on. null when no unspent box holds it (spent, refunded, unknown).
+   */
+  reserveByNft(nft: string, o?: NetOptions): Promise<Result<UnspentBox | null>>;
 }
 
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -156,7 +161,8 @@ function member(node: JsonNode, key: string): JsonNode | undefined {
 
 /** One page of `/v1/boxes/unspent/byAddress`: boxes at `ergoTree` (each read strictly; a box that hashes wrong is the
  *  coin selection's to refuse), and whether more pages follow. */
-export function parseUnspentPage(text: string, ergoTree: string): { boxes: UnspentBox[]; skipped: number; hasMore: boolean } | null {
+/** One page of unspent boxes; `ergoTree` keeps only the boxes under that tree (null: every tree). */
+export function parseUnspentPage(text: string, ergoTree: string | null): { boxes: UnspentBox[]; skipped: number; hasMore: boolean } | null {
   let root: JsonNode;
   try { root = parseJson(text); } catch { return null; }
   const items = member(root, "items");
@@ -170,7 +176,7 @@ export function parseUnspentPage(text: string, ergoTree: string): { boxes: Unspe
       const main = member(it, "mainChain");
       if (main && main.kind === "bool" && !main.value) { skipped++; continue; }
       const box = boxFromV1(it, "box");
-      if (box.ergoTree !== ergoTree) { skipped++; continue; }
+      if (ergoTree !== null && box.ergoTree !== ergoTree) { skipped++; continue; }
       const h = member(it, "settlementHeight");
       boxes.push({ box, height: h && h.kind === "number" && /^\d+$/.test(h.raw) ? Number(h.raw) : null });
     } catch { skipped++; }
@@ -316,6 +322,19 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
       } catch (e) {
         return { ok: false, problem: localProblem("shape", e instanceof Error ? e.message : String(e)) };
       }
+    },
+    async reserveByNft(nft, o) {
+      if (!HEX64.test(nft)) return { ok: false, problem: localProblem("refused", "not a token id") };
+      const r = await v1Get(`/boxes/unspent/byTokenId/${nft}?limit=5`, o);
+      if (!r.ok) return r;
+      if (r.value.status === 404) return { ok: true, value: null };
+      const pg = parseUnspentPage(r.value.text, null);
+      if (!pg) return { ok: false, problem: localProblem("shape", "the boxes of this token could not be read") };
+      const holding = pg.boxes.filter((u) => u.box.tokens.some((t) => t.tokenId === nft));
+      if (holding.length > 1 || pg.hasMore) return { ok: false, problem: localProblem("shape", "more than one box holds this NFT") };
+      if (holding.length === 0) return { ok: true, value: null };
+      if (!boxIdHolds(holding[0].box)) return { ok: false, problem: localProblem("shape", "the reserve box does not hash to its id") };
+      return { ok: true, value: holding[0] };
     },
     async txStatus(txId, o) {
       if (!HEX64.test(txId)) return { ok: false, problem: localProblem("refused", "not a transaction id") };
