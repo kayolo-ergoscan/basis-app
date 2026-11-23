@@ -122,24 +122,30 @@ export function reserveLife(refundHeight: bigint | number, tip: number | null): 
 /** One reserve the tracker follows, by its reserve NFT. The tracker's /reserves entry names a box (`box`; its `nft`
  *  field is the tracker's own NFT): the wallet reads the reserve NFT from that box (features/wallet/mainnet/data.ts
  *  trackedRefs). `genuine`: the NFT was minted by its owner, i.e. the box whose id is the NFT id sat at the owner's P2PK
- *  (a token id is the id of the minting transaction's first input). The tracker can be made to name a planted box
- *  (re-review P1-1): only a genuine NFT is believed. */
-export interface TrackedRef { box: string; owner: string; nft: string; token: string | null; genuine: boolean }
+ *  (a token id is the id of the minting transaction's first input); null while /v1 has not got that box (or the box
+ *  itself) yet, which proves nothing either way. The tracker can be made to name a planted box (re-review P1-1): only a
+ *  genuine NFT is believed. */
+export interface TrackedRef { box: string; owner: string; nft: string; token: string | null; genuine: boolean | null }
 
 /**
  * The tracker's side of whether a new T1 may be made for a key (wallet-t3 P2): one rule for the reserve screen and its
  * prepare(). The tracker keeps one ERG reserve per key and quarantines a second one, so every ERG entry it lists for
  * the key blocks a T1, proven or not. "own": one of them holds an NFT this key minted (`refs`, TrackedRef.genuine) and
- * is shown as the key's reserve; "unproven": none does (a look-alike planted under the key, a reserve someone else
- * funded for it, a box this wallet cannot read), said plainly and never shown as the key's reserve. The chain's side
- * (a reserve this key minted that the tracker does not list yet) is prepare()'s, after this one.
+ * is shown as the key's reserve; "unproven" (the alarm): those whose NFT was minted elsewhere, or that do not read as
+ * this key's reserve at all (a look-alike planted under the key, a reserve someone else funded for it); "unchecked"
+ * (calm): only ones /v1 cannot show yet (genuine null: the index lags), to check again in a few minutes. Never shown as
+ * the key's reserve unless "own". The chain's side (a reserve this key minted that the tracker does not list yet) is
+ * prepare()'s, after this one.
  */
-export type TrackedGate<T> = { k: "none" } | { k: "own"; r: T } | { k: "unproven"; rs: T[] };
+export type TrackedGate<T> = { k: "none" } | { k: "own"; r: T } | { k: "unproven"; rs: T[] } | { k: "unchecked"; rs: T[] };
 export function trackedGate<T extends { box: string; owner: string; token: string | null }>(owner: string, list: readonly T[], refs: readonly TrackedRef[]): TrackedGate<T> {
   const erg = list.filter((r) => r.owner === owner && r.token === null);
   if (erg.length === 0) return { k: "none" };
-  const own = erg.find((r) => refs.some((x) => x.box === r.box && x.owner === owner && x.token === null && x.genuine));
-  return own ? { k: "own", r: own } : { k: "unproven", rs: erg };
+  const refOf = (r: T) => refs.find((x) => x.box === r.box && x.owner === owner && x.token === null);
+  const own = erg.find((r) => refOf(r)?.genuine === true);
+  if (own) return { k: "own", r: own };
+  const foreign = erg.filter((r) => { const x = refOf(r); return !x || x.genuine === false; });
+  return foreign.length > 0 ? { k: "unproven", rs: foreign } : { k: "unchecked", rs: erg };
 }
 
 /** The NFT of this key's reserve as the wallet trusts it (trustedNft); the refusals are OwnReserve's. */

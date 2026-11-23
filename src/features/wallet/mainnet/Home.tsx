@@ -21,6 +21,7 @@ export function HomeScreen() {
   const bal = un.value ? balanceOf(un.value.boxes, usable) : null;
   const reserve = gate.value?.k === "own" ? gate.value.r : null;
   const unproven = gate.value?.k === "unproven";
+  const unchecked = gate.value?.k === "unchecked";
   const life = reserve ? reserveLife(reserve.refundHeight, height) : null;
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
   const open = mine.filter((e) => isOpenState(e.state));
@@ -67,6 +68,8 @@ export function HomeScreen() {
               <p className="t-small">{t("mw.home.t1Open", { state: t(`mw.state.${t1.state}`) })} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
             ) : unproven ? (
               <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
+            ) : unchecked ? (
+              <p className="t-small mw-dim">{t("mw.home.unchecked")}</p>
             ) : gate.value === null && !gate.problem ? (
               <p className="t-small mw-dim">{t("mw.top.loading")}</p>
             ) : (

@@ -205,9 +205,10 @@ any plan.
   reserve contract by a completion 10 blocks deep, whatever else sits at the key.
 - When a T1 is refused (`features/wallet/mainnet/data.ts` `t1GateOf`, one rule for the reserve screen and its
   prepare()): any ERG reserve the tracker lists for your key, proven or not, since the tracker keeps one per key and
-  would quarantine a second (one your key did not mint is shown as "a reserve under your key that this wallet cannot
-  prove", never as yours); when it lists none, a reserve box at your key whose NFT your key minted (the listing, best
-  effort: planted boxes there do not count and an incomplete listing does not stop it).
+  would quarantine a second (one minted elsewhere, or not your key's reserve at all, is shown as "a reserve under your
+  key that this wallet cannot prove", never as yours; one /v1 cannot show yet, the box or its minting box, as "cannot
+  check this reserve yet", calmly, entry by entry); when it lists none, a reserve box at your key whose NFT your key
+  minted (the listing, best effort: planted boxes there do not count and an incomplete listing does not stop it).
 - A refund start can be mined only at a height ≤ its R7 (`R7 >= HEIGHT`): once the tip reaches R7 and it is in no
   block, the watcher marks it failed (`flows/track.ts` `refundStartExpired`), and it no longer blocks anything.
 - L2 maps the reserve-tree boxes, the outputs and the data inputs strictly; the registers of the payer's other inputs

@@ -80,6 +80,9 @@ export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
   );
 }
 
+/** Why prepare() refuses a T1, by the gate's answer (t1GateOf): one rule with what the screen shows. */
+const T1_REFUSED = { own: "mw.res.hasReserve", unproven: "mw.res.hasUnproven", unchecked: "mw.res.hasUnchecked", chain: "mw.res.hasReserveChain" } as const;
+
 /** Reserves the tracker lists under this key whose NFT this key did not mint (wallet-t3 P2): said plainly, never shown
  *  as the key's reserve; no T1 is offered either, since the tracker would quarantine a second reserve of the key. */
 function UnprovenReserve({ rs }: { rs: TrackedReserve[] }) {
@@ -136,6 +139,7 @@ export function ReserveScreen() {
   // that the tracker does not list yet: each stops a T1, and the form is not shown
   const reserve = gate.value?.k === "own" ? gate.value.r : null;
   const unproven = gate.value?.k === "unproven" ? gate.value.rs : null;
+  const unchecked = gate.value?.k === "unchecked" ? gate.value.rs : null;
   const onChainOnly = gate.value?.k === "chain";
   // the form waits for the gate's first answer (a problem shows the form too: prepare() reads it again and says why)
   const gateKnown = gate.value !== null || gate.problem !== null;
@@ -155,10 +159,9 @@ export function ReserveScreen() {
     // this key minted that the tracker does not list yet (money review P2-4)
     const g = await t1GateOf(me.pub, { priority: "user" });
     if (!g.ok) return fail({ problem: g.problem });
-    void gate.refresh();
-    if (g.value.k === "own") return fail({ text: t("mw.res.hasReserve") });
-    if (g.value.k === "unproven") return fail({ text: t("mw.res.hasUnproven") });
-    if (g.value.k === "chain") return fail({ text: t("mw.res.hasReserveChain") });
+    // the screen shows this answer: no second read through the queue (wallet-t3 LOW-2)
+    R.t1Gate(me.pub).put(g.value);
+    if (g.value.k !== "none") return fail({ text: t(T1_REFUSED[g.value.k]) });
     if (await vault.journal.activeT1(me.pub)) return fail({ text: t("mw.res.hasT1") });
     const mem = await net().mempool(me.address, { priority: "user" });
     if (!mem.ok) return fail({ problem: mem.problem });
@@ -253,6 +256,12 @@ export function ReserveScreen() {
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
           {unproven && !t1 && <UnprovenReserve rs={unproven} />}
+          {unchecked && !t1 && (
+            <Callout tone="calm" title={t("mw.res.uncheckedT")}>
+              <p>{t("mw.res.uncheckedB")}</p>
+              <ul className="mw-facts">{unchecked.map((r) => <li key={r.box}>{t("mw.res.box")} <ChainLink kind="box" id={r.box} /></li>)}</ul>
+            </Callout>
+          )}
           {onChainOnly && !t1 && <Callout tone="calm" title={t("mw.res.chainT")}>{t("mw.res.hasReserveChain")}</Callout>}
           {t1 && <T1Progress entry={t1} />}
           {actions.map((e) => (
@@ -267,7 +276,7 @@ export function ReserveScreen() {
             </Card>
           )}
           {!gateKnown && !t1 && !combineEntry && <p className="t-small mw-dim">{t("mw.top.loading")}</p>}
-          {gateKnown && !reserve && !unproven && !onChainOnly && !t1 && !combineEntry && (
+          {gateKnown && !reserve && !unproven && !unchecked && !onChainOnly && !t1 && !combineEntry && (
             <Gate vault={vault} state={state} unlocked why={t("mw.res.unlockWhy")}>
               <Card title={t("mw.res.createT")}>
                 {phase.k === "review" ? (

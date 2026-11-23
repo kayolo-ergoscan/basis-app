@@ -349,14 +349,14 @@ const P2PK_TREE = /^0008cd(0[23][0-9a-f]{64})$/;
 
 /**
  * Who minted a reserve NFT (re-review P1-1): a token id is the id of its minting transaction's first input, so the box
- * with that id (spent, still indexed by /v1) is the minter's. The key of its P2PK tree, null for any other tree or no
- * such box (not cached: the index may lag), or the read's problem. Its tree is believed only when the box hashes to
- * that id (wallet-t3): an answer that does not is a problem, not an answer.
+ * with that id (spent, still indexed by /v1) is the minter's. The key of its P2PK tree, null for any other tree,
+ * undefined when /v1 has no such box (yet: the index may lag; not cached), or the read's problem. Its tree is believed
+ * only when the box hashes to that id (wallet-t3): an answer that does not is a problem, not an answer.
  */
-export async function minterOf(nft: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<string | null>> {
+export async function minterOf(nft: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<string | null | undefined>> {
   if (minters.has(nft)) return { ok: true, value: minters.get(nft)! };
   const b = await box(nft, { priority: "user" });
-  if (!b.ok) return b.problem.kind === "not-found" ? { ok: true, value: null } : b;
+  if (!b.ok) return b.problem.kind === "not-found" ? { ok: true, value: undefined } : b;
   if (!hashesToId(b.value.box)) return { ok: false, problem: localProblem("shape", "the box an NFT was minted from does not hash to its id") };
   const key = P2PK_TREE.exec(b.value.box.ergoTree)?.[1] ?? null;
   minters.set(nft, key);
@@ -371,7 +371,8 @@ export function forgetMinters(): void { minters.clear(); }
  * the tracker's own NFT, not the reserve's), so the reserve NFT is the token of that box, read from /v1: every box of
  * a reserve's chain holds the same NFT, so a box id the tracker has not updated yet still names it. Entries of
  * another tracker, and boxes that do not read as a reserve of that owner, are left out; each NFT is checked to be
- * minted by its owner (`genuine`, minterOf: the tracker can be made to name a planted box).
+ * minted by its owner (`genuine`, minterOf: the tracker can be made to name a planted box; null while /v1 does not
+ * have the minting box yet).
  */
 export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<TrackedRef[]>> {
   const out: TrackedRef[] = [];
@@ -383,7 +384,7 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
     if (!rr.ok || rr.info.owner !== r.owner) continue;
     const m = await minterOf(rr.info.nft, box);
     if (!m.ok) return m;
-    out.push({ box: r.box, owner: r.owner, nft: rr.info.nft, token: r.token, genuine: m.value === rr.info.owner });
+    out.push({ box: r.box, owner: r.owner, nft: rr.info.nft, token: r.token, genuine: m.value === undefined ? null : m.value === rr.info.owner });
   }
   return { ok: true, value: out };
 }
@@ -415,7 +416,9 @@ export async function trackedOf(pub: string, o?: NetOptions): Promise<Result<Tra
 /**
  * The tracker's side of a new T1 for a key, from one read (wallet-t3 P2, trackedGate): every ERG reserve it lists for
  * the key blocks; those boxes are read for their NFT and who minted it (only when there are any), so that the screen
- * shows the key's own reserve as its own and any other one as a reserve this wallet cannot prove.
+ * shows the key's own reserve as its own, one minted elsewhere (or not this key's reserve at all) as a reserve this
+ * wallet cannot prove, and one /v1 cannot show yet (the box, or its minting box) as not checked yet. Entry by entry:
+ * a box /v1 does not have does not hide the others (wallet-t3 LOW-3); a failed read is still the whole answer's.
  */
 export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box"> = net()): Promise<Result<TrackedGate<TrackedReserve>>> {
   const opts = o ?? { priority: "user" };
@@ -423,9 +426,14 @@ export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletN
   if (!l.ok) return l;
   const erg = l.value.filter((r) => r.owner === pub && r.token === null);
   if (erg.length === 0) return { ok: true, value: { k: "none" } };
-  const refs = await trackedRefs(erg, (id) => n.box(id, opts));
-  if (!refs.ok) return refs;
-  return { ok: true, value: trackedGate(pub, erg, refs.value) };
+  const refs: TrackedRef[] = [];
+  for (const r of erg) {
+    const one = await trackedRefs([r], (id) => n.box(id, opts));
+    if (one.ok) refs.push(...one.value);
+    else if (one.problem.kind === "not-found") refs.push({ box: r.box, owner: r.owner, nft: "", token: null, genuine: null });
+    else return one;
+  }
+  return { ok: true, value: trackedGate(pub, erg, refs) };
 }
 
 /** What stops a new T1: the tracker's side (TrackedGate), or "chain", a reserve box at the key whose NFT this key

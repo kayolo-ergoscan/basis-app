@@ -195,7 +195,7 @@ describe("which reserve is the key's own (review 2: planted boxes; re-review P1-
 describe("whether a T1 may be made, as far as the tracker goes (wallet-t3 P2: one rule for the screen and prepare)", () => {
   const BOX = "b9".repeat(32), PBOX = "ba".repeat(32), TBOX = "bb".repeat(32);
   const entry = (box: string, owner = me, token: string | null = null) => ({ box, owner, token, collateral: 2n * ERG });
-  const ref = (box: string, genuine: boolean, owner = me, token: string | null = null) => ({ box, owner, nft: `9${box.slice(1)}`, token, genuine });
+  const ref = (box: string, genuine: boolean | null, owner = me, token: string | null = null) => ({ box, owner, nft: `9${box.slice(1)}`, token, genuine });
 
   it("no ERG reserve of this key listed: nothing stops it (another key's, a token reserve)", () => {
     expect(trackedGate(me, [], [])).toEqual({ k: "none" });
@@ -218,5 +218,13 @@ describe("whether a T1 may be made, as far as the tracker goes (wallet-t3 P2: on
     expect(trackedGate(me, [entry(PBOX)], [ref(BOX, true)])).toMatchObject({ k: "unproven" });
     expect(trackedGate(me, [entry(PBOX)], [ref(PBOX, true, other)])).toMatchObject({ k: "unproven" });
     expect(trackedGate(me, [entry(PBOX), entry(TBOX, me, "11".repeat(32))], [ref(PBOX, true, me, "11".repeat(32))])).toEqual({ k: "unproven", rs: [entry(PBOX)] });
+  });
+
+  it("one /v1 cannot show yet (its minting box, or the box itself): not checked yet, calm, and a T1 stops all the same (LOW-1/3)", () => {
+    expect(trackedGate(me, [entry(BOX)], [ref(BOX, null)])).toEqual({ k: "unchecked", rs: [entry(BOX)] });
+    // the alarm only for a proven foreign minter or a box that is not this key's reserve; the own one wins over both
+    expect(trackedGate(me, [entry(BOX), entry(PBOX)], [ref(BOX, null), ref(PBOX, false)])).toEqual({ k: "unproven", rs: [entry(PBOX)] });
+    expect(trackedGate(me, [entry(BOX), entry(PBOX)], [ref(BOX, null)])).toEqual({ k: "unproven", rs: [entry(PBOX)] });
+    expect(trackedGate(me, [entry(PBOX), entry(BOX)], [ref(PBOX, null), ref(BOX, true)])).toEqual({ k: "own", r: entry(BOX) });
   });
 });

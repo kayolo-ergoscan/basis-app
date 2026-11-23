@@ -160,8 +160,9 @@ describe("the tracker's reserves as reserve NFTs (review 2: the tracker names bo
     expect(r).toEqual({ ok: true, value: [{ box: R3_RESERVE_IN.boxId, owner: ISSUER_A, nft, token: null, genuine: true }] });
   });
 
-  it("no minting box on /v1 is not genuine (and not remembered); a failed read is no answer; a known one is read once", async () => {
-    expect(await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real }))).toMatchObject({ ok: true, value: [{ genuine: false }] });
+  it("no minting box on /v1 yet proves nothing either way (and is not remembered); a failed read is no answer; a known one is read once", async () => {
+    expect(await minterOf(NFT, reader({}))).toEqual({ ok: true, value: undefined });
+    expect(await trackedRefs([entry(real.boxId)], reader({ [real.boxId]: real }))).toMatchObject({ ok: true, value: [{ genuine: null }] });
     const asked: string[] = [];
     const boxes = reader({ [real.boxId]: real, ...minted }, asked);
     expect(await trackedRefs([entry(real.boxId)], boxes)).toMatchObject({ ok: true, value: [{ genuine: true }] });
@@ -214,10 +215,21 @@ describe("the tracker's reserves as reserve NFTs (review 2: the tracker names bo
     expect(await t1GateOf(OWNER, undefined, world([], [planted, real]))).toEqual({ ok: true, value: { k: "chain" } });
     expect(await t1GateOf(OWNER, undefined, world([], [planted, planted]))).toEqual({ ok: true, value: { k: "none" } });
     expect(await trackedGateOf(OWNER, undefined, world([], [real]))).toEqual({ ok: true, value: { k: "none" } });
+    // /v1 has not got the minting box yet: not checked yet (calm), not planted; a T1 still stops
+    forgetMinters();
+    const lag = { ...world([entry(real.boxId)]), box: reader({ [real.boxId]: real }) };
+    expect(await t1GateOf(OWNER, undefined, lag)).toEqual({ ok: true, value: { k: "unchecked", rs: [entry(real.boxId)] } });
+    // a tracked box /v1 cannot find is one entry not checked yet; the others still show (wallet-t3 LOW-3)
+    const gone = "77".repeat(32);
+    expect(await t1GateOf(OWNER, undefined, world([entry(gone)]))).toEqual({ ok: true, value: { k: "unchecked", rs: [entry(gone)] } });
+    expect(await t1GateOf(OWNER, undefined, world([entry(gone), entry(real.boxId)]))).toEqual({ ok: true, value: { k: "own", r: entry(real.boxId) } });
+    expect(await t1GateOf(OWNER, undefined, world([entry(gone), entry(planted.boxId)]))).toEqual({ ok: true, value: { k: "unproven", rs: [entry(planted.boxId)] } });
     // the tracker or the chain unread: no answer (prepare() stops on it)
     const down = async () => ({ ok: false as const, problem: { kind: "network" as const, status: null, reason: "", retryInMs: null, txId: null } });
     expect((await t1GateOf(OWNER, undefined, { ...world([]), reservesOf: down })).ok).toBe(false);
     expect((await t1GateOf(OWNER, undefined, { ...world([]), reservesOnChain: down })).ok).toBe(false);
+    // a box read that fails (not "not found") is the whole answer's
+    expect((await t1GateOf(OWNER, undefined, { ...world([entry(real.boxId)]), box: down })).ok).toBe(false);
   });
 
   it("T1 creation: only a reserve this key minted counts; planted boxes, even many, do not block", async () => {
