@@ -1,15 +1,15 @@
 // /network: ErgoScan's own tracker (src/chain/ours). The card on the overview and on /network/trackers, and its page
 // at /network/tracker/<nft>. Every figure is the tracker API's answer or the chain's; "—" when it is not known yet.
 // The tracker is judged like every other one, by the age of its box, plus whether its API answers.
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT, useTitle } from "@/app";
 import { blockWord, CopyButton, CoverageTag, Dial, Honest, Icon, Key, Lamp, ratioPct, Table, Tag, useIsPhone, type Column, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
 import {
-  p2pkAddress,
+  chain, p2pkAddress,
   EMERGENCY_BLOCKS, EMPTY_DIGEST, OUR_TRACKER, OurTestReserveTag, STALE_AFTER_BLOCKS, isOurTestReserve, totalsSource, useAgo, useNow, useOurTracker,
-  type Observatory, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
+  type Observatory, type OurEvent, type RedemptionView, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import { amount, approx, blocks, ergs, height as fmtH, sid, type Lang } from "./fmt";
 import { AsOf, Block, Capped, Ext, Facts, IdLink, KeyName, NftTile, UntrustedName } from "./parts";
@@ -243,9 +243,18 @@ export function OurReserves({ v }: { v: OurView }) {
 /** Redemptions found on chain that this tracker served: the same merged list the redemptions page and the totals count
  *  (the snapshot's, the ones read live, the ones seen in reserve boxes only), filtered by the tracker NFT, so nothing is
  *  counted twice. The seed predates this NFT: every one of them is from the live layer. */
+/** Rows of our tracker's redemptions whose transactions the page reads itself when they are not read yet: the rows shown
+ *  first (Capped n) are what the user opened, so they are a first look (interactive lane, 1/s, once each per tab)
+ *  instead of waiting behind the background backlog (one tx per block). */
+export const OUR_REDEMPTION_READS = 8;
+export const ourRedemptionReads = (list: readonly RedemptionView[] | null): string[] =>
+  (list ?? []).slice(0, OUR_REDEMPTION_READS).filter((x) => x.fromBoxes).map((x) => x.tx);
+
 export function OurRedemptions({ obs }: { obs: Observatory | null }) {
   const t = useT();
   const list = useMemo(() => (obs ? obs.redemptions.filter((x) => x.trackerNft === OUR_TRACKER.nft) : null), [obs]);
+  const unread = ourRedemptionReads(list).join(" ");
+  useEffect(() => { if (unread) for (const tx of unread.split(" ")) void chain.fetchTx(tx); }, [unread]);
   // before this tab has listed the current templates, an empty list would only mean "not looked yet" (or, when the live
   // layer failed, that the snapshot predates this tracker)
   const src = obs ? totalsSource(obs) : "checking";
@@ -254,7 +263,7 @@ export function OurRedemptions({ obs }: { obs: Observatory | null }) {
     <Block label={t("network.td.redemptions")} aside={<span className="label num">{list && !unknown ? list.length : DASH}</span>}>
       <p className="t-small">{t("network.ours.td.redemptionsSub")}</p>
       {unknown ? <p className="t-small dim">{src === "snapshot" ? t("chain.live.seedOnly") : t("network.rd.unread")}</p>
-        : list!.length ? <Capped rows={list!} n={8}>{(rows) => <ol className="nw-feed">{rows.map((x) => <FeedRow key={x.tx} r={x} />)}</ol>}</Capped>
+        : list!.length ? <Capped rows={list!} n={OUR_REDEMPTION_READS}>{(rows) => <ol className="nw-feed">{rows.map((x) => <FeedRow key={x.tx} r={x} />)}</ol>}</Capped>
           : <p className="t-small">{t("network.td.none")}</p>}
     </Block>
   );

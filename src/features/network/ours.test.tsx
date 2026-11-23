@@ -11,7 +11,7 @@ import chainStrings from "@/chain/i18n";
 import { idleStatus } from "@/chain/model";
 import uiStrings from "@/ui/i18n";
 import { TrackerPanel } from "./Overview";
-import { OurRedemptions } from "./Ours";
+import { OUR_REDEMPTION_READS, OurRedemptions, ourRedemptionReads } from "./Ours";
 import strings from "./strings";
 
 const seed = seedJson as unknown as Seed;
@@ -59,6 +59,13 @@ describe("our tracker page: redemptions found on chain", () => {
     expect(out).toContain("block 1,922,335");
     // the same two are what the totals count beyond the snapshot
     expect(obs.totals.redemptions).toBe(seed.redemptions.length + 2);
+    // the page reads the box-only one itself (a first look), not the one already read
+    const mine = obs.redemptions.filter((x) => x.trackerNft === OUR_TRACKER.nft);
+    expect(ourRedemptionReads(mine)).toEqual([R2]);
+    // only the rows shown first, so a long list costs at most that many reads
+    const many = Array.from({ length: 20 }, (_, i) => ({ ...mine.find((x) => x.tx === R2)!, tx: i.toString(16).padStart(64, "0") }));
+    expect(ourRedemptionReads(many)).toHaveLength(OUR_REDEMPTION_READS);
+    expect(ourRedemptionReads(null)).toEqual([]);
   });
 
   it("says «checking…», not «None», before this tab has listed the current templates", () => {

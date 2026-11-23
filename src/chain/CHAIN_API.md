@@ -219,7 +219,10 @@ use the background lane, at most every 30 min or when the tracker box moved.
   Home's "Trackers by status" and its mainnet door). `/network/tracker/<our nft>` is served from the tracker API, not
   from the chain store, except its "Redemptions it served": `obs.redemptions` filtered by `trackerNft` (the same merged
   list the totals and the redemptions page count, so nothing twice; "checking…" until both current templates are listed,
-  "Not checked live yet" when the live layer failed first: the snapshot predates this tracker).
+  "Not checked live yet" when the live layer failed first: the snapshot predates this tracker). The rows shown first
+  (`OUR_REDEMPTION_READS` = 8) whose tx is not read yet are read by the page itself with `chain.fetchTx` (interactive
+  lane, 1/s, once each per tab), like a focused reserve's own txs, so their recipient and date do not wait one block
+  per tx behind the background backlog.
 - ErgoScan's own test reserve (closed test of 22 Nov): `OUR_TRACKER.testReserveOwner` is its owner key, and
   `isOurTestReserve(key)` matches only that exact key. `OurTestReserveTag` (`tag.tsx`) is the quiet tag shown next to
   that owner wherever reserves are listed: the console's reserves table, tape and key lookup; on Network, our tracker's
