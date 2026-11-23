@@ -620,6 +620,32 @@ describe("chain store", () => {
     expect(chain.getObservatory()!.index.reserves.get(old)?.unspent).toBe(false);
   });
 
+  it("lets a long backlog of tx reads take one slot per block while other checks are due", async () => {
+    const list = manyBoxes(45);
+    const routes = quietChain();
+    routes.set(ERG_LIST, paged(() => list));
+    for (const b of list) routes.set(`/transactions/${b.transactionId}`, () => creationTx(b, b.creationHeight + 1));
+    const { chain, fake } = setup(routes);
+    chain.acquire();
+    const T0 = H + 1000;
+    chain.onHeight(T0, Date.now());
+    await vi.advanceTimersByTimeAsync(3000);
+    const legacy = () => fake.calls.filter((c) => c.startsWith("/boxes/unspent/byErgoTreeTemplateHash/")).length;
+    const txs = () => fake.calls.filter((c) => c.startsWith("/transactions/")).length;
+    let firstLegacyAll = 0;
+    for (let h = T0 + 1; h <= T0 + 60; h++) {
+      const before = fake.calls.length;
+      await block(chain, h);
+      expect(fake.calls.length - before).toBeLessThanOrEqual(2);
+      if (!firstLegacyAll && legacy() >= 6) firstLegacyAll = h - T0;
+    }
+    // the six legacy templates are checked early, not after the 45 reads; every tx is still read, once
+    expect(firstLegacyAll).toBeGreaterThan(0);
+    expect(firstLegacyAll).toBeLessThanOrEqual(20);           // 17 here; 35 when the reads took both slots
+    expect(txs()).toBe(45);
+    expect(chain.getObservatory()!.reserves.filter((r) => r.source === "live" && r.creatorState === "known").length).toBe(45);
+  });
+
   it("does nothing while no hook is mounted", async () => {
     const { chain, fake } = setup(new Map());
     await chain.ensureSeed();

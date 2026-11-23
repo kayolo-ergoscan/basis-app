@@ -65,6 +65,9 @@ interface Task { key: string; kind: TaskKind; arg: string; prio: number; every: 
  *  wait for the background budget, so many fresh reserves cannot turn one page view into a burst. */
 export const FIRST_LOOK_NFTS = 3;
 
+/** Background tx reads per block while other checks are due (pick()). */
+export const TX_READS_PER_BLOCK = 1;
+
 const defaultLoadSeed = async (): Promise<Seed> => (await import("./seed.json")).default as unknown as Seed;
 
 export type ChainStore = ReturnType<typeof createChainStore>;
@@ -266,15 +269,31 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
     if (followUps.length) return followUps.shift()!;
     const tip = tipOrSeed();
     if (tip === null) return null;
+    // a backlog of tx reads (many boxes found live) takes one background slot per block while anything else is due, so
+    // tracker re-checks, legacy templates and the host index keep their pace; with nothing else due it takes both
+    const txFull = txSlot.height === tip && txSlot.n >= TX_READS_PER_BLOCK;
+    return bestDue(tip, txFull) ?? (txFull ? bestDue(tip, false) : null);
+  }
+
+  function bestDue(tip: number, skipTx: boolean): Task | null {
     let best: Task | null = null;
     let bestOver = -1;
     for (const t of targets()) {
+      if (skipTx && t.kind === "tx") continue;
       const l = last.get(t.key);
       const over = l === undefined ? Number.MAX_SAFE_INTEGER : tip - l;
       if (recheck.has(t.key) ? over < 1 : over < t.every) continue;
       if (!best || t.prio < best.prio || (t.prio === best.prio && over > bestOver)) { best = t; bestOver = over; }
     }
     return best;
+  }
+
+  /** Background tx reads in the current block (pick() lets a backlog of them take one slot while other checks wait). */
+  const txSlot = { height: -1, n: 0 };
+  function noteTxRead() {
+    const tip = tipOrSeed() ?? 0;
+    if (txSlot.height !== tip) { txSlot.height = tip; txSlot.n = 0; }
+    txSlot.n++;
   }
 
   function followUp(kind: TaskKind, arg: string) {
@@ -325,6 +344,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       while (users > 0 && api.canSpend("background")) {
         const task = pick();
         if (!task) break;
+        if (task.kind === "tx") noteTxRead();
         const prev = last.get(task.key);
         last.set(task.key, tipOrSeed() ?? 0);
         try {
@@ -742,7 +762,7 @@ export function createChainStore(opts: ChainStoreOptions = {}) {
       return t;
     },
     /** Test/dev: forget everything (seed stays). */
-    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); readTxs.clear(); missingTxs.clear(); detectorNext.clear(); detectorSwept.clear(); set({ live: emptyLive(), boxes: {}, txs: {} }); },
+    resetLive: () => { last.clear(); followUps.length = 0; emptyStreak.clear(); recheck.clear(); lookedNfts.clear(); readTxs.clear(); missingTxs.clear(); detectorNext.clear(); detectorSwept.clear(); txSlot.height = -1; txSlot.n = 0; set({ live: emptyLive(), boxes: {}, txs: {} }); },
     dispose: () => { unsubApi(); if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility); },
   };
 }
