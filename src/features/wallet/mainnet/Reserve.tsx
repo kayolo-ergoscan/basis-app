@@ -81,7 +81,7 @@ export function ReserveLifeBlock({ refundHeight }: { refundHeight: number }) {
 }
 
 /** Why prepare() refuses a T1, by the gate's answer (t1GateOf): one rule with what the screen shows. */
-const T1_REFUSED = { own: "mw.res.hasReserve", unproven: "mw.res.hasUnproven", unchecked: "mw.res.hasUnchecked", chain: "mw.res.hasReserveChain" } as const;
+const T1_REFUSED = { own: "mw.res.hasReserve", unproven: "mw.res.hasUnproven", unchecked: "mw.res.hasUnchecked", "unchecked-chain": "mw.res.hasUnchecked", chain: "mw.res.hasReserveChain" } as const;
 
 /** Reserves the tracker lists under this key whose NFT this key did not mint (wallet-t3 P2): said plainly, never shown
  *  as the key's reserve; no T1 is offered either, since the tracker would quarantine a second reserve of the key. */
@@ -139,7 +139,7 @@ export function ReserveScreen() {
   // that the tracker does not list yet: each stops a T1, and the form is not shown
   const reserve = gate.value?.k === "own" ? gate.value.r : null;
   const unproven = gate.value?.k === "unproven" ? gate.value.rs : null;
-  const unchecked = gate.value?.k === "unchecked" ? gate.value.rs : null;
+  const unchecked = gate.value?.k === "unchecked" ? gate.value.rs.map((r) => r.box) : gate.value?.k === "unchecked-chain" ? gate.value.boxes : null;
   const onChainOnly = gate.value?.k === "chain";
   // the form waits for the gate's first answer (a problem shows the form too: prepare() reads it again and says why)
   const gateKnown = gate.value !== null || gate.problem !== null;
@@ -259,7 +259,7 @@ export function ReserveScreen() {
           {unchecked && !t1 && (
             <Callout tone="calm" title={t("mw.res.uncheckedT")}>
               <p>{t("mw.res.uncheckedB")}</p>
-              <ul className="mw-facts">{unchecked.map((r) => <li key={r.box}>{t("mw.res.box")} <ChainLink kind="box" id={r.box} /></li>)}</ul>
+              <ul className="mw-facts">{unchecked.map((id) => <li key={id}>{t("mw.res.box")} <ChainLink kind="box" id={id} /></li>)}</ul>
             </Callout>
           )}
           {onChainOnly && !t1 && <Callout tone="calm" title={t("mw.res.chainT")}>{t("mw.res.hasReserveChain")}</Callout>}

@@ -390,11 +390,14 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
 }
 
 /** Reserve boxes of the listing a T1 must not duplicate: whether one of them (the first 10 distinct boxes, in the
- *  order the /v1 listing gives them; the wallet does not sort it) holds an NFT this key minted. The others are planted
- *  and do not count. */
+ *  order the /v1 listing gives them; the wallet does not sort it) holds an NFT this key minted ("mine"). Boxes minted
+ *  elsewhere are planted and do not count. One whose minting box /v1 does not have yet may be this key's own (the
+ *  index lags): "unchecked", with those boxes, which stops a T1 too (wallet-t3 LOW-4). */
 export const MINTED_CHECK_MAX = 10;
-export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<boolean>> {
+export type MintedAmong = { k: "mine" } | { k: "unchecked"; boxes: string[] } | { k: "none" };
+export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<MintedAmong>> {
   const seen = new Set<string>();
+  const unchecked: string[] = [];
   for (const u of boxes) {
     if (seen.has(u.box.boxId) || seen.size >= MINTED_CHECK_MAX) continue;
     seen.add(u.box.boxId);
@@ -402,9 +405,10 @@ export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box
     if (!rr.ok || rr.info.owner !== pub) continue;
     const m = await minterOf(rr.info.nft, box);
     if (!m.ok) return m;
-    if (m.value === pub) return { ok: true, value: true };
+    if (m.value === pub) return { ok: true, value: { k: "mine" } };
+    if (m.value === undefined) unchecked.push(u.box.boxId);
   }
-  return { ok: true, value: false };
+  return { ok: true, value: unchecked.length > 0 ? { k: "unchecked", boxes: unchecked } : { k: "none" } };
 }
 
 /** The tracker's reserves of a key as reserve NFTs (trackedRefs), read fresh. */
@@ -437,8 +441,9 @@ export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletN
 }
 
 /** What stops a new T1: the tracker's side (TrackedGate), or "chain", a reserve box at the key whose NFT this key
- *  minted that the tracker does not list yet (made on another device; money review P2-4). */
-export type T1Gate = TrackedGate<TrackedReserve> | { k: "chain" };
+ *  minted that the tracker does not list yet (made on another device; money review P2-4), or "unchecked-chain", such
+ *  boxes whose minting box /v1 does not have yet (they may be this key's own: wallet-t3 LOW-4). */
+export type T1Gate = TrackedGate<TrackedReserve> | { k: "chain" } | { k: "unchecked-chain"; boxes: string[] };
 
 /**
  * One rule for the reserve screen and its prepare() (wallet-t3 P2): any ERG reserve the tracker lists for the key,
@@ -454,7 +459,8 @@ export async function t1GateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "
   if (!onChain.ok) return onChain;
   const minted = await mintedAmong(onChain.value.boxes, pub, (id) => n.box(id, opts));
   if (!minted.ok) return minted;
-  return { ok: true, value: minted.value ? { k: "chain" } : { k: "none" } };
+  const m = minted.value;
+  return { ok: true, value: m.k === "mine" ? { k: "chain" } : m.k === "unchecked" ? { k: "unchecked-chain", boxes: m.boxes } : { k: "none" } };
 }
 
 /**

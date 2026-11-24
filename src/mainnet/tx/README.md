@@ -216,7 +216,8 @@ of a type it does not model. Anything else is refused with its rule, before any 
   would quarantine a second (one minted elsewhere, or not your key's reserve at all, is shown as "a reserve under your
   key that this wallet cannot prove", never as yours; one /v1 cannot show yet, the box or its minting box, as "cannot
   check this reserve yet", calmly, entry by entry); when it lists none, a reserve box at your key whose NFT your key
-  minted (the listing, best effort: planted boxes there do not count and an incomplete listing does not stop it).
+  minted, or whose minting box /v1 does not have yet (it may be yours: "cannot check yet" again; the listing, best
+  effort: boxes minted elsewhere do not count and an incomplete listing does not stop it).
 - A refund start can be mined only at a height ≤ its R7 (`R7 >= HEIGHT`): once the tip reaches R7 and it is in no
   block, the watcher marks it failed (`flows/track.ts` `refundStartExpired`), and it no longer blocks anything.
 - L2 maps the reserve-tree boxes, the outputs and the data inputs strictly; the registers of the payer's other inputs

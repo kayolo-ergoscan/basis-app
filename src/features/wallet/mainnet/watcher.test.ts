@@ -234,12 +234,31 @@ describe("the tracker's reserves as reserve NFTs (review 2: the tracker names bo
 
   it("T1 creation: only a reserve this key minted counts; planted boxes, even many, do not block", async () => {
     const at = (b: typeof real) => ({ box: b, height: 1 });
-    expect(await mintedAmong([at(planted), at(planted)], OWNER, reader(minted))).toEqual({ ok: true, value: false });
-    expect(await mintedAmong([at(planted), at(real)], OWNER, reader(minted))).toEqual({ ok: true, value: true });
-    expect(await mintedAmong([at(theirs)], OWNER, reader(minted))).toEqual({ ok: true, value: false });
-    const flood = Array.from({ length: 40 }, (_, i) => at(reserveBox(OWNER, 1_000_000_000n, { nft: i.toString(16).padStart(64, "c") })));
+    expect(await mintedAmong([at(planted), at(planted)], OWNER, reader(minted))).toEqual({ ok: true, value: { k: "none" } });
+    expect(await mintedAmong([at(planted), at(real)], OWNER, reader(minted))).toEqual({ ok: true, value: { k: "mine" } });
+    expect(await mintedAmong([at(theirs)], OWNER, reader(minted))).toEqual({ ok: true, value: { k: "none" } });
+    // a flood of planted boxes, each minted from one of the attacker's boxes: 10 read, none counts
+    const mints = Array.from({ length: 40 }, (_, i) => p2pkBox(ATTACKER, 1_000_000n, { transactionId: "c4".repeat(32), index: i }));
+    const flood = mints.map((m) => at(reserveBox(OWNER, 1_000_000_000n, { nft: m.boxId })));
     const asked: string[] = [];
-    expect(await mintedAmong(flood, OWNER, reader(minted, asked))).toEqual({ ok: true, value: false });
+    expect(await mintedAmong(flood, OWNER, reader(Object.fromEntries(mints.map((m) => [m.boxId, m])), asked))).toEqual({ ok: true, value: { k: "none" } });
     expect(asked.length).toBe(MINTED_CHECK_MAX);
+  });
+
+  it("T1 creation (wallet-t3 LOW-4): a box at the key whose minting box /v1 does not have yet may be the key's own: unchecked, it stops a T1", async () => {
+    const at = (b: typeof real) => ({ box: b, height: 1 });
+    const lagging = { [PLANT]: M_ATTACKER }; // the real reserve's minting box is not indexed yet
+    expect(await mintedAmong([at(planted), at(real)], OWNER, reader(lagging))).toEqual({ ok: true, value: { k: "unchecked", boxes: [real.boxId] } });
+    // the own one wins once it is known; a known planted one is still not counted
+    expect(await mintedAmong([at(real), at(real)], OWNER, reader(minted))).toEqual({ ok: true, value: { k: "mine" } });
+    forgetMinters();
+    const world = (box: (id: string) => Promise<unknown>) => ({
+      reservesOf: async () => ({ ok: true as const, value: [] }),
+      reservesOnChain: async () => ({ ok: true as const, value: { boxes: [at(planted), at(real)], complete: true } }),
+      box,
+    }) as unknown as Parameters<typeof t1GateOf>[2];
+    expect(await t1GateOf(OWNER, undefined, world(reader(lagging)))).toEqual({ ok: true, value: { k: "unchecked-chain", boxes: [real.boxId] } });
+    forgetMinters();
+    expect(await t1GateOf(OWNER, undefined, world(reader(minted)))).toEqual({ ok: true, value: { k: "chain" } });
   });
 });
