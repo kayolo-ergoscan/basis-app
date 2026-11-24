@@ -17,7 +17,7 @@ import { asArray, asHex, asObject, asString, asU64, member, required, ShapeError
 import type { BoxCandidate, ErgoBox, Hex, SignedTx, Token, UnsignedTx } from "./model";
 import { proveDlog, publicKeyOf, verifyDlog, type ProveOptions } from "./provedlog";
 import { envelopeData } from "./redemption";
-import { boxIdHolds, bytesToSign, computeTxId, signedTxToNodeJson } from "./serialize";
+import { boxIdHolds, bytesToSign, computeTxId, oversizedOutput, oversizedText, signedTxToNodeJson } from "./serialize";
 
 export type CheckResult<R extends string> = { ok: true } | { ok: false; rule: R; message: string };
 
@@ -245,7 +245,7 @@ export function buildReserveCreation(t: ReserveCreationInput): UnsignedTx {
   return { inputs: t.inputs.map((b) => ({ boxId: b.boxId, extension: [] })), dataInputs: [], outputs };
 }
 
-export type ReserveCreationRule = "amount" | "fee" | "inputs" | "outputs" | "reserve-output" | "change-output" | "fee-output" | "creation-height" | "totals";
+export type ReserveCreationRule = "amount" | "fee" | "inputs" | "outputs" | "reserve-output" | "change-output" | "fee-output" | "creation-height" | "totals" | "box-size";
 
 /**
  * Design §2.3, the transaction: owner-only inputs (ids verified by hash), exactly [reserve, change?, fee], ERG in =
@@ -295,6 +295,8 @@ export function checkReserveCreation(tx: UnsignedTx, inputs: readonly ErgoBox[],
       refuse("change-output", "the inputs carry tokens and there is no change output: they would be burned");
     }
     if (fee.ergoTree !== FEE_TREE_HEX || fee.value !== want.fee || fee.tokens.length !== 0 || fee.registers.length !== 0) refuse("fee-output", "the last output is not the token-free miner fee");
+    const big = oversizedOutput(outs);
+    if (big) refuse("box-size", oversizedText(big));
     const at = outputHeight(want.height, inputs);
     for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at} (the tip ${want.height}, inputs created up to ${outputHeight(0, inputs)})`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");
@@ -340,7 +342,7 @@ export function buildWithdraw(w: WithdrawInput): UnsignedTx {
   return { inputs: w.inputs.map((b) => ({ boxId: b.boxId, extension: [] })), dataInputs: [], outputs };
 }
 
-export type WithdrawRule = "inputs" | "outputs" | "destination" | "change-output" | "fee-output" | "creation-height" | "totals";
+export type WithdrawRule = "inputs" | "outputs" | "destination" | "change-output" | "fee-output" | "creation-height" | "totals" | "box-size";
 
 /** `height`: the tip the transaction was built at; every output must be created at outputHeight(tip, inputs). */
 export function checkWithdraw(tx: UnsignedTx, inputs: readonly ErgoBox[], want: { owner: Hex; to: string; amount: bigint; fee: bigint; height: number }): CheckResult<WithdrawRule> {
@@ -369,6 +371,8 @@ export function checkWithdraw(tx: UnsignedTx, inputs: readonly ErgoBox[], want: 
     }
     if (fee.ergoTree !== FEE_TREE_HEX || fee.value !== want.fee || fee.tokens.length !== 0 || fee.registers.length !== 0) refuse("fee-output", "the last output is not the token-free miner fee");
     if (want.fee < T1_FEE_MIN_NANOERG || want.fee > T1_FEE_MAX_NANOERG) refuse("fee-output", `the fee ${want.fee} is outside ${T1_FEE_MIN_NANOERG} … ${T1_FEE_MAX_NANOERG}`);
+    const big = oversizedOutput(outs);
+    if (big) refuse("box-size", oversizedText(big));
     const at = outputHeight(want.height, inputs);
     for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at} (the tip ${want.height}, inputs created up to ${outputHeight(0, inputs)})`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");

@@ -173,18 +173,26 @@ R6 our tracker's NFT, R7 a canonical Long ≥ 0 or absent. A box without R7 read
 (`SELF.R7[Long].getOrElse(0L)`, l. 234) and the tracker does: a top-up keeps it without R7 (l. 443 compares
 `getOrElse(0L)`), a refund start writes R7 (l. 454 reads `.get`), L2 (the engine) reads it the same way, and the
 vault's guard does not look at R7. R8 and R9 may follow with any value: the contract reads them nowhere, so anyone's
-top-up can add them to a reserve (a grief that would otherwise lock the owner out of the wallet); every action keeps
-them byte for byte, and L2 leaves out one of a type it does not model. Anything else is refused with its rule, before
-any plan.
+top-up can add them to a reserve, even padding the box to exactly 4096 bytes (a grief that would otherwise lock the
+owner out of the wallet). The wallet reads such a reserve, and its own top-up and refund start write R4–R7 only, which
+drops them: basis.es l. 441–444 (top-up: selfPreserved, R5 equal, R7 `getOrElse(0L)` equal, +0.1 ERG) and l. 449–456
+(start: selfPreserved, value, R5 equal, R7 ≥ HEIGHT, R7 was 0) never read R8 or R9, and keeping them could push the
+new box past MaxBoxSize once R7 or the value's VLQ grows (the node rejects it every time). L2 leaves out an R8 or R9
+of a type it does not model. Anything else is refused with its rule, before any plan.
 
 | | #0 | Inputs | Outputs | Proof of the reserve input | Rules (L1) |
 | --- | --- | --- | --- | --- | --- |
-| Top-up | `020a` (10) | reserve, then the payer's P2PK boxes | reserve + amount (tree, tokens, every register byte-equal: R7 absent stays absent), change?, fee | empty: the contract asks for no signature | amount ≥ 0.1 ERG; never a reserve with R7 ≠ 0 (wallet policy, the contract allows it) |
-| Refund start | `0214` (20) | reserve, then the owner's P2PK boxes (the fee) | reserve (value not lower, R4–R6 and any R8–R9 byte-equal, R7 = tip + 10), change?, fee | ProveDlog(owner) over `bytesToSign` | R7 = 0 before; the owner signs; dust under 0.001 ERG goes into the reserve |
+| Top-up | `020a` (10) | reserve, then the payer's P2PK boxes | reserve + amount (tree, tokens, R4–R7 byte-equal: R7 absent stays absent; R8–R9 dropped), change?, fee | empty: the contract asks for no signature | amount ≥ 0.1 ERG; never a reserve with R7 ≠ 0 (wallet policy, the contract allows it) |
+| Refund start | `0214` (20) | reserve, then the owner's P2PK boxes (the fee) | reserve (value not lower, R4–R6 byte-equal, R7 = tip + 10, exactly these four), change?, fee | ProveDlog(owner) over `bytesToSign` | R7 = 0 before; the owner signs; dust under 0.001 ERG goes into the reserve |
 | Refund completion | `021e` (30) | reserve only | P2PK(owner): value − fee with the NFT; fee | ProveDlog(owner) | R7 > 0 and the next block ≥ R7 + 43 200 |
 
 - **Fee** exactly `MINER_FEE_NANOERG`, last output; change only to the signer's own address; creation height the
   tip; every input exactly once.
+- **MaxBoxSize:** every L1 (top-up, refund start, completion, T1, withdrawal and its combine and cancel forms,
+  redemption) refuses an output whose bytes (`serializeBox`, `outputSizes`) exceed 4096, rule `box-size`, in plain
+  text before signing: the node would reject the transaction every time. In practice a change output carrying more
+  than about 120 tokens of the wallet's boxes; the redemption's outputs cannot reach it past its other rules (one
+  NFT, R4–R7 only), the rule is there all the same.
 - **L2:** `checkReserveActionContract(tx, inputs, kind, signers, tip + 1, avl)` runs `evaluateReserveSpend` on the
   real transaction and also checks the action and the output index, and R5 byte-equal for a top-up and a refund
   start.

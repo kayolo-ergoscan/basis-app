@@ -243,6 +243,17 @@ export function p2pkBox(owner: Hex, value: bigint, opts: { tokens?: Token[]; cre
   return { ...body, boxId: computeBoxId(body) };
 }
 
+/** The verify review's grief (wallet-t3 P2-1): a reserve of `owner` with R7 = 0 and an R8 Coll[Byte] padding the box to
+ *  exactly `size` bytes (MaxBoxSize by default), as anyone's top-up may leave it. */
+export function paddedReserveBox(owner: Hex, value: bigint, size = 4096): ErgoBox {
+  const vlq = (n: number) => { let h = ""; do { let b = n & 0x7f; n >>>= 7; if (n) b |= 0x80; h += b.toString(16).padStart(2, "0"); } while (n); return h; };
+  for (let n = 0; n < size; n++) {
+    const b = reserveBox(owner, value, { extra: [`0e${vlq(n)}${"00".repeat(n)}`] });
+    if (serializeBox(b).length === size) return b;
+  }
+  throw new Error(`no padding makes the box ${size} bytes`);
+}
+
 /** A reserve box of `owner` under the pinned contract and our tracker, with a real id (top-up and refund tests). */
 export function reserveBox(owner: Hex, value: bigint, opts: { nft?: Hex; r5?: Hex; r6?: Hex; /** null: no R7 */ r7?: bigint | null; /** R8, R9 after R7 */ extra?: Hex[]; tree?: Hex; creationHeight?: number; tokens?: Token[]; transactionId?: Hex } = {}): ErgoBox {
   const body = {

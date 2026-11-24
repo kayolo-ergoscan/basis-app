@@ -15,8 +15,8 @@ import {
   REFUND_PERIOD_BLOCKS, REFUND_START_AHEAD, actionVar, buildRefundComplete, buildRefundStart, buildTopUp, checkReserveAction, readReserve, refundClock,
   signReserveAction, verifyReserveAction, type ReserveActionWant,
 } from "./reserveaction";
-import { computeBoxId, computeTxId } from "./serialize";
-import { p2pkBox, reserveBox, secretBytes } from "./testkit";
+import { MAX_BOX_BYTES, computeBoxId, computeTxId, outputSizes, oversizedOutput, serializeBox } from "./serialize";
+import { p2pkBox, paddedReserveBox, reserveBox, secretBytes } from "./testkit";
 
 let avl: AvlBackend;
 beforeAll(async () => {
@@ -398,16 +398,22 @@ describe("a reserve with R8 and R9 (wallet-t3: the contract never reads them, so
   const reserve = reserveBox(owner.pubHex, 400_000_000n);
   const coins = [p2pkBox(owner.pubHex, 300_000_000n, { index: 7 })];
   const strangerCoins = [p2pkBox(stranger.pubHex, 300_000_000n, { index: 8 })];
-
-  it("a stranger's top-up that adds them passes the contract: the grief the wallet must survive", () => {
-    const tx = clone(buildTopUp({ reserve, payer: stranger.pubHex, inputs: strangerCoins, amount: 100_000_000n, fee: FEE, height: TIP }));
-    tx.outputs[0].registers = [...reserve.registers, ...EXTRA];
-    const r = checkReserveActionContract(tx, [reserve, ...strangerCoins], "topup", [stranger.pubHex], TIP + 1, avl);
-    if (!r.ok) throw new Error(`${r.rule}: ${r.message}`);
-  });
-
   const grieved = reserveBox(owner.pubHex, 500_000_000n, { extra: EXTRA });
   const inputs = [grieved, ...coins];
+
+  // the verify review's grief (P2-1): R7 = 0 and an R8 Coll[Byte] padding the box to exactly MaxBoxSize; a value just
+  // under 2^28 nanoERG, so that a top-up grows its VLQ by a byte, and R7 0500 grows by 3 bytes at a refund start
+  const padded = paddedReserveBox(owner.pubHex, 200_000_000n);
+
+  it("a stranger's top-up that adds them passes the contract, even one padding the box to 4096 bytes: the grief", () => {
+    expect(serializeBox(padded).length).toBe(MAX_BOX_BYTES);
+    for (const regs of [[...reserve.registers, ...EXTRA], padded.registers]) {
+      const tx = clone(buildTopUp({ reserve, payer: stranger.pubHex, inputs: strangerCoins, amount: 100_000_000n, fee: FEE, height: TIP }));
+      tx.outputs[0].registers = regs;
+      const r = checkReserveActionContract(tx, [reserve, ...strangerCoins], "topup", [stranger.pubHex], TIP + 1, avl);
+      if (!r.ok) throw new Error(`${r.rule}: ${r.message}`);
+    }
+  });
 
   it("reads as the owner's reserve, R8 and R9 ignored; R7 is still read strictly", () => {
     expect(grieved.registers).toHaveLength(6);
@@ -415,40 +421,61 @@ describe("a reserve with R8 and R9 (wallet-t3: the contract never reads them, so
     if (!r.ok) throw new Error(r.message);
     expect(r.info).toMatchObject({ owner: owner.pubHex, refundHeight: 0n });
     expect(readReserve(reserveBox(owner.pubHex, ERG, { extra: ["0500"] })).ok).toBe(true);
+    expect(readReserve(padded).ok).toBe(true);
   });
 
-  it("a top-up keeps them byte for byte: L1, L2, the signer; dropping or changing one is refused", () => {
+  it("a top-up writes R4–R7 only, dropping them (l. 441–444 do not read them): L1, L2, the signer; keeping one is refused", () => {
     const amount = 200_000_000n;
     const tx = buildTopUp({ reserve: grieved, payer: owner.pubHex, inputs: coins, amount, fee: FEE, height: TIP });
     const want: ReserveActionWant = { kind: "topup", signer: owner.pubHex, height: TIP, fee: FEE, amount };
-    expect(tx.outputs[0].registers).toEqual(grieved.registers);
+    expect(tx.outputs[0].registers).toEqual(grieved.registers.slice(0, 4));
     expect(checkReserveAction(tx, inputs, want)).toEqual({ ok: true });
     const l2 = checkReserveActionContract(tx, inputs, "topup", [owner.pubHex], TIP + 1, avl);
     if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
     expect(verifyReserveAction(signReserveAction(tx, inputs, sk(owner), "topup").signed, inputs, "topup")).toBe(true);
-    const dropped = clone(tx);
-    dropped.outputs[0].registers = grieved.registers.slice(0, 4);
-    expect(checkReserveAction(dropped, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
-    const changed = clone(tx);
-    changed.outputs[0].registers[4] = "0404";
-    expect(checkReserveAction(changed, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+    const kept = clone(tx);
+    kept.outputs[0].registers = [...grieved.registers];
+    expect(checkReserveAction(kept, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+    // no R7 stays no R7 (a top-up never adds one)
+    const bare = reserveBox(owner.pubHex, 400_000_000n, { r7: null });
+    expect(buildTopUp({ reserve: bare, payer: owner.pubHex, inputs: coins, amount, fee: FEE, height: TIP }).outputs[0].registers).toEqual(bare.registers);
   });
 
-  it("a refund start writes R7 and keeps R8 and R9 (l. 454 asks nothing of them): L1, L2, the signer", () => {
+  it("a refund start writes exactly R4–R7, dropping them (l. 449–456 do not read them): L1, L2, the signer", () => {
     const r7 = BigInt(TIP + REFUND_START_AHEAD);
     const tx = buildRefundStart({ reserve: grieved, owner: owner.pubHex, inputs: coins, fee: FEE, height: TIP, refundHeight: r7 });
     const want: ReserveActionWant = { kind: "refund-start", signer: owner.pubHex, height: TIP, fee: FEE, refundHeight: r7 };
-    expect(tx.outputs[0].registers).toEqual([...grieved.registers.slice(0, 3), encodeLong(r7), ...EXTRA]);
+    expect(tx.outputs[0].registers).toEqual([...grieved.registers.slice(0, 3), encodeLong(r7)]);
     expect(checkReserveAction(tx, inputs, want)).toEqual({ ok: true });
     const l2 = checkReserveActionContract(tx, inputs, "refund-start", [owner.pubHex], TIP + 1, avl);
     if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
     expect(verifyReserveAction(signReserveAction(tx, inputs, sk(owner), "refund-start").signed, inputs, "refund-start")).toBe(true);
-    const dropped = clone(tx);
-    dropped.outputs[0].registers = dropped.outputs[0].registers.slice(0, 4);
-    expect(checkReserveAction(dropped, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
-    // and a reserve without R7 still gets exactly R4–R7
-    const bare = reserveBox(owner.pubHex, 400_000_000n, { r7: null });
-    expect(buildRefundStart({ reserve: bare, owner: owner.pubHex, inputs: coins, fee: FEE, height: TIP, refundHeight: r7 }).outputs[0].registers).toHaveLength(4);
+    const kept = clone(tx);
+    kept.outputs[0].registers = [...kept.outputs[0].registers, ...EXTRA];
+    expect(checkReserveAction(kept, inputs, want)).toMatchObject({ ok: false, rule: "reserve-output" });
+  });
+
+  it("the padded 4096-byte box: a top-up and a refund start both pass L1, L2, the signer, the boxes back under 1 KB", () => {
+    const pIn = [padded, ...coins];
+    const amount = 100_000_000n;
+    const top = buildTopUp({ reserve: padded, payer: owner.pubHex, inputs: coins, amount, fee: FEE, height: TIP });
+    const r7 = BigInt(TIP + REFUND_START_AHEAD);
+    const start = buildRefundStart({ reserve: padded, owner: owner.pubHex, inputs: coins, fee: FEE, height: TIP, refundHeight: r7 });
+    for (const [tx, want, kind] of [
+      [top, { kind: "topup", signer: owner.pubHex, height: TIP, fee: FEE, amount }, "topup"],
+      [start, { kind: "refund-start", signer: owner.pubHex, height: TIP, fee: FEE, refundHeight: r7 }, "refund-start"],
+    ] as const) {
+      expect(tx.outputs[0].registers).toHaveLength(4);
+      expect(Math.max(...outputSizes(tx.outputs))).toBeLessThan(1024); // the contract alone is 764 bytes
+      expect(checkReserveAction(tx, pIn, want)).toEqual({ ok: true });
+      const l2 = checkReserveActionContract(tx, pIn, kind, [owner.pubHex], TIP + 1, avl);
+      if (!l2.ok) throw new Error(`${kind} ${l2.rule}: ${l2.message}`);
+      expect(verifyReserveAction(signReserveAction(tx, pIn, sk(owner), kind).signed, pIn, kind)).toBe(true);
+      // what keeping the padding would have made: a box the node rejects every time (MaxBoxSize)
+      const kept = clone(tx);
+      kept.outputs[0].registers = [...kept.outputs[0].registers, padded.registers[4]];
+      expect(oversizedOutput(kept.outputs)?.index).toBe(0);
+    }
   });
 
   it("the completion of a started one with R8 and R9: L1, L2, the signer", () => {
@@ -460,5 +487,29 @@ describe("a reserve with R8 and R9 (wallet-t3: the contract never reads them, so
     const l2 = checkReserveActionContract(tx, [started], "refund-end", [owner.pubHex], unlock, avl);
     if (!l2.ok) throw new Error(`${l2.rule}: ${l2.message}`);
     expect(verifyReserveAction(signReserveAction(tx, [started], sk(owner), "refund-end").signed, [started], "refund-end")).toBe(true);
+  });
+});
+
+describe("MaxBoxSize (wallet-t3 P2-1): an output over 4096 bytes is refused in L1, before signing", () => {
+  // a change output carrying 130 tokens of the wallet's boxes: about 130 × 33 bytes
+  const many = Array.from({ length: 130 }, (_, i) => ({ tokenId: (i + 1).toString(16).padStart(64, "a"), amount: 1n }));
+  const rich = [p2pkBox(owner.pubHex, 300_000_000n, { index: 9, tokens: many })];
+
+  it("measures a box as serializeBox does", () => {
+    const tx = buildTopUp({ reserve: reserveBox(owner.pubHex, 400_000_000n), payer: owner.pubHex, inputs: rich, amount: 100_000_000n, fee: FEE, height: TIP });
+    expect(outputSizes(tx.outputs)).toEqual(tx.outputs.map((o, index) => serializeBox({ ...o, transactionId: "ff".repeat(32), index }).length));
+    expect(oversizedOutput(tx.outputs)).toEqual({ index: 1, bytes: outputSizes(tx.outputs)[1] });
+    expect(outputSizes(tx.outputs)[1]).toBeGreaterThan(MAX_BOX_BYTES);
+  });
+
+  it("a top-up and a refund start whose change would be too big", () => {
+    const reserve = reserveBox(owner.pubHex, 400_000_000n);
+    const top = buildTopUp({ reserve, payer: owner.pubHex, inputs: rich, amount: 100_000_000n, fee: FEE, height: TIP });
+    const r = checkReserveAction(top, [reserve, ...rich], { kind: "topup", signer: owner.pubHex, height: TIP, fee: FEE, amount: 100_000_000n });
+    expect(r).toMatchObject({ ok: false, rule: "box-size" });
+    expect(!r.ok && r.message).toMatch(/output 1 would be \d+ bytes; the network takes boxes of at most 4096 bytes/);
+    const r7 = BigInt(TIP + REFUND_START_AHEAD);
+    const start = buildRefundStart({ reserve, owner: owner.pubHex, inputs: rich, fee: FEE, height: TIP, refundHeight: r7 });
+    expect(checkReserveAction(start, [reserve, ...rich], { kind: "refund-start", signer: owner.pubHex, height: TIP, fee: FEE, refundHeight: r7 })).toMatchObject({ ok: false, rule: "box-size" });
   });
 });

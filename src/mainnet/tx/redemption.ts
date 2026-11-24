@@ -22,7 +22,7 @@ import {
 import { buildRequestMessage, noteMessage, signBasis, verifyBasis } from "./messages";
 import { extensionValue, nodeTxFromJson, register, unsignedTxFromJson, type BoxCandidate, type ErgoBox, type Hex, type NodeTx, type Token, type UnsignedTx } from "./model";
 import { proveDlog, publicKeyOf, verifyDlog, type ProveOptions } from "./provedlog";
-import { boxIdHolds, bytesToSign, computeTxId, isNodeExtensionOrder, outputBoxes, scalaHashMapOrder, serializeBox, unsignedOf } from "./serialize";
+import { boxIdHolds, bytesToSign, computeTxId, isNodeExtensionOrder, outputBoxes, oversizedOutput, oversizedText, scalaHashMapOrder, serializeBox, unsignedOf } from "./serialize";
 
 // ─── tracker envelopes ──────────────────────────────────────────────────────────────────────────
 
@@ -160,6 +160,7 @@ export type L1Rule =
   | "fee-output"
   | "creation-height"
   | "totals"
+  | "box-size"
   | "ids"
   /** Something in the build or the expectation could not be read at all (a value out of range, bad hex, …). */
   | "malformed";
@@ -375,6 +376,8 @@ function check(build: RedemptionBuild, chain: ChainBoxes, x: RedemptionExpectati
     refuse("payout-output", `output 1 pays ${payoutOut.value} nanoERG to the recipient; expected ${payout} (the amount ${expect.amount} minus the miner fee ${build.fee}), no token and no register`);
   }
   if (feeOut.ergoTree !== FEE_TREE_HEX || feeOut.value !== build.fee || feeOut.tokens.length !== 0 || feeOut.registers.length !== 0) refuse("fee-output", `output 2 is not the token-free miner fee of ${build.fee} nanoERG`);
+  const big = oversizedOutput(outs);
+  if (big) refuse("box-size", oversizedText(big));
 
   // Creation heights: never below an input (the node's rule) and, when the tip is known, near it.
   const floor = Math.max(...chain.inputs.map((b) => b.creationHeight));

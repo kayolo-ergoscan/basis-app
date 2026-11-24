@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { FEE_TREE_HEX, RESERVE_TREE_HEX, TRACKER_NFT, p2pkTree } from "../../tx/constants";
 import { p2pkAddress } from "../../tx/address";
 import { signP2pkTransaction } from "../../tx/p2pk";
-import { p2pkBox, reserveBox, secretBytes, syntheticRedemption } from "../../tx/testkit";
+import { p2pkBox, paddedReserveBox, reserveBox, secretBytes, syntheticRedemption } from "../../tx/testkit";
 import { buildRefundStart, buildTopUp, signReserveAction } from "../../tx/reserveaction";
 import { checkRedemption, parseBuildResponse, signRedemption } from "../../tx/redemption";
 import { planCombine, planWithdraw } from "../../flows/coins";
@@ -298,6 +298,12 @@ describe("mainnet vault: the passphrase rules", () => {
     expect(reserveActionPaysRight(extraTop.nodeJson, ME, "topup", ME)).toBe(true);
     const extraStart = signReserveAction(buildRefundStart({ reserve: extra, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [extra, coin], SK, "refund-start");
     expect(reserveActionPaysRight(extraStart.nodeJson, ME, "refund-start")).toBe(true);
+    // one padded to 4096 bytes (P2-1): the wallet's top-up and start drop R8, R9, and the guard passes both
+    const padded = paddedReserveBox(ME, 200_000_000n);
+    const padTop = signReserveAction(buildTopUp({ reserve: padded, payer: ME, inputs: [coin], amount: 100_000_000n, fee: 1_000_000n, height: 1_925_000 }), [padded, coin], SK, "topup");
+    expect(reserveActionPaysRight(padTop.nodeJson, ME, "topup", ME)).toBe(true);
+    const padStart = signReserveAction(buildRefundStart({ reserve: padded, owner: ME, inputs: [coin], fee: 1_000_000n, height: 1_925_000, refundHeight: 1_925_010n, add: 0n }), [padded, coin], SK, "refund-start");
+    expect(reserveActionPaysRight(padStart.nodeJson, ME, "refund-start")).toBe(true);
     // the reserve output: our tracker (R6), the reviewed owner for a top-up, this key for a refund start
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, own, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "topup", ME)).toBe(false);
     expect(reserveActionPaysRight(actJson([RESERVE_TREE_HEX, FEE_TREE_HEX], ME, { r6: "11".repeat(32) }), ME, "refund-start")).toBe(false);

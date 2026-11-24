@@ -170,6 +170,19 @@ describe("coins, signing and broadcast JSON (synthetic key)", () => {
     expect(() => selectCoins([p2pkBox(RECEIVER_B, ERG)], me.pubHex, 1n)).toThrow(/P2PK/);
   });
 
+  it("MaxBoxSize (wallet-t3 P2-1): a T1 or a withdrawal whose change would be over 4096 bytes is refused in L1", () => {
+    const many = Array.from({ length: 130 }, (_, i) => ({ tokenId: (i + 1).toString(16).padStart(64, "b"), amount: 1n }));
+    const inputs = [p2pkBox(me.pubHex, 2n * ERG, { tokens: many })];
+    const to = p2pkAddress(RECEIVER_B);
+    const w = buildWithdraw({ owner: me.pubHex, inputs, to, amount: 500_000_000n, fee: FEE, height });
+    expect(checkWithdraw(w, inputs, { owner: me.pubHex, to, amount: 500_000_000n, fee: FEE, height })).toMatchObject({ ok: false, rule: "box-size", message: expect.stringMatching(/^output 1 would be \d+ bytes; the network takes boxes of at most 4096 bytes$/) });
+    const t1 = buildReserveCreation({ owner: me.pubHex, inputs, amount: ERG, fee: FEE, height });
+    expect(checkReserveCreation(t1, inputs, { owner: me.pubHex, amount: ERG, fee: FEE, height })).toMatchObject({ ok: false, rule: "box-size" });
+    // 100 tokens fit (about 3.4 KB): the rule is the size, not the count
+    const fit = [p2pkBox(me.pubHex, 2n * ERG, { tokens: many.slice(0, 100) })];
+    expect(checkWithdraw(buildWithdraw({ owner: me.pubHex, inputs: fit, to, amount: 500_000_000n, fee: FEE, height }), fit, { owner: me.pubHex, to, amount: 500_000_000n, fee: FEE, height })).toEqual({ ok: true });
+  });
+
   it("withdraws to an address: [destination, change, fee], tokens stay with the owner", () => {
     const tok = { tokenId: "7c".repeat(32), amount: 42n };
     const inputs = [p2pkBox(me.pubHex, 700_000_000n, { tokens: [tok] })];

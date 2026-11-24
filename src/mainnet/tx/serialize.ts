@@ -164,6 +164,28 @@ export function serializeBox(b: Omit<ErgoBox, "boxId">): Uint8Array {
   return w.done();
 }
 
+/** The node's MaxBoxSize: a box's bytes (serializeBox) may not exceed it, or the transaction is invalid. */
+export const MAX_BOX_BYTES = 4096;
+
+/** The size of each output as a box (serializeBox): the id field is 32 bytes whatever the id, so a zero id gives the
+ *  real size. */
+export function outputSizes(outputs: readonly BoxCandidate[]): number[] {
+  return outputs.map((o, index) => serializeBox({ ...o, transactionId: "00".repeat(32), index }).length);
+}
+
+/** The first output above MaxBoxSize, or null: every L1 refuses such a transaction before signing (wallet-t3: the
+ *  node would reject it every time, and a refused box is never made). */
+export function oversizedOutput(outputs: readonly BoxCandidate[]): { index: number; bytes: number } | null {
+  const sizes = outputSizes(outputs);
+  const index = sizes.findIndex((n) => n > MAX_BOX_BYTES);
+  return index < 0 ? null : { index, bytes: sizes[index] };
+}
+
+/** The plain-text refusal for oversizedOutput. */
+export function oversizedText(o: { index: number; bytes: number }): string {
+  return `output ${o.index} would be ${o.bytes} bytes; the network takes boxes of at most ${MAX_BOX_BYTES} bytes`;
+}
+
 /** blake2b256 of the box bytes. */
 export function computeBoxId(b: Omit<ErgoBox, "boxId">): Hex {
   return bytesToHex(blake2b256(serializeBox(b)));

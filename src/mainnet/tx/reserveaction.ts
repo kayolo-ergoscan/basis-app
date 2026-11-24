@@ -17,13 +17,15 @@
 //
 // The wallet's own rules on top (stricter than the contract): only an ERG reserve under the pinned tree and bound to
 // our tracker; no top-up of a reserve in refund (the contract allows it, the money would only wait for the owner's
-// completion); exactly the outputs above, the registers byte for byte (all of them, except the R7 a start writes), the
-// miner fee exactly 0.001 ERG, every token of the wallet's boxes to its change, the reserve NFT kept (a completion puts
-// it into the owner's output: nothing is burned). A reserve without R7 reads as R7 = 0, as the contract reads it
-// (`SELF.R7[Long].getOrElse(0L)`, l. 234: "Absent or 0 = no refund pending"): a top-up keeps it without R7 (l. 443
-// compares getOrElse(0L)), a refund start writes R7 (l. 454 reads `selfOut.R7[Long].get`). R8 and R9 are read nowhere
-// in the contract (selfPreserved, l. 248–253, compares the script, the tokens, R4 and R6; each action R5 and R7), so
-// anyone's top-up may add them to a reserve: the wallet takes such a reserve as it is and keeps them byte for byte.
+// completion); exactly the outputs above, R4–R6 byte for byte and R7 as the action needs it, the miner fee exactly
+// 0.001 ERG, every token of the wallet's boxes to its change, the reserve NFT kept (a completion puts it into the
+// owner's output: nothing is burned), every output at most MaxBoxSize (4096 bytes). A reserve without R7 reads as
+// R7 = 0, as the contract reads it (`SELF.R7[Long].getOrElse(0L)`, l. 234: "Absent or 0 = no refund pending"): a
+// top-up keeps it without R7 (l. 443 compares getOrElse(0L)), a refund start writes R7 (l. 454 reads
+// `selfOut.R7[Long].get`). R8 and R9 are read nowhere in the contract (selfPreserved, l. 248–253, compares the script,
+// the tokens, R4 and R6; the top-up and the start add R5 and R7, l. 441–444 and 451–456), so anyone's top-up may add
+// them, even padding the box to 4096 bytes: the wallet reads such a reserve and its own top-up or start writes R4–R7
+// only, which drops them (keeping them could push the new box past 4096 bytes when R7 or the value grows).
 import { bytesToHex, hexToBytes } from "../../protocol/bytes";
 import { isValidPublicKey } from "../../protocol/keys";
 import { decodeRegister, encodeAvlTree } from "../../protocol/registerCodec";
@@ -36,7 +38,7 @@ import { utf8Length } from "./json";
 import type { BoxCandidate, ErgoBox, Hex, SignedTx, UnsignedTx } from "./model";
 import { mergedTokens, outputHeight, type CheckResult } from "./p2pk";
 import { proveDlog, publicKeyOf, verifyDlog, type ProveOptions } from "./provedlog";
-import { boxIdHolds, bytesToSign, computeTxId, signedTxToNodeJson } from "./serialize";
+import { boxIdHolds, bytesToSign, computeTxId, oversizedOutput, oversizedText, signedTxToNodeJson } from "./serialize";
 
 /** basis.es `refundPeriod` (l. 231): blocks between the refund start (R7) and its completion, about 60 days. */
 export const REFUND_PERIOD_BLOCKS = 43_200;
@@ -73,7 +75,7 @@ export interface ReserveInfo {
  * or a token reserve is refused), holds exactly its NFT, R4 a valid key, R5 an AvlTree, R6 our tracker's NFT and R7 a
  * Long ≥ 0, each one canonical constant. R7 may be absent (nothing after R6): it reads as 0, as the contract reads it
  * (l. 234, getOrElse(0L)) and the tracker too (wallet-t3). R8 and R9 may follow R7 with any value: the contract never
- * reads them, so anyone's top-up can add them (they mean nothing here and every action keeps them).
+ * reads them, so anyone's top-up can add them (they mean nothing here; the wallet's own actions drop them).
  */
 export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { ok: false; rule: ReserveReadRule; message: string } {
   const no = (rule: ReserveReadRule, message: string) => ({ ok: false as const, rule, message });
@@ -145,7 +147,9 @@ export interface TopUpInput {
   height: number;
 }
 
-/** The unsigned top-up: inputs [reserve (#0 = 10, no proof), payer boxes…], outputs [reserve + amount, change?, fee]. */
+/** The unsigned top-up: inputs [reserve (#0 = 10, no proof), payer boxes…], outputs [reserve + amount, change?, fee].
+ *  The reserve output keeps R4–R6 and R7 (when the reserve has it) byte for byte and drops any R8, R9 (l. 441–444 do
+ *  not read them): a box padded to 4096 bytes would otherwise grow past MaxBoxSize. */
 export function buildTopUp(t: TopUpInput): UnsignedTx {
   if (t.inputs.length === 0) throw new Error("a top-up needs at least one box of the payer");
   if (t.amount < TOP_UP_MIN_NANOERG) throw new Error(`a top-up adds at least ${TOP_UP_MIN_NANOERG} nanoERG`);
@@ -157,7 +161,7 @@ export function buildTopUp(t: TopUpInput): UnsignedTx {
     inputs: [reserveInput(r, "topup"), ...t.inputs.map((b) => ({ boxId: b.boxId, extension: [] }))],
     dataInputs: [],
     outputs: [
-      { value: r.value + t.amount, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: [...r.registers] },
+      { value: r.value + t.amount, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: r.registers.slice(0, 4) },
       ...changeOutputs(t.payer, t.inputs, change, h),
       { value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] },
     ],
@@ -178,7 +182,8 @@ export interface RefundStartInput {
 }
 
 /** The unsigned refund start: inputs [reserve (#0 = 20), owner boxes…], outputs [reserve with R7 set, change?, fee].
- *  R4–R6 and any R8, R9 stay byte for byte (l. 454 asks only that the new R7 is a Long ≥ HEIGHT). */
+ *  Exactly R4–R6 byte for byte and the new R7; any R8, R9 are dropped (l. 449–456 ask only selfPreserved, R5 and an R7
+ *  Long ≥ HEIGHT; keeping them could push a padded box past 4096 bytes once R7 grows). */
 export function buildRefundStart(t: RefundStartInput): UnsignedTx {
   if (t.inputs.length === 0) throw new Error("a refund start needs a box of the owner for the miner fee");
   const add = t.add ?? 0n;
@@ -191,7 +196,7 @@ export function buildRefundStart(t: RefundStartInput): UnsignedTx {
     inputs: [reserveInput(r, "refund-start"), ...t.inputs.map((b) => ({ boxId: b.boxId, extension: [] }))],
     dataInputs: [],
     outputs: [
-      { value: r.value + add, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: [r.registers[0], r.registers[1], r.registers[2], encodeLong(t.refundHeight), ...r.registers.slice(4)] },
+      { value: r.value + add, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: [r.registers[0], r.registers[1], r.registers[2], encodeLong(t.refundHeight)] },
       ...changeOutputs(t.owner, t.inputs, change, h),
       { value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] },
     ],
@@ -225,7 +230,7 @@ export function buildRefundComplete(t: RefundCompleteInput): UnsignedTx {
 
 export type ReserveActionRule =
   | "reserve" | "owner" | "refund-state" | "amount" | "fee" | "inputs" | "action-var" | "outputs"
-  | "reserve-output" | "payout-output" | "change-output" | "fee-output" | "creation-height" | "totals";
+  | "reserve-output" | "payout-output" | "change-output" | "fee-output" | "creation-height" | "totals" | "box-size";
 
 class Refused extends Error {
   constructor(readonly rule: ReserveActionRule, message: string) {
@@ -259,9 +264,10 @@ export interface ReserveActionWant {
 /**
  * L1 for a top-up, a refund start or a completion: the reserve box is one the wallet acts on and in the right refund
  * state; the transaction spends exactly it (input 0, #0 the action, nothing else in its extension) and the signer's
- * own verified boxes; the outputs are exactly the layout above with the registers byte for byte (a top-up keeps all
- * of them, R7 absent stays absent; a refund start keeps R4–R6 and R8–R9 and writes R7), the fee exactly 0.001 ERG
- * (MINER_FEE_NANOERG), every token of the signer's boxes in its change, ERG in = ERG out, no data inputs.
+ * own verified boxes; the outputs are exactly the layout above with the registers byte for byte (a top-up keeps
+ * R4–R7, R7 absent stays absent; a refund start keeps R4–R6 and writes R7; neither keeps an R8 or R9), the fee exactly
+ * 0.001 ERG (MINER_FEE_NANOERG), every token of the signer's boxes in its change, ERG in = ERG out, no data inputs,
+ * every output at most 4096 bytes (MaxBoxSize).
  */
 export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], want: ReserveActionWant): CheckResult<ReserveActionRule> {
   return run((refuse) => {
@@ -317,8 +323,8 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
       if (outs.length !== 2 && outs.length !== 3) refuse("outputs", `${outs.length} outputs; this action has [reserve, change?, fee]`);
       const r = outs[0];
       const tokensOk = r.tokens.length === reserve.tokens.length && reserve.tokens.every((t, i) => r.tokens[i].tokenId === t.tokenId && r.tokens[i].amount === t.amount);
-      // a top-up keeps every register (no R7 stays no R7); a start keeps them too but writes R7 (index 3)
-      const regs = want.kind === "topup" ? reserve.registers.length : Math.max(4, reserve.registers.length);
+      // a top-up keeps R4–R7 (no R7 stays no R7); a start keeps R4–R6 and writes R7 (index 3); R8, R9 are dropped
+      const regs = want.kind === "topup" ? Math.min(4, reserve.registers.length) : 4;
       if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its NFT and its registers R4–R${3 + regs}`);
       for (let i = 0; i < regs; i++) if ((want.kind === "topup" || i !== 3) && r.registers[i] !== reserve.registers[i]) refuse("reserve-output", `output 0 changes R${4 + i}`);
       if (want.kind === "topup") {
@@ -336,6 +342,8 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
       }
     }
     if (fee.ergoTree !== FEE_TREE_HEX || fee.value !== want.fee || fee.tokens.length !== 0 || fee.registers.length !== 0) refuse("fee-output", "the last output is not the token-free miner fee of 0.001 ERG");
+    const big = oversizedOutput(outs);
+    if (big) refuse("box-size", oversizedText(big));
     const at = outputHeight(want.height, inputs);
     for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at}`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");
