@@ -716,7 +716,7 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .brand-mark .bm-top { fill: var(--town-win); }
 .brand-mark .bm-lit { fill: var(--lamp); filter: drop-shadow(0 0 4px var(--glow-lamp)); transition: fill var(--t-slow); }
 :root[data-theme="light"] .brand-mark .bm-frame { fill: var(--ink); stroke: var(--ink); }
-:root[data-theme="light"] .brand-mark .bm-top { fill: #3A4160; }
+:root[data-theme="light"] .brand-mark .bm-top { fill: color-mix(in srgb, var(--ink) 72%, var(--bg)); }
 .brand-mark.pulse-on .bm-top { animation: bm-moon var(--t-pulse) var(--ease-io) 1; }
 @keyframes bm-moon { 0%, 100% { fill: var(--town-win); } 30%, 60% { fill: var(--moon); } }
 
