@@ -7,6 +7,7 @@ import { rich, useT } from "@/app";
 import { Icon, Key, Page, PageLoading, Tag } from "@/ui";
 import { glossary, pick, sources, type LineRef, type SourceId, type Text } from "@/content";
 import { LEARN_PAGES, PARTS, neighbours, pageOf, type LearnPage, type LearnPageId, type ScenarioRef } from "./pages";
+import { markRead, useReadChapters } from "./progress";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -110,6 +111,8 @@ export function BookLayout() {
         const total = r.height - window.innerHeight;
         const p = total > 0 ? Math.min(1, Math.max(0, -r.top / total)) : 1;
         railRef.current?.style.setProperty("--p", p.toFixed(3));
+        // read to (nearly) the end: the chapter counts as read in your progress
+        if (p >= 0.85 && current) markRead(current);
       }
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(run); };
@@ -120,7 +123,7 @@ export function BookLayout() {
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(on) : null;
     if (ro && flowRef.current) ro.observe(flowRef.current);
     return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [secs]);
+  }, [secs, current]);
 
   const closeMobile = () => { if (mRef.current) mRef.current.open = false; };
   const curPage = current ? pageOf(current) : null;
@@ -155,8 +158,21 @@ export function BookLayout() {
   );
 }
 
+/** Your progress: one window per chapter, lit once you read it to the end. */
+export function ReadWindows({ read, className }: { read: Set<string>; className?: string }) {
+  const t = useT();
+  const n = LEARN_PAGES.filter((p) => read.has(p.id)).length;
+  return (
+    <span className={cx("lrn-prog", className)} role="img" aria-label={t("learn.progress.n", { n, total: LEARN_PAGES.length })}>
+      {LEARN_PAGES.map((p) => <i key={p.id} className={read.has(p.id) ? "on" : undefined} />)}
+    </span>
+  );
+}
+
 function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; secs: TocSection[]; active: string | null; onNav?: () => void }) {
   const t = useT();
+  const read = useReadChapters();
+  const nRead = LEARN_PAGES.filter((p) => read.has(p.id)).length;
   const navigate = useNavigate();
   const go = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -169,6 +185,10 @@ function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; se
         <span className="label">{t("learn.toc.label")}</span>
         <Link to="/learn" onClick={onNav}>{t("learn.toc.all")}<Icon name="right" size={14} /></Link>
       </div>
+      <div className="lrn-toc-prog">
+        <ReadWindows read={read} />
+        <span className="t-small">{t("learn.progress.n", { n: nRead, total: LEARN_PAGES.length })}</span>
+      </div>
       {PARTS.map((part) => (
         <div className="lrn-toc-part" key={part.n}>
           <span className="label">{part.numeral} · {t(`learn.part.${part.n}`)}</span>
@@ -176,10 +196,10 @@ function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; se
             {LEARN_PAGES.filter((p) => p.part === part.n).map((p) => {
               const on = p.id === current;
               return (
-                <li key={p.id} className={cx("lrn-toc-page", on && "on")}>
+                <li key={p.id} className={cx("lrn-toc-page", on && "on", read.has(p.id) && "read")}>
                   <Link to={p.path} aria-current={on ? "page" : undefined} onClick={onNav}>
                     <span className="n">{p.numeral}</span>
-                    <span>{t(`learn.page.${p.id}.toc`)}</span>
+                    <span>{t(`learn.page.${p.id}.toc`)}{read.has(p.id) && <span className="sr-only"> · {t("learn.progress.read")}</span>}</span>
                   </Link>
                   {on && secs.length > 0 && (
                     <ol className="lrn-toc-secs" aria-label={t("learn.toc.here")}>

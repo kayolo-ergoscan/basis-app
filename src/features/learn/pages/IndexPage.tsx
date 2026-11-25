@@ -5,7 +5,8 @@ import { rich, useT } from "@/app";
 import { Icon, Note, Page } from "@/ui";
 import { GIT_REF_SHORT, apiEndpoints, chapters, copy, faq, glossary, historyEvents, moments, pick, sources, sourcesIntro } from "@/content";
 import { LEARN_PAGES, PARTS, type LearnPage, type LearnPageId } from "../pages";
-import { useLearnTitle } from "../layout";
+import { ReadWindows, useLearnTitle } from "../layout";
+import { useReadChapters } from "../progress";
 import { bookMinutes, pageMinutes } from "../minutes";
 
 const START: LearnPageId[] = ["how", "signature", "contract", "trust"];
@@ -16,6 +17,8 @@ export default function IndexPage() {
   const total = bookMinutes(t.lang);
   const startMin = START.reduce((n, id) => n + (pageMinutes(id, t.lang) ?? 0), 0);
   const sourceCount = Object.keys(sources).length;
+  const read = useReadChapters();
+  const nRead = LEARN_PAGES.filter((p) => read.has(p.id)).length;
 
   return (
     <Page className="lx">
@@ -30,6 +33,11 @@ export default function IndexPage() {
             <div className="lx-stat"><b>{sourceCount}</b><span className="label">{t("learn.ix.stat.sources")}</span></div>
             <div className="lx-stat"><b className="mono" style={{ fontWeight: 500 }}>{GIT_REF_SHORT}</b><span className="label">{t("learn.ix.stat.commit")}</span></div>
           </div>
+          <div className="lx-prog">
+            <span className="label"><b>{t("learn.progress.title")}</b></span>
+            <ReadWindows read={read} />
+            <span className="t-small">{nRead ? t("learn.progress.n", { n: nRead, total: LEARN_PAGES.length }) : t("learn.progress.none")}</span>
+          </div>
         </div>
         <nav className="lx-path" aria-labelledby="lx-start">
           <div className="lx-path-h">
@@ -41,14 +49,14 @@ export default function IndexPage() {
               const p = LEARN_PAGES.find((x) => x.id === id)!;
               const m = pageMinutes(id, t.lang);
               return (
-                <li className="lx-step" key={id}>
+                <li className={read.has(id) ? "lx-step read" : "lx-step"} key={id}>
                   <Link to={p.path}>
-                    <span className="lx-dot" aria-hidden="true">{i + 1}</span>
+                    <span className="lx-dot" aria-hidden="true">{read.has(id) ? "✓" : i + 1}</span>
                     <span>
                       <span className="t" style={{ display: "block" }}>{t(`learn.page.${id}.title`)}</span>
                       <span className="d" style={{ display: "block" }}>{t(`learn.ix.start.${id}`)}</span>
                     </span>
-                    <span className="m">{t(`learn.kind.${p.kind}`)}{m ? ` · ${t("learn.min", { n: m })}` : ""}</span>
+                    <span className="m">{read.has(id) ? t("learn.progress.read") : `${t(`learn.kind.${p.kind}`)}${m ? ` · ${t("learn.min", { n: m })}` : ""}`}</span>
                   </Link>
                 </li>
               );
@@ -114,11 +122,12 @@ function KindLine({ page }: { page: LearnPage }) {
 
 function ChapterCard({ page }: { page: LearnPage }) {
   const t = useT();
+  const read = useReadChapters().has(page.id);
   return (
-    <Link to={page.path} className="lx-card">
+    <Link to={page.path} className={read ? "lx-card read" : "lx-card"}>
       <div className="lx-plate" aria-hidden="true"><Plate id={page.id} /></div>
       <div className="lx-card-b">
-        <div className="top"><span className="nm">{page.numeral}</span><KindLine page={page} /></div>
+        <div className="top"><span className="nm">{page.numeral}</span>{read ? <span className="lx-read">{t("learn.progress.read")}</span> : <KindLine page={page} />}</div>
         <h3>{t(`learn.page.${page.id}.title`)}</h3>
         <p>{t(`learn.page.${page.id}.desc`)}</p>
       </div>
