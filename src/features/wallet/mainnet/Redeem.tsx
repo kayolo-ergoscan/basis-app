@@ -344,7 +344,7 @@ export function RedeemScreen() {
                       {view && view.redeemableNow < minAmount && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
                       <Field label={tok ? t("mw.dn.redAmount", { sym: denomSymbol(denom) }) : t("mw.red.amount")} help={tok ? t("mw.dn.redAmountHelp", { min: amtText(minAmount, denom) }) : t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
                         error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < minAmount))) ? t("mw.red.amountBad", { min: amtText(minAmount, denom), max: amtText(view?.redeemableNow ?? 0n, denom) }) : undefined}>
-                        <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(unitsInput(view!.redeemableNow, denomDecimals(denom))) } : undefined} />
+                        <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(unitsInput(view!.redeemableNow, denomDecimals(denom))) } : undefined} />
                       </Field>
                       {amount !== null && amount >= minAmount && (tok
                         ? <p className="t-body">{t("mw.red.payout")} <b><Amt raw={amount} denom={denom} tone="up" /></b> <span className="t-small mw-dim">{t("mw.dn.redPayoutWhy", { erg: ergText(TOKEN_RECIPIENT_BOX_NANOERG) })}</span></p>

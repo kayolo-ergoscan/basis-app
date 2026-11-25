@@ -200,7 +200,7 @@ export function ReceiveScreen() {
                 <div className="mw-qr mw-qr-c"><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
                 <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
                   error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
-                  <AmountInput value={amountText} onChange={setAmountText} />
+                  <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} />
                 </Field>
                 <div className="mw-actions">
                   <CopyButton value={link} label={t("mw.recv.copyLink")} />

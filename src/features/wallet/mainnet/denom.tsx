@@ -2,12 +2,12 @@
 // absent), so a link names it and Back keeps it; the switch on Reserve, Top up, Refund, Pay, Receive and Redeem sets it.
 // Amounts of one denomination are only ever shown and added up in that denomination: a SigUSD figure is never next to
 // an ERG total as if they were one sum. Token decimals are pinned in tx/tokens.ts, never read from the tracker.
-import { useCallback } from "react";
+import { Fragment, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Callout, Num, Seg, units } from "@/ui";
 import { dpOfUnits } from "@/mainnet/flows";
-import { WALLET_DENOMS, denomDecimals, denomOfSlug, denomSlug, denomSymbol, reserveTokenOf, tokenIdOf, tokenReserveAddress, type Denomination, type ReserveToken } from "@/mainnet/tx";
+import { WALLET_DENOMS, denomDecimals, denomOfSlug, denomSlug, denomSymbol, mergedTokens, p2pkTree, reserveTokenById, reserveTokenOf, tokenIdOf, tokenReserveAddress, type Denomination, type ReserveToken, type Token, type UnsignedTx } from "@/mainnet/tx";
 import { R, useResource } from "./data";
 import { Erg, ergText } from "./ui";
 
@@ -84,3 +84,22 @@ export const tokenOf = (d: Denomination): ReserveToken | null => reserveTokenOf(
 /** The denomination a journal entry records (meta.denom; absent: ERG, as every entry before token reserves). */
 export const entryDenom = (e: { meta: Readonly<Record<string, unknown>> }): Denomination =>
   (typeof e.meta.denom === "string" && e.meta.denom.startsWith("token:") ? (e.meta.denom as Denomination) : "erg");
+
+/**
+ * Tokens after an ERG amount in a review row (" · 47.50 SigUSD · 150 rsADA · 1 other token"): SigUSD and rsADA in
+ * their own unit, any other token counted, never added to anything.
+ */
+export function TokensAfter({ tokens }: { tokens: readonly Token[] }) {
+  const t = useT();
+  const merged = mergedTokens([{ tokens: [...tokens] }]).filter((x) => x.amount > 0n);
+  const pinned = merged.flatMap((x) => (reserveTokenById(x.tokenId) ? [{ d: `token:${x.tokenId}` as Denomination, amount: x.amount }] : []));
+  const others = merged.length - pinned.length;
+  return <>{pinned.map((p) => <Fragment key={p.d}> · <Amt raw={p.amount} denom={p.d} /></Fragment>)}{others > 0 && <> · {t("mw.dn.otherTokens", { n: others })}</>}</>;
+}
+
+/** What a transaction gives back to the key: its outputs at P2PK(owner), ERG and tokens (the change as built). */
+export function backToKey(tx: UnsignedTx, owner: string): { erg: bigint; tokens: Token[] } {
+  const tree = p2pkTree(owner);
+  const outs = tx.outputs.filter((o) => o.ergoTree === tree);
+  return { erg: outs.reduce((a, o) => a + o.value, 0n), tokens: mergedTokens(outs) };
+}

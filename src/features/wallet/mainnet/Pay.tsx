@@ -382,7 +382,7 @@ export function PayScreen() {
                   </Field>
                   <Field label={denom === "erg" ? t("mw.pay.amount") : t("mw.dn.payAmount", { sym: denomSymbol(denom) })} help={denom === "erg" ? t("mw.pay.amountHelp") : t("mw.dn.payAmountHelp", { sym: denomSymbol(denom) })}
                     error={amountText && add === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
-                    <AmountInput plus value={amountText} onChange={setAmountText} />
+                    <AmountInput plus value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} />
                   </Field>
                   {phase.k === "error" && (
                     <Callout tone="alarm" title={t("mw.pay.stopT")}>

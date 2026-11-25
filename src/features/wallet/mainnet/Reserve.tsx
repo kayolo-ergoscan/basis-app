@@ -17,7 +17,7 @@ import { AmountInput, Callout, Card, Field, Key, Switch, Tag, TextInput, int } f
 import {
   MINER_FEE_NANOERG, MIN_BOX_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, TOKEN_RESERVE_BOX_NANOERG, JsonSyntaxError, ShapeError, TrackerRefusal,
   buildReserveCreation, buildTokenReserveCreation, checkReserveCreation, checkReservePayload, checkTokenReserveCreation, checkTokenReservePayload, checkWithdraw, computeTxId,
-  denomDecimals, denomSymbol, outputBoxes, parseReservePayload, tokenIdOf, type Denomination, type ErgoBox, type ReservePlan, type ReserveToken, type TokenReservePlan, type UnsignedTx,
+  denomDecimals, denomSymbol, mergedTokens, outputBoxes, parseReservePayload, tokenIdOf, type Denomination, type ErgoBox, type ReservePlan, type ReserveToken, type TokenReservePlan, type UnsignedTx,
 } from "@/mainnet/tx";
 import {
   blocksToDays, isBroadcastLimit, mempoolCreatesReserve, parseUnits, planCombine, planT1, planTokenT1, reserveCoverage, reserveLife, spendable, t1CreateBody, tokenBalanceOf,
@@ -30,7 +30,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, t1GateOf, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, NotServed, amtText, denomQuery, tokenOf, useDenom, useServed } from "./denom";
+import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, tokenOf, useDenom, useServed } from "./denom";
 
 type Phase =
   | { k: "idle" }
@@ -326,13 +326,15 @@ export function ReserveScreen() {
   }
 
   const busy = phase.k === "working";
+  // what the token T1 gives back to the key, read from the transaction as built (every token, not only the reserve's)
+  const back = phase.k === "treview" && me ? backToKey(phase.tx, me.pub) : { erg: 0n, tokens: [] };
   return (
     <Gate vault={vault} state={state}>
       <div className="mw-grid">
         <div className="mw-main">
           <header className="mw-screen-h">
             <h1 className="t-h2">{t("mw.res.h")}</h1>
-            <p className="t-lede">{t("mw.res.lede")}</p>
+            <p className="t-lede">{token ? t("mw.dn.lede", { sym: token.symbol }) : t("mw.res.lede")}</p>
             <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setBig(false); }} disabled={busy || phase.k === "review" || phase.k === "treview"} />
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
@@ -366,10 +368,10 @@ export function ReserveScreen() {
                       rows={[
                         { label: t("mw.res.rowReserve"), value: <Amt raw={phase.plan.amount} denom={denom} /> },
                         { label: t("mw.dn.rowBoxErg"), value: <Erg nano={phase.plan.ergValue} /> },
-                        ...(phase.plan.change > 0n || phase.plan.changeTokens.length > 0 ? [{ label: t("mw.res.rowChange"), value: <span><Erg nano={phase.plan.change} />{changeTokensOf(phase.plan, denom) > 0n && <> · <Amt raw={changeTokensOf(phase.plan, denom)} denom={denom} /></>}</span> }] : []),
+                        ...(back.erg > 0n || back.tokens.length > 0 ? [{ label: t("mw.res.rowChange"), value: <span><Erg nano={back.erg} /><TokensAfter tokens={back.tokens} /></span> }] : []),
                         { label: t("mw.res.rowFee"), value: <Erg nano={phase.fee} /> },
                       ]}
-                      sum={{ label: t("mw.res.rowSpent", { n: phase.plan.inputs.length }), value: <span><Erg nano={phase.plan.inputs.reduce((s, b) => s + b.value, 0n)} /> · <Amt raw={tokenBalanceOf(phase.plan.inputs, phase.plan.token.id)} denom={denom} /></span> }}
+                      sum={{ label: t("mw.res.rowSpent", { n: phase.plan.inputs.length }), value: <span><Erg nano={phase.plan.inputs.reduce((s, b) => s + b.value, 0n)} /><TokensAfter tokens={mergedTokens(phase.plan.inputs)} /></span> }}
                       extra={<p className="t-small">{t("mw.dn.reviewChecks", { sym: phase.plan.token.symbol })}</p>} />
                     <Callout tone="policy">{t("mw.dn.boxErg", { erg: ergText(phase.plan.ergValue), sym: phase.plan.token.symbol })}</Callout>
                     <Callout tone="policy">{t("mw.res.lock")}</Callout>
@@ -409,7 +411,7 @@ export function ReserveScreen() {
                     {token && <NotServed served={served} denom={denom} />}
                     <Field label={token ? t("mw.dn.amount", { sym: token.symbol }) : t("mw.res.amount")} help={t("mw.res.amountHelp", { min: amtText(min, denom), max: amtText(cap, denom) })}
                       error={amountText && amountBad ? t("mw.res.amountRange", { min: amtText(min, denom), max: amtText(cap, denom) }) : undefined}>
-                      <AmountInput value={amountText} onChange={setAmountText} disabled={busy} />
+                      <AmountInput value={amountText} onChange={setAmountText} disabled={busy} unit={denomSymbol(denom)} />
                     </Field>
                     <Switch checked={big} onChange={setBig} label={token ? t("mw.dn.bigT", { max: amtText(token.hardCap, denom) }) : t("mw.res.bigT")} help={token ? t("mw.dn.bigB") : t("mw.res.bigB")} />
                     {token ? (
@@ -457,10 +459,4 @@ export function ReserveScreen() {
       </div>
     </Gate>
   );
-}
-
-/** The reserve token's units that go back to the key in the change box of a token T1. */
-function changeTokensOf(plan: TokenReservePlan, denom: Denomination): bigint {
-  const id = tokenIdOf(denom);
-  return plan.changeTokens.reduce((x, t) => (t.tokenId === id ? x + t.amount : x), 0n);
 }

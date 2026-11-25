@@ -48,6 +48,7 @@ export function FundScreen() {
                   <div className="mono mw-break mw-addr">{me.address}</div>
                   <div className="mw-actions"><CopyButton value={me.address} label={t("mw.fund.copy")} /></div>
                   <p className="t-small">{t("mw.fund.own")}</p>
+                  <p className="t-small mw-dim">{t("mw.dn.fundTokens")}</p>
                 </div>
               </div>
             </Card>

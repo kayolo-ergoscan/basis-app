@@ -14,7 +14,7 @@ import { AmountInput, Callout, Card, Field, Key, KeySeal, Switch, Tag, TextInput
 import { ContractXray } from "@/viz";
 import {
   MINER_FEE_NANOERG, MIN_BOX_NANOERG, RESERVE_DEFAULT_CAP_NANOERG, RESERVE_HARD_CAP_NANOERG, TOKEN_RESERVE_TREE_HEX, TOP_UP_MIN_NANOERG, checkReserveAction, checkReserveActionContract, computeTxId,
-  denomDecimals, loadContractAvl, p2pkAddress, readReserve, reserveAddress, reserveDenomOfBox, tokenIdOf, tokenReserveAddress, type Denomination, type ErgoBox, type L2Result, type ReserveInfo, type UnsignedTx,
+  denomDecimals, denomSymbol, loadContractAvl, mergedTokens, p2pkAddress, readReserve, reserveAddress, reserveDenomOfBox, tokenIdOf, tokenReserveAddress, type Denomination, type ErgoBox, type L2Result, type ReserveInfo, type UnsignedTx,
 } from "@/mainnet/tx";
 import {
   isBroadcastLimit, linkTarget, mempoolSpending, namedUnproven, ownReserve, parseUnits, planTokenTopUp, planTopUp, spendable, tokenBalanceOf, topUpMax, trackedAs, trustedNft, unitsInput,
@@ -27,7 +27,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
 import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, NotServed, amtText, denomQuery, entryDenom, tokenOf, useDenom, useServed } from "./denom";
+import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryDenom, tokenOf, useDenom, useServed } from "./denom";
 
 type Phase =
   | { k: "edit"; notice?: string }
@@ -232,6 +232,8 @@ function TopUpForm() {
   }
 
   const busy = phase.k === "working";
+  // what a token top-up gives back to the key, read from the transaction as built (every token, not only the reserve's)
+  const back = phase.k === "review" && me ? backToKey(phase.tx, me.pub) : { erg: 0n, tokens: [] };
   const owner = phase.k === "review" ? phase.info.owner : info?.owner ?? null;
   const isOwn = !!(owner && me && owner === me.pub);
   const ownRefusal = !asked && own && !own.ok ? own : null;
@@ -317,11 +319,12 @@ function TopUpForm() {
                         ...(token && phase.add > 0n ? [{ label: t("mw.dn.rowDust"), value: <Erg nano={phase.add} /> }] : []),
                         { label: t("mw.top.nft"), value: <span className="mono t-small mw-break">{phase.info.nft}</span> },
                         { label: t("mw.top.rowBox"), value: <ChainLink kind="box" id={phase.reserve.boxId} /> },
-                        ...(phase.change > 0n ? [{ label: t("mw.res.rowChange"), value: <Erg nano={phase.change} /> }] : []),
+                        ...(token ? (back.erg > 0n || back.tokens.length > 0 ? [{ label: t("mw.res.rowChange"), value: <span><Erg nano={back.erg} /><TokensAfter tokens={back.tokens} /></span> }] : [])
+                          : phase.change > 0n ? [{ label: t("mw.res.rowChange"), value: <Erg nano={phase.change} /> }] : []),
                         { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> },
                       ]}
                       sum={{ label: t("mw.res.rowSpent", { n: phase.inputs.length }), value: token
-                        ? <span><Erg nano={phase.inputs.reduce((s, b) => s + b.value, 0n)} /> · <Amt raw={tokenBalanceOf(phase.inputs, token.id)} denom={denom} /></span>
+                        ? <span><Erg nano={phase.inputs.reduce((s, b) => s + b.value, 0n)} /><TokensAfter tokens={mergedTokens(phase.inputs)} /></span>
                         : <Erg nano={phase.inputs.reduce((s, b) => s + b.value, 0n)} /> }}
                       extra={<>
                         <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t("mw.top.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
@@ -340,8 +343,8 @@ function TopUpForm() {
                 ) : (
                   <div className="mw-form">
                     <Field label={token ? t("mw.dn.amount", { sym: token.symbol }) : t("mw.top.amount")} help={max >= minAdd ? t("mw.top.amountHelp", { min: amtText(minAdd, denom), max: amtText(max, denom) }) : t("mw.top.atCap", { max: amtText(cap, denom) })}
-                      error={text && (amount === null ? (token ? t("mw.dn.amountBad", { sym: token.symbol }) : t("mw.amount.bad")) : amountBad ? t("mw.top.range", { min: amtText(minAdd, denom), max: amtText(max, denom) }) : undefined)}>
-                      <AmountInput value={text} onChange={setAmountText} disabled={busy} />
+                      error={text && (amount === null ? (token ? t("mw.dn.amountBad", { sym: token.symbol }) : t("mw.amount.bad")) : amountBad ? (max >= minAdd ? t("mw.top.range", { min: amtText(minAdd, denom), max: amtText(max, denom) }) : t("mw.top.atCap", { max: amtText(cap, denom) })) : undefined)}>
+                      <AmountInput value={text} onChange={setAmountText} disabled={busy} unit={denomSymbol(denom)} />
                     </Field>
                     <Switch checked={big} onChange={setBig} label={token ? t("mw.dn.bigT", { max: amtText(token.hardCap, denom) }) : t("mw.res.bigT")} help={isOwn ? (token ? t("mw.dn.bigB") : t("mw.res.bigB")) : t("mw.top.bigOther")} />
                     {token ? (
@@ -381,7 +384,7 @@ function TopUpForm() {
         <aside className="mw-side">
           <Card title={t("mw.res.howT")}>
             <ul className="mw-facts">
-              <li>{t("mw.top.how1")}</li>
+              <li>{token ? t("mw.dn.topHow1", { min: amtText(minAdd, denom), sym: token.symbol }) : t("mw.top.how1")}</li>
               <li>{t("mw.top.how2")}</li>
               <li>{t("mw.top.how3")}</li>
               <li>{t("mw.top.how4")}</li>

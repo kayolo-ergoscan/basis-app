@@ -881,6 +881,10 @@ const en: Dict = {
   "mw.dn.redHow4": "The tracker pays the miner fee and the 0.001 ERG box the {sym} arrive in. No protocol fee.",
   "mw.dn.feeTracker": "paid by the tracker",
   "mw.dn.atKey": "at your address, not in a reserve",
+  "mw.dn.topHow1": "A top-up adds at least {min} and changes nothing else: owner, notes, tracker, refund height stay.",
+  "mw.dn.otherTokens": "other tokens: {n}",
+  "mw.dn.lede": "The reserve backs your notes. A {sym} reserve is a box on Ergo under the Basis token contract that holds {sym}, bound to ErgoScan's tracker. One key, one reserve in each currency.",
+  "mw.dn.fundTokens": "For a SigUSD or rsADA reserve, send those tokens to this same address, with ERG for the box and the fees (the Reserve screen says how much). The wallet cannot send tokens away from this address yet.",
 };
 
 const ru: Partial<Dict> = {
@@ -1743,6 +1747,10 @@ const ru: Partial<Dict> = {
   "mw.dn.redHow4": "Комиссию майнеру и бокс на 0,001 ERG, в котором придут {sym}, оплачивает трекер. Комиссии протокола нет.",
   "mw.dn.feeTracker": "платит трекер",
   "mw.dn.atKey": "на вашем адресе, не в резерве",
+  "mw.dn.topHow1": "Пополнение добавляет не меньше {min} и больше ничего не меняет: владелец, расписки, трекер и высота возврата остаются.",
+  "mw.dn.otherTokens": "другие токены: {n}",
+  "mw.dn.lede": "Резерв обеспечивает ваши расписки. Резерв в {sym} — это бокс в Ergo под токенным контрактом Basis, в нём лежат {sym}; он привязан к трекеру ErgoScan. Один ключ — один резерв в каждой валюте.",
+  "mw.dn.fundTokens": "Для резерва в SigUSD или rsADA отправьте эти токены на этот же адрес, вместе с ERG на бокс и комиссии (сколько — скажет экран «Резерв»). Отправлять токены с этого адреса кошелёк пока не умеет.",
 };
 
 export default { en, ru };
