@@ -120,6 +120,12 @@ export const isOpenState = (s: JournalState): boolean => OPEN_STATES.includes(s)
  */
 export const blocksNewT1 = (e: JournalEntry): boolean => e.kind === "t1" && e.state !== "failed" && e.state !== "abandoned" && (e.retiredAt ?? null) === null;
 
+/** The denomination of a T1 entry: its `meta.denom` ("token:<id>"), or "erg" (every ERG T1, old and new, has none). */
+export const t1DenomOf = (e: Pick<JournalEntry, "meta">): string => (typeof e.meta.denom === "string" ? e.meta.denom : "erg");
+/** blocksNewT1 for one denomination: the tracker keeps one reserve per key and denomination, so an ERG T1 never blocks
+ *  a SigUSD T1 and the other way round. */
+export const blocksNewT1In = (e: JournalEntry, denom: string): boolean => blocksNewT1(e) && t1DenomOf(e) === denom;
+
 /** Scope of the receiver's build-request timestamps (design §6.6). */
 export const buildScope = (receiver: Hex): string => `build|${receiver}`;
 /** Scope of an issuer's note timestamps toward one recipient. */
@@ -295,7 +301,7 @@ export class MainnetJournal {
         }
       }
       if (entry.kind === "t1") {
-        const first = all.find((e) => e.pub === entry.pub && blocksNewT1(e));
+        const first = all.find((e) => e.pub === entry.pub && blocksNewT1In(e, t1DenomOf(entry)));
         if (first) throw new VaultError("t1-exists", "this key already has a reserve creation in the journal", { id: first.id, state: first.state });
       }
       await t.put(STORE_JOURNAL, entry.id, entry);
@@ -393,9 +399,9 @@ export class MainnetJournal {
     return this.list({ pub, open: true });
   }
 
-  /** The T1 of this key that blocks a new one, or null. */
-  async activeT1(pub: Hex): Promise<JournalEntry | null> {
-    return (await this.list({ pub, kind: "t1" })).find(blocksNewT1) ?? null;
+  /** The T1 of this key that blocks a new one in `denom` (ERG by default), or null. */
+  async activeT1(pub: Hex, denom: string = "erg"): Promise<JournalEntry | null> {
+    return (await this.list({ pub, kind: "t1" })).find((e) => blocksNewT1In(e, denom)) ?? null;
   }
 
   /** Box ids spent by open entries: coin selection must skip them. */

@@ -1,9 +1,10 @@
 // Note receipts and payment requests (design §6.2): links to our own site with the data in the URL fragment, so it
 // never reaches a server log.
 //   request: /wallet/mainnet/pay#to=<pk>&amount=<nano>&nft=<tracker>
-//   receipt: /wallet/mainnet/receive#note=<base64url of {v,nft,i,r,a,ts,s}>
+//   receipt: /wallet/mainnet/receive#note=<base64url of {v,nft,i,r,a,ts,s[,d]}>  (d: "token:<id>" of a token note;
+//            absent for ERG, so ERG links are what they were)
 // A receipt is verified (the issuer's signature over the 80-byte note message) before the wallet watches anything.
-import { TRACKER_NFT, noteMessage, verifyBasis } from "../tx";
+import { TRACKER_NFT, isWalletDenom, noteMessage, verifyBasis, type Denomination } from "../tx";
 
 export interface NoteReceipt {
   nft: string;
@@ -15,6 +16,8 @@ export interface NoteReceipt {
   timestamp: bigint;
   /** 65-byte Basis signature, hex. */
   signature: string;
+  /** A token note's denomination; absent = ERG. */
+  denom?: Denomination;
 }
 
 export interface PayRequest { to: string; amount: bigint | null; nft: string }
@@ -53,7 +56,7 @@ export function fragmentOf(hash: string): Record<string, string> {
 }
 
 export function encodeReceipt(r: NoteReceipt): string {
-  return b64urlEncode(JSON.stringify({ v: 1, nft: r.nft, i: r.issuer, r: r.recipient, a: r.total.toString(), ts: r.timestamp.toString(), s: r.signature }));
+  return b64urlEncode(JSON.stringify({ v: 1, nft: r.nft, i: r.issuer, r: r.recipient, a: r.total.toString(), ts: r.timestamp.toString(), s: r.signature, ...(r.denom && r.denom !== "erg" ? { d: r.denom } : {}) }));
 }
 
 /** Reads and verifies a receipt (the `note` field of the fragment, or the bare base64url text). */
@@ -79,14 +82,16 @@ export function decodeReceipt(text: string, opts: { trackerNft?: string } = {}):
   const total = BigInt(o.a), timestamp = BigInt(o.ts);
   // a note's time is a date: past the last one a Date can hold (8.64e15 ms), the link is malformed (keys review P2-4)
   if (total > I64_MAX || timestamp > RECEIPT_MAX_TS) return { ok: false, reason: "format" };
-  const receipt: NoteReceipt = { nft, issuer, recipient, total, timestamp, signature: sig };
+  const d = o.d === undefined ? "erg" : typeof o.d === "string" ? o.d.toLowerCase() : "";
+  if (!isWalletDenom(d)) return { ok: false, reason: "format" };
+  const receipt: NoteReceipt = { nft, issuer, recipient, total, timestamp, signature: sig, ...(d === "erg" ? {} : { denom: d }) };
   return verifyReceipt(receipt) ? { ok: true, receipt } : { ok: false, reason: "signature" };
 }
 
 /** The issuer's signature over the 80-byte note message. */
 export function verifyReceipt(r: NoteReceipt): boolean {
   try {
-    return verifyBasis(r.issuer, noteMessage({ issuer: r.issuer, recipient: r.recipient, totalDebt: r.total, timestamp: r.timestamp, trackerNft: r.nft }), r.signature);
+    return verifyBasis(r.issuer, noteMessage({ issuer: r.issuer, recipient: r.recipient, totalDebt: r.total, timestamp: r.timestamp, trackerNft: r.nft, denomination: r.denom ?? "erg" }), r.signature);
   } catch { return false; }
 }
 

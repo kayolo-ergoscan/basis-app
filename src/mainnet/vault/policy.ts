@@ -10,13 +10,17 @@
 //     must be a redemption: one input, action 0, another key's reserve);
 //   • topup, refund-start, refund-end (the reserve's own actions): always, and the signed outputs must be exactly the
 //     action's layout (reserveActionPaysRight, below): a top-up can send money to another key's reserve for good.
+// Token reserves: a note's budget is counted per denomination, in its own raw units, against the key's own reserve
+// of that denomination (amounts in different units are never added up); the guards below accept the token layouts
+// (basis-token.es) with the same rules.
 // "Since the last passphrase entry" = since the session opened (an unlock is a passphrase entry) or since the last use
 // of the key with the passphrase typed again. The count lives in the session only.
-import { FEE_TREE_HEX, MINER_FEE_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, TRACKER_NFT } from "../tx/constants";
+import { FEE_TREE_HEX, MINER_FEE_NANOERG, REDEEM_MAX_FEE_NANOERG, RESERVE_TREE_HEX, TRACKER_NFT, TRACKER_PK } from "../tx/constants";
+import { TOKEN_REDEEM_MAX_FEE_NANOERG, TOKEN_RESERVE_TREE_HEX, reserveTokenOf } from "../tx/tokens";
 import { asArray, asObject, asString, asU64, member, parseJson, type JsonObject } from "../tx/json";
 import { boxIdHolds } from "../tx/serialize";
 import type { ErgoBox } from "../tx/model";
-import { noteMessage, verifyBasis } from "../tx/messages";
+import { noteMessage, verifyBasis, type Denomination } from "../tx/messages";
 import { VaultError } from "./errors";
 import { isObject } from "./record";
 import type { Hex } from "./keys";
@@ -33,7 +37,14 @@ export interface NoteIntent {
   reserveValue: bigint;
   /** The pair's previous note as the tracker stores it, signed by this key; null for the pair's first note. */
   prev: { total: bigint; timestamp: bigint; signature: Hex } | null;
+  /** "erg" (default) or "token:<id>": `total` and `reserveValue` are then raw units of that token (the key's own
+   *  reserve of that token on chain). */
+  denomination?: Denomination;
 }
+
+/** The session's promise key of a pair: the recipient for ERG (as before), "token:<id>|recipient" for a token. */
+export const promiseKey = (recipient: Hex, denomination: Denomination = "erg"): string => (denomination === "erg" ? recipient : `${denomination}|${recipient}`);
+const denomOfKey = (k: string): string => (k.includes("|") ? k.slice(0, k.indexOf("|")) : "erg");
 
 /** One pair's notes since the last passphrase entry: its total before the first of them, and the highest signed. */
 export interface PairPromise { base: bigint; top: bigint }
@@ -56,14 +67,15 @@ const I64_MAX = (1n << 63n) - 1n;
 
 const bad = (message: string) => new VaultError("bad-input", message);
 
-function sumPromised(m: ReadonlyMap<Hex, PairPromise>, skip?: Hex): bigint {
+/** What the session promised in one denomination (never summed across denominations), less the pair `skip`. */
+function sumPromised(m: ReadonlyMap<string, PairPromise>, skip?: string, denomination: string = "erg"): bigint {
   let s = 0n;
-  for (const [k, p] of m) if (k !== skip) s += p.top - p.base;
+  for (const [k, p] of m) if (k !== skip && denomOfKey(k) === denomination) s += p.top - p.base;
   return s;
 }
 
 /** The pair's promise once this note is signed. */
-export function nextPromise(m: ReadonlyMap<Hex, PairPromise>, recipient: Hex, prevTotal: bigint, total: bigint): PairPromise {
+export function nextPromise(m: ReadonlyMap<string, PairPromise>, recipient: string, prevTotal: bigint, total: bigint): PairPromise {
   const old = m.get(recipient);
   return { base: old ? (prevTotal < old.base ? prevTotal : old.base) : prevTotal, top: old && old.top > total ? old.top : total };
 }
@@ -75,9 +87,11 @@ export const notePassphraseNeeded = (after: bigint, reserveValue: bigint): boole
  * The rule for one note of `issuer`, given what the session promised so far. Throws "bad-input" for an intent that is not
  * a note this key can sign: a malformed key or amount, a previous note that is not this key's own, a total not above it.
  */
-export function notePolicy(issuer: Hex, intent: NoteIntent, promised: ReadonlyMap<Hex, PairPromise>): NotePolicy {
+export function notePolicy(issuer: Hex, intent: NoteIntent, promised: ReadonlyMap<string, PairPromise>): NotePolicy {
   if (!isObject(intent)) throw bad("a note needs its intent (recipient, total, reserve value, previous note)");
   const { recipient, total, reserveValue, prev } = intent;
+  const denomination = intent.denomination ?? "erg";
+  if (typeof denomination !== "string" || reserveTokenOf(denomination) === undefined) throw bad("the note's denomination is not one this wallet makes");
   if (typeof recipient !== "string" || !PK.test(recipient) || recipient === issuer) throw bad("the note's recipient is not another public key");
   if (typeof total !== "bigint" || total <= 0n || total > I64_MAX) throw bad("the note's total is out of range");
   if (typeof reserveValue !== "bigint" || reserveValue < 0n) throw bad("the reserve value is out of range");
@@ -88,7 +102,7 @@ export function notePolicy(issuer: Hex, intent: NoteIntent, promised: ReadonlyMa
     }
     let ok = false;
     try {
-      ok = verifyBasis(issuer, noteMessage({ issuer, recipient, totalDebt: prev.total, timestamp: prev.timestamp, trackerNft: TRACKER_NFT }), prev.signature);
+      ok = verifyBasis(issuer, noteMessage({ issuer, recipient, totalDebt: prev.total, timestamp: prev.timestamp, trackerNft: TRACKER_NFT, denomination }), prev.signature);
     } catch {
       ok = false;
     }
@@ -96,9 +110,10 @@ export function notePolicy(issuer: Hex, intent: NoteIntent, promised: ReadonlyMa
     prevTotal = prev.total;
   }
   if (total <= prevTotal) throw bad("the new total is not above the previous note's");
-  const since = sumPromised(promised);
-  const p = nextPromise(promised, recipient, prevTotal, total);
-  const after = sumPromised(promised, recipient) + (p.top - p.base);
+  const key = promiseKey(recipient, denomination);
+  const since = sumPromised(promised, undefined, denomination);
+  const p = nextPromise(promised, key, prevTotal, total);
+  const after = sumPromised(promised, key, denomination) + (p.top - p.base);
   return { added: total - prevTotal, since, after, reserveValue, passphrase: notePassphraseNeeded(after, reserveValue) };
 }
 
@@ -120,7 +135,7 @@ export function checkNoteBody(signedRaw: string, issuer: Hex, intent: NoteIntent
     ok =
       asString(member(o, "issuer_pubkey"), "issuer_pubkey") === issuer &&
       asString(member(o, "recipient_pubkey"), "recipient_pubkey") === intent.recipient &&
-      asString(member(o, "denomination"), "denomination") === "erg" &&
+      asString(member(o, "denomination"), "denomination") === (intent.denomination ?? "erg") &&
       asString(member(o, "tracker_nft_id"), "tracker_nft_id") === TRACKER_NFT &&
       asU64(member(o, "amount"), "amount") === intent.total;
   } catch {
@@ -197,13 +212,17 @@ function boundInputs(signedRaw: string, boxes: readonly ErgoBox[] | undefined): 
 export function spendsOnlyOwnBoxes(signedRaw: string, pub: Hex, boxes: readonly ErgoBox[] | undefined): boolean {
   const ins = inputsOf(signedRaw);
   const bound = boundInputs(signedRaw, boxes);
-  return !!ins && ins.length > 0 && !ins.some((x) => x.extension) && !!bound && bound.every((b) => b.ergoTree === `0008cd${pub}` && b.ergoTree !== RESERVE_TREE_HEX);
+  return !!ins && ins.length > 0 && !ins.some((x) => x.extension) && !!bound && bound.every((b) => b.ergoTree === `0008cd${pub}` && b.ergoTree !== RESERVE_TREE_HEX && b.ergoTree !== TOKEN_RESERVE_TREE_HEX);
 }
 
-/** A redemption's one input is a reserve-contract box (re-review, LOW): the box the screen reviewed, bound to its id. */
-export function redeemsReserveBox(signedRaw: string, boxes: readonly ErgoBox[] | undefined): boolean {
+/** A redemption's one input is a reserve-contract box (re-review, LOW): the box the screen reviewed, bound to its id.
+ *  A token redemption: input 0 the token reserve, every other input a token-free box at the tracker's own key (never
+ *  this key's: its proof would spend them too), at least one. `trackerPk` is for tests. */
+export function redeemsReserveBox(signedRaw: string, boxes: readonly ErgoBox[] | undefined, trackerPk: Hex = TRACKER_PK): boolean {
   const bound = boundInputs(signedRaw, boxes);
-  return !!bound && bound.length === 1 && bound[0].ergoTree === RESERVE_TREE_HEX;
+  if (!bound || bound.length === 0) return false;
+  if (bound[0].ergoTree === RESERVE_TREE_HEX) return bound.length === 1;
+  return bound[0].ergoTree === TOKEN_RESERVE_TREE_HEX && bound.length >= 2 && bound.slice(1).every((b) => b.ergoTree === `0008cd${trackerPk}` && b.tokens.length === 0);
 }
 
 /** The redemption's context variable #0: action 0 (redeem), output 0 (basis.es: a Byte, action × 10 + index). */
@@ -217,13 +236,20 @@ const REDEEM_ACTION_VAR = "0200";
  */
 export function redemptionPaysOwnKey(signedRaw: string, pub: Hex): boolean {
   const outs = outputsOf(signedRaw);
-  if (!outs || outs.length !== 3 || outs[0].tree !== RESERVE_TREE_HEX || outs[1].tree !== `0008cd${pub}` ||
+  if (!outs) return false;
+  // ERG: [reserve, own, fee ≤ 0.001 ERG], one input. Token (the tracker pays): [token reserve, own, fee ≤ 0.002 ERG,
+  // the tracker's change?], the reserve and the tracker's fee boxes; no output but the payout at this key.
+  const token = outs[0]?.tree === TOKEN_RESERVE_TREE_HEX;
+  if (token) {
+    if ((outs.length !== 3 && outs.length !== 4) || outs[1].tree !== `0008cd${pub}` || outs[2].tree !== FEE_TREE_HEX || outs[2].value > TOKEN_REDEEM_MAX_FEE_NANOERG) return false;
+    if (outs.length === 4 && (outs[3].tree === `0008cd${pub}` || outs[3].tree === RESERVE_TREE_HEX || outs[3].tree === TOKEN_RESERVE_TREE_HEX)) return false;
+  } else if (outs.length !== 3 || outs[0].tree !== RESERVE_TREE_HEX || outs[1].tree !== `0008cd${pub}` ||
     outs[2].tree !== FEE_TREE_HEX || outs[2].value > REDEEM_MAX_FEE_NANOERG) return false;
   const o = strictObject(signedRaw);
   if (!o) return false;
   try {
     const ins = asArray(member(o, "inputs"), "inputs").items;
-    if (ins.length !== 1) return false;
+    if (token ? ins.length < 2 : ins.length !== 1) return false;
     const proof = asObject(member(asObject(ins[0], "inputs[0]"), "spendingProof"), "inputs[0].spendingProof");
     if (asString(member(asObject(member(proof, "extension"), "extension"), "0"), "extension.0").toLowerCase() !== REDEEM_ACTION_VAR) return false;
     const out0 = asObject(asArray(member(o, "outputs"), "outputs").items[0], "outputs[0]");
@@ -254,5 +280,5 @@ export function reserveActionPaysRight(signedRaw: string, pub: Hex, kind: Reserv
   if (outs.length !== 2 && outs.length !== 3) return false;
   const r4 = kind === "refund-start" ? pub : owner;
   if (!r4 || outs[0].regs.R4 !== `07${r4}` || outs[0].regs.R6 !== `0e20${TRACKER_NFT}`) return false;
-  return outs[0].tree === RESERVE_TREE_HEX && (outs.length === 2 || outs[1].tree === own);
+  return (outs[0].tree === RESERVE_TREE_HEX || outs[0].tree === TOKEN_RESERVE_TREE_HEX) && (outs.length === 2 || outs[1].tree === own);
 }

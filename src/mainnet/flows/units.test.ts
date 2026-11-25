@@ -33,3 +33,24 @@ describe("token amounts", () => {
     for (const [raw, d] of [[1n, 2], [123_456_789n, 6], [10n ** 13n, 2]] as const) expect(parseUnits(unitsPlain(raw, d), d, "en")).toBe(raw);
   });
 });
+
+import { decodeReceipt, encodeReceipt } from "./receipt";
+import { signNote } from "./notes";
+import { keyPairFromSecret } from "../../protocol/keys";
+import { secretBytes } from "../tx/testkit";
+import { SIGUSD_TOKEN_ID } from "../tx/tokens";
+
+describe("a token note's receipt", () => {
+  it("carries its denomination; an ERG receipt stays as it was", () => {
+    const a = keyPairFromSecret(2n), b = keyPairFromSecret(3n);
+    const tok = signNote(secretBytes(a.secret), { issuer: a.pubHex, recipient: b.pubHex, total: 500n, timestamp: 1_795_000_000_000n, denomination: `token:${SIGUSD_TOKEN_ID}` });
+    const back = decodeReceipt(encodeReceipt(tok.receipt));
+    expect(back.ok && back.receipt.denom).toBe(`token:${SIGUSD_TOKEN_ID}`);
+    const erg = signNote(secretBytes(a.secret), { issuer: a.pubHex, recipient: b.pubHex, total: 500n, timestamp: 1_795_000_000_000n });
+    expect(atob(encodeReceipt(erg.receipt).replace(/-/g, "+").replace(/_/g, "/"))).not.toContain('"d"');
+    expect(decodeReceipt(encodeReceipt(erg.receipt)).ok).toBe(true);
+    // the same signature claimed as ERG does not verify
+    expect(decodeReceipt(encodeReceipt({ ...tok.receipt, denom: undefined }))).toEqual({ ok: false, reason: "signature" });
+    expect(decodeReceipt(encodeReceipt({ ...tok.receipt, denom: `token:${"03".repeat(32)}` }))).toEqual({ ok: false, reason: "format" });
+  });
+});

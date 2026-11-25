@@ -16,14 +16,14 @@ import {
 import { VaultDb } from "./db";
 import { browserEnv, type ChannelLike, type CryptoLike, type VaultEnv } from "./env";
 import { VaultError } from "./errors";
-import { dropJournalOf, MainnetJournal, RESERVE_ACTION_KINDS, type JournalEntry, type JournalKind, type JournalRecordInput } from "./journal";
+import { dropJournalOf, MainnetJournal, RESERVE_ACTION_KINDS, t1DenomOf, type JournalEntry, type JournalKind, type JournalRecordInput } from "./journal";
 import { deriveKey, seal, unseal } from "./kdf";
 import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } from "./keys";
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
 import type { ErgoBox } from "../tx/model";
-import { checkNoteBody, nextPromise, notePolicy, paysOnlyOwnKey, redeemsReserveBox, redemptionPaysOwnKey, reserveActionPaysRight, spendsOnlyOwnBoxes, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
+import { checkNoteBody, nextPromise, notePolicy, promiseKey, paysOnlyOwnKey, redeemsReserveBox, redemptionPaysOwnKey, reserveActionPaysRight, spendsOnlyOwnBoxes, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
@@ -83,6 +83,9 @@ export interface SecretOptions {
    *  checked against its id). A withdrawal spends only P2PK(this key) boxes, without context variables; a redemption
    *  spends one reserve-contract box. */
   inputBoxes?: readonly ErgoBox[];
+  /** signToJournal("t1") only: the denomination of the reserve it creates ("erg" by default); it must be the entry's
+   *  `meta.denom` (absent for ERG). One T1 per key and denomination. */
+  denom?: string;
 }
 
 export interface TakeOverOptions {
@@ -132,7 +135,8 @@ interface Session {
   pub: Hex;
   pubBytes: Uint8Array;
   /** Notes signed without the passphrase since it was last typed (the unlock counts), per recipient. */
-  promised: Map<Hex, PairPromise>;
+  /** Per pair and denomination (policy.ts promiseKey). */
+  promised: Map<string, PairPromise>;
 }
 
 /** signToJournal's rules around one use of the key (both run in the signer's turn, see #use). */
@@ -625,8 +629,10 @@ export class MainnetVault {
    */
   async signToJournal(kind: JournalKind, fn: SecretCallback<Omit<JournalRecordInput, "kind" | "pub">>, opts: SecretOptions = {}): Promise<JournalEntry> {
     const pub = this.#session?.pub;
+    const denomGiven: unknown = typeof opts === "object" && opts !== null ? opts.denom : undefined;
+    const t1Denom = typeof denomGiven === "string" ? denomGiven : "erg";
     if (kind === "t1" && pub) {
-      const first = await this.journal.activeT1(pub);
+      const first = await this.journal.activeT1(pub, t1Denom);
       if (first) throw new VaultError("t1-exists", "this key already has a reserve creation in the journal", { id: first.id, state: first.state });
     }
     const given: unknown = typeof opts === "object" && opts !== null ? opts.note : undefined;
@@ -649,6 +655,7 @@ export class MainnetVault {
       },
       after(part, s, typed) {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
+        if (kind === "t1" && t1DenomOf({ meta: isObject(part.meta) ? (part.meta as JournalEntry["meta"]) : {} }) !== t1Denom) throw new VaultError("bad-input", "the reserve creation's meta.denom is not the denomination it was checked for (opts.denom)");
         if (kind === "withdraw" && !spendsOnlyOwnBoxes(part.signedRaw, s.pub, inputBoxes)) throw new VaultError("bad-input", "a withdrawal spends only this key's own boxes (opts.inputBoxes), without context variables");
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
         if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: one input (action 0, another key's reserve), outputs [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]");
@@ -658,7 +665,8 @@ export class MainnetVault {
         }
         if (kind === "note") {
           checkNoteBody(part.signedRaw, s.pub, intent);
-          if (!typed) s.promised.set(intent.recipient, nextPromise(s.promised, intent.recipient, intent.prev?.total ?? 0n, intent.total));
+          const key = promiseKey(intent.recipient, intent.denomination ?? "erg");
+          if (!typed) s.promised.set(key, nextPromise(s.promised, key, intent.prev?.total ?? 0n, intent.total));
         }
       },
     };
