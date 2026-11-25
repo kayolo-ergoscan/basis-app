@@ -52,7 +52,7 @@ const GUILLOCHE = (() => {
 })();
 export function VaultCoin({ unit, size = 64, spent, plain, className, style }: { unit: CoinUnit; size?: number; spent?: boolean; plain?: boolean; className?: string; style?: CSSProperties }) {
   const gid = useUid("vc");
-  const label = unit === "erg" ? "ERG" : unit === "other" ? "TOK" : "USE";
+  const label = unit === "erg" ? "ERG" : unit === "other" ? "TOK" : unit === "sigusd" ? "SIG" : unit === "rsada" ? "ADA" : "USE";
   const small = size < 44;
   return (
     <svg className={cx("nw-coin", spent && "spent", unit === "use-lookalike" && "test", unit !== "erg" && "tok", className)} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true" style={style}>
@@ -189,8 +189,8 @@ export function TrackerLanes({ obs, trackers, clock }: { obs: Observatory; track
 }
 
 /* ============ Redemption timeline: one stem per redemption, a lane per unit ============ */
-type UnitKey = "erg" | "use" | "use-lookalike" | "other";
-const UNIT_ORDER: UnitKey[] = ["erg", "use", "use-lookalike", "other"];
+type UnitKey = "erg" | TokenKind;
+const UNIT_ORDER: UnitKey[] = ["erg", "use", "use-lookalike", "sigusd", "rsada", "other"];
 export const unitOf = (r: RedemptionView): UnitKey => (r.unit === "erg" ? "erg" : (r.token?.kind ?? "other"));
 const decOf = (r: RedemptionView) => (r.unit === "erg" ? 9 : r.token?.decimals ?? 0);
 /** "date · tracker box age N" of a redemption; block and "checking…" while its transaction is not read (fromBoxes). */

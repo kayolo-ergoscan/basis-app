@@ -14,7 +14,7 @@ export type ContractAction = "redeem" | "topUp" | "refundInit" | "refundComplete
 // "…-checking": where the R6 tracker NFT is has not been looked up yet in this tab (only for NFTs outside the seed)
 export type ExitClass = "locked" | "refund" | "refund+redeem" | "redeem-if-tracker" | "redeem" | "refund+redeem-if-tracker" | "redeem-checking" | "refund+redeem-checking";
 export type TrackerStatus = "live" | "stale" | "burned" | "locked" | "unused";
-export type TokenKind = "use" | "use-lookalike" | "other";
+export type TokenKind = "use" | "use-lookalike" | "sigusd" | "rsada" | "other";
 
 export interface SeedContract {
   id: string;                    // e.g. "erg-v2026-07-pb9o"

@@ -14,7 +14,8 @@ import { OurTrackerBlock } from "./Ours";
 import { FeedRow } from "./feed";
 import { Capped } from "./parts";
 // ErgoScan's tracker: its heartbeat sets the dial's bands
-import { OUR_TRACKER, STALE_AFTER_BLOCKS, useFirstReads } from "@/chain";
+import { CURRENT_TEMPLATES, OUR_TRACKER, STALE_AFTER_BLOCKS, useFirstReads, type TokenKind } from "@/chain";
+import { pinnedToken } from "@/chain/reserveTokens";
 
 export { FeedRow };
 
@@ -356,7 +357,7 @@ export function TopUpKey({ r, nftOf }: { r?: ReserveView; nftOf?: (box: string) 
     <div className="nw-topup">
       {to ? <Key variant="metal" icon="coin" to={to}>{t("network.topup.key")}</Key>
         : <Key variant="metal" icon="coin" disabled aria-disabled="true" aria-describedby="nw-topup-why">{t("network.topup.key")}</Key>}
-      <p id="nw-topup-why">{!r ? t("network.topup.list") : why ? <><b>{t("network.topup.shut")}</b> {t(`network.topup.why.${why}`)}</> : t("network.topup.open")}</p>
+      <p id="nw-topup-why">{!r ? t("network.topup.list") : why ? <><b>{t("network.topup.shut")}</b> {t(`network.topup.why.${why}`)}</> : r.collateral && pinnedToken(r.collateral.id) ? t("network.topup.openToken", { sym: pinnedToken(r.collateral.id)!.symbol }) : t("network.topup.open")}</p>
     </div>
   );
 }
@@ -382,19 +383,24 @@ type Tracked = { box: string; owner: string; nft: string; token: string | null }
 export function topUpShut(r: ReserveView, tracked: readonly Tracked[] | null, nftOf: (box: string) => string | null = () => null): "spent" | "legacy" | "token" | "tracker" | "shape" | "refund" | "unknown" | "untracked" | null {
   if (!r.unspent) return "spent";
   if (!r.contract?.current || r.legacy) return "legacy";
-  if (r.kind !== "erg" || r.collateral) return "token";
+  // a token reserve only in SigUSD or rsADA (the wallet's pinned tokens) under the current multi-token contract
+  const token = r.collateral ? pinnedToken(r.collateral.id) : null;
+  if (r.kind !== "erg" || r.collateral) {
+    if (r.kind !== "token" || !token || r.contract?.templateHash !== CURRENT_TEMPLATES.multiToken) return "token";
+  }
   if (!r.nft || r.r6 !== OUR_TRACKER.nft) return "tracker";
   if (!walletReadsRegisters(r)) return "shape";
   if ((r.r7 ?? 0) !== 0) return "refund";
   if (tracked === null) return "unknown";
   const nft = r.nft.id, owner = r.owner!.key.toLowerCase();
-  // tracked as its owner's only ERG reserve (as the wallet's trackedAs): a second one of that owner is not picked between
-  const theirs = tracked.filter((x) => x.nft === OUR_TRACKER.nft && x.owner.toLowerCase() === owner && x.token === null);
+  // tracked as its owner's only reserve in this denomination (as the wallet's trackedAs): a second one of that owner
+  // is not picked between
+  const theirs = tracked.filter((x) => x.nft === OUR_TRACKER.nft && x.owner.toLowerCase() === owner && x.token === (token ? token.id : null));
   if (theirs.length !== 1 || (theirs[0].box !== r.id && nftOf(theirs[0].box) !== nft)) return "untracked";
   return null;
 }
 
-export function unitKind(r: ReserveView): "erg" | "use" | "use-lookalike" | "other" {
+export function unitKind(r: ReserveView): "erg" | TokenKind {
   return r.collateral ? r.collateral.kind : "erg";
 }
 

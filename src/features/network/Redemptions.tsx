@@ -90,7 +90,7 @@ export function RedemptionsPage({ obs }: { obs: Observatory }) {
     </>
   );
 }
-const tokenUnitLabel = (u: string, lang: Lang) => (u === "erg" ? "ERG" : u === "use" ? "USE" : u === "use-lookalike" ? (lang === "ru" ? "«USE» (тест)" : "“USE” (test)") : "?");
+const tokenUnitLabel = (u: string, lang: Lang) => (u === "erg" ? "ERG" : u === "use" ? "USE" : u === "use-lookalike" ? (lang === "ru" ? "«USE» (тест)" : "“USE” (test)") : u === "sigusd" ? "SigUSD" : u === "rsada" ? "rsADA" : "?");
 
 function GraphView({ list }: { list: RedemptionView[] }) {
   const t = useT();

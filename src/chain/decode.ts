@@ -5,6 +5,7 @@ import { blake2b } from "@noble/hashes/blake2b";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes as nobleHexToBytes } from "@noble/hashes/utils";
 import { blockWord, groupDigits } from "@/ui/engine/money";
+import { pinnedToken } from "./reserveTokens";
 import type {
   ApiAsset, ApiRegister, AvlTreeInfo, BasisRegisters, DecodedConstant, EmergencyClock, ExitAssessment, ExitClass,
   ExitReason, Hex, RefundClock, SeedAvl, TokenKind, TrackerStatus,
@@ -489,7 +490,7 @@ export function basisParams(constants: { type: string; value: unknown }[], kind:
 /** Tell USE from the look-alike by token id — never by name (both are named "USE"). */
 export function tokenKind(tokenId: Hex | null | undefined): TokenKind {
   const t = (tokenId || "").toLowerCase();
-  return t === USE_TOKEN_ID ? "use" : t === USE_LOOKALIKE_ID ? "use-lookalike" : "other";
+  return t === USE_TOKEN_ID ? "use" : t === USE_LOOKALIKE_ID ? "use-lookalike" : pinnedToken(t)?.kind ?? "other";
 }
 
 // ─── clocks ─────────────────────────────────────────────────────────────────────────────────────

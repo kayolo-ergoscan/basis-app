@@ -5,6 +5,7 @@ import type { ChainBox } from "@/mainnet/net";
 import type { JournalEntry, MainnetVault } from "@/mainnet/vault";
 import { OUR_TRACKER, type TrackedReserve } from "@/chain/ours";
 import { p2pkBox, reserveBox } from "@/mainnet/tx/testkit";
+import { TOKEN_RESERVE_TREE_HEX } from "@/mainnet/tx";
 import { MINTED_CHECK_MAX, forgetMinters, mintedAmong, minterOf, retireReserveOf, spentElsewhere, t1GateOf, trackedGateOf, trackedRefs } from "./data";
 import { trackedAs, trustedNft } from "@/mainnet/flows";
 import { ISSUER_A, R3_RESERVE_IN, T1 } from "@/mainnet/tx/fixtures/chain";
@@ -106,6 +107,20 @@ describe("retiring the T1 after a completed refund (review 2, coordinator's deci
     expect(a.retired).toEqual(["t1"]);
     const b = fake(t1);
     expect(await retireReserveOf(b.vault, "02", done, 2_000, holder(null))).toBe(true);
+  });
+  it("a token reserve's completion retires that token's T1 (activeT1 asked in its denomination); the token contract still holding the NFT does not", async () => {
+    const SIG = `token:${"03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"}`;
+    const askedIn: string[] = [];
+    const retired: string[] = [];
+    const vault = { journal: { activeT1: async (_p: string, d?: string) => { askedIn.push(d ?? "erg"); return d === SIG ? t1 : null; }, retireT1: async (x: string) => { retired.push(x); return t1; } } } as unknown as Pick<MainnetVault, "journal">;
+    const tokenDone = { ...done, meta: { nft: NFT, denom: SIG } } as unknown as JournalEntry;
+    const inTokenReserve = reserveBox(`02${"4a".repeat(32)}`, 2_000_000n, { tree: TOKEN_RESERVE_TREE_HEX, tokens: [{ tokenId: NFT, amount: 1n }, { tokenId: SIG.slice(6), amount: 5n }] });
+    expect(await retireReserveOf(vault, "02", tokenDone, 2_000, holder(inTokenReserve))).toBe(false);
+    expect(await retireReserveOf(vault, "02", tokenDone, 2_000, holder(p2pk))).toBe(true);
+    expect(askedIn).toEqual([SIG, SIG]);
+    expect(retired).toEqual(["t1"]);
+    // the same completion without its denomination asks the ERG T1, which is not there
+    expect(await retireReserveOf(vault, "02", done, 2_000, holder(p2pk))).toBe(false);
   });
   it("never for a completion of another reserve, a failed read, or a T1 that is not final", async () => {
     expect(await retireReserveOf(fake(t1).vault, "02", { ...done, meta: { nft: "8a".repeat(32) } } as JournalEntry, 2_000, holder(p2pk))).toBe(false);
@@ -230,6 +245,33 @@ describe("the tracker's reserves as reserve NFTs (review 2: the tracker names bo
     expect((await t1GateOf(OWNER, undefined, { ...world([]), reservesOnChain: down })).ok).toBe(false);
     // a box read that fails (not "not found") is the whole answer's
     expect((await t1GateOf(OWNER, undefined, { ...world([entry(real.boxId)]), box: down })).ok).toBe(false);
+  });
+
+  it("token reserves: the SigUSD gate counts only SigUSD entries and token-contract boxes; an ERG reserve never blocks it, nor the other way round", async () => {
+    const SIG = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
+    const sigReal = reserveBox(OWNER, 2_000_000n, { tree: TOKEN_RESERVE_TREE_HEX, tokens: [{ tokenId: NFT, amount: 1n }, { tokenId: SIG, amount: 500n }] });
+    const ok = <T,>(value: T) => ({ ok: true as const, value });
+    const asked: { denom?: string }[] = [];
+    const world = (list: TrackedReserve[], chain: (typeof real)[] = []) => ({
+      reservesOf: async () => ok(list),
+      reservesOnChain: async (_pk: string, o?: { denom?: string }) => { asked.push({ denom: o?.denom }); return ok({ boxes: chain.map((b) => ({ box: b, height: 1 })), complete: true }); },
+      box: reader({ [real.boxId]: real, [sigReal.boxId]: sigReal, ...minted }),
+    });
+    // the tracker lists the key's ERG reserve: the SigUSD gate is free, the ERG gate is not
+    expect(await t1GateOf(OWNER, undefined, world([entry(real.boxId)]), SIG)).toEqual({ ok: true, value: { k: "none" } });
+    expect(asked).toEqual([{ denom: `token:${SIG}` }]);
+    expect(await t1GateOf(OWNER, undefined, world([entry(real.boxId)]))).toMatchObject({ ok: true, value: { k: "own" } });
+    // the tracker lists the SigUSD reserve: read in SigUSD, it is the key's own; the ERG gate is free
+    const sigEntry = entry(sigReal.boxId, { token: SIG, collateral: 500n });
+    expect(await trackedGateOf(OWNER, undefined, world([sigEntry]), SIG)).toEqual({ ok: true, value: { k: "own", r: sigEntry } });
+    expect(await t1GateOf(OWNER, undefined, world([sigEntry]))).toEqual({ ok: true, value: { k: "none" } });
+    // an ERG-contract box named as a SigUSD reserve does not read as one: not the key's own SigUSD reserve
+    expect(await trackedGateOf(OWNER, undefined, world([entry(real.boxId, { token: SIG })]), SIG)).toMatchObject({ ok: true, value: { k: "unproven" } });
+    // a token the wallet does not know: its entries are left out of the refs (never read as ERG)
+    expect(await trackedRefs([entry(sigReal.boxId, { token: "ee".repeat(32) })], reader({ [sigReal.boxId]: sigReal, ...minted }))).toEqual({ ok: true, value: [] });
+    // the chain shows a SigUSD reserve this key minted that the tracker does not list yet
+    expect(await t1GateOf(OWNER, undefined, world([], [sigReal]), SIG)).toEqual({ ok: true, value: { k: "chain" } });
+    expect(await t1GateOf(OWNER, undefined, world([], [sigReal]))).toEqual({ ok: true, value: { k: "none" } }); // read as ERG it is no reserve
   });
 
   it("T1 creation: only a reserve this key minted counts; planted boxes, even many, do not block", async () => {

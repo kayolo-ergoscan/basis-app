@@ -16,7 +16,7 @@ import { ExitClocks } from "./lazyViz";
 import { redemptionAmount, unitOf, VaultCoin } from "./viz";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
-type TokenFilter = "erg" | "use" | "use-lookalike";
+type TokenFilter = "erg" | "use" | "use-lookalike" | "sigusd" | "rsada";
 const PAGE = 24;
 
 /* =========================== list =========================== */
@@ -82,7 +82,7 @@ export function ReservesList({ obs }: { obs: Observatory }) {
         <FilterRow label={t("network.f.exit")} value={f.x} onChange={(v) => set("x", v)}
           options={[{ value: "", label: t("network.f.all") }, ...EXIT_ORDER.filter((c) => base.some((r) => r.exit?.class === c)).map((c) => ({ value: c, label: t(`chain.exit.${c}.short`) }))]} />
         <FilterRow label={t("network.f.token")} value={f.k} onChange={(v) => set("k", v)}
-          options={[{ value: "", label: t("network.f.all") }, { value: "erg", label: "ERG" }, { value: "use", label: tokenUnit("use", lang) }, { value: "use-lookalike", label: tokenUnit("use-lookalike", lang) }]} />
+          options={[{ value: "", label: t("network.f.all") }, { value: "erg", label: "ERG" }, { value: "use", label: tokenUnit("use", lang) }, { value: "use-lookalike", label: tokenUnit("use-lookalike", lang) }, { value: "sigusd", label: tokenUnit("sigusd", lang) }, { value: "rsada", label: tokenUnit("rsada", lang) }]} />
         <FilterRow label={t("network.f.tree")} value={f.r5} onChange={(v) => set("r5", v)}
           options={[{ value: "", label: t("network.f.all") }, { value: "has", label: t("network.f.treeHas") }, { value: "empty", label: t("network.f.treeEmpty") }]} />
         <FilterRow label={t("network.f.state")} value={f.s} onChange={(v) => set("s", v === "unspent" ? "" : v)}
@@ -159,7 +159,7 @@ function Totals({ obs, base, onPick, active, variants }: { obs: Observatory; bas
     </li>
   );
   const byV = variants.map((v) => row("v", v, <ContractTag c={obs.contracts.find((c) => c.short === v) ?? null} withRole={false} />, agg((r) => r.contract?.short === v), active.v === v));
-  const kinds: TokenFilter[] = ["erg", "use", "use-lookalike"];
+  const kinds: TokenFilter[] = ["erg", "use", "use-lookalike", "sigusd", "rsada"];
   const byK = kinds.map((k) => {
     const a = agg((r) => unitKind(r) === k);
     return row("k", k, <b>{tokenUnit(k, lang)}</b>, a, active.k === k, k !== "erg");

@@ -6,6 +6,9 @@ import { TOKEN_RESERVE_BOX_NANOERG, TOKEN_RESERVE_TREE_HEX, SIGUSD_TOKEN_ID, res
 import { p2pkBox, reserveBox } from "../tx/testkit";
 import { planTokenT1, tokenBalanceOf, tokenT1CreateBody, mempoolCreatesReserve } from "./coins";
 import { ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGate, trustedNft, type TrackedRef } from "./reserveops";
+import { parseRequest, requestLink } from "./receipt";
+import { parseWatchStore, watchIssuer, watchedDenoms } from "./watch";
+import { TRACKER_NFT } from "../tx";
 
 const me = keyPairFromSecret(3n).pubHex;
 const SIG = reserveTokenById(SIGUSD_TOKEN_ID)!;
@@ -62,5 +65,33 @@ describe("which reserve is the key's own, per denomination", () => {
     const held = { box: reserveBox(me, TOKEN_RESERVE_BOX_NANOERG, { tree: TOKEN_RESERVE_TREE_HEX, tokens: [{ tokenId: NFT, amount: 1n }, { tokenId: SIGUSD_TOKEN_ID, amount: 5n }] }), height: 1 };
     expect(ownReserve({ owner: me, trusted: { ok: true, nft: NFT }, held, listing: null, token: SIGUSD_TOKEN_ID })).toMatchObject({ ok: true, nft: NFT });
     expect(ownReserve({ owner: me, trusted: { ok: true, nft: NFT }, held, listing: null })).toEqual({ ok: false, why: "none" });
+  });
+});
+
+describe("request links and watched issuers per denomination", () => {
+  const other = keyPairFromSecret(5n).pubHex;
+  it("a token request names its denomination; an ERG one is what it was; an unknown one is refused", () => {
+    const erg = requestLink("https://x", { to: other, amount: 5n, nft: TRACKER_NFT });
+    expect(erg).not.toContain("d=");
+    expect(parseRequest(new URL(erg).hash)).toEqual({ to: other, amount: 5n, nft: TRACKER_NFT });
+    const sig = requestLink("https://x", { to: other, amount: 250n, nft: TRACKER_NFT, denom: `token:${SIGUSD_TOKEN_ID}` });
+    expect(sig).toContain("&d=sigusd");
+    expect(parseRequest(new URL(sig).hash)).toEqual({ to: other, amount: 250n, nft: TRACKER_NFT, denom: `token:${SIGUSD_TOKEN_ID}` });
+    expect(parseRequest(`#to=${other}&d=dogecoin`)).toBeNull();
+  });
+  it("a token receipt adds that token to the watched issuer, apart from its ERG receipt", () => {
+    const base = { nft: TRACKER_NFT, issuer: other, recipient: me, signature: "ab".repeat(65) };
+    let l = watchIssuer([], me, other, { receipt: { ...base, total: 7n, timestamp: 10n }, now: 1 });
+    expect(l[0].tokens).toBeUndefined();
+    expect(JSON.stringify(l[0])).not.toContain("tokens");
+    l = watchIssuer(l, me, other, { receipt: { ...base, total: 300n, timestamp: 20n, denom: `token:${SIGUSD_TOKEN_ID}` } });
+    expect(l[0].receipt).toMatchObject({ total: "7" });
+    expect(l[0].tokens).toEqual([{ denom: `token:${SIGUSD_TOKEN_ID}`, receipt: { total: "300", timestamp: "20", signature: base.signature } }]);
+    // an older token receipt does not replace a newer one
+    l = watchIssuer(l, me, other, { receipt: { ...base, total: 100n, timestamp: 15n, denom: `token:${SIGUSD_TOKEN_ID}` } });
+    expect(l[0].tokens![0].receipt!.total).toBe("300");
+    expect(watchedDenoms(l[0])).toEqual(["erg", `token:${SIGUSD_TOKEN_ID}`]);
+    const back = parseWatchStore(JSON.stringify({ [me]: [{ ...l[0], tokens: [...l[0].tokens!, { denom: "token:" + "ee".repeat(32), receipt: null }, { denom: "erg", receipt: null }] }] }));
+    expect(back[me][0].tokens).toEqual(l[0].tokens);
   });
 });

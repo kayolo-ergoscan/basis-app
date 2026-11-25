@@ -3,7 +3,8 @@
 // our tracker tracks as its owner's (review 2: anyone can plant a box that looks like a reserve). The wallet reads the
 // reserve and the tracker again before anything is signed.
 import { describe, expect, it } from "vitest";
-import { OUR_TRACKER, type ReserveView } from "@/chain";
+import { CURRENT_TEMPLATES, OUR_TRACKER, type ReserveView } from "@/chain";
+import { RSADA, SIGUSD } from "@/chain/reserveTokens";
 import { topUpShut } from "./Overview";
 
 const OWNER = `02${"4a".repeat(32)}`;
@@ -49,6 +50,17 @@ describe("topUpShut", () => {
     expect(topUpShut(view(), [tr({ token: "11".repeat(32) })])).toBe("untracked");
     expect(topUpShut(view(), [tr({ nft: "11".repeat(32) })])).toBe("untracked"); // another tracker's entry
     expect(topUpShut(view(), [tr(), tr({ box: "cd".repeat(32) })])).toBe("untracked"); // two of that owner: not picked
+  });
+  it("a SigUSD or rsADA reserve under the current multi-token contract opens, tracked in that token; any other token stays shut", () => {
+    const sig = { id: SIGUSD.id, amount: 500n, decimals: 2, name: "SigUSD", kind: "sigusd" as const, label: "SigUSD" };
+    const tokenView = (o: Partial<ReserveView> = {}) => view({ kind: "token", collateral: sig, contract: { current: true, templateHash: CURRENT_TEMPLATES.multiToken } as ReserveView["contract"], ...o });
+    expect(topUpShut(tokenView(), [tr({ token: SIGUSD.id })])).toBeNull();
+    // tracked as the owner's ERG reserve (or in rsADA) is not tracked as this SigUSD reserve
+    expect(topUpShut(tokenView(), TRACKED)).toBe("untracked");
+    expect(topUpShut(tokenView(), [tr({ token: RSADA.id })])).toBe("untracked");
+    expect(topUpShut(tokenView({ collateral: { ...sig, id: "ee".repeat(32), kind: "other" } }), [tr({ token: "ee".repeat(32) })])).toBe("token");
+    expect(topUpShut(tokenView({ contract: { current: true, templateHash: CURRENT_TEMPLATES.erg } as ReserveView["contract"] }), [tr({ token: SIGUSD.id })])).toBe("token");
+    expect(topUpShut(view({ collateral: sig }), [tr({ token: SIGUSD.id })])).toBe("token"); // an ERG-kind box with a token
   });
   it("the tracker may name an older box of the same reserve: the observatory gives its NFT", () => {
     const older = [tr({ box: "cd".repeat(32) })];

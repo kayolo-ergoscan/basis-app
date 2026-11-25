@@ -6,6 +6,7 @@
 //   tokens  [reserve NFT (= the T1's first input id) × 1, the reserve token × amount]  (exactly two)
 //   R4–R7   as an ERG reserve: owner, AvlTree, our tracker NFT, refund height
 // The denomination of a reserve is its tokens(1) id; of a note, "token:<id>" (messages.ts).
+import { RSADA, SIGUSD } from "../../chain/reserveTokens";
 import { p2sAddress } from "./address";
 import { RESERVE_TREE_HEX } from "./constants";
 import type { Denomination } from "./messages";
@@ -88,13 +89,14 @@ const token = (id: Hex, symbol: string, decimals: number, defaultCap: bigint, ha
   return { id, symbol, decimals, one, min: one, defaultCap: defaultCap * one, hardCap: hardCap * one };
 };
 
-export const SIGUSD_TOKEN_ID: Hex = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
-export const RSADA_TOKEN_ID: Hex = "e023c5f382b6e96fbd878f6811aac73345489032157ad5affb84aefd4956c297";
+/** The ids, symbols and decimals are pinned once in chain/reserveTokens.ts (the Network pages read the same table). */
+export const SIGUSD_TOKEN_ID: Hex = SIGUSD.id;
+export const RSADA_TOKEN_ID: Hex = RSADA.id;
 
 /** SigUSD (2 decimals): default 5, at most 25. rsADA (6 decimals): default 10, at most 50. Whole tokens. */
 export const RESERVE_TOKENS: readonly ReserveToken[] = [
-  token(SIGUSD_TOKEN_ID, "SigUSD", 2, 5n, 25n),
-  token(RSADA_TOKEN_ID, "rsADA", 6, 10n, 50n),
+  token(SIGUSD.id, SIGUSD.symbol, SIGUSD.decimals, 5n, 25n),
+  token(RSADA.id, RSADA.symbol, RSADA.decimals, 10n, 50n),
 ];
 
 /** One of our two tokens by id (exact, lowercase), or null. */

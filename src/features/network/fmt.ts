@@ -30,6 +30,8 @@ export function tokenUnit(kind: TokenKind | "erg", lang: Lang): string {
   if (kind === "erg") return "ERG";
   if (kind === "use") return "USE";
   if (kind === "use-lookalike") return lang === "ru" ? "«USE» (тест)" : "“USE” (test)";
+  if (kind === "sigusd") return "SigUSD";
+  if (kind === "rsada") return "rsADA";
   return lang === "ru" ? "токен" : "token";
 }
 

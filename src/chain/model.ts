@@ -10,6 +10,7 @@ import {
   decodeConstant, emergencyClock, p2pkAddress, p2pkKeyOfTree, p2sAddress, parseErgoTree, regHex, templateHashSync, tokenKind,
   type TrackerLookup,
 } from "./decode";
+import { pinnedToken } from "./reserveTokens";
 
 // ─── small helpers ──────────────────────────────────────────────────────────────────────────────
 
@@ -44,20 +45,22 @@ export const decodeBeats = (beats: number[]): number[] => {
 export function tokenAmount(seed: Pick<Seed, "tokens"> | null, id: Hex, amount: bigint | string | number, api?: Pick<ApiAsset, "name" | "decimals">): TokenAmount {
   const t = seed?.tokens[id];
   const kind = tokenKind(id);
+  // SigUSD and rsADA: their decimals and name from the pinned table, never from the token's registers
+  const pin = pinnedToken(id);
   return {
     id,
     amount: big(amount),
-    decimals: t?.decimals ?? api?.decimals ?? 0,
-    name: t?.name ?? api?.name ?? null,
+    decimals: pin?.decimals ?? t?.decimals ?? api?.decimals ?? 0,
+    name: pin?.symbol ?? t?.name ?? api?.name ?? null,
     kind,
-    label: t?.label ?? (api?.name ? `${api.name} (unverified name)` : `token ${id.slice(0, 4)}…${id.slice(-4)}`),
+    label: pin?.symbol ?? t?.label ?? (api?.name ? `${api.name} (unverified name)` : `token ${id.slice(0, 4)}…${id.slice(-4)}`),
   };
 }
 
 function addTokens(into: Map<Hex, bigint>, id: Hex, amount: bigint) {
   into.set(id, (into.get(id) ?? 0n) + amount);
 }
-const KIND_RANK: Record<TokenAmount["kind"], number> = { use: 0, "use-lookalike": 1, other: 2 };
+const KIND_RANK: Record<TokenAmount["kind"], number> = { use: 0, "use-lookalike": 1, sigusd: 2, rsada: 3, other: 4 };
 /** Real USE first, then the look-alike, then anything else by label. */
 const tokenList = (seed: Seed, m: Map<Hex, bigint>): TokenAmount[] =>
   [...m.entries()].filter(([, v]) => v !== 0n).map(([id, v]) => tokenAmount(seed, id, v))
