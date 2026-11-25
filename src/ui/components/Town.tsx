@@ -5,7 +5,7 @@
 //   <HouseLights>  your house: one window per step you finished (the wallet checklists)
 //   <WindowLoader> loading: three windows light up in turn (static under reduced motion)
 // Everything here is decoration with aria-hidden, except HouseLights, which carries a label.
-import { useMemo, useRef, type CSSProperties } from "react";
+import { memo, useMemo, useRef, type CSSProperties } from "react";
 import type { Pulse } from "@/app/pulse";
 import { usePulseClass } from "../hooks";
 
@@ -75,8 +75,9 @@ export interface SkylineProps {
   towerFilter?: (p: Pulse) => boolean;
   className?: string;
 }
-/** A row of houses across the page, windows lit here and there. Pure decoration (aria-hidden). */
-export function Skyline({ seed = 7, lit = 0.22, height = 120, span = 1200, tower, towerFilter, className }: SkylineProps) {
+/** A row of houses across the page, windows lit here and there. Pure decoration (aria-hidden). Memoised: a page that
+ *  re-renders on live data does not redraw the town (pass a stable `towerFilter`). */
+export const Skyline = memo(function Skyline({ seed = 7, lit = 0.22, height = 120, span = 1200, tower, towerFilter, className }: SkylineProps) {
   const ground = height - 4;
   const row = useMemo(() => {
     const all = buildRow(seed, span, ground, height - 18, lit);
@@ -111,7 +112,7 @@ export function Skyline({ seed = 7, lit = 0.22, height = 120, span = 1200, tower
       <rect className="sk-street" x="0" y={ground} width={span} height="4" />
     </svg>
   );
-}
+});
 
 export interface HouseLightsProps {
   /** One entry per step: true when done. */

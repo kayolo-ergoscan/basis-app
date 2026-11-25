@@ -9,6 +9,7 @@ import { Checks, Key, Lamp, NoteStack, Skyline, prefersReducedMotion, short, mon
 import { FAQ_HREF } from "./Faq";
 import { LiveStrip } from "./LiveStrip";
 import { STORY, storyKeys, TRACKER_ID, TRACKER_NAME } from "./story";
+import type { Pulse } from "@/app/pulse";
 import { phaseAtLeast, useStory, type Phase } from "./useStory";
 
 const ZERO_SIG = "00".repeat(65);
@@ -101,6 +102,9 @@ function useLeaders(stage: RefObject<HTMLElement>, svg: RefObject<SVGSVGElement>
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/** The hero town's tower lights for the story tracker's commitments only. */
+const storyTracker = (p: Pulse) => p.trackerId === TRACKER_ID;
+
 export function Hero() {
   const t = useT();
   const { lang } = useLang();
@@ -185,7 +189,7 @@ export function Hero() {
 
   return (
     <section className="hero home-hero" ref={heroRef} aria-label={t("home.hero.aria")}>
-      <Skyline className="home-town" seed={23} height={170} lit={0.2} tower={760} towerFilter={(p) => p.trackerId === TRACKER_ID} />
+      <Skyline className="home-town" seed={23} height={170} lit={0.2} tower={760} towerFilter={storyTracker} />
       <div className="container home-hero-grid">
         <div className="home-hero-copy">
           <p className="eyebrow label home-eyebrow"><Lamp state="committed" />{pick(copy.eyebrow, lang)}</p>
