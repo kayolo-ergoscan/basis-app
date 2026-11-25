@@ -1,5 +1,5 @@
-// The wallet home in two compositions (VISUAL §13): desktop three columns [identity + balance sheet + keys | notes
-// | the selected note or the open flow], and the phone column of the reference render. Section pages (notes,
+// The wallet home in two compositions (VISUAL §13): desktop three columns [identity + the three answers + keys |
+// notes and the start quest | the selected note or the open flow], and the phone column of the reference render. Section pages (notes,
 // reserve, policy, contacts, settings) share one frame with the wallet bar.
 import { useState } from "react";
 import { Outlet, useLocation, useMatch, useParams } from "react-router-dom";
@@ -49,10 +49,11 @@ export function HomeWide() {
         <aside className="wl-col-l" aria-label={t("wallet.col.you")}>
           <Identity m={m} phone={false} />
           <Eclipse m={m} />
+          {/* three answers: 1 what you have (the play coins), 2 owed to you and 3 you owe (the balance sheet) */}
+          <ChainPurse m={m} />
           <NetBlock m={m} denom={p.denom} />
           <ActionKeys hasIn={hasIn} />
           <BackupNudge />
-          <ChainPurse m={m} />
         </aside>
         <div className="wl-col-c" data-tour="notes">
           <NotesPanel rows={m.rows} nowMs={nowMs} hrefOf={(r) => `/wallet/note/${r.key}`} tab={tab} onTab={setTab} selected={selected} />
@@ -103,6 +104,7 @@ export function HomeNarrow() {
         <div className="wl-narrow-top">
           <Identity m={m} phone />
           <Eclipse m={m} />
+          <ChainPurse m={m} />
           <NetBlock m={m} denom={p.denom} />
           <ActionKeys hasIn={hasIn} />
           <BackupNudge />
@@ -113,11 +115,6 @@ export function HomeNarrow() {
         </div>
       </div>
       <div className="wl-below">
-        <div className="card wl-sum">
-          <div className="card-b">
-            <ChainPurse m={m} />
-          </div>
-        </div>
         <ReserveSummary m={m} />
         <PolicySummary m={m} />
       </div>

@@ -1,9 +1,10 @@
-// The wallet home pieces: identity, the balance sheet (net position on the guilloche field, the two sides, the
-// backed / trust bar), the four keys, the reserve and policy summaries and the three-hint tour (VISUAL §13).
+// The wallet home pieces: identity, the three answers (1 what you have: the play coins at your sandbox address; 2 owed
+// to you and 3 you owe: the balance sheet under the net position, with the backed / trust bar), the four keys with one
+// lead, the start quest (a house that lights one window per step), the reserve and policy summaries and the tour.
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { BackedTrustBar, Callout, CoverageMeter, Key, KeySeal, PolicySentence, prefersReducedMotion } from "@/ui";
+import { BackedTrustBar, Callout, CoverageMeter, HouseLights, Key, KeySeal, PolicySentence, prefersReducedMotion } from "@/ui";
 import { FAUCET_ERG, town, useClock, useTown, useWallet, worldText, YOU } from "@/world";
 import type { DenomId } from "@/protocol";
 import { setPrefs, useFmt, useNameOf, useOutcomeToast, usePrefs } from "../lib/hooks";
@@ -87,18 +88,18 @@ export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
       </div>
       <div className="wl-sides">
         <div className="wl-side in">
-          <span className="label">{t("wallet.net.owedToYou")}</span>
+          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">2</i>{t("wallet.net.owedToYou")}</span>
           <span className="v">
             <Amt v={s.assets} u={unit} />
           </span>
-          <span className="t-small">{t.p("wallet.net.notes", nIn, { n: nIn })}</span>
+          <span className="t-small">{t.p("wallet.net.notes", nIn, { n: nIn })}{nIn > 0 ? ` · ${t("wallet.net.inSub")}` : ""}</span>
         </div>
         <div className="wl-side out">
-          <span className="label">{t("wallet.net.youOwe")}</span>
+          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">3</i>{t("wallet.net.youOwe")}</span>
           <span className="v">
             <Amt v={s.liabilities} u={unit} />
           </span>
-          <span className="t-small">{t.p("wallet.net.notes", nOut, { n: nOut })}</span>
+          <span className="t-small">{t.p("wallet.net.notes", nOut, { n: nOut })}{nOut > 0 ? ` · ${t(m.reserves.length ? "wallet.net.outSub" : "wallet.net.outTrust")}` : ""}</span>
         </div>
       </div>
       {s.assets > 0n ? (
@@ -117,15 +118,16 @@ export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
 /** Pay / Request / Redeem / Scan (one metal key per view: Redeem). */
 export function ActionKeys({ hasIn }: { hasIn: boolean }) {
   const t = useT();
+  // one lead at a time: Redeem in gold while someone owes you, otherwise Pay
   return (
     <nav className="wl-keys" aria-label={t("wallet.keys.aria")} data-tour="keys">
-      <Key variant="primary" tall icon="pay" to="/wallet/pay">
+      <Key variant={hasIn ? "default" : "primary"} tall icon="pay" to="/wallet/pay">
         {t("wallet.keys.pay")}
       </Key>
       <Key variant="default" tall icon="request" to="/wallet/request">
         {t("wallet.keys.request")}
       </Key>
-      <Key variant="metal" tall icon="redeem" to="/wallet/redeem" aria-describedby={hasIn ? undefined : "wl-redeem-why"}>
+      <Key variant={hasIn ? "metal" : "default"} tall icon="redeem" to="/wallet/redeem" aria-describedby={hasIn ? undefined : "wl-redeem-why"}>
         {t("wallet.keys.redeem")}
       </Key>
       <Key variant="default" tall icon="scan" to="/wallet/scan">
@@ -151,8 +153,8 @@ export function ChainPurse({ m }: { m: WalletModel }) {
   return (
     <section className="wl-purse" aria-labelledby="wl-purse-h">
       <div className="spread wl-purse-top">
-        <h2 className="label" id="wl-purse-h">
-          {t("wallet.purse.label")}
+        <h2 className="label wl-q" id="wl-purse-h">
+          <i className="wl-q-n" aria-hidden="true">1</i>{t("wallet.q.have")}
         </h2>
         <Key size="sm" variant="quiet" icon="coin" disabled={faucetIn > 0} aria-describedby="wl-purse-b" onClick={() => void town.faucet().then(show)}>
           {worldText("world.faucet.button", { amount }, t.lang)}
@@ -167,7 +169,7 @@ export function ChainPurse({ m }: { m: WalletModel }) {
         ))}
       </p>
       <p className="t-small wl-purse-b" id="wl-purse-b">
-        {t("wallet.purse.b")}
+        <b>{t("wallet.purse.label")}.</b> {t("wallet.purse.b")}
         {faucetIn > 0 && ` ${worldText("world.faucet.wait", { height: f.height(height + faucetIn), blocks: f.height(faucetIn) }, t.lang)}`}
       </p>
     </section>
@@ -389,24 +391,43 @@ export function FirstSteps({ m }: { m: WalletModel }) {
   const asked = useTown((s) => s.requests.length > 0);
   const paidCafe = m.rows.some((r) => r.dir === "out" && r.other === "cafe");
   const steps = [
-    !paidCafe && { to: "/wallet/pay?to=cafe&amount=0.40&memo=coffee", k: "wallet.first.pay" },
-    !asked && { to: "/wallet/request", k: "wallet.first.request" },
-    m.reserves.length === 0 && { to: "/wallet/reserve", k: "wallet.first.reserve" },
-  ].filter((x): x is { to: string; k: string } => !!x);
-  if (!steps.length || m.rows.length > 4) return null;
+    { to: "/wallet/pay?to=cafe&amount=0.40&memo=coffee", k: "wallet.first.pay", done: paidCafe },
+    { to: "/wallet/request", k: "wallet.first.request", done: asked },
+    { to: "/wallet/reserve", k: "wallet.first.reserve", done: m.reserves.length > 0 },
+  ];
+  const lit = steps.filter((x) => x.done).length;
+  const now = steps.findIndex((x) => !x.done);
+  const house = <HouseLights steps={steps.map((x) => x.done)} now={now < 0 ? undefined : now} size={now < 0 ? 30 : 64} />;
+  const list = (
+    <ol className="wl-first-l">
+      {steps.map((x, i) => (
+        <li key={x.k} className={x.done ? "done" : i === now ? "now" : undefined}>
+          {x.done ? <span className="wl-first-done">{t(x.k)}<span className="sr-only"> · {t("wallet.first.doneSr")}</span></span> : <Link to={x.to}>{t(x.k)}</Link>}
+          <span className="t-small">{t(`${x.k}.b`)}</span>
+        </li>
+      ))}
+    </ol>
+  );
+  // done: the quest folds into one line (open it to see the three steps again)
+  if (now < 0)
+    return (
+      <details className="wl-first wl-quest-done">
+        <summary>{house}<span>{t("wallet.first.sum", { n: lit, total: steps.length })}</span></summary>
+        {list}
+      </details>
+    );
   return (
-    <section className="wl-first" aria-labelledby="wl-first-h">
-      <h2 className="label" id="wl-first-h">
-        <b>{t("wallet.first.label")}</b>
-      </h2>
-      <ol className="wl-first-l">
-        {steps.map((x) => (
-          <li key={x.k}>
-            <Link to={x.to}>{t(x.k)}</Link>
-            <span className="t-small">{t(`${x.k}.b`)}</span>
-          </li>
-        ))}
-      </ol>
+    <section className="wl-first wl-quest" aria-labelledby="wl-first-h">
+      <div className="wl-quest-h">
+        {house}
+        <div>
+          <h2 className="label" id="wl-first-h">
+            <b>{t("wallet.first.label")}</b>
+          </h2>
+          <p className="t-small">{t("wallet.first.sum", { n: lit, total: steps.length })}</p>
+        </div>
+      </div>
+      {list}
     </section>
   );
 }

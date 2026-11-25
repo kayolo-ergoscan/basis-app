@@ -570,3 +570,23 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 }
 :root[data-theme="light"] .wl-steps span.done { box-shadow: inset 0 0 0 1px rgba(var(--shade), .35); }
 :root[data-theme="light"] .wl-steps span.on { box-shadow: inset 0 0 0 2px var(--ink); }
+
+/* ─── the three answers and the start quest ──────────────────────────────────────────────────── */
+.wl-q { display: inline-flex; align-items: center; gap: 8px; }
+.wl-q-n { font-style: normal; display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 6px; font: 700 10.5px/1 var(--f-ui); letter-spacing: 0; color: var(--ink); background: var(--town-win); box-shadow: inset 0 0 0 1px var(--rule-2); flex: none; }
+.wl-purse .wl-q-n { background: color-mix(in srgb, var(--lamp) 32%, var(--town-win)); }
+.wl-side.in .wl-q-n { background: color-mix(in srgb, var(--up) 30%, var(--town-win)); }
+.wl-side.out .wl-q { flex-direction: row-reverse; }
+.wl-purse { border-top: 0; padding-top: 0; }
+.wl-purse-b b { color: var(--ink-2); font-weight: 600; }
+.wl-quest-h { display: flex; align-items: center; gap: 16px; }
+.wl-quest-h .label { margin: 0; }
+.wl-quest-h p { margin: 4px 0 0; color: var(--ink-3); }
+.wl-first-l li.done::before { color: var(--ink-3); }
+.wl-first-done { font: 500 16px/1.3 var(--f-ui); color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--rule-2); }
+.wl-first-l li.now a { color: var(--ink); }
+.wl-quest-done summary { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; list-style: none; font: 600 13.5px/1.3 var(--f-ui); color: var(--ink-2); border-radius: 8px; }
+.wl-quest-done summary::-webkit-details-marker { display: none; }
+.wl-quest-done summary::after { content: '+'; margin-left: auto; color: var(--ink-3); font-size: 16px; }
+.wl-quest-done[open] summary::after { content: '−'; }
+.wl-quest-done summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
