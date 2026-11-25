@@ -23,7 +23,7 @@ import { ContractXray } from "@/viz";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { EntryProgress } from "./send";
-import { ChainLink, CopyReport, Erg, Gate, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
+import { ChainLink, CopyReport, Erg, FlowSteps, Gate, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
 import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, entryAmtText, entryDenom, useDenom } from "./denom";
 
 /** The most inputs a token redemption's build may spend (the reserve and the tracker's fee boxes): each is read from /v1. */
@@ -298,6 +298,7 @@ export function RedeemScreen() {
             <h1 className="t-h2">{t("mw.red.h")}</h1>
             <p className="t-lede">{tok ? t("mw.dn.redLede", { sym: denomSymbol(denom) }) : t("mw.red.lede")}</p>
             <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "idle" }); }} disabled={phase.k === "working" || phase.k === "review" || phase.k === "sending"} />
+            <FlowSteps at={phase.k === "sent" ? 2 : phase.k === "review" || phase.k === "sending" ? 1 : 0} />
           </header>
           {open.filter((e) => e.id !== (phase.k === "sent" ? phase.id : "")).map((e) => (
             <Card key={e.id} title={t("mw.red.progressT", { amount: entryAmtText(t, BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}><RedeemProgress e={e} /></Card>

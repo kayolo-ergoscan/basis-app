@@ -29,7 +29,7 @@ import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, t1GateOf, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
-import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
+import { ChainLink, Erg, FlowSteps, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
 import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =
@@ -336,6 +336,7 @@ export function ReserveScreen() {
             <h1 className="t-h2">{t("mw.res.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.lede", { sym: token.symbol }) : t("mw.res.lede")}</p>
             <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setBig(false); }} disabled={busy || phase.k === "review" || phase.k === "treview"} />
+            {!reserve && <FlowSteps at={phase.k === "review" || phase.k === "treview" || phase.k === "combine" ? 1 : 0} />}
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
           {unproven && !t1 && <UnprovenReserve rs={unproven} denom={denom} />}

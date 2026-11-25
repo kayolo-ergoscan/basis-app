@@ -14,7 +14,7 @@ import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
-import { Erg, Gate, ProblemText, TxReview, ergText, useVaultError } from "./ui";
+import { Erg, FlowSteps, Gate, ProblemText, TxReview, ergText, useVaultError } from "./ui";
 import { Amt, DenomSwitch, TokensAfter, amtText, entryAmtText, entryDenom, useDenom, useDenomPhase } from "./denom";
 
 type Phase =
@@ -99,6 +99,7 @@ export function WithdrawScreen() {
             <h1 className="t-h2">{t("mw.wd.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.wdLede", { sym: token.symbol }) : t("mw.wd.lede")}</p>
             <DenomSwitch send value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "edit" }); }} disabled={phase.k === "working" || phase.k === "review"} />
+            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
           </header>
           <Gate vault={vault} state={state} unlocked why={t("mw.wd.unlockWhy")}>
             <Card title={token ? t("mw.dn.wdFormT", { sym: token.symbol }) : t("mw.wd.formT")}>

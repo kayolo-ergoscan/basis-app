@@ -186,3 +186,60 @@
 /* the setup checklist with your house beside it (one window per step) */
 .mw-steps-house { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; }
 .mw-steps-house .house-lights { margin-top: 2px; }
+
+/* ─── home: the setup quest, then three answers ─────────────────────────────────────────────── */
+.mw-home { display: grid; gap: 22px; min-width: 0; }
+.mw-home > * { min-width: 0; }
+.mw-quest { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px clamp(20px, 3vw, 40px); align-items: center; padding: 22px clamp(20px, 2.4vw, 32px);
+  background: radial-gradient(120% 140% at 0% 100%, color-mix(in srgb, var(--lamp) 10%, transparent), transparent 60%), var(--surface); }
+.mw-quest-house { display: grid; place-items: center; padding: 4px 6px; }
+.mw-quest-b { display: grid; gap: 8px; min-width: 0; }
+.mw-quest-b h2 { margin: 0; }
+.mw-quest-b p { margin: 0; }
+.mw-quest-b .mw-steps { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 0 22px; }
+.mw-quest-b .mw-step::after { display: none; }
+.mw-quest-go { align-self: center; }
+.mw-answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.mw-answers > .card { display: grid; gap: 14px; align-content: start; grid-template-rows: auto 1fr; }
+.mw-answers > .card > .card-b { display: grid; gap: 14px; align-content: start; }
+.mw-answers > .card > .card-b > .mw-actions { align-self: end; }
+.mw-q { margin: 0; display: flex; align-items: center; gap: 10px; font: 650 17px/1.2 var(--f-display); letter-spacing: -.015em; color: var(--ink); text-transform: none; }
+.mw-q-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; font: 700 11.5px/1 var(--f-ui); color: var(--ink-2); background: var(--town-win); box-shadow: inset 0 0 0 1px var(--rule-2); flex: none; }
+.mw-ans.have .mw-q-n { background: color-mix(in srgb, var(--lamp) 30%, var(--town-win)); color: var(--ink); }
+.mw-ans.owed .mw-q-n { background: color-mix(in srgb, var(--metal) 40%, var(--town-win)); color: var(--ink); }
+.mw-ans.owe .mw-q-n { background: color-mix(in srgb, var(--moon) 30%, var(--town-win)); color: var(--ink); }
+.mw-backing { margin: -4px 0 0; color: var(--ink-2); }
+.mw-home-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.mw-home-foot > :only-child { grid-column: 1 / -1; }
+.mw-quest-done { padding: 0; }
+.mw-quest-done summary { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 12px 18px; cursor: pointer; list-style: none; font: 600 14px/1.3 var(--f-ui); color: var(--ink-2); border-radius: inherit; }
+.mw-quest-done summary::-webkit-details-marker { display: none; }
+.mw-quest-done summary::after { content: '+'; margin-left: auto; font: 600 16px/1 var(--f-ui); color: var(--ink-3); }
+.mw-quest-done[open] summary::after { content: '−'; }
+.mw-quest-done summary:hover { color: var(--ink); }
+.mw-quest-done summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mw-quest-done-b { padding: 0 18px 18px; }
+@media (max-width: 1200px) {
+  .mw-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mw-answers > .mw-ans.owe { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .mw-quest { grid-template-columns: auto minmax(0, 1fr); padding: 18px 16px; }
+  .mw-quest-house .house-lights { width: 72px; height: auto; }
+  .mw-quest-go { grid-column: 1 / -1; }
+  .mw-quest-go .key { width: 100%; justify-content: center; }
+  .mw-quest-b .mw-steps { display: grid; }
+  .mw-quest-b .mw-step:not(:last-child)::after { display: block; }
+  .mw-answers, .mw-home-foot { grid-template-columns: minmax(0, 1fr); }
+  .mw-answers > .mw-ans.owe { grid-column: auto; }
+}
+
+/* ─── where an action stands: fill in → check and sign → sent ─────────────────────────────── */
+.mw-flow { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; counter-reset: none; }
+.mw-flow li { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 6px; border-radius: 999px; font: 500 13px/1 var(--f-ui); color: var(--ink-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
+.mw-flow li .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font: 700 11px/1 var(--f-ui); background: var(--town-win); color: var(--ink-2); }
+.mw-flow li.done { color: var(--ink-2); }
+.mw-flow li.done .n { background: color-mix(in srgb, var(--moon) 45%, var(--town-win)); color: var(--ink); }
+.mw-flow li.now { color: var(--ink); font-weight: 600; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.mw-flow li.now .n { background: var(--lamp); color: #1A1408; }
+@media (max-width: 480px) { .mw-flow li { height: 30px; font-size: 12.5px; padding-right: 10px; } }

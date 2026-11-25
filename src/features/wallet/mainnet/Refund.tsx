@@ -22,7 +22,7 @@ import { freshHeight, refreshHeight } from "@/app/height";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource } from "./data";
 import { EntryProgress, send, signReserve, stuckCompletion } from "./send";
-import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, FlowSteps, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
 import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, tokenOf, useDenom, useDenomPhase } from "./denom";
 
 /** A refund start is signed only while its R7 (tip + 10 at the review) is ahead: at most 5 blocks after the review,
@@ -358,6 +358,7 @@ export function RefundScreen() {
             <h1 className="t-h2">{t("mw.ref.h")}</h1>
             <p className="t-lede">{t("mw.ref.lede")}</p>
             <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setUnderstood(false); }} disabled={busy || phase.k === "review"} />
+            <FlowSteps at={phase.k === "sent" ? 2 : phase.k === "review" ? 1 : 0} />
           </header>
           {open.filter((e) => e.id !== openStart?.id).map((e) => <RefundProgress key={e.id} entry={e} />)}
           {own?.ok && <OtherBoxesNote own={own} />}

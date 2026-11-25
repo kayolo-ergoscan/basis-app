@@ -23,7 +23,7 @@ import { localProblem, type Problem } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, ownReserveNow, useResource } from "./data";
-import { Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
+import { FlowSteps, Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
 import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, denomQuery, entryDenom, useDenom, useDenomPhase } from "./denom";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
@@ -332,6 +332,7 @@ export function PayScreen() {
             <h1 className="t-h2">{t("mw.pay.h")}</h1>
             <p className="t-lede">{t("mw.pay.lede")}</p>
             {!req && <DenomSwitch value={denom} onChange={(x) => { setDenom(x); setPhase({ k: "edit" }); setAmountText(""); }} disabled={phase.k === "working" || phase.k === "review"} />}
+            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
           </header>
           {noReserve && (
             <Callout tone="alarm" title={denom === "erg" ? t("mw.pay.noReserveT") : t("mw.dn.payNoReserveT", { sym: denomSymbol(denom) })}>

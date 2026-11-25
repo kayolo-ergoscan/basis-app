@@ -131,6 +131,23 @@ export function Steps({ items, label, house }: { items: StepItem[]; label: strin
   );
 }
 
+/** Where an action stands: fill in → check and sign → sent. One decision per screen: the form, then the review with
+ *  every warning and the signing key, then the result. Words only; the screens themselves decide what is shown. */
+export function FlowSteps({ at }: { at: 0 | 1 | 2 }) {
+  const t = useT();
+  const steps = ["mw.flow.fill", "mw.flow.check", "mw.flow.sent"];
+  return (
+    <ol className="mw-flow" aria-label={t("mw.flow.aria")}>
+      {steps.map((k, i) => (
+        <li key={k} className={i < at ? "done" : i === at ? "now" : undefined} aria-current={i === at ? "step" : undefined}>
+          <span className="n" aria-hidden="true">{i + 1}</span>
+          {t(k)}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 // ─── unlock ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Opens the session in this tab (one 600 000-iteration derivation, about a second). */

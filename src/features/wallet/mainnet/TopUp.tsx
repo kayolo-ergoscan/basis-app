@@ -26,7 +26,7 @@ import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
-import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, FlowSteps, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
 import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryAmtText, entryDenom, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =
@@ -251,6 +251,7 @@ function TopUpForm() {
             <h1 className="t-h2">{t("mw.top.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.topLede", { sym: token.symbol }) : t("mw.top.lede")}</p>
             {!asked && <DenomSwitch value={ownDenom} onChange={setDenom} disabled={busy || phase.k === "review"} />}
+            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
           </header>
 
           <Card title={t("mw.top.targetT")} aside={info ? <Tag tone={isOwn ? "ok" : "metal"}>{isOwn ? t("mw.top.yours") : t("mw.top.theirs")}</Tag> : undefined}>
