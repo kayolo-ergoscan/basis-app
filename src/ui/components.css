@@ -732,7 +732,9 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .house-lights .hl-wall { fill: var(--town-wall); stroke: var(--rule-2); stroke-width: 1.5; stroke-linejoin: round; }
 .house-lights .hl-win { fill: var(--town-win); stroke: var(--rule-2); stroke-width: 1; transition: fill var(--t-slow) var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
 .house-lights .hl-win.on { fill: var(--lamp); stroke: transparent; filter: drop-shadow(0 0 5px var(--glow-lamp)); }
-.house-lights .hl-win.now { fill: transparent; stroke: var(--metal); stroke-width: 2; }
+.house-lights .hl-win.now { fill: transparent; stroke: var(--lamp); stroke-width: 2; }
+:root[data-theme="light"] .house-lights .hl-win.on { stroke: rgba(var(--shade), .35); stroke-width: 1; }
+:root[data-theme="light"] .house-lights .hl-win.now { stroke: var(--ink); }
 
 .window-load { flex: none; }
 .window-load .wl-wall { fill: var(--town-wall); stroke: var(--rule-2); stroke-width: 1.5; stroke-linejoin: round; }

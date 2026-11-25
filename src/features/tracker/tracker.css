@@ -15,7 +15,7 @@
 .trk-code { font: 400 .92em/1.35 var(--f-mono); color: var(--ink); background: var(--well); padding: .08em .36em; border-radius: 3px; overflow-wrap: anywhere; }
 .trk-code.dim { color: var(--ink-3); background: transparent; padding: 0; }
 .t-h1 .trk-code, .t-h2 .trk-code { font-size: .62em; vertical-align: .12em; }
-.trk em { font-style: italic; }
+.trk :is(h1, h2, h3) em { font-style: normal; color: var(--ink-2); }
 .trk .t-small .textlink, .trk .textlink.t-small { font: 500 13px/1.45 var(--f-ui); }
 .trk .tag.trk-b58 { text-transform: none; letter-spacing: .02em; font-size: 11.5px; }
 .trk .label .trk-code { font-size: 1em; text-transform: none; letter-spacing: 0; }

@@ -457,10 +457,11 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 .wl-words2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .wl-skip { justify-self: start; }
 .wl-sbx-note { margin-top: 2px; }
+/* the onboarding steps: a row of windows; done ones are lit, the current one is outlined in window light */
 .wl-steps { display: inline-flex; gap: 6px; align-items: center; }
-.wl-steps span { width: 22px; height: 3px; border-radius: 2px; background: var(--rule-2); }
-.wl-steps span.done { background: var(--ink-2); }
-.wl-steps span.on { background: var(--ink); width: 34px; }
+.wl-steps span { width: 12px; height: 15px; border-radius: var(--r-win); background: var(--town-win); box-shadow: inset 0 0 0 1px var(--rule-2); transition: background var(--t-base), box-shadow var(--t-base); }
+.wl-steps span.done { background: var(--lamp); box-shadow: 0 0 10px -2px var(--glow-lamp); }
+.wl-steps span.on { background: transparent; box-shadow: inset 0 0 0 2px var(--lamp); }
 @media (max-width: 1000px) {
   .wl-onb { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .wl-onb-hero { padding: 12px 0 24px; }
@@ -567,3 +568,5 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 @media (max-width: 400px) {
   .wl-page .tabs.block button { padding-inline: 6px; font-size: 13px; }
 }
+:root[data-theme="light"] .wl-steps span.done { box-shadow: inset 0 0 0 1px rgba(var(--shade), .35); }
+:root[data-theme="light"] .wl-steps span.on { box-shadow: inset 0 0 0 2px var(--ink); }

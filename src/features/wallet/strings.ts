@@ -167,7 +167,7 @@ const en: Dict = {
   "wallet.tour.keys.t": "Pay raises your note",
   "wallet.tour.keys.b": "You never send coins: you sign a bigger total. Request asks someone to pay you; Redeem turns a note owed to you into ERG from the issuer's reserve.",
   "wallet.tour.notes.t": "Every note, one line",
-  "wallet.tour.notes.b": "Who owes whom, in words, with the line it uses. The lamp turns holo when T-01 commits the note to Ergo (every 5 blocks).",
+  "wallet.tour.notes.b": "Who owes whom, in words, with the line it uses. The lamp lights with moonlight when T-01 commits the note to Ergo (every 5 blocks).",
 
   // note detail
   "wallet.nd.title": "Note",
@@ -867,7 +867,7 @@ const ru: Partial<Dict> = {
   "wallet.tour.keys.t": "Платёж увеличивает вашу расписку",
   "wallet.tour.keys.b": "Вы не отправляете монеты, а подписываете новую, бо́льшую сумму. «Запросить» просит заплатить вам; «Погасить» превращает расписку в ERG из резерва должника.",
   "wallet.tour.notes.t": "Каждая расписка — одна строка",
-  "wallet.tour.notes.b": "Кто кому должен — словами, с лимитом, который расписка использует. Лампа становится голографической, когда T-01 публикует расписку в Ergo (каждые 5 блоков).",
+  "wallet.tour.notes.b": "Кто кому должен — словами, с лимитом, который расписка использует. Окошко загорается лунным светом, когда T-01 публикует расписку в Ergo (каждые 5 блоков).",
 
   "wallet.nd.title": "Расписка",
   "wallet.nd.missing.t": "Этой расписки нет в вашем кошельке",
