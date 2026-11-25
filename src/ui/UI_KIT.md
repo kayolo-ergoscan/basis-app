@@ -1,6 +1,6 @@
 # Basis UI kit
 
-Everything a feature needs to draw Basis in the Intaglio language (design/VISUAL.md).
+Everything a feature needs to draw Basis in its Lamplight look: a small town at night, where light carries meaning.
 Import components and helpers from `@/ui`, and app services from `@/app`.
 Every component appears live, in its real states, at **`/kit`**. Open it next to this file.
 
@@ -12,7 +12,7 @@ import { useT, rich, useHeight, pulse, usePulse, useTheme } from "@/app";
 **Contents:**
 1. [Rules first](#1-rules-first)
 2. [Adding a feature](#2-adding-a-feature)
-3. [Tokens, themes and materials](#3-tokens-themes-and-materials)
+3. [Tokens, themes and lights](#3-tokens-themes-and-lights)
 4. [Type and utility classes](#4-type-and-utility-classes)
 5. [Layout primitives](#5-layout-primitives-visual-5)
 6. [Numbers and money](#6-numbers-and-money)
@@ -30,14 +30,15 @@ import { useT, rich, useHeight, pulse, usePulse, useTheme } from "@/app";
 ## 1. Rules first
 
 - **Tokens only.** Write no hex colours in features. Use `var(--ink)`, `var(--metal)` and the rest (§3). The seal and note engines own their inks.
-- **Five materials, one job each:**
+- **Ink, paper and three lights, one job each:**
   - ink — words and numbers;
-  - paper — notes and seals;
-  - line (hatch) — on trust;
-  - metal — ERG or tokens locked or moving on Ergo;
-  - light (holo) — proven in the latest digest.
+  - paper — notes and seals (lit paper in both themes: the things you hold);
+  - unlit (hatch, outline) — on trust;
+  - gold light (`--metal*`) — ERG or tokens locked or moving on Ergo;
+  - moonlight (`--holo`, `--moon*`) — proven in the latest digest.
 
-  Nothing else may borrow them.
+  Window light (`--lamp`, warm white) is the town and you: the mark, your house, steps done, the primary key. It never
+  means money. Nothing else may borrow the three lights; gold stays a yellow gold, never orange.
 - **Signals:**
   - `--up` (verdigris) is for amounts in your favour.
   - `--alarm` is only for "something is wrong".
@@ -45,7 +46,7 @@ import { useT, rich, useHeight, pulse, usePulse, useTheme } from "@/app";
 - **Numbers** go through `money()` or `<Num>`, never `toFixed` or `toLocaleString`. See §6.
 - **Every string** comes from an i18n key, in both EN and RU. See §7.
 - **One commitment means one pulse.** Never fire `pulse.commit` on a timer. See §9.
-- **At most one metal key** (the action that moves money) and one alarm toast per view.
+- **At most one gold (`metal`) key** (the action that moves money) and one alarm toast per view. The primary key is window light, not gold.
 
 ## 2. Adding a feature
 
@@ -57,7 +58,7 @@ import type { FeatureRoute } from "@/app/types";
 const route: FeatureRoute = {
   id: "wallet",
   path: "/wallet/*",                       // "/*" when the feature has sub-routes; home is "/"
-  load: () => import("./Page"),            // lazy: its own chunk, shown inside <Suspense> with the engraving loader
+  load: () => import("./Page"),            // lazy: its own chunk, shown inside <Suspense> with the window loader
   nav: { order: 2, labelKey: "nav.wallet" }, // 0 Story · 1 Play · 2 Wallet · 3 Network · 4 Tracker · 5 Learn; null = not in the nav
   titleKey: "wallet.title",                // document.title = t(titleKey) + " · Basis"
   commands: [{ id: "wallet.open", labelKey: "wallet.cmd.open", to: "/wallet", keywords: "notes balance" }],
@@ -95,34 +96,43 @@ The shell gives every route:
 
 Sub-routes inside a feature use relative `<Routes>`.
 
-## 3. Tokens, themes and materials
+## 3. Tokens, themes and lights
 
-`src/ui/tokens.css` is intaglio.css §1, copied verbatim, with two recorded changes: the font stacks name the self-hosted Fontsource families, and Cotton `--up` is `#11735A` (the tile's `#12775B` gave 4.29 : 1 on `--well`).
+`src/ui/tokens.css` holds every value. Contrast was checked on 25 Nov 2026: every text token passes 4.5 : 1 on every
+surface in both themes. `--ink-4`, `--metal`, `--moon` and `--lamp` are fills and rules, never body text: words use
+`--metal-ink` and `--moon-ink`.
 
 **Themes:**
-- **Night** is `:root` / `.theme-dark`.
-- **Cotton** is `:root[data-theme="light"]` / `.theme-light`.
+- **Night** is `:root` / `.theme-dark`: an indigo night sky, panes lit from inside.
+- **Day** (the light theme; its stored name stays `cotton`) is `:root[data-theme="light"]` / `.theme-light`: the same town
+  by daylight, tuned on its own (navy ink, white panes, deeper gold and moon for words), not an inversion of Night.
 
 The scope classes change tokens only. Add `background: var(--bg)` when a scoped block needs its own page colour.
 
 | Group | Tokens |
 |---|---|
-| Surfaces | `--bg` `--bg-2` `--surface` (cards) `--surface-2` (selected, hover) `--well` (inputs) |
-| Rules | `--rule` (1 px dividers) `--rule-2` (stronger: tag outlines, table heads) |
+| Surfaces | `--bg` `--bg-2` `--surface` (panes) `--surface-2` (selected, hover, card top) `--well` (inputs, segments) `--pane-hi` (a pane's top highlight) `--sky` (the page background) |
+| Rules | `--rule` (1 px dividers) `--rule-2` (stronger: tag outlines, selected segments) |
 | Ink | `--ink` `--ink-2` (body) `--ink-3` (labels, ≥ 4.5 : 1) `--ink-4` (decoration only) |
 | Paper (notes, seals) | `--paper` `--paper-hi` `--paper-ink` `--paper-ink-2` `--paper-rule` |
-| Metal | `--metal` `--metal-hi` `--metal-lo` `--metal-ink` (text) `--metal-wash` `--foil-metal` (gradient) `--foil-text` |
-| Light | `--holo` (gradient, proof only) `--holo-stale` (digest old) |
+| Gold light | `--metal` `--metal-hi` `--metal-lo` `--metal-ink` (text) `--metal-wash` `--foil-metal` (gradient) `--foil-text` `--glow-metal` `--on-metal` |
+| Moonlight | `--holo` (gradient, proof only) `--holo-stale` (digest old) `--moon` `--moon-ink` (text) `--moon-wash` `--glow-moon` |
+| Window light | `--lamp` `--glow-lamp` (the mark, your house, the loader, the town's windows) |
 | Signals | `--up` `--up-wash` · `--alarm` `--alarm-fill` `--on-alarm` `--alarm-wash` |
-| Keys | `--key-bg/fg/skirt/hi` (primary, paper) · `--key2-*` (default) |
+| Keys | `--key-bg/fg/skirt/hi` `--glow-key` (primary: window light) · `--key2-*` (default: a pane) |
+| Town | `--town-wall` `--town-wall-2` `--town-roof` `--town-win` `--town-street` `--town-star` |
 | Depth | `--shade` (an rgb triple: `rgba(var(--shade), .5)`) `--shadow-a` `--hatch` `--field-rgb` `--field-a` |
-| Type | `--f-display` (Noto Serif Display) `--f-ui` (Geist) `--f-mono` (Geist Mono) |
+| Type | `--f-display` (Unbounded) `--f-ui` (Geist) `--f-mono` (Geist Mono) |
 | Space | `--s1`…`--s12` = 4 8 12 16 20 24 32 40 48 64 96 128 |
-| Radius | `--r-paper` 4 · `--r-note` 10 · `--r-key` 10 · `--r-sheet` 22 · `--r-pill` 999 |
+| Radius | `--r-paper` 16 · `--r-note` 12 · `--r-key` 12 · `--r-sheet` 24 · `--r-pill` 999 · `--r-win` 4 (lamps are small windows) |
 | Motion | `--t-press` 90 · `--t-fast` 160 · `--t-base` 240 · `--t-slow` 420 · `--t-roll` 900 · `--t-pulse` 1400 ms; `--ease-out` `--ease-io` `--ease-press` |
 | Frame | `--container` 1520 px · `--gutter` clamp(16px, 3.4vw, 64px) |
 
-Hatch (on trust) is the `.hatch` class or the `--hatch` background. Foil (metal) is `.foil`.
+Unlit (on trust) is the `.hatch` class or the `--hatch` background. Gold (backed on Ergo) is `.foil`.
+
+**Fonts** are self-hosted woff2 under `src/ui/fonts/` (Unbounded, a Latin and a Cyrillic subset of the variable font,
+weights 400–800) and from `@fontsource-variable` (Geist, Geist Mono). All three are under the SIL Open Font License 1.1;
+the licence texts are in `public/licenses/` and next to the font files.
 
 ## 4. Type and utility classes
 
@@ -130,20 +140,20 @@ Hatch (on trust) is the `.hatch` class or the `--hatch` background. Foil (metal)
 
 | Class | Use |
 |---|---|
-| `.t-hero` | Display serif, 52–100 px. `<em>` turns foil italic. Once per page. |
-| `.t-h1` `.t-h2` | Section and page titles (serif). The `<em>` second beat is italic. |
+| `.t-hero` | Display (Unbounded 700), 40–76 px. The `<em>` second beat is quieter ink (`--ink-2`); a page may light it gold only when it names value on Ergo. Once per page. |
+| `.t-h1` `.t-h2` | Section and page titles (Unbounded 650 / 600). The `<em>` second beat is quieter ink, never italic. |
 | `.t-h3` / `.t-title` `.t-h4` | Card titles (Geist 600). |
 | `.t-lede` | Intro paragraph (`--ink-2`). |
 | `.t-body` `.t-small` | Body and small text. |
-| `.t-money` | Serif money on paper (≥ 28 px). |
+| `.t-money` | Display money (Unbounded 650, tabular, ≥ 24 px). Gold (`--metal-ink`) only when it is on Ergo. |
 | `.t-measure-l` `.t-measure` `.t-measure-s` | Geist tabular measures; `.unit` for the unit after them. |
-| `.label` | Mono 11 px caps label (`--ink-3`); a `<b>` inside is ink. |
+| `.label` | Geist 600 11.5 px caps label (`--ink-3`); a `<b>` inside is ink. |
 | `.eyebrow` | The label row above a title. |
 | `.prose` / `.textlink` / `.reading` | Long text, underlined links, and a 720 px measure. |
 
 **Utilities:**
 - `.num` gives tabular lining figures.
-- `.mono`, `.serif`, `.hex` (mono, breaks anywhere), `.nowrap`.
+- `.mono`, `.serif` (the display face; the name is kept for old call sites), `.hex` (mono, breaks anywhere), `.nowrap`.
 - Colours: `.dim` (ink-3), `.ink`, `.ink-2`, `.up`, `.alarm-t`, `.metal-t`.
 - `.sr-only` / `.sr` hide text visually but keep it for screen readers.
 
@@ -151,7 +161,7 @@ Hatch (on trust) is the `.hatch` class or the `--hatch` background. Foil (metal)
 - Cards: `.card` with `.card-h`, `.card-b` and `.card-f` (or use `<Card>`).
 - Hardware: `.key`, `.pill`, `.chip`, `.seg`, `.tag`.
 - Tables: `.tbl` (with `.tbl-wrap`).
-- Ledgers: `.ledger`; materials: `.hatch`, `.foil`.
+- Ledgers: `.ledger`; lights: `.hatch` (unlit), `.foil` (gold).
 
 Never restyle them per feature. If one is missing a variant, ask the ui-shell owner.
 
@@ -227,7 +237,7 @@ const t = useT();                       // re-renders on language change; t.lang
 t("wallet.left", { v: money(760) })     // {var} substitution
 t.p("wallet.notes", 5)                  // plural: wallet.notes_one / _few / _many / _other (Intl.PluralRules); adds {n}
 t.p("wallet.notes", n, { n: int(n) })   // format the number yourself when it can reach 1 000
-rich(t("home.h1"))                      // **bold**, *italic* (the serif second beat), `mono`, {var} with React nodes
+rich(t("home.h1"))                      // **bold**, *em* (the quieter second beat), `mono`, {var} with React nodes
 <T k="home.lede" vars={{ total: <Num value={1240} /> }} />
 translate("x.y") / translatePlural(...) // outside React (toasts fired from stores); getLang() / setLang("ru")
 const { lang, setLang, toggle } = useLang();
@@ -245,11 +255,11 @@ const { lang, setLang, toggle } = useLang();
 ## 8. Theme, motion and viewer settings
 
 **Theme:**
-- `useTheme()` returns `{ theme: "night" | "cotton", setTheme, toggle }`; `getTheme()` and `toggleTheme()` work outside React.
+- `useTheme()` returns `{ theme: "night" | "cotton", setTheme, toggle }` ("cotton" is the stored name of Day); `getTheme()` and `toggleTheme()` work outside React.
 - It is stored in `localStorage["basis.theme"]`.
 - **The first visit** follows `prefers-color-scheme`, else Night.
 - `public/boot.js` applies the theme before paint (`<html data-theme="dark|light">`), which avoids a flash.
-- `?theme=cotton` forces Cotton.
+- `?theme=cotton` forces Day.
 
 **Motion and settings:**
 - `useUiSettings()` / `setUiSettings(patch)` are stored in `localStorage["basis.ui"]` and hold four settings:
@@ -259,7 +269,7 @@ const { lang, setLang, toggle } = useLang();
   - `sounds`: reserved; off.
 - `useReducedMotion()` / `prefersReducedMotion()` are true for the OS setting, the in-app switch, or `?still`.
 - `?still` (`:root.still`) freezes every animation, for screenshots.
-- **Rule:** any JS-driven motion (odometer, guilloche drift, parallax) must check `prefersReducedMotion()`. CSS transitions already collapse to 1 ms.
+- **Rule:** any JS-driven motion (odometer, parallax) must check `prefersReducedMotion()`. CSS transitions and the town's keyframes already collapse to 1 ms or stand still.
 
 ## 9. The pulse
 
@@ -267,7 +277,7 @@ The pulse is the one event in the product: a tracker commitment. Sources:
 - the sandbox world, when its tracker commits;
 - mainnet polling, when a new digest appears.
 
-**One commitment = one pulse,** everywhere at once. The note foil flashes, the nav chip, the brand seal, the guilloche wave, the live tape, and one proof toast.
+**One commitment = one pulse,** everywhere at once. The note's foil strip flashes, the nav chip, the mark's window and the town's clock tower catch moonlight, the live tape moves, and one proof toast appears.
 
 ```ts
 import { pulse, usePulse } from "@/app";
@@ -309,7 +319,7 @@ Props marked `?` are optional; defaults are in brackets. Every specimen lives at
 | Component | Props |
 |---|---|
 | `Icon` | `name` (see `ICON_NAMES`), `size? [18]`, `title?` (decorative without it) |
-| `Lamp` | `state? "signed" \| "tracked" \| "committed" \| "stale" \| "live" \| "alarm" \| "off"`, `size?`, `label?` (shape first: ○ ◐ ●) |
+| `Lamp` | `state? "signed" \| "tracked" \| "committed" \| "stale" \| "live" \| "alarm" \| "off"`, `size?`, `label?` (shape first: ○ ◐ ●, drawn as a small window; committed is lit with moonlight) |
 | `Tag` | `tone? "plain" \| "ok" \| "watch" \| "warn" \| "under" \| "metal" \| "up" \| "agent"`, `glyph?`, `title?` |
 | `CoverageTag` | `pct`, `long?`, `small?`. Bands: `coverageBand(pct)` → fine ≥ 150 · watch ≥ 120 · warn ≥ 100 · under |
 | `AgentTag` | `small?` (the dashed "AI" tag) |
@@ -337,7 +347,7 @@ Props marked `?` are optional; defaults are in brackets. Every specimen lives at
 
 | Prop | Meaning |
 |---|---|
-| `variant? ["default"]` | `primary` (paper key, the ink action) · `default` · `metal` (only where ERG moves on Ergo: one per view) · `quiet` · `danger` |
+| `variant? ["default"]` | `primary` (window light: the main action, white in Night, navy in Day) · `default` (a pane) · `metal` (gold: only where ERG moves on Ergo, one per view) · `quiet` · `danger` |
 | `size? ["md"]` | `"sm" \| "md" \| "lg"` |
 | `icon?` | An icon name; icon-only when there are no children (give it an `aria-label`) |
 | `kbd?` | A trailing shortcut hint ("P") |
@@ -361,8 +371,20 @@ Props marked `?` are optional; defaults are in brackets. Every specimen lives at
 | `KeySeal` | `pk (hex \| bytes)`, `agent?` (octagon), `size? "sm" \| "md" \| "lg" \| "xl"` (28 / 40 / 56 / 96) or px, `rim? boolean \| 0–1` (the gold rim means it has a reserve; a fraction is coverage / 200 %), `badge?`, `title?` |
 | `PairSeal` | `pairKey` (blake2b256(issuer ‖ receiver [‖ token])), `size? [84]`, `detail?`, `paper?`, `live?` (inline SVG, hero only), `flat?` |
 | `SealId` | `pk`, `name`, `agent?`, `rim?`, `size? ["lg"]`, `words? [true]` (three BIP-39 words), `fingerprint? [true]`, `sub?`, `badge?` |
-| `BrandSeal` | `size? [30]`, `pulse? [true]`: the Basis mark; it pulses once per commitment |
-| `GuillocheField` | `seed`, `focus? [x, y]`, `still?`, `dim?`, `lines?`, `rings?`, `pulseFilter?`: the header field; the commit wave crosses it |
+| `BrandSeal` | `size? [30]`, `pulse? [true]`: the old engraved seal mark; kept for the engines, not used by the shell |
+| `GuillocheField` | `seed`, `focus? [x, y]`, `still?`, `dim?`, `lines?`, `rings?`, `pulseFilter?`: an engraved field; kept, no page uses it now |
+
+### The town (`/kit#seals`)
+
+The picture language of the site, drawn from tokens in `src/ui/components/Town.tsx`. All of it is decoration: no data,
+no new states, `aria-hidden`, except `HouseLights` with a `label`.
+
+| Component | Props |
+|---|---|
+| `BrandMark` | `size? [30]`, `pulse? [true]`: the Basis mark, a window with its lower pane lit; it catches moonlight once per commitment |
+| `Skyline` | `seed? [7]`, `lit? [.22]`, `height? [120]`, `span? [1200]`, `tower?` (x of a tracker's clock tower), `towerFilter?` (which commitments light the tower): a row of houses (footer, home hero, play stage, kit) |
+| `HouseLights` | `steps: boolean[]`, `now?`, `size? [88]`, `label?`: your house, one window per step, lit when done (the wallet's setup steps). Without `label` it is `aria-hidden`, so put it next to a list that says the same in words |
+| `WindowLoader` | `size? [64]`: three windows light up in turn; still under reduced motion (used by `Loading`) |
 
 ```tsx
 <SealId pk={pk} name="Alice" rim />             // seal + three words + fingerprint: how people are named
@@ -550,7 +572,7 @@ const [lens] = useLens();
 | Component | Props |
 |---|---|
 | `Empty` | `title`, `text?`, `action? {label, to? \| onClick?}` (one primary key), `ghost?` |
-| `Loading` · `Engraving` · `PageLoading` | `label?, seed?, lines? [3]` · `seed?, size? [92]` · `label?`. Loading draws a seal being engraved, not a spinner. |
+| `Loading` · `Engraving` · `PageLoading` | `label?, seed?, lines? [3]` · `seed?, size? [92]` · `label?`. Loading draws three windows lighting up in turn, not a spinner; `Engraving` stays for old call sites. |
 | `ErrorState` | `title`, `text?` (what to do, in words), `onRetry?`, `retryLabel?`, `detail?` (mono), `children?` |
 
 ## 12. Hooks and engine helpers
@@ -587,19 +609,19 @@ Use the demo data only in the sandbox and in `/kit`.
 
 | Never | Instead |
 |---|---|
-| Orange anywhere (ErgoScan's colour on the same host). | Ink, paper, line, metal, light. |
-| Gold on a generic button, the logo or a border. | Metal only where ERG or tokens are locked or move. |
+| Orange anywhere (ErgoScan's colour on the same host). | Ink, paper and the three lights; gold stays a yellow gold. |
+| Gold on a generic button, the mark, the town or a border. | Gold only where ERG or tokens are locked or move. |
 | Foil or holo on a note that is not in the latest digest. | Grey foil plus "not yet in a digest". |
 | "Send", "transfer", coins flying between wallets. | "Raise your note to Bob to 1 240.00." |
 | Red for "you owe". | Words and a minus sign; red only when something is wrong. |
 | A banknote you could hand to someone else. | Both names on every note; the seal is the pair. |
-| Loops that pulse for no reason. | One commitment = one pulse. Silence is a state. |
+| Loops that pulse for no reason; town lights that flicker. | One commitment = one pulse of moonlight. Silence is a state. |
 | "Trustless", "guaranteed", "safe", "unstoppable". | "Cannot steal · Can censor", next to every tracker. |
-| Serif below 24 px in UI; a line screen below 96 px. | Geist for every small number and label. |
+| The display face in body text or below 13 px. | Geist for every small number, label and sentence. |
 | A 3D graph, a hairball, or a pie chart for coverage. | A 2D graph with arrows, labels and tubes; a linear meter. |
-| Glass on cards or notes; gradients on panels. | Flat surfaces, 1 px rules. |
+| Glass, blur or neon on cards and notes. | Lit panes: a flat fill, a 1 px rule, one soft top highlight. |
 | A seal shown as proof of identity. | Seal + fingerprint + three words; proof is the signature and digest. |
 | U+202F or a regular space inside numbers. | U+2009 + U+2060; units after U+00A0. |
 | A fee the contract does not have. | "Protocol fee: none (basis.es)". |
-| More than one metal key or one alarm toast per view. | Pick the one action that moves money. |
+| More than one gold key or one alarm toast per view. | Pick the one action that moves money. |
 | Emoji, exclamation marks, rocket energy. | Calm sentences. |
