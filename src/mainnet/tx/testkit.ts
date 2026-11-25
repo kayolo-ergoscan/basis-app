@@ -295,12 +295,18 @@ export interface SyntheticTokenOptions extends Omit<SyntheticOptions, "reserveVa
   prior?: { timestamp: bigint; redeemed: bigint };
   /** With `avl`: other receivers' entries in the reserve tree and other pairs' debts in the tracker tree. Default 2. */
   others?: number;
+  /**
+   * With `avl`: the denomination under which the tracker tree holds this pair's debt, and the key #8 proves (default
+   * the reserve's token). "erg" or another token id: a tracker answering with the wrong debt (L2 must refuse it).
+   */
+  trackerHolds?: "erg" | Hex;
 }
 
 /**
  * A token redemption build in the tracker's layout (redemption_build.rs, fee_paid_by "tracker"): inputs [token reserve,
  * fee boxes], outputs [reserve (ERG kept, token less the amount), recipient (0.001 ERG + tokens), fee, change], the fee
- * inputs proved by the fee key in partial_tx. It passes L1; the AVL proofs are placeholders (L2 does not accept it).
+ * inputs proved by the fee key in partial_tx. It passes L1. With `avl` its trees and AVL proofs are real and it passes
+ * L2 too (tokenredemption.l2.test.ts); without `avl` the proofs are placeholders and L2 refuses it.
  */
 export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
   const issuer = keyPairFromSecret(o.issuerSecret ?? 2n);
@@ -316,7 +322,7 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
   const timestamp = o.timestamp ?? 1_795_357_991_710n;
   const first = o.avl ? !o.prior : o.first ?? true;
   const height = o.height ?? 1_922_400;
-  const real = o.avl ? realTokenTrees(o.avl, issuer.pubHex, recipient.pubHex, o.tokenId, totalDebt, timestamp, amount, o.prior ?? null, o.others ?? 2) : null;
+  const real = o.avl ? realTokenTrees(o.avl, issuer.pubHex, recipient.pubHex, o.tokenId, totalDebt, timestamp, amount, o.prior ?? null, o.others ?? 2, o.trackerHolds ?? o.tokenId) : null;
   const reserveBody = {
     value: TOKEN_RESERVE_BOX_NANOERG,
     ergoTree: TOKEN_RESERVE_TREE_HEX,
@@ -386,7 +392,7 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
  * InsertOrUpdate proof for both first and later redemptions, as generate_reserve_insert_proof makes it; the contract
  * runs it as insert (no #7) or insertOrUpdate (#7), and the prover's bytes are the same for both.
  */
-function realTokenTrees(avl: AvlBackend, owner: Hex, receiver: Hex, tokenId: Hex, totalDebt: bigint, timestamp: bigint, amount: bigint, prior: { timestamp: bigint; redeemed: bigint } | null, others: number) {
+function realTokenTrees(avl: AvlBackend, owner: Hex, receiver: Hex, tokenId: Hex, totalDebt: bigint, timestamp: bigint, amount: bigint, prior: { timestamp: bigint; redeemed: bigint } | null, others: number, holds: "erg" | Hex) {
   const trackerTree = avl.createMap(32);
   const reserveTree = avl.createMap(32);
   const tokenBytes = hexToBytes(tokenId);
@@ -396,7 +402,7 @@ function realTokenTrees(avl: AvlBackend, owner: Hex, receiver: Hex, tokenId: Hex
     trackerTree.insert(debtKey(owner, other, null), u64be(7_000_000n + BigInt(i)));
     reserveTree.insert(reserveKey(owner, other), reserveTreeValue(timestamp - 1_000n - BigInt(i), 10n + BigInt(i)));
   }
-  const dKey = debtKey(owner, receiver, tokenBytes);
+  const dKey = debtKey(owner, receiver, holds === "erg" ? null : hexToBytes(holds));
   trackerTree.insert(dKey, u64be(totalDebt));
   const rKey = reserveKey(owner, receiver);
   if (prior) reserveTree.insert(rKey, reserveTreeValue(prior.timestamp, prior.redeemed));

@@ -3,7 +3,8 @@
 // through L1 and then the contract engine on the basis-token branch with the stock verifier (avl.wasm).
 import { beforeAll, describe, expect, it } from "vitest";
 import type { AvlBackend } from "../../protocol/avl";
-import { checkRedemptionContract, loadContractAvl } from "./contract";
+import { checkRedemptionContract, checkReserveContract, loadContractAvl } from "./contract";
+import { nodeExtensionOrder } from "./serialize";
 import { checkRedemption, parseBuildResponse } from "./redemption";
 import { syntheticTokenRedemption, trackerBuildResponse } from "./testkit";
 import { RSADA_TOKEN_ID, SIGUSD_TOKEN_ID } from "./tokens";
@@ -64,5 +65,29 @@ describe("token redemption L2 with real proofs", () => {
   it("refuses a note older than the last redemption of the pair (timestampCorrect)", () => {
     const s = syntheticTokenRedemption({ tokenId: SIGUSD_TOKEN_ID, avl, totalDebt: 1_000n, amount: 100n, timestamp: TS, prior: { timestamp: TS + 1n, redeemed: 100n } });
     expect(checkRedemptionContract(l1Of(s), s.chain, AT, avl)).toMatchObject({ ok: false, rule: "timestampCorrect" });
+  });
+});
+
+describe("token redemption L2 refusals on real proofs (second review LOW-2)", () => {
+  it("a replay: #7 omitted while the pair already has an entry makes the contract insert a key the tree holds", () => {
+    const s = syntheticTokenRedemption({ tokenId: SIGUSD_TOKEN_ID, avl, totalDebt: 1_000n, amount: 300n, timestamp: TS, prior: { timestamp: TS - 60_000n, redeemed: 200n } });
+    expect(checkRedemptionContract(l1Of(s), s.chain, AT, avl)).toMatchObject({ ok: true });
+    const u = s.parts.unsigned;
+    const replay = { ...u, inputs: [{ ...u.inputs[0], extension: nodeExtensionOrder(u.inputs[0].extension.filter((e) => e.key !== 7)) }, ...u.inputs.slice(1)] };
+    const r = checkReserveContract({ tx: replay, inputs: s.chain.inputs, dataInputs: s.chain.dataInputs, signers: [s.expect.recipient], height: AT }, avl);
+    expect(r).toMatchObject({ ok: false, rule: "properRedemptionTree" });
+  });
+
+  it.each([
+    ["the pair's ERG debt", "erg"],
+    ["the pair's debt in the other token", RSADA_TOKEN_ID],
+  ] as const)("a tracker tree that holds only %s does not cover a SigUSD reserve (trackerDebtCorrect)", (_name, holds) => {
+    const s = syntheticTokenRedemption({ tokenId: SIGUSD_TOKEN_ID, avl, totalDebt: 1_000n, amount: 300n, timestamp: TS, trackerHolds: holds });
+    expect(checkRedemptionContract(l1Of(s), s.chain, AT, avl)).toMatchObject({ ok: false, rule: "trackerDebtCorrect" });
+  });
+
+  it("and the other way round: an rsADA reserve against the pair's SigUSD debt", () => {
+    const s = syntheticTokenRedemption({ tokenId: RSADA_TOKEN_ID, avl, reserveTokens: 9_000_000n, totalDebt: 5_000_000n, amount: 1_000_000n, timestamp: TS, trackerHolds: SIGUSD_TOKEN_ID });
+    expect(checkRedemptionContract(l1Of(s), s.chain, AT, avl)).toMatchObject({ ok: false, rule: "trackerDebtCorrect" });
   });
 });
