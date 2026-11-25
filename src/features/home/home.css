@@ -15,9 +15,10 @@
     radial-gradient(48% 60% at 70% 42%, color-mix(in srgb, var(--metal) 10%, transparent), transparent 70%),
     radial-gradient(30% 40% at 88% 8%, color-mix(in srgb, var(--moon) 7%, transparent), transparent 70%);
 }
-/* the sandbox town along the bottom of the first screen; the live strip is its street */
-.home-hero .home-town { position: absolute; left: 0; right: 0; bottom: 58px; width: 100%; height: clamp(90px, 13vh, 150px); z-index: -1; pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 45%, #000 85%); mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 45%, #000 85%); }
+/* the sandbox town: one low row of houses standing on the live strip (its street), in the band under the copy and the
+   stage, so no window ever sits behind a word */
+.home-hero .home-town { position: absolute; left: 0; right: 0; bottom: 58px; width: 100%; height: clamp(34px, 5.4vh, 52px); z-index: -1; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 45%); mask-image: linear-gradient(180deg, transparent 0%, #000 45%); }
 .home-hero .home-town .sk-wall { fill: color-mix(in srgb, var(--town-wall) 70%, var(--bg)); }
 .home-hero-grid {
   flex: 1; display: grid; grid-template-columns: minmax(0, 5.5fr) minmax(0, 6.5fr); gap: 24px; align-items: center;
@@ -129,7 +130,7 @@
 .home-mgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .home-mgrid .moment { padding: 22px 20px 22px; border: 1px solid var(--rule); border-radius: 18px; background: linear-gradient(180deg, var(--surface-2), var(--surface) 220px); box-shadow: inset 0 1px 0 var(--pane-hi); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .home-mgrid .vis { height: 188px; position: relative; display: grid; place-items: center; }
-.home-mgrid .ix { display: inline-grid; place-items: center; align-self: flex-start; min-width: 30px; padding: 0 8px; height: 34px; border-radius: 8px; font: 700 13px/1 var(--f-display); color: var(--on-metal); background: var(--lamp); box-shadow: 0 0 18px -4px var(--glow-lamp); text-transform: lowercase; }
+.home-mgrid .ix { display: inline-grid; place-items: center; align-self: flex-start; justify-self: start; min-width: 30px; padding: 0 8px; height: 34px; border-radius: 8px; font: 700 13px/1 var(--f-display); color: var(--on-metal); background: var(--lamp); box-shadow: 0 0 18px -4px var(--glow-lamp); text-transform: lowercase; }
 .home-mgrid h3 { font: 650 23px/1.08 var(--f-display); letter-spacing: -.03em; margin: 0; }
 .home-mgrid p { margin: 0; font: 400 14.5px/1.5 var(--f-ui); color: var(--ink-2); }
 .home-mgrid p b { color: var(--ink); font-weight: 600; }
@@ -419,6 +420,8 @@
   .home-hero-grid > *, .home-hero-copy > * { position: relative; z-index: 2; min-width: 0; }
   .home-stage { order: 1; }
   .home ul.home-materials { order: 2; margin-top: 28px; }
+  /* one column: the town would sit behind the legend; the footer street carries it on narrow screens */
+  .home-hero .home-town { display: none; }
   .home-stage { padding: 24px 0 8px; }
   .home-stage-col { width: 100%; }
   .home-callrow { display: none; }
