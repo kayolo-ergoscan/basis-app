@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, TextInput, int, short } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, Switch, TextInput, int, short } from "@/ui";
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
 import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
 import {
@@ -134,6 +134,15 @@ export function PayScreen() {
   const add = parseErg(amountText);
   const toErr = toText.trim() && !key.ok ? t(`mw.pay.to.${key.reason}`) : key.ok && me && key.key === me.pub ? t("mw.pay.to.self") : null;
   const reserve = (res.value ?? [])[0] ?? null;
+  // 25.11 (operator): a note can be redeemed only from a Basis wallet holding the receiver's key. A Nautilus or other
+  // seed-phrase address looks the same, so unless the receiver came from a Basis payment request or already uses
+  // Basis (a reserve or notes of its own at the tracker), the payer confirms it before signing.
+  const toPk = phase.k === "review" ? phase.d.to : key.ok ? key.key : null;
+  const fromRequest = !!req && toPk === req.to;
+  const toStatus = useResource(toPk && !fromRequest ? R.keyStatus(toPk) : null, { everyMs: 300_000, enabled: state.backedUp });
+  const toUsesBasis = fromRequest || (toStatus.value !== null && (toStatus.value.notes > 0 || toStatus.value.denominations.some((x) => x.reserve !== null || x.collateral > 0n)));
+  const [basisAck, setBasisAck] = useState(false);
+  useEffect(() => setBasisAck(false), [toPk]);
   // notes_require_reserve: the tracker takes notes only from a key with exactly one active reserve under it
   const noReserve = res.value !== null && (res.value.length !== 1 || res.value[0].refundHeight > 0);
   const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note").slice(0, 8) : []), [entries, me]);
@@ -328,12 +337,18 @@ export function PayScreen() {
                   ) : null}
                   {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>
+                  {!toUsesBasis && (
+                    <Callout tone="alarm" title={t("mw.pay.basisT")}>
+                      <p>{t("mw.pay.basisB")}</p>
+                      <Switch checked={basisAck} onChange={setBasisAck} label={t("mw.pay.basisAck")} />
+                    </Callout>
+                  )}
                   {askPass && (
                     <Field label={t("mw.pay.passAgain")} help={t("mw.pay.passWhy")}>
                       <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
                     </Field>
                   )}
-                  <Key variant="primary" hold="sign" block disabled={askPass && !pass} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: ergText(d.add) })}</Key>
+                  <Key variant="primary" hold="sign" block disabled={(askPass && !pass) || (!toUsesBasis && !basisAck)} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: ergText(d.add) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "edit" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (
