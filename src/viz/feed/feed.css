@@ -1,6 +1,6 @@
 /* EventFeed: fixed-height virtual rows (54 px), shape first. */
 .vz-fd-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--rule); }
-.vz-fd-follow { display: inline-flex; align-items: center; gap: 8px; font: 500 11px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.vz-fd-follow { display: inline-flex; align-items: center; gap: 8px; font: 600 11px/1 var(--f-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
 .vz-fd-list { position: relative; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; }
 .vz-fd-inner { position: relative; }
 .vz-fd-empty { position: absolute; inset: 16px; margin: 0; color: var(--ink-3); font: 400 13px/1.4 var(--f-ui); }

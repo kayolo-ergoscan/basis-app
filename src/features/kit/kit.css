@@ -55,7 +55,7 @@
 .kit .mo-nm span { font: 400 12.5px/1.45 var(--f-ui); color: var(--ink-3); }
 .kit .mo-tl { padding: 16px 18px 36px; min-width: 0; }
 .kit .mo-in { position: relative; min-height: 58px; }
-.kit .mo-seg { position: absolute; top: 0; height: 26px; border-radius: 4px; display: flex; align-items: center; padding: 0 9px; font: 500 11.5px/1 var(--f-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); background: var(--surface-2); border: 1px solid var(--rule-2); }
+.kit .mo-seg { position: absolute; top: 0; height: 26px; border-radius: 7px; display: flex; align-items: center; padding: 0 9px; font: 500 11.5px/1 var(--f-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); background: var(--surface-2); border: 1px solid var(--rule-2); }
 .kit .mo-seg.row2 { top: 32px; }
 .kit .mo-seg.m { background: var(--foil-metal); color: var(--paper-ink); border: 0; }
 .kit .mo-seg.h { background: var(--holo); color: var(--paper-ink); border: 0; }
@@ -69,7 +69,7 @@
 .kit .pal { border: 1px solid var(--rule); border-radius: var(--r-paper); overflow: hidden; }
 .kit .pal-row { display: grid; grid-template-columns: 150px repeat(var(--n, 8), minmax(0, 1fr)); border-top: 1px solid var(--rule); }
 .kit .pal-row:first-child { border-top: 0; }
-.kit .pal-row > .h { padding: 14px 16px; font: 500 11px/1.4 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: flex; flex-direction: column; justify-content: center; gap: 4px; border-right: 1px solid var(--rule); }
+.kit .pal-row > .h { padding: 14px 16px; font: 600 11px/1.4 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: flex; flex-direction: column; justify-content: center; gap: 4px; border-right: 1px solid var(--rule); }
 .kit .pal-row > .h b { font: 600 14px/1.2 var(--f-ui); letter-spacing: 0; text-transform: none; color: var(--ink); }
 /* a theme-scoped row (.theme-dark / .theme-light) paints its own page colour, so the header reads in that theme */
 .kit .pal-row.theme-dark, .kit .pal-row.theme-light { background: var(--bg); }

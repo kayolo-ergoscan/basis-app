@@ -15,7 +15,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 /* ============ top bar ============ */
 .pl-top { display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--rule); background: var(--bg-2); min-width: 0; }
 .pl-top-gap { flex: 1; min-width: 8px; }
-.pl-sandbox { display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 6px 11px 6px 9px; border-radius: var(--r-pill); background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule-2); font: 500 11px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.pl-sandbox { display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 6px 11px 6px 9px; border-radius: var(--r-pill); background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule-2); font: 600 11px/1 var(--f-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .pl-sandbox-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 3px var(--up-wash); }
 .pl-pick { display: inline-flex; align-items: center; gap: 8px; max-width: 360px; height: 34px; padding: 0 10px 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: 600 15px/1 var(--f-ui); cursor: pointer; min-width: 0; }
 .pl-pick:hover { background: var(--surface-2); }
@@ -23,7 +23,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-pick-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-seed { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--well); color: var(--ink-2); font-size: 12px; cursor: pointer; max-width: 260px; }
 .pl-seed:hover { color: var(--ink); }
-.pl-seed-l { font: 500 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.pl-seed-l { font: 600 10.5px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .pl-seed-v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pl-avl { font-size: 11px; letter-spacing: .04em; color: var(--ink-3); white-space: nowrap; }
 .pl-avl.sim { color: var(--alarm); }
@@ -299,7 +299,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-hist li:last-child { border-bottom: 0; }
 .pl-hist .mono { font-size: 11.5px; }
 .pl-field { display: grid; gap: 6px; }
-.pl-field-l { font: 500 11px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.pl-field-l { font: 600 11px/1.2 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 
 /* ============ try to cheat ============ */
 .pl-cheats { display: grid; gap: 12px; padding: 14px 16px 24px; }
@@ -333,7 +333,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-sub-tool { display: grid; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--rule-2); }
 .pl-row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .pl-f { display: grid; gap: 5px; min-width: 0; }
-.pl-f-l { font: 500 10.5px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.pl-f-l { font: 600 10.5px/1.2 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .pl-f-c { min-width: 0; }
 .pl-f-h { font: 400 12px/1.35 var(--f-ui); color: var(--ink-3); }
 .pl-f-e { font: 500 12px/1.35 var(--f-ui); color: var(--alarm); }

@@ -41,7 +41,7 @@
 
 /* ============ footer: the town at the bottom of every page ============ */
 footer.foot { padding: 0 0 60px; background: var(--bg-2); }
-footer.foot .foot-town { margin-bottom: 34px; background: var(--bg); }
+footer.foot .foot-town { height: clamp(84px, 6.2vw, 120px); margin-bottom: 34px; background: var(--bg); }
 footer.foot .f-word { font: 700 16px/1 var(--f-display); letter-spacing: -.03em; }
 footer.foot .f-unoff { font: 500 11.5px/1 var(--f-ui); color: var(--ink-3); }
 footer.foot .container { display: flex; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; font: 400 13px/1.5 var(--f-ui); color: var(--ink-3); }

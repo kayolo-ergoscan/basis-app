@@ -42,7 +42,7 @@
 .vz-cx-check.on { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule-2); }
 .vz-cx-check.focus .nm { text-decoration: none; box-shadow: inset 0 -1px 0 var(--ink-3); }
 .vz-cx-check .nm { min-width: 0; }
-.vz-cx-check .oc { font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.vz-cx-check .oc { font: 600 10px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .vz-cx-check .ln { font: 400 11px/1 var(--f-mono); color: var(--ink-3); text-align: right; }
 .vz-cx-check .fd { grid-column: 2 / -1; font: 400 12px/1.45 var(--f-mono); color: var(--ink-2); overflow-wrap: anywhere; }
 .vz-cx-check.s-pass .oc { color: var(--up); }

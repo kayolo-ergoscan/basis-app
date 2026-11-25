@@ -20,7 +20,7 @@
 .vz-th-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
 .vz-th-legend b { font: 500 11.5px/1 var(--f-mono); color: var(--ink-2); }
 .vz-th-consts { border: 1px solid var(--rule); border-radius: var(--r-paper); padding: 8px 12px; }
-.vz-th-consts summary { cursor: pointer; font: 500 11px/1.6 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.vz-th-consts summary { cursor: pointer; font: 600 11px/1.6 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
 .vz-th-consts ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; max-height: 280px; overflow: auto; }
 .vz-th-consts li { display: grid; grid-template-columns: 2.2em minmax(0, 9em) minmax(0, 1fr); gap: 8px; padding: 3px 0; border-top: 1px solid var(--rule); font: 400 12px/1.4 var(--f-mono); color: var(--ink-2); }
 .vz-th-consts .i { color: var(--ink-3); }

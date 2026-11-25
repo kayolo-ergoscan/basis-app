@@ -69,7 +69,7 @@
 
 /* kit: keys keep their own shadow under the focus halo; a lit key (primary, metal) glows like a window at night */
 .key { --key-sh: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--key2-hi), 0 6px 16px -10px rgba(var(--shade), .8); box-shadow: var(--key-sh); }
-.key.primary { --key-sh: inset 0 1px 0 var(--key-hi), inset 0 -2px 0 rgba(0,0,0,.12), var(--glow-metal); box-shadow: var(--key-sh); }
+.key.primary { --key-sh: inset 0 1px 0 var(--key-hi), inset 0 -2px 0 rgba(0,0,0,.12), var(--glow-key); box-shadow: var(--key-sh); }
 .key.metal { --key-sh: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -2px 0 rgba(0,0,0,.14), 0 0 0 1px color-mix(in srgb, var(--metal-lo) 60%, transparent), var(--glow-metal); box-shadow: var(--key-sh); }
 .key.danger { --key-sh: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.18), 0 8px 20px -12px var(--alarm-fill); box-shadow: var(--key-sh); }
 .key.quiet { --key-sh: none; box-shadow: none; }

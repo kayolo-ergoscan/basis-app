@@ -36,8 +36,9 @@
   --up: #74E0A2; --up-wash: rgba(116,224,162,.12);
   /* wrong / act now (never used for "you owe") */
   --alarm: #FF8790; --alarm-fill: #E0445A; --on-alarm: #FFFFFF; --alarm-wash: rgba(255,135,144,.13);
-  /* keys: primary = a lit lamp; default = a pane */
-  --key-bg: #FFC36A; --key-fg: #1C1405; --key-skirt: #B9822C; --key-hi: rgba(255,255,255,.55);
+  /* keys: primary = a lit window (white light, so amber stays for value on Ergo: the metal key); default = a pane */
+  --key-bg: #F1EEE6; --key-fg: #0A0E1B; --key-skirt: #A9A69E; --key-hi: rgba(255,255,255,.8);
+  --glow-key: 0 0 22px -6px rgba(241,238,230,.55);
   --key2-bg: #1D2649; --key2-fg: #EEF0F8; --key2-skirt: #070A16; --key2-hi: rgba(255,255,255,.08);
   /* shadow tint */
   --shade: 2,4,14; --shadow-a: .6;
@@ -78,7 +79,8 @@
   --glow-moon: 0 4px 14px -6px rgba(31,167,160,.6);
   --up: #11704F; --up-wash: rgba(17,112,79,.10);
   --alarm: #BE2238; --alarm-fill: #D2283F; --alarm-wash: rgba(190,34,56,.08);
-  --key-bg: #F5B347; --key-fg: #1C1405; --key-skirt: #C58428; --key-hi: rgba(255,255,255,.6);
+  --key-bg: #151A33; --key-fg: #FFFFFF; --key-skirt: #05070F; --key-hi: rgba(255,255,255,.14);
+  --glow-key: 0 6px 16px -8px rgba(21,26,51,.6);
   --key2-bg: #FFFFFF; --key2-fg: #151A33; --key2-skirt: #CFCFDC; --key2-hi: rgba(255,255,255,1);
   --shade: 30,36,70; --shadow-a: .16;
   --field-rgb: 21,26,51; --field-a: .06;

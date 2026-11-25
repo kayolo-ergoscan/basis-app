@@ -65,8 +65,10 @@ export interface SkylineProps {
   seed?: number;
   /** Share of windows that are lit, 0–1 (default .22). */
   lit?: number;
-  /** Units tall (the width is 1200). */
+  /** Units tall. */
   height?: number;
+  /** Units wide (default 1200): a wider row is lower on the same screen. */
+  span?: number;
   /** A tracker's clock tower at this x (0–1200): its face catches moonlight once per matching commitment. */
   tower?: number;
   /** Which commitments light the tower (default: every one). */
@@ -74,17 +76,17 @@ export interface SkylineProps {
   className?: string;
 }
 /** A row of houses across the page, windows lit here and there. Pure decoration (aria-hidden). */
-export function Skyline({ seed = 7, lit = 0.22, height = 120, tower, towerFilter, className }: SkylineProps) {
+export function Skyline({ seed = 7, lit = 0.22, height = 120, span = 1200, tower, towerFilter, className }: SkylineProps) {
   const ground = height - 4;
   const row = useMemo(() => {
-    const all = buildRow(seed, 1200, ground, height - 18, lit);
+    const all = buildRow(seed, span, ground, height - 18, lit);
     return tower == null ? all : all.filter((b) => b.x + b.w < tower - 8 || b.x > tower + 64);
-  }, [seed, ground, height, lit, tower]);
+  }, [seed, span, ground, height, lit, tower]);
   const towerRef = useRef<SVGGElement>(null);
   usePulseClass(towerRef, towerFilter);
   const th = Math.round(height * 0.96);
   return (
-    <svg className={cx("skyline", className)} viewBox={`0 0 1200 ${height}`} preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+    <svg className={cx("skyline", className)} viewBox={`0 0 ${span} ${height}`} preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
       {row.map((b, i) => (
         <g key={i}>
           {b.roof === "gable" ? (
@@ -106,7 +108,7 @@ export function Skyline({ seed = 7, lit = 0.22, height = 120, tower, towerFilter
           <rect className="sk-moon" x={tower + 23} y={ground - th + 86} width="10" height="13" rx="2.5" />
         </g>
       )}
-      <rect className="sk-street" x="0" y={ground} width="1200" height="4" />
+      <rect className="sk-street" x="0" y={ground} width={span} height="4" />
     </svg>
   );
 }
@@ -117,10 +119,11 @@ export interface HouseLightsProps {
   /** Index of the step to do now (its window is outlined in lamplight). */
   now?: number;
   size?: number;
-  label: string;
+  /** Words for screen readers ("3 of 5 done"); leave out when a list next to it already says it (then aria-hidden). */
+  label?: string;
   className?: string;
 }
-/** Your house: a window per step, lit when the step is done. The label says it in words ("3 of 5 done"). */
+/** Your house: a window per step, lit when the step is done. */
 export function HouseLights({ steps, now, size = 88, label, className }: HouseLightsProps) {
   const n = steps.length;
   const cols = n <= 4 ? 2 : 3;
@@ -128,7 +131,7 @@ export function HouseLights({ steps, now, size = 88, label, className }: HouseLi
   const W = 96, top = 40, cell = 22, gapX = (W - 16 - cols * 14) / Math.max(1, cols - 1);
   const H = top + rows * cell + 12;
   return (
-    <svg className={cx("house-lights", className)} viewBox={`0 0 ${W} ${H}`} width={size} height={(size * H) / W} role="img" aria-label={label}>
+    <svg className={cx("house-lights", className)} viewBox={`0 0 ${W} ${H}`} width={size} height={(size * H) / W} {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}>
       <path className="hl-wall" d={`M6 ${H - 2} V${top - 6} L${W / 2} 6 L${W - 6} ${top - 6} V${H - 2} Z`} />
       {steps.map((done, i) => {
         const c = i % cols, r = Math.floor(i / cols);

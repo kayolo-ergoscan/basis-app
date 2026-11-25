@@ -200,7 +200,7 @@ export function Footer() {
   const t = useT();
   return (
     <footer className="foot">
-      <Skyline className="foot-town" seed={11} height={110} />
+      <Skyline className="foot-town" seed={11} height={110} span={1800} />
       <div className="container">
         <div className="f-brand">
           <span className="cluster" style={{ "--gap": "10px" } as CSSProperties}><BrandMark pulse={false} size={24} /><b className="f-word">Basis</b><span className="f-unoff">{t("app.footer.unofficial")}</span></span>

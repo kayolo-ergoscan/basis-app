@@ -8,7 +8,7 @@
 .vz-rung .nm { font: 600 15px/1.3 var(--f-ui); color: var(--ink-3); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .vz-rung.done .nm { color: var(--ink-2); }
 .vz-rung.now .nm { color: var(--ink); }
-.vz-rung .here { font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 3px; padding: 3px 5px; }
+.vz-rung .here { font: 600 10px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 7px; padding: 3px 5px; }
 .vz-rung .sub { font: 400 13px/1.45 var(--f-ui); color: var(--ink-3); }
 .vz-rung.now .sub { color: var(--ink-2); }
 .vz-rung .gap { font: 400 11.5px/1.3 var(--f-mono); color: var(--ink-3); }
@@ -45,7 +45,7 @@
 .vz-dial.open .hand { stroke: var(--alarm); }
 .vz-dial .hub { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; }
 .vz-dial .rd { font: 500 9px/1 var(--f-mono); fill: var(--ink); }
-.vz-dial .rd2 { font: 500 6.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-3); }
+.vz-dial .rd2 { font: 600 6.5px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-3); }
 .vz-exitbar { position: relative; height: 10px; border-radius: 2px; background: var(--hatch), var(--well); background-size: auto; border: 1px solid var(--rule); overflow: visible; margin-top: 6px; }
 .vz-exitbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); border-radius: 2px 0 0 2px; transition: width var(--t-slow) var(--ease-out); }
 .vz-exitbar .needle { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--ink); transition: left var(--t-slow) var(--ease-out); }
