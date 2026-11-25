@@ -73,7 +73,8 @@ export default function MainnetConsole() {
   return (
     <>
       <div className="container">
-        <PageHead eyebrow={t("tracker.m.eyebrow")} title={md(t("tracker.m.h1"))} lede={t("tracker.m.lede")} actions={<HeadActions sandbox={false} mainnet />} />
+        <PageHead eyebrow={t("tracker.m.eyebrow")} title={md(t("tracker.m.h1"))} actions={<HeadActions sandbox={false} mainnet />} />
+        <TrackerLead v={v} />
         <ModeSwitch mode="main" />
         <div className="trk-m-top">
           <div className="trk-m-xl"><MainnetXL v={v} /></div>
@@ -91,6 +92,48 @@ export default function MainnetConsole() {
         <KeyLookup ready={v.reserves !== null || v.reservesError !== null || v.status === "unreachable"} />
       </Section>
     </>
+  );
+}
+
+/* ---------------- the lead: one status line and four figures in plain words ---------------- */
+
+function TrackerLead({ v }: { v: OurView }) {
+  const t = useT();
+  const lang = t.lang;
+  const st = STATE[v.status];
+  const em = v.emergency;
+  return (
+    <section className="trk-lead" aria-label={t("tracker.m.lead.aria")}>
+      <p className="trk-lead-status">
+        <Lamp state={st.lamp} size={9} />
+        <b>{t(`chain.ours.st.${v.status}`)}</b>
+        <span className="sep" aria-hidden="true">·</span>
+        <span>{t("tracker.m.lead.since")}</span>
+      </p>
+      <dl className="trk-lead-g">
+        <div>
+          <dt>{t("tracker.m.lead.last")}</dt>
+          <dd className="v">{v.age !== null ? <>{int(v.age)}<span className="u">{t.p("tracker.agoUnit", v.age)}</span></> : DASH}</dd>
+          <dd className="s">{v.age !== null ? htime(v.age, lang) : v.answeredAt === null ? t("tracker.m.lastNone") : ""}</dd>
+        </div>
+        <div>
+          <dt>{t("tracker.m.lead.reserves")}</dt>
+          <dd className="v">{v.totals ? int(v.totals.count) : DASH}</dd>
+          <dd className="s">{t("tracker.m.lead.reservesSub")}</dd>
+        </div>
+        <div className="metal">
+          <dt>{t("tracker.m.lead.erg")}</dt>
+          <dd className="v">{v.totals ? <>{ergStr(v.totals.ergNano)}<span className="u">ERG</span></> : DASH}</dd>
+          <dd className="s">{t("tracker.m.collateralSub")}</dd>
+        </div>
+        <div>
+          <dt>{t("tracker.m.lead.exit")}</dt>
+          <dd className="v">{em ? (em.open ? t("tracker.m.lead.exitOpen") : blk(em.blocksLeft, lang)) : DASH}</dd>
+          <dd className="s">{t("tracker.m.dialLeft")}</dd>
+        </div>
+      </dl>
+      <p className="t-small trk-lead-note">{t("tracker.m.lede")}</p>
+    </section>
   );
 }
 

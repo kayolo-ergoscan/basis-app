@@ -1,9 +1,10 @@
-// /network — the mainnet overview (FEATURES O02, O03, O08, O09, O10, O11, C01, T04, H08): a strip of live figures,
-// the current-contract detector, then trackers · reserves · redemptions side by side (a segmented switch on a phone).
+// /network — the mainnet overview (FEATURES O02, O03, O08, O09, O10, O11, C01, T04, H08): the title with a one-line
+// status, four key figures in plain words, then the details: what mainnet is today next to the current-contract
+// detector, ErgoScan's tracker, and trackers · reserves · redemptions side by side (a segmented switch on a phone).
 import { startTransition, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
-import { Dial, Icon, Key, KeySeal, Seg, Tag, useIsPhone } from "@/ui";
+import { Dial, Icon, Key, KeySeal, Lamp, Seg, Tag, useIsPhone } from "@/ui";
 import { copy, pick } from "@/content";
 import { EMERGENCY_BLOCKS, OurTestReserveTag, isOurTestReserve, oursExtra, totalsSource, useOurTracker, useOursInCounts, type ExitClass, type Observatory, type RedemptionView, type ReserveView, type TrackerView } from "@/chain";
 import { amount, approx, blocks, date, ergs, height as fmtH, keyOfAddress, sAddr, sid, tokenStr, tokenUnit, type Lang } from "./fmt";
@@ -29,16 +30,19 @@ export default function Overview({ obs }: { obs: Observatory }) {
   const later = useAfterPaint();
   return (
     <>
-      <header className="nw-hero">
+      <header className="nw-hero nw-lead">
         <div className="nw-hero-t">
           <div className="eyebrow label">{t("network.ov.eyebrow")}</div>
           <h1 className="t-h1">{rich(t("network.ov.h1"))}</h1>
-          <p className="t-lede">{pick(copy.mainnetHonest, lang)}</p>
+          <StatusLine obs={obs} />
         </div>
-        <Detector obs={obs} />
       </header>
 
       <MainnetStrip obs={obs} />
+      <div className="nw-hero nw-about">
+        <p className="t-lede">{pick(copy.mainnetHonest, lang)}</p>
+        <Detector obs={obs} />
+      </div>
       <OurTrackerBlock />
 
       {phone && (
@@ -62,6 +66,24 @@ export default function Overview({ obs }: { obs: Observatory }) {
         </>
       ) : <div className="nw-cols-wait" aria-busy="true" />}
     </>
+  );
+}
+
+/* ---------------- the one-line status under the title ---------------- */
+function StatusLine({ obs }: { obs: Observatory }) {
+  const t = useT();
+  const lang = t.lang as Lang;
+  const src = totalsSource(obs);
+  const n = obs.detector.found.filter((b) => b.unspent).length;
+  return (
+    <p className="nw-status" role="status">
+      <Lamp state={obs.heightLive ? "live" : "stale"} size={8} />
+      <span>{t("network.ov.statusBlock", { h: fmtH(obs.height) })} <span className="dim">({obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })})</span></span>
+      <span className="sep" aria-hidden="true">·</span>
+      <span>{src === "checking" ? t("chain.checking") : `${n} ${t.p("network.det.count", n)}`}</span>
+      <span className="sep" aria-hidden="true">·</span>
+      <span>{t("network.ov.statusRead")}</span>
+    </p>
   );
 }
 
@@ -153,10 +175,18 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
   return (
     <section className="nw-strip" aria-label={t("network.strip.aria")}>
       <dl className="nw-strip-g">
-        <div className="fig">
-          <dt>{t("network.strip.block")}</dt>
-          <dd><span className="v num">{fmtH(obs.height)}</span></dd>
-          <dd className="s">{obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })}</dd>
+        <div className="fig metal">
+          <dt>{t("network.strip.locked")}</dt>
+          {src === "live" ? (<>
+            <dd><span className="v t-money">{ergs(obs.totals.unspentNano)}</span><span className="u">ERG</span></dd>
+            <dd className="s">{tokens.length ? tokens.map((x) => `+ ${tokenStr(x, lang)}`).join(" · ") : t("network.strip.lockedSub")}</dd>
+          </>) : src === "snapshot" ? (<>
+            <dd><span className="v t-money">{ergs(BigInt(S.unspentNano))}</span><span className="u">ERG</span></dd>
+            <dd className="s">{asOfSnap}</dd>
+          </>) : (<>
+            <dd><span className="v num">—</span></dd>
+            <dd className="s">{t("chain.checking")}</dd>
+          </>)}
         </div>
         <div className="fig" title={ours ? t("network.ours.strip", { h: fmtH(ours.mint) }) : undefined}>
           <dt>{t("network.strip.trackers")}</dt>
@@ -171,19 +201,6 @@ function MainnetStrip({ obs }: { obs: Observatory }) {
           </>) : src === "snapshot" ? (<>
             <dd><span className="v num">{S.unspent}</span></dd>
             <dd className="s">{t("network.strip.reservesSub", { total: S.reserveBoxes })} · {asOfSnap}</dd>
-          </>) : (<>
-            <dd><span className="v num">—</span></dd>
-            <dd className="s">{t("chain.checking")}</dd>
-          </>)}
-        </div>
-        <div className="fig metal">
-          <dt>{t("network.strip.locked")}</dt>
-          {src === "live" ? (<>
-            <dd><span className="v t-money">{ergs(obs.totals.unspentNano)}</span><span className="u">ERG</span></dd>
-            <dd className="s">{tokens.length ? tokens.map((x) => `+ ${tokenStr(x, lang)}`).join(" · ") : t("network.strip.lockedSub")}</dd>
-          </>) : src === "snapshot" ? (<>
-            <dd><span className="v t-money">{ergs(BigInt(S.unspentNano))}</span><span className="u">ERG</span></dd>
-            <dd className="s">{asOfSnap}</dd>
           </>) : (<>
             <dd><span className="v num">—</span></dd>
             <dd className="s">{t("chain.checking")}</dd>
