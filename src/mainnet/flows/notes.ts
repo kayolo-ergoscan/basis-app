@@ -143,7 +143,7 @@ export type PrevNoteCheck = { ok: true; prev: CheckedPrev | null } | { ok: false
 
 /**
  * Before a new note is signed on top of the pair's previous one: the tracker's answer must be a note of this key (its
- * signature over the 80-byte message verifies), ERG, bound to our tracker's NFT, dated no later than the tracker's
+ * signature over the note message verifies), in the denomination asked for (ERG by default), bound to our tracker's NFT, dated no later than the tracker's
  * clock, and not older than the newest note the tracker took from this browser (`accepted`, from the journal). A pair
  * without a note is fine only when the journal knows of no accepted one. Then "note so far" is a fact, not a claim:
  * the tracker cannot make this key sign a total it never promised.
@@ -152,7 +152,7 @@ export function checkPreviousNote(note: StoredNote | null, want: { issuer: strin
   const denomination = want.denomination ?? "erg";
   if (note === null) {
     return want.accepted > 0n
-      ? { ok: false, rule: "prev-missing", message: `the tracker shows no note for this pair, but it took one of ${want.accepted} nanoERG from this browser` }
+      ? { ok: false, rule: "prev-missing", message: `the tracker shows no note for this pair, but it took one of ${want.accepted} ${denomination === "erg" ? "nanoERG" : `raw units of ${denomination}`} from this browser` }
       : { ok: true, prev: null };
   }
   if (note.issuer !== want.issuer || note.recipient !== want.recipient) return { ok: false, rule: "prev-pair", message: "the tracker answered for another pair of keys" };
