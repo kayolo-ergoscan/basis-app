@@ -83,11 +83,13 @@ export function NotFound() {
 
 const POS_KEY = "basis.scroll";
 const readPos = (): Record<string, number> => { try { return JSON.parse(sessionStorage.getItem(POS_KEY) || "{}"); } catch { return {}; } };
+/** Every fresh page load has the router key "default": add the path, so a load restores only its own page's place. */
+const posKey = (loc: { key: string; pathname: string }): string => (loc.key === "default" ? `default:${loc.pathname}` : loc.key);
 /** New pages start at the top (or at #hash); Back/Forward restores where you were. */
 export function ScrollManager() {
   const loc = useLocation();
   const type = useNavigationType();
-  const keyRef = useRef(loc.key);
+  const keyRef = useRef(posKey(loc));
   useEffect(() => { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; }, []);
   useEffect(() => {
     let raf = 0;
@@ -106,7 +108,7 @@ export function ScrollManager() {
   }, []);
   const lastPath = useRef<string | null>(null);
   useLayoutEffect(() => {
-    keyRef.current = loc.key;
+    keyRef.current = posKey(loc);
     const first = lastPath.current == null;
     const moved = lastPath.current !== loc.pathname;
     lastPath.current = loc.pathname;
@@ -123,7 +125,7 @@ export function ScrollManager() {
       return stop;
     }
     if (type === "POP") {
-      const y = readPos()[loc.key];
+      const y = readPos()[posKey(loc)];
       if (y == null) return;
       const go = () => window.scrollTo(0, y);
       go(); requestAnimationFrame(go); const tm = setTimeout(go, 350);
