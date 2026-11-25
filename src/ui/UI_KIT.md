@@ -504,7 +504,7 @@ toast({ kind: "alarm", title: t("x.under"), detail: t("x.topUp", { v: money(64.2
 | Component | Props |
 |---|---|
 | `Field` | `label`, `help?` (always state the headroom left), `error?` (replaces help; the number stays ink), one child input |
-| `AmountInput` | `value` (string), `onChange`, `unit? ["ERG"]`, `plus?`, `max? {label, onMax}`, `invalid?` and the input attributes |
+| `AmountInput` | `value` (string), `onChange`, `unit? ["ERG"]`, `plus?`, `max? {label, onMax, disabled?}`, `invalid?` and the input attributes |
 | `TextInput` | `value`, `onChange`, `mono?`, `icon?`, `invalid?`, `trailing?` |
 | `KeyField` | `value`, `onChange`, `resolve?(s) → {name, pk, agent?} \| null`, `invalid?`: a pasted key or name resolves to a seal |
 

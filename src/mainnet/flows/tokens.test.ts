@@ -7,7 +7,7 @@ import { p2pkBox, reserveBox } from "../tx/testkit";
 import { planTokenT1, tokenBalanceOf, tokenT1CreateBody, mempoolCreatesReserve } from "./coins";
 import { linkTarget, ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGate, trustedNft, type TrackedRef } from "./reserveops";
 import { parseRequest, requestLink } from "./receipt";
-import { tokenRedeemMax } from "./redeem";
+import { redeemPrefill, tokenRedeemMax } from "./redeem";
 import { parseWatchStore, watchIssuer, watchedDenoms } from "./watch";
 import { TRACKER_NFT } from "../tx";
 
@@ -112,6 +112,29 @@ describe("the most a token redemption takes now (review LOW-3)", () => {
     expect(tokenRedeemMax(999n, 1_000n)).toEqual({ max: 999n, keptOne: false });
     expect(tokenRedeemMax(5n, 1n)).toEqual({ max: 0n, keptOne: true });
     expect(tokenRedeemMax(5n, 0n)).toEqual({ max: 0n, keptOne: true });
-    expect(tokenRedeemMax(5n, null)).toEqual({ max: 5n, keptOne: false });
+    // redemptions waiting for the chain come off first (second review LOW-3)
+    expect(tokenRedeemMax(1_000n, 1_000n, 400n)).toEqual({ max: 599n, keptOne: true });
+    expect(tokenRedeemMax(300n, 1_000n, 400n)).toEqual({ max: 300n, keptOne: false });
+    expect(tokenRedeemMax(300n, 1_000n, 1_000n)).toEqual({ max: 0n, keptOne: true });
+    expect(tokenRedeemMax(300n, 1_000n, -5n)).toEqual({ max: 300n, keptOne: false });
+  });
+});
+
+describe("the Redeem prefill (second review LOW-3)", () => {
+  const tok = { token: true, decimals: 2, min: 1n };
+  it("fills nothing while a token's cap is unknown", () => {
+    expect(redeemPrefill({ ...tok, capMax: null, amountText: "", prefilled: "" })).toBeNull();
+  });
+  it("fills the cap once known, and follows it while the amount is still the screen's own", () => {
+    const first = redeemPrefill({ ...tok, capMax: 999n, amountText: "", prefilled: "" });
+    expect(first).toEqual({ amountText: "9.99", prefilled: "9.99" });
+    expect(redeemPrefill({ ...tok, capMax: 599n, amountText: "9.99", prefilled: "9.99" })).toEqual({ amountText: "5.99", prefilled: "5.99" });
+    expect(redeemPrefill({ ...tok, capMax: 0n, amountText: "5.99", prefilled: "5.99" })).toEqual({ amountText: "", prefilled: "" });
+  });
+  it("never overwrites a typed amount; ERG keeps its old rule (only an empty field is filled)", () => {
+    expect(redeemPrefill({ ...tok, capMax: 599n, amountText: "3", prefilled: "9.99" })).toBeNull();
+    const erg = { token: false, decimals: 9, min: 2_000_000n };
+    expect(redeemPrefill({ ...erg, capMax: 300_000_000n, amountText: "", prefilled: "" })).toEqual({ amountText: "0.3", prefilled: "0.3" });
+    expect(redeemPrefill({ ...erg, capMax: 200_000_000n, amountText: "0.3", prefilled: "0.3" })).toBeNull();
   });
 });

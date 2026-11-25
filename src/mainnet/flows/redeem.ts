@@ -3,6 +3,7 @@
 // paid by the recipient for ERG reserves).
 import { MIN_BOX_NANOERG, REDEEM_MAX_FEE_NANOERG, type StoredNote } from "../tx";
 import type { Problem } from "../net";
+import { unitsInput } from "./amount";
 
 export type NoteStage = "local" | "pending" | "committed";
 
@@ -47,13 +48,32 @@ export const payoutOf = (amount: bigint, fee: bigint = REDEEM_FEE): bigint => (a
 
 /**
  * The most a token redemption can take now (review LOW-3): the note's redeemable amount, and no more than the
- * reserve's tokens less one raw unit, which the token reserve layout keeps in the box (tokens(1) must stay; the check
- * in tx/redemption refuses a build that empties it). `collateral` null: not known yet (the build check still holds).
+ * reserve's tokens less what redemptions waiting for the chain will take (`pending`, the tracker's listing) less one
+ * raw unit, which the token reserve layout keeps in the box (tokens(1) must stay; the check in tx/redemption refuses a
+ * build that empties it). The caller passes the collateral only when it knows it: while it does not, there is no
+ * "All" and no prefill (second review LOW-3).
  */
-export function tokenRedeemMax(redeemableNow: bigint, collateral: bigint | null): { max: bigint; keptOne: boolean } {
-  if (collateral === null) return { max: redeemableNow, keptOne: false };
-  const room = collateral > 1n ? collateral - 1n : 0n;
+export function tokenRedeemMax(redeemableNow: bigint, collateral: bigint, pending: bigint = 0n): { max: bigint; keptOne: boolean } {
+  const left = collateral - (pending > 0n ? pending : 0n);
+  const room = left > 1n ? left - 1n : 0n;
   return room < redeemableNow ? { max: room, keptOne: true } : { max: redeemableNow, keptOne: false };
+}
+
+/**
+ * The Redeem screen's prefill (second review LOW-3), as a step: when the cap is known (`capMax`), an amount the user
+ * has not touched becomes the cap (or is cleared when the cap falls below `min`). Untouched is "" for ERG, as before;
+ * for a token also the amount the screen itself filled in last (`prefilled`), so it follows a cap that changes.
+ * Returns the new { amountText, prefilled }, or null for no change. While the cap is unknown, nothing is filled.
+ */
+export function redeemPrefill(o: { capMax: bigint | null; amountText: string; prefilled: string; min: bigint; token: boolean; decimals: number }): { amountText: string; prefilled: string } | null {
+  if (o.capMax === null) return null;
+  const untouched = o.amountText === "" || (o.token && o.amountText === o.prefilled);
+  if (!untouched) return null;
+  if (o.capMax >= o.min) {
+    const v = unitsInput(o.capMax, o.decimals);
+    return v === o.amountText ? null : { amountText: v, prefilled: v };
+  }
+  return o.amountText === "" ? null : { amountText: "", prefilled: "" };
 }
 
 /** Can this amount be redeemed now? */

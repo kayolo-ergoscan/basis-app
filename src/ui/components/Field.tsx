@@ -41,8 +41,8 @@ export interface AmountInputProps extends Base {
   unit?: string;
   /** Leading "+" (amounts you add to a note). */
   plus?: boolean;
-  /** Trailing Max key: label and handler. */
-  max?: { label: ReactNode; onMax: () => void };
+  /** Trailing Max key: label and handler; `disabled` while the most is not known. */
+  max?: { label: ReactNode; onMax: () => void; disabled?: boolean };
   invalid?: boolean;
 }
 /** 52 px well with the value in Geist 500 22, tabular. */
@@ -53,7 +53,7 @@ export function AmountInput({ value, onChange, unit = "ERG", plus, max, invalid,
       <input id={id} inputMode="decimal" autoComplete="off" spellCheck={false} value={value} aria-invalid={invalid || undefined}
         onChange={(e) => onChange(e.target.value.replace(/[^\d.,\s ⁠]/g, ""))} {...rest} />
       {unit && <span className="u">{unit}</span>}
-      {max && <button type="button" className="key sm" onClick={max.onMax}>{max.label}</button>}
+      {max && <button type="button" className="key sm" disabled={max.disabled || undefined} onClick={max.onMax}>{max.label}</button>}
     </div>
   );
 }
