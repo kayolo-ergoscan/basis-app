@@ -119,7 +119,7 @@
 .nw .fig dt { font: 500 11px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
 .nw .fig dd { margin: 0; }
 .nw .fig .v { font: 600 clamp(32px, 2.7vw, 46px)/1 var(--f-ui); letter-spacing: -.035em; color: var(--ink); }
-.nw .fig.metal .v { font-family: var(--f-display); font-weight: 440; font-variation-settings: 'wdth' 66; font-size: clamp(38px, 3.2vw, 56px); letter-spacing: -.01em; color: var(--metal-ink); }
+.nw .fig.metal .v { font-family: var(--f-display); font-weight: 650; font-size: clamp(28px, 2.4vw, 42px); letter-spacing: -.04em; color: var(--metal-ink); }
 .nw .fig .u { font: 500 12px/1 var(--f-mono); letter-spacing: .1em; color: var(--metal-ink); margin-left: 8px; }
 .nw .fig .s { font: 400 12.5px/1.45 var(--f-ui); color: var(--ink-3); margin-top: 10px; }
 .nw-rp-sum { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border-top: 2px solid var(--ink); padding: 16px 0 22px; margin-bottom: clamp(24px, 3vw, 40px); border-bottom: 1px solid var(--rule); }

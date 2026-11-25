@@ -1,5 +1,5 @@
 // Russian pages start the Cyrillic fonts through document.fonts.load (one request per file, via the @font-face rule),
-// never by adding <link rel=preload>: that raced the stylesheet and fetched the Cyrillic serif twice.
+// never by adding <link rel=preload>: that raced the stylesheet and fetched the Cyrillic display face twice.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { preloadFonts } from "./fonts-preload";
 
@@ -12,7 +12,7 @@ describe("preloadFonts", () => {
     const appendChild = vi.fn();
     g.document = { fonts: { load }, head: { appendChild }, createElement: vi.fn() };
     preloadFonts("ru");
-    expect(load.mock.calls).toEqual([['400 1em "Geist Variable"', "Ж"], ['400 1em "Noto Serif Display Variable"', "Ж"]]);
+    expect(load.mock.calls).toEqual([['400 1em "Geist Variable"', "Ж"], ['600 1em "Unbounded Variable"', "Ж"]]);
     expect(appendChild).not.toHaveBeenCalled();
   });
 

@@ -26,7 +26,7 @@ function apply(t: Theme) {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = t === "cotton" ? "light" : "dark";
   // both scheme-specific metas follow the chosen theme (the browser bar matches the page, not the OS)
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", t === "cotton" ? "#F2EFE8" : "#0B0B0C"));
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", t === "cotton" ? "#F3F2EE" : "#0A0E1B"));
 }
 apply(theme);
 
