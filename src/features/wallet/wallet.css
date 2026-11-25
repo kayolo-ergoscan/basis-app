@@ -503,6 +503,7 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
   .wl-narrow-top { gap: 20px; }
   .wl-net { padding-top: 6px; }
   .wl-glow { left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter)); width: calc(100% + 2 * var(--gutter)); top: -96px; height: calc(100% + 120px); }
+  .wl-onb-hero .wl-glow { right: calc(-1 * var(--gutter)); width: calc(100% + 2 * var(--gutter)); }
   .wl-net-v { font-size: min(72px, calc(100cqw / (var(--len) * .72))); margin: 14px 0 20px; }
   .wl-side .v { font-size: 25px; }
   .wl-keys { gap: 9px; }

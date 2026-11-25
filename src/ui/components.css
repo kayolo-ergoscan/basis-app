@@ -754,3 +754,5 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .skyline .sk-tower.pulse-on .sk-face { animation: sk-face var(--t-pulse) var(--ease-io) 1; }
 @keyframes sk-glow { 0%, 100% { opacity: .08; } 30%, 55% { opacity: .4; } }
 @keyframes sk-face { 0%, 100% { fill: var(--bg-2); } 30%, 55% { fill: color-mix(in srgb, var(--moon) 45%, var(--bg-2)); } }
+/* phones: a long label in a large key wraps to two lines instead of being cut */
+@media (max-width: 640px) { .key.lg .lbl { white-space: normal; line-height: 1.15; text-align: center; } }
