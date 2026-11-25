@@ -111,6 +111,7 @@ export function BookLayout() {
         const total = r.height - window.innerHeight;
         const p = total > 0 ? Math.min(1, Math.max(0, -r.top / total)) : 1;
         railRef.current?.style.setProperty("--p", p.toFixed(3));
+        mRef.current?.style.setProperty("--p", p.toFixed(3));
         // read to (nearly) the end: the chapter counts as read in your progress
         if (p >= 0.85 && current) markRead(current);
       }

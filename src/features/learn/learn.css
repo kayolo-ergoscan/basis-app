@@ -929,3 +929,12 @@ ul.api-cl-cards { list-style: none; margin: 20px 0 0; padding: 0; display: grid;
 .lx-plate { height: 128px; }
 .lx-moments { margin-top: 56px; }
 @media (max-width: 640px) { .lx-plate { height: 108px; } .lx-moments { margin-top: 44px; } }
+
+/* ≤ 1000: the contents bar stays under the top bar while you read, with how far into the chapter you are */
+@media (max-width: 1000px) {
+  .lrn-toc-m { position: sticky; top: 72px; z-index: 20; }
+  .lrn-toc-m > summary { position: relative; overflow: hidden; background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 10px 24px -18px rgba(var(--shade), .9); }
+  .lrn-toc-m > summary::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--lamp); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); box-shadow: var(--glow-metal); }
+  .lrn-toc-m[open] .lrn-toc { max-height: calc(100dvh - 240px); overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-top: 0; border-radius: 0 0 12px 12px; padding: 18px 16px 10px; }
+}
+@media (max-width: 640px) { .lrn-toc-m { top: 64px; } }
