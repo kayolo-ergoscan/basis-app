@@ -9,7 +9,7 @@ import { linkTarget, ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGat
 import { parseRequest, requestLink } from "./receipt";
 import { redeemPrefill, tokenRedeemMax } from "./redeem";
 import { parseWatchStore, watchIssuer, watchedDenoms } from "./watch";
-import { TRACKER_NFT } from "../tx";
+import { TRACKER_NFT, WALLET_DENOMS } from "../tx";
 
 const me = keyPairFromSecret(3n).pubHex;
 const SIG = reserveTokenById(SIGUSD_TOKEN_ID)!;
@@ -102,6 +102,25 @@ describe("request links and watched issuers per denomination", () => {
     expect(watchedDenoms(l[0])).toEqual(["erg", `token:${SIGUSD_TOKEN_ID}`]);
     const back = parseWatchStore(JSON.stringify({ [me]: [{ ...l[0], tokens: [...l[0].tokens!, { denom: "token:" + "ee".repeat(32), receipt: null }, { denom: "erg", receipt: null }] }] }));
     expect(back[me][0].tokens).toEqual(l[0].tokens);
+  });
+  it("a payer added by key is watched in every denomination of the wallet, receipts kept (review M1)", () => {
+    let l = watchIssuer([], me, other, { denoms: WALLET_DENOMS, now: 1 });
+    expect(watchedDenoms(l[0])).toEqual([...WALLET_DENOMS]);
+    expect(l[0].receipt).toBeNull();
+    expect(l[0].tokens!.every((x) => x.receipt === null)).toBe(true);
+    // stored and read back as it was
+    expect(parseWatchStore(JSON.stringify({ [me]: l }))[me]).toEqual(l);
+    // an issuer already watched from a token receipt keeps it; the other denominations join without one
+    const base = { nft: TRACKER_NFT, issuer: other, recipient: me, signature: "ab".repeat(65) };
+    l = watchIssuer([], me, other, { receipt: { ...base, total: 300n, timestamp: 20n, denom: `token:${SIGUSD_TOKEN_ID}` }, name: "Ann", now: 1 });
+    l = watchIssuer(l, me, other, { denoms: WALLET_DENOMS });
+    expect(l).toHaveLength(1);
+    expect(l[0].name).toBe("Ann");
+    expect(watchedDenoms(l[0]).sort()).toEqual([...WALLET_DENOMS].sort());
+    expect(l[0].tokens!.find((x) => x.denom === `token:${SIGUSD_TOKEN_ID}`)!.receipt!.total).toBe("300");
+    // never a denomination the wallet does not know, never twice
+    l = watchIssuer(l, me, other, { denoms: ["token:" + "ee".repeat(32) as never, ...WALLET_DENOMS] });
+    expect(watchedDenoms(l[0])).toHaveLength(WALLET_DENOMS.length);
   });
 });
 

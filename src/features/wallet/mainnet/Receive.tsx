@@ -3,13 +3,14 @@
 // watched issuers (from a receipt, or added by the payer's key or address when there is no receipt link), each pair
 // read from the tracker every 2 minutes while this screen is visible (at most 10). Only the committed total is
 // redeemable; the times are the measured ones of §6.5.
-// Token notes: an issuer is watched in a token once a receipt in it is imported; each denomination is its own pair at
-// the tracker (?denomination=) with its own figures, never added to another. The request link names its denomination.
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+// Token notes: an issuer is watched in a token once a receipt in it is imported, and a payer added by key is watched in
+// every denomination of the wallet (its empty pairs take no line); each denomination is its own pair at the tracker
+// (?denomination=) with its own figures, never added to another. The request link names its denomination.
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useT } from "@/app/lang";
+import { useLang, useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
-import { TRACKER_NFT, denomDecimals, denomSlug, denomSymbol, parseStoredNote, type Denomination } from "@/mainnet/tx";
+import { TRACKER_NFT, WALLET_DENOMS, denomDecimals, denomSlug, denomSymbol, parseStoredNote, type Denomination } from "@/mainnet/tx";
 import {
   WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, requestLink, unwatchIssuer, watchIssuer, watchedDenoms,
   type NoteReceipt, type NoteView, type WatchedIssuer,
@@ -37,6 +38,10 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
   const [, update] = useWatchList(me);
   const polled = index < WATCH_POLLED;
   const denoms = watchedDenoms(w);
+  // the denominations with nothing to show (no note, no receipt): when that is all of them, one line says so
+  const [quiet, setQuiet] = useState<ReadonlySet<Denomination>>(() => new Set());
+  const onQuiet = useCallback((d: Denomination, q: boolean) => setQuiet((s) => (s.has(d) === q ? s : q ? new Set([...s, d]) : new Set([...s].filter((x) => x !== d)))), []);
+  const allQuiet = denoms.length > 1 && denoms.every((d) => quiet.has(d));
   const who = (lamp: ReactNode) => (
     <div className="mw-pair-h">
       <KeySeal pk={w.pk} size="sm" />
@@ -51,7 +56,8 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
   return (
     <li className="mw-pair">
       {denoms.length > 1 && who(null)}
-      {denoms.map((d) => <PairDenom key={d} w={w} me={me} denom={d} polled={polled} titled={denoms.length > 1} header={denoms.length > 1 ? undefined : who} />)}
+      {denoms.map((d) => <PairDenom key={d} w={w} me={me} denom={d} polled={polled} titled={denoms.length > 1} header={denoms.length > 1 ? undefined : who} onQuiet={onQuiet} />)}
+      {allQuiet && <p className="t-small mw-dim">{polled ? t("mw.recv.noNote") : t("mw.recv.notPolled", { n: WATCH_POLLED })}</p>}
       <div className="mw-actions">
         <Key size="sm" variant="quiet" onClick={() => update((l) => unwatchIssuer(l, w.pk))}>{t("mw.recv.unwatch")}</Key>
       </div>
@@ -60,7 +66,7 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
 }
 
 /** One denomination of a watched pair: its own note at the tracker, checked, in its own unit. */
-function PairDenom({ w, me, denom, polled, titled, header }: { w: WatchedIssuer; me: string; denom: Denomination; polled: boolean; titled: boolean; header?: (lamp: ReactNode) => ReactNode }) {
+function PairDenom({ w, me, denom, polled, titled, header, onQuiet }: { w: WatchedIssuer; me: string; denom: Denomination; polled: boolean; titled: boolean; header?: (lamp: ReactNode) => ReactNode; onQuiet?: (d: Denomination, quiet: boolean) => void }) {
   const t = useT();
   const nav = useNavigate();
   const pair = useResource(R.pair(w.pk, me, denom), { everyMs: 120_000, enabled: polled });
@@ -77,8 +83,11 @@ function PairDenom({ w, me, denom, polled, titled, header }: { w: WatchedIssuer;
   }
   const none = pair.at !== null && pair.value === null && !pair.problem;
   const receipt = denom === "erg" ? w.receipt : w.tokens?.find((x) => x.denom === denom)?.receipt ?? null;
-  // an issuer watched for a token only: its empty ERG pair is not worth a line
-  if (denom === "erg" && titled && none && !w.receipt) return null;
+  // one of several denominations with no note and no receipt (an issuer watched for a token only: its ERG; a payer
+  // added by key: each denomination it has not used) is not worth a line
+  const quiet = titled && !receipt && (none || !polled);
+  useEffect(() => { onQuiet?.(denom, quiet); }, [onQuiet, denom, quiet]);
+  if (quiet) return null;
   const lamp = v ? <Lamp state={STAGE_LAMP[v.stage]} label={t(`mw.recv.stage.${v.stage}`)} /> : null;
   return (
     <div className={titled ? "mw-pair-d" : "mw-pair-one"}>
@@ -169,27 +178,30 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
  *  note, if there is one, exactly as for a watched issuer from a receipt; nothing is trusted that is not signed. */
 function AddPayerCard({ me }: { me: string }) {
   const t = useT();
+  const { lang } = useLang();
   const [list, update] = useWatchList(me);
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const key = parseKeyInput(text);
   const self = key.ok && key.key === me;
-  const have = key.ok && list.some((w) => w.pk === key.key);
+  // already watched in every denomination; one watched from a receipt in one denomination gets the others added
+  const old = key.ok ? list.find((w) => w.pk === key.key) ?? null : null;
+  const have = !!old && WALLET_DENOMS.every((d) => watchedDenoms(old).includes(d));
   const err = text.trim() && !key.ok ? t(`mw.pay.to.${key.reason}`) : self ? t("mw.pay.to.self") : have ? t("mw.recv.addHave") : undefined;
   const add = (e: FormEvent) => {
     e.preventDefault();
     if (!key.ok || self || have) return;
-    update((l) => watchIssuer(l, me, key.key, { name: name.trim() || null }));
+    update((l) => watchIssuer(l, me, key.key, { ...(old ? {} : { name: name.trim() || null }), denoms: WALLET_DENOMS }));
     setText("");
     setName("");
   };
   return (
     <Card title={t("mw.recv.addT")}>
       <form className="mw-form" onSubmit={add}>
-        <Field label={t("mw.recv.addL")} help={t("mw.recv.addHelp")} error={err}>
+        <Field label={t("mw.recv.addL")} help={t("mw.recv.addHelp", { syms: new Intl.ListFormat(lang === "ru" ? "ru" : "en").format(WALLET_DENOMS.map(denomSymbol)) })} error={err}>
           <TextInput mono value={text} onChange={setText} placeholder="9…" autoComplete="off" autoCapitalize="off" autoCorrect="off" />
         </Field>
-        {key.ok && !self && !have && (
+        {key.ok && !self && !old && (
           <Field label={t("mw.recv.nameL")} help={t("mw.recv.nameHelp")}>
             <TextInput value={name} onChange={setName} maxLength={64} />
           </Field>

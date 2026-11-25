@@ -2,8 +2,9 @@
 // last receipt each one handed over. Kept per key in this browser (localStorage `basis.mainnet.watch.v1`), and sealed
 // into the backup file as its extras. Not secret, but private: it is never sent anywhere except as the pair route's
 // two keys.
-// An issuer's token notes are watched too once a receipt in that token is imported (`tokens`, absent for ERG only: an
-// ERG-only list is stored exactly as before). Each denomination keeps its own newest receipt; nothing is summed.
+// An issuer's token notes are watched too once a receipt in that token is imported, or in every denomination of the
+// wallet when the payer is added by key without a receipt (`tokens`, absent for ERG only: an ERG-only list is stored
+// exactly as before). Each denomination keeps its own newest receipt; nothing is summed.
 import { isWalletDenom, type Denomination } from "../tx";
 import type { NoteReceipt } from "./receipt";
 
@@ -79,8 +80,9 @@ export function parseWatchStore(text: string | null): Store {
   } catch { return {}; }
 }
 
-/** Adds an issuer (or updates its name / newer receipt); the newest first. Never watches the key itself. */
-export function watchIssuer(list: readonly WatchedIssuer[], me: string, pk: string, o: { name?: string | null; receipt?: NoteReceipt; now?: number } = {}): WatchedIssuer[] {
+/** Adds an issuer (or updates its name / newer receipt); the newest first. Never watches the key itself. `denoms`:
+ *  also watch these denominations, without a receipt (a payer added by key: every denomination of the wallet). */
+export function watchIssuer(list: readonly WatchedIssuer[], me: string, pk: string, o: { name?: string | null; receipt?: NoteReceipt; denoms?: readonly Denomination[]; now?: number } = {}): WatchedIssuer[] {
   const k = pk.toLowerCase();
   if (!PK.test(k) || k === me) return [...list];
   const old = list.find((x) => x.pk === k) ?? null;
@@ -95,6 +97,7 @@ export function watchIssuer(list: readonly WatchedIssuer[], me: string, pk: stri
     const keep = prev?.receipt && BigInt(prev.receipt.timestamp) >= r.timestamp ? prev.receipt : stored(r);
     tokens = [...tokens.filter((x) => x.denom !== rd), { denom: rd, receipt: keep }];
   }
+  for (const d of o.denoms ?? []) if (d !== "erg" && isWalletDenom(d) && !tokens.some((x) => x.denom === d)) tokens.push({ denom: d, receipt: null });
   const next: WatchedIssuer = {
     pk: k,
     name: o.name !== undefined ? (o.name && o.name.trim() ? o.name.trim().slice(0, 64) : null) : old?.name ?? null,
