@@ -1,11 +1,10 @@
-// /kit — every component of src/ui in its real states, with the style tile's sample data (VISUAL §13, §17).
+// /kit — every component of src/ui in its real states, with sample data from the sandbox town.
 import "./kit.css";
 import { Link } from "react-router-dom";
 import { LangSeg, MOD, ThemeSeg } from "@/app/chrome";
 import { openCommandBar } from "@/app/commands";
 import { addI18n, rich, useT } from "@/app/lang";
-import { FaceTabs, GuillocheField, Key, setUiSettings, Switch, useLens, useUiSettings } from "@/ui";
-import { DIGEST } from "./data";
+import { FaceTabs, Key, setUiSettings, Skyline, Switch, useLens, useUiSettings } from "@/ui";
 import { Foundations, Seals } from "./Foundations";
 import { FlowsSection, InputsSection, KeysSection, NoteSection } from "./Objects";
 import { MotionSection } from "./Motion";
@@ -29,7 +28,7 @@ export default function KitPage() {
   return (
     <div className="kit">
       <header className="kit-head">
-        <GuillocheField seed={DIGEST} className="field" focus={[0.78, 0.5]} />
+        <Skyline className="field" seed={5} height={140} span={1600} lit={0.2} tower={1240} />
         <div className="container">
           <div className="eyebrow label">{t("kit.eyebrow")}</div>
           <h1 className="t-h1" style={{ marginTop: 14, maxWidth: "14em" }}>{rich(t("kit.h1"))}</h1>
