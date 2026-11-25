@@ -12,6 +12,7 @@ export { NOTE_PASSPHRASE_DIVISOR, notePassphraseNeeded, reserveActionPaysRight, 
 export { checkPassphrase, normalizePassphrase, type PassphraseCheck, type PassphraseIssue } from "./passphrase";
 export { HOW_TO_DECRYPT, parseBackup, backupFilename, type BackupContact, type BackupExtras, type BackupFile, type SealedExtras } from "./backup";
 export { TRACKER_PUBLIC_KEY, isPublicKeyHex, type Hex } from "./keys";
+export { SEED_MAX_INDEX, SEED_PATH, SEED_WORD_COUNTS, checkMnemonic, normalizeMnemonic, seedFromMnemonic, seedKeys, seedSecret, type SeedKey, type SeedProblem } from "./seed";
 export type { KeyRecord, KeySource } from "./record";
 export type { Persistence } from "./persist";
 export type { VaultEnv, ChannelLike, CryptoLike } from "./env";

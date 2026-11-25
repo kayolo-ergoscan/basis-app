@@ -1,6 +1,7 @@
 # src/mainnet/vault: the mainnet key vault and its journal
 
-One random secp256k1 key per browser (K1, no seed words). It is encrypted at rest with PBKDF2-HMAC-SHA256 (600 000
+One secp256k1 key per browser (K1: random, no seed words are made or kept; a key from another Ergo wallet can be
+imported from its words, see `importHex`). It is encrypted at rest with PBKDF2-HMAC-SHA256 (600 000
 iterations) and AES-256-GCM, and stored in IndexedDB. The vault keeps no plaintext secret between uses: an unlocked
 session holds a non-extractable AES key and the ciphertext, and every use decrypts a fresh copy and wipes it. Signing
 happens in one tab at a time (Web Locks). A backup file must be verified before anything is signed. A write-ahead
@@ -51,12 +52,19 @@ For `damaged`, `backedUp` says whether that record had a verified backup.
 | `exportBackup({ extras? })` → `{ filename, json }` | The backup file of the unlocked key, with the watched issuers and contacts sealed inside. Offer it as a download (`application/json`) | `locked`, `bad-input` (extras) |
 | `verifyBackup(fileText, passphrase)` → state | The user loads the file again and types the passphrase. A match sets `backedUpAt`. Works locked or unlocked | `bad-backup`, `backup-other-key`, `wrong-passphrase`, `no-key`, `damaged` |
 | `restoreFromBackup(fileText, passphrase, { takeOver? })` → `{ state, alreadyPresent, extras, extrasUnreadable, persisted }` | Restores into a browser without a key; unlocked and backed up afterwards. The same key already here: the file only counts as a verified backup (`alreadyPresent`). `extras` are decrypted and returned as untrusted input; `extrasUnreadable` means the file has extras that do not open (the key restores without them) | `bad-backup`, `wrong-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused` |
-| `importHex(hex, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed). Not backed up until a file is verified. This browser's sandbox key (its record's public key, `env.sandboxPub`) is refused: the sandbox keeps its secret as plain text (keys review P2-7) | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused`, `sandbox-key-refused` |
+| `importHex(key, passphrase, { takeOver? })` → `{ state, alreadyPresent, persisted }` | For experts: a 64-hex key from another tool (`0x`, spaces and capitals are allowed), or the 32 bytes of a key derived from a seed phrase (`seed.ts`; copied at once, the caller wipes its own array). `source` is `hex` either way. Never replaces a key already here. Not backed up until a file is verified. This browser's sandbox key (its record's public key, `env.sandboxPub`) is refused: the sandbox keeps its secret as plain text (keys review P2-7) | `invalid-hex`, `out-of-range`, `weak-passphrase`, `exists`, `damaged`, `locked-elsewhere`, `tracker-key-refused`, `sandbox-key-refused` |
 | `unlock(passphrase, { takeOver? })` → state | Opens the session in this tab. When it is already open, it still checks the passphrase | `no-key`, `damaged`, `wrong-passphrase`, `locked-elsewhere`, `tracker-key-refused`, `locked` (lock() came first) |
 | `lock(reason = "manual")` (sync) | Drops the session and releases the Web Lock. It never throws | |
 | `confirmPassphrase(passphrase)` → boolean | True when the passphrase opens the stored key. It changes nothing | `no-key`, `damaged` |
 | `wipe({ confirmUnbacked?, journal?, takeOver? })` → state | Forgets the key in this browser. A key without a verified backup needs `confirmUnbacked: true`. The journal stays unless `journal: true` and every entry of the key is closed | `not-backed-up`, `journal-unresolved`, `locked-elsewhere` |
 | `refresh()` → state | Re-reads the record and `persisted` (the channel already does this for changes in other tabs) | |
+
+Seed phrase (`seed.ts`, for a key that already lives in Nautilus or another Ergo wallet): `checkMnemonic(words)` →
+`{ ok, phrase, count }` or a reason (`empty`, `word` with its number from 1, `count`, `checksum`; English list, 12–24
+words, spaces, line breaks and capitals tolerated, NFKD); `seedFromMnemonic(words, password)` → the 64-byte BIP39 seed
+(the caller wipes it); `seedKeys(seed, from, count)` → `{ index, pub, address }` along EIP-3 `m/44'/429'/0'/0/i`,
+indexes 0–49; `seedSecret(seed, index)` → the 32 bytes for `importHex`. The vault keeps no words, no path and no index;
+the legacy derivation of node wallets before 1627 is not supported.
 
 A typical new key: `checkPassphrase` (meter) → `create` → `exportBackup` (download) → `verifyBackup` (the user loads the
 file back) → only then the Fund screen. `importHex` needs the same two backup steps. `parseBackup(text,

@@ -1,4 +1,5 @@
-// The mainnet key vault (design §4): one random secp256k1 key per browser (K1, no seed words), encrypted at rest with
+// The mainnet key vault (design §4): one secp256k1 key per browser (K1: random, no seed words made or kept; an existing
+// Ergo wallet's key can come in from its words, seed.ts → importHex), encrypted at rest with
 // PBKDF2-SHA256 (600 000 iterations) → AES-256-GCM in IndexedDB, unlocked once per session, auto-locked, used by one tab
 // at a time (Web Locks), backed up to a self-describing file that must be verified before anything is signed.
 //
@@ -18,7 +19,7 @@ import { browserEnv, type ChannelLike, type CryptoLike, type VaultEnv } from "./
 import { VaultError } from "./errors";
 import { dropJournalOf, MainnetJournal, RESERVE_ACTION_KINDS, t1DenomOf, type JournalEntry, type JournalKind, type JournalRecordInput } from "./journal";
 import { deriveKey, seal, unseal } from "./kdf";
-import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromHex, type Hex } from "./keys";
+import { publicKeyOf, randomSecret, refuseTrackerKey, secretFromBytes, secretFromHex, type Hex } from "./keys";
 import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLease } from "./locks";
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
@@ -472,11 +473,15 @@ export class MainnetVault {
     });
   }
 
-  /** Experts: a 64-hex key from another tool, under a new passphrase. Not backed up until a file is verified. */
-  async importHex(hex: string, passphrase: string, opts: TakeOverOptions = {}): Promise<{ state: VaultState; alreadyPresent: boolean; persisted: Persistence }> {
+  /**
+   * A key from another tool, under a new passphrase: 64 hex characters typed by an expert, or the 32 bytes of a key
+   * derived from a seed phrase (seed.ts; copied here at once, the caller wipes its own array). Not backed up until a
+   * file is verified. Never replaces a key already in this browser ("exists").
+   */
+  async importHex(key: string | Uint8Array, passphrase: string, opts: TakeOverOptions = {}): Promise<{ state: VaultState; alreadyPresent: boolean; persisted: Persistence }> {
     const { db, crypto } = this.#need();
     if (!checkPassphrase(passphrase).ok) throw weak();
-    const secret = secretFromHex(hex);
+    const secret = typeof key === "string" ? secretFromHex(key) : secretFromBytes(key);
     let pub: Hex;
     try {
       pub = bytesToHex(publicKeyOf(secret));

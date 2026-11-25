@@ -73,3 +73,15 @@ export function secretFromHex(input: string): Uint8Array {
   }
   return b;
 }
+
+/** A copy of a 32-byte secret handed over as bytes (a key derived from a seed phrase, seed.ts). The caller still wipes
+ *  its own array; the returned copy must be wiped too. */
+export function secretFromBytes(input: Uint8Array): Uint8Array {
+  if (!(input instanceof Uint8Array) || input.length !== SECRET_BYTES) throw new VaultError("invalid-hex", "a key is 32 bytes");
+  const b = input.slice();
+  if (!secp256k1.utils.isValidPrivateKey(b)) {
+    b.fill(0);
+    throw new VaultError("out-of-range", "this number is not a secp256k1 secret key (it must be between 1 and n − 1)");
+  }
+  return b;
+}

@@ -1,0 +1,642 @@
+{
+ "about": "Throwaway TEST phrases made from fresh random entropy for these tests only (never funded, never used elsewhere). Every value was computed by two implementations outside the app and they agree: ergo-lib-wasm-nodejs 0.28.0 (sigma-rust) and @fleet-sdk/wallet 0.12.0 (@scure/bip32 1.7.0, @scure/bip39 1.6.0), equal on every value. Generator: /root/basis/qa/seed-import-2026-11-25/make-vectors.mjs.",
+ "path": "m/44'/429'/0'/0/i",
+ "made": "2026-11-25T19:52:29.833Z",
+ "vectors": [
+  {
+   "note": "12 words, no password",
+   "words": 12,
+   "mnemonic": "radar reopen smile fish cry twenty doll funny limb group firm mercy",
+   "password": "",
+   "seed": "c9a5bd4adca9dec841a5a38a1a775d2f8f96522cd66878a2097160e3d78d5dfd38f7203c9e426669b40a0bd2a6c884829270784eb37e5c34fed38a2340de324d",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "0dbe0617285051a05f482835a38a39ea81e7dd8da7b566e44187ee529454ae73",
+     "pub": "02925c883921781cd542b225224deead71c989a3a651b6dcccafc1056fa7edea44",
+     "address": "9fdX82PcgNKUU2dhDCs7J7oR7mNtgxGVG3EkqseNxL23Hj3eLaA"
+    },
+    {
+     "index": 1,
+     "secret": "4b924a08f6e54a6ee2621ba89807d5216aafb0a8bc2a399a6cc1cedc14a115f8",
+     "pub": "02eb304cb4264108a2fbad7816e97e38830941b56d3aec7188467cea716482630d",
+     "address": "9gJe6QKDpAfyKJASAgWmq2QZv31RhN8QEfCcqf4gxeokkzTcJwZ"
+    },
+    {
+     "index": 2,
+     "secret": "017302307d5fada3e1b7e4b5f1f819040c17a8cd8c9d1fe37468eb93797e905b",
+     "pub": "035e97b902d43051bc610c332c4e86ab38a22feb7cdfa3143136c512f85cd0b388",
+     "address": "9hBTw8kAoWvHrHb5MtZF5o5AQ2ViPRAgqTh4xgLaYw6LFvAGk8h"
+    },
+    {
+     "index": 3,
+     "secret": "040ea7694fac93316c8101793d79d471f37627b007210460df48d0a8bcffe64e",
+     "pub": "03eba780b3d866da2a915d61cd029dfd9f82e461f71dec129735a4fefa3bb08aa0",
+     "address": "9iFbAVSQuVkxTYAtCkJtZYxM6oZu5bgkmXXJoC9C1nA6Jd26xr3"
+    },
+    {
+     "index": 4,
+     "secret": "0cd0e01df2a67233138c3bec933f7c882e2092f2cc8b25b3d30d84b4fa562297",
+     "pub": "03d6445a09630b56b6e9008dac3e285cde9def6bb0cc2102af0b449ed33329b4ee",
+     "address": "9i6ArWGkizFwY8XLmaGd2KqEnBGgbawBvzKWXyryN1VS84FLec4"
+    },
+    {
+     "index": 5,
+     "secret": "25b745c8838073372be1fc98b518735cfd40f936537ca27c6b9c30b761eb1d3a",
+     "pub": "02a9e86970f4e7d3fd679549cb1fe6a9b980bd72bfd7fb16b1745687a4a818589d",
+     "address": "9fotanGrnJbJ2HYjkdprGHrggZeuAgHXsUX3nt1FUEBP8qH6sef"
+    },
+    {
+     "index": 17,
+     "secret": "5fdd57303f7de8fd84be9f3fde6e9f502453e6e265a5608548a28be05e242163",
+     "pub": "02259cee4c44e34618366a3058790a449bfc02f643e4d6ab9b2925f078a1c375d0",
+     "address": "9eodHi9yphjh5pYLkduoJPhBY7x7uBsBeVSTQbX3pJf9xqDCxt9"
+    },
+    {
+     "index": 31,
+     "secret": "1a67881ca3638bddd84f04ac38576df8f390a2fdd0d97090508ee0eedd112f35",
+     "pub": "03b75c6d86c36ec8cdc6544359e90b276980089123447b42264d55bd507ac3be61",
+     "address": "9hrZQLqnEcTfDtqVYJnL9T9btmqPrYjsHfW48SJcLLjMxYJXqMC"
+    },
+    {
+     "index": 48,
+     "secret": "f9ba724331abf6bf9b19b0074211974be974cc1e7d76064637691eb364c8335d",
+     "pub": "0209b460cb4ba495e8c98a28b66a3d8e3a347a1cd2b04cb75895144d8d3072c30d",
+     "address": "9ebLQWEJYLtMoVHo3paCrahff4DFdxY7zV7eApiro4AQxGoLzU6"
+    },
+    {
+     "index": 49,
+     "secret": "901071d58042142c429879ae58a7408ec4a59a3ec012b63a7660c98a47b73a87",
+     "pub": "0388bae97fe298f0ddef00198a36ea09032edbb232c2f5061e4be0324fa606bb10",
+     "address": "9hW2H8jtVqpzcKSkdWPdCanMmL7AdZhYsj9PqryVsfd51jPjdFr"
+    }
+   ]
+  },
+  {
+   "note": "15 words, no password",
+   "words": 15,
+   "mnemonic": "figure when card talent utility zone man acoustic pet involve screen walnut increase define trap",
+   "password": "",
+   "seed": "6a151165d061b2e54b54f94c5aaee78e25611a50dc42ea8438048c046900581dc12e37ff3e639c3d8141907df9d4eb2cd447cc6817c7b6218edf504453b9420c",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "3e123c12dc1c599d34ec658814ce29ac077c385b714b5158a014d21636b63eaf",
+     "pub": "0332f255c7020e010b98d6debd17412b879a5f1821f9270df8a371e8c2e43ab451",
+     "address": "9grF47bcVnDEDiMSVXWHfEXihz4hzBfHx2ftH88mbZ3g83CPkFy"
+    },
+    {
+     "index": 1,
+     "secret": "59d63829b447cde78f3dc62a2ae4cfb096a6f9a7c4a957664a6c3c89d8d14706",
+     "pub": "02f0040dd3780ab4e20e40a91def3dc5c0dfbc3985364cd4a0bba8b88b46ca33ef",
+     "address": "9gLmQ1AzhAQP1Xdxb5w1U99wL3xHrLVy5n5ye9nBFzWz4j2kSeh"
+    },
+    {
+     "index": 2,
+     "secret": "a13ffea2faeab3d618ebf8b3deb4ac8c087e927753134dae22435f5be5f61bb2",
+     "pub": "03d05f23410c01293021b4eca90654cde311ab7a8472c132fff8c9c2aef7910dcb",
+     "address": "9i3aGL4buJijVKER1utDtjyic9FQLkNAWwzR2nfjU12WqkmteEQ"
+    },
+    {
+     "index": 3,
+     "secret": "8a22aa85560fbbf7670c391e99ee007c0e5e7c8cbef4091387389505b0b0cc60",
+     "pub": "03a005e80805b1f984e78fd32cd79dd3559ffb6f859388651c6360f114aa7832e6",
+     "address": "9hgHGPBaPL2rFSBzeY4SA2hcWRVwkBf7mcyZrg21grmjzw3h43M"
+    },
+    {
+     "index": 4,
+     "secret": "75d64c032ceeb3522a6116d0b97e10111a52badaf85ec54fd51384fa8da27011",
+     "pub": "03b80f4200313d57c70f7edbb1e7f3bdc6fa6aabc925d69b739697e3a9214b13db",
+     "address": "9hrsFGr1nnrWatfNBC9BnNRc7azVYRo7aga4iB93kmku3bitGwH"
+    },
+    {
+     "index": 5,
+     "secret": "ea0abcccb39b3e346e7741fec9ff5f89c1e201aa0e658a0295605e2da6cd4b0e",
+     "pub": "021f245259d16053096cb78a3882782dbd3713e7971f52e446bef8876134933da0",
+     "address": "9ekmzXLV6VD9C4swiLVoSRUa4x5zxhjMvHmxruidd5zCWHW5htX"
+    },
+    {
+     "index": 17,
+     "secret": "760fbeb1397ff6166d7c03a1775eda9d7d55f2558cf91fae3eb100c5d89fb9b2",
+     "pub": "02e58c0cf531d7f8d2fffc67235bd09044fd90314520fd11adc0588801b752d1cc",
+     "address": "9gG9zCEEBnCV1sokDPMc9sWZ1VQ1SDBxRTKDUyE1VDD3fuimz7X"
+    },
+    {
+     "index": 31,
+     "secret": "1ad8b3e77e8cf3d1a2d0b95e89013233f8eea17c8189c281a35860fc68d3492f",
+     "pub": "020444f465fb7f49a080ca11ac49dc2abef79b3da9970d9e2de9c4b5b993310974",
+     "address": "9eYwa1ZV1GwMnHR59kxmsZJ6CwSnp8Qjp7xvRQeFBrGEz82SLWi"
+    },
+    {
+     "index": 48,
+     "secret": "9d89420d2689a2f73717e80b2e991dc048ab2b0f5fe0681d3d6b75e5de49c294",
+     "pub": "03cb86e97d5e9f00f4f383a149f0ba5118c409a2f7f7719f7d7ad6198981d926fa",
+     "address": "9i1SWrPDxYyeaSYdBKs82vuSCMLukBfHu1exJiPEh4f5nPxCBFc"
+    },
+    {
+     "index": 49,
+     "secret": "191e1caa14ece00e3a73649adfbfa307994ba2d657f2b8051123964d17d6065b",
+     "pub": "03c193c749940864e195fdaed3f63c71b4a9abc7d093edce40e81db4a21f0eca13",
+     "address": "9hw4MzTrKggxi6zyjfhWuUNsdq99B18SdjtDyP2NFn3CnNWNa3J"
+    }
+   ]
+  },
+  {
+   "note": "18 words, no password",
+   "words": 18,
+   "mnemonic": "confirm allow bike silly buyer broken air harbor grace mail purpose slot aim two this trial glide oval",
+   "password": "",
+   "seed": "f18fe0dfc096a72027217654aeefff8bddace346ece3f974be8bfed022b242101ab3d30b99a081aede15d74f22c015a2392d1974689a7b7dc9372ab4e1426649",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "fb5ae59a1883286abc37595c03e43f7b11f2f6c7901029748e1706edb1a3598a",
+     "pub": "037c02a2a130cb415960852d290f9761beed7b177871795d83d82c68efd24c855f",
+     "address": "9hQRNJ4ktf6WbEJyRBviThPH5sTxS12swNbuLKzewc6fRax6EZz"
+    },
+    {
+     "index": 1,
+     "secret": "26083ee3543e3e75a84b7e6b7727714a3d6c2bc5e8c36c177a9515f264748e3f",
+     "pub": "025147a082147f3b718e3e4365fc29b34b90dedd65525b6bdd25b1e14828069f61",
+     "address": "9f8rhT9px39sUoW4UQJGPH9eermwZh3Q55hhQcomcd2y6gNmXWh"
+    },
+    {
+     "index": 2,
+     "secret": "171c662fdf343d300b5962c56dba880e30963aae65efd482f62ef6b768d36b2e",
+     "pub": "03b5f12395ae12ee6990ee6f425cbb1a82ba7839fbc0ebaf11778582d42c73969a",
+     "address": "9hqw9uSqbDiLuCjPV6FU7nw1yHg26DnznmQ1Vsxd511pq56sKRT"
+    },
+    {
+     "index": 3,
+     "secret": "f33b47a62e8d4724eb0dcaa35ba0d660b5ea971c732cecc7b5101f8761a88644",
+     "pub": "026491b2be7696fd75c46023817cfaf6b55f8d9e5f4aeaf28a30edd71dc8865f0f",
+     "address": "9fHMREK2H56htRQF4F9RyT9ckeSP17vjEaPV1HseW2dT8F7ZnS2"
+    },
+    {
+     "index": 4,
+     "secret": "17bfabd95d67429323cc2e6e76ab9c0ebe5276ffd1fad676395ffb5cc092eadf",
+     "pub": "02ada915a8710e8cab214c23b6996f2c486b30d44e55f530be191a4f20fc28cbbb",
+     "address": "9fqYSRKiscGd7Adj4gcYuibhmxESKUwC9WZ2vwC47PTTdZUzi7D"
+    },
+    {
+     "index": 5,
+     "secret": "a63d9d3b4d5f5251cd4185864fc67d2c42f79087d56fbc4705fc4866c642f788",
+     "pub": "0235051808fef407228a1b6e86431ee41df0926bdabfff36a17515850620554b1a",
+     "address": "9evQqWTUCSJE846oTQPHu9EkSdkT8ghVjRMbnDtqP5Snf3HiABe"
+    },
+    {
+     "index": 17,
+     "secret": "2a4ca2203d05dbd9c52592a7e55a9fe83888b298227947a35d57546201057b5a",
+     "pub": "02467403d6e9b7c6da89f70f78f5ccedd2cd9420a33b7807c8bd827a4b0c0cfab1",
+     "address": "9f469UuFTSh7c9hmzHL1c3BdmNCmMkW2eLy923Y4Lfyczop9es6"
+    },
+    {
+     "index": 31,
+     "secret": "15ae2c5b6f34ddfc42f67f2c62728b35fbbc1ade26a62cef55aeca5a3a20283b",
+     "pub": "03beafd87256f90d6ebe58d54a98c557d7846dfb8e119342bc3d99abdca4335890",
+     "address": "9hunXpqVh64g8AtqgVqkqMdaUV3TZ1nnc8phdsHYwTRSbR5wCyg"
+    },
+    {
+     "index": 48,
+     "secret": "1f0d2f68b5deed7951cd77212bb39e4b6555ec67add161c01c8fb18b728f6b7c",
+     "pub": "02b7113e03e32b5bb1cee270906d1fe7bd3872b3498e6d5a6a68baba1c420572bc",
+     "address": "9fugizdEW22RM5QZg6XvXGYRAaLv6TWLaVhvFpTdWMTinpDnHEU"
+    },
+    {
+     "index": 49,
+     "secret": "3a59d5fcff7b79a1a0170d4c464c579ee8b9929c1e7b2e74904061f7fd563a4d",
+     "pub": "03e57c847983e718aa2abf8462410e7b61fff6b5f9470c73473dfc83c3f7081ee3",
+     "address": "9iCscXq8Vgvz3mVdazLCkc9yx1YghCFoxNq77Nmgy5sekUvYBiH"
+    }
+   ]
+  },
+  {
+   "note": "21 words, no password",
+   "words": 21,
+   "mnemonic": "pulse feed obtain near way diesel force spot peanut vehicle season accuse naive orange tennis corn list inject today need cruel",
+   "password": "",
+   "seed": "e155c0825ef9e55bffa2d997d81167703349fac5e6a86f9a222fb3d47893e0103b5e0317deda02cea31b24a7fac7938104f880909a3109ad8681328ddc4cd32e",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "6df7f0fdaf92310ef299e279acf49e701182172c2e07fbeca0053dd5c15ce20d",
+     "pub": "02c922bd05082c3b2aebeb30f2300da93ca7af3c4cd3920e124c1054200f8961e1",
+     "address": "9g3eFpw9NbmkPprjcvbuGqY1voexkRsJENV1PPCAaoUHq8xYcU4"
+    },
+    {
+     "index": 1,
+     "secret": "02bbf0e5d5bb7eb3637696283902c18e005fc49106deea08adca3d7fde44a870",
+     "pub": "02d2a76f71a8bda64f767439bef6d3a84542cd4672af7a897497b68d93c1f3a25d",
+     "address": "9g7qPZjc5WWQvGtWRkuNFe78VBinqaqzoTgGHDWGRFJLBY7Wscv"
+    },
+    {
+     "index": 2,
+     "secret": "eef6ede90792f9ef299af8fe45d953febf816bab8b93b302f34e0dc10998e3e3",
+     "pub": "03d38707e7ddf96c3561646f313ec51fc50d44bfb30abaf1a8e80810c8e47c7a9a",
+     "address": "9i4xsoBfze8b1y3ZMR8Au5pu7znAcpVLoFsgtXVvgDUjENGo7SE"
+    },
+    {
+     "index": 3,
+     "secret": "05a6f527311f71465783d27dd8cb2a57328b2b72b291cec654f83f44bed85ac0",
+     "pub": "02c4566ab55e109d2be028f6e65811d4f0206e5ab427e15ea2964bed7fa527cbcf",
+     "address": "9g1XhEz8kmTUie1aUukiMtqeHG5uBXkjxCK7JV3eW21mGQ776MV"
+    },
+    {
+     "index": 4,
+     "secret": "aa881dd4b98147e706afaa57180e0ee6b8308536174ef9541fb3c6d9a364aa13",
+     "pub": "0256688798d0650672168aef2b496965a24626f148d837497e7eba0a6fb41286b3",
+     "address": "9fB7hXamqH8wxV5UBATueYXyDWoz86vM6PbeRVTAhJKqHVhuTCs"
+    },
+    {
+     "index": 5,
+     "secret": "52b032096e495daa1ac1c1f28435f990d23881c4ebb3810b81a6b73e079825da",
+     "pub": "02e59faa63de7346fec3159a2949763400d14b62cdc78a03a82b14a3d49ec846ec",
+     "address": "9gGBwiBXwuLhqD4ALsPzdqfd81gKmawpzLpMTBe6aANTFAnSKrb"
+    },
+    {
+     "index": 17,
+     "secret": "6f5a4e7d927967a96682899872a829c95e96e4d855e8475699e4f6c94618c76d",
+     "pub": "034bacc1849a02cb28d0f2c90c6f948ac4dd1db43dc3d29f0bc9196b4190a65863",
+     "address": "9h38hkKGF6eJuzRUs6UXh7XkHCzDdHVwGVaAdep8pQEaom6BpVz"
+    },
+    {
+     "index": 31,
+     "secret": "cfaa090f05d0a5ee244385661dcbf8d709186c12e88581102f22458635e1bf70",
+     "pub": "03ec4a0cd254db324d9ee0adc48a9a6ca73921b2192dff6e391b9f33a0e8118575",
+     "address": "9iFsPC23iJuiTTZnHTvsn8E1FyX6SYshaiHoCqfh8241wXLghC7"
+    },
+    {
+     "index": 48,
+     "secret": "fb51dd233904f5040e362d3ab8f7a3d356cc346a0cda17ea1ef0908f06ecbc71",
+     "pub": "034df415631721adfb678618b1e28df9a7109a3d86afb3d7785817f13f090c738f",
+     "address": "9h48ubr2YULKgCSXNVkAy6CcfgKbaVV9jhRfByTn9HXy1obZCCX"
+    },
+    {
+     "index": 49,
+     "secret": "6841f7a5f8aaa39b619858aab7ceedc821e26992a7c4271e0200f8f2a452865c",
+     "pub": "028f16b497d0027077dbdc16ad376c4e60d5eb0ba4bfc165ca441072ef5c7d29f3",
+     "address": "9fc5XKoEqTK5PtXL2YF39MtxToRXftTH9qx8DaG6LPMUahg9v2z"
+    }
+   ]
+  },
+  {
+   "note": "24 words, no password",
+   "words": 24,
+   "mnemonic": "board easy argue thrive account faith umbrella edit sting zebra sound radio pair fiscal vast elevator expose buzz cat merit skirt wasp shed apple",
+   "password": "",
+   "seed": "db929c4fcd0314c785a665d0a40bf79d9078ea359b77ea8a0895fc54ccfef8910e8c8cf56781a4a99c456b19ad99924e6e48205d079437cacb7de73901c72a0d",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "611f7ece05dffec83761b73de55bade9355f902753f00bedbaa8b49444078485",
+     "pub": "03849ce4215acf6d074ade51f9f0028dcd20057a854b638cf41926bffe48cab1ee",
+     "address": "9hUD7GT8DvNqCuV8nF51oHu8RJxypMfciZ3K4owWJmj8QYMUzE4"
+    },
+    {
+     "index": 1,
+     "secret": "d7201d86538ba6d5356d25abd9ed62363d77ad79f7fdd905e0b2ea383a897c3f",
+     "pub": "03040c8bf0b7c4371ae2fdeba5bb824ce77cfaa6fdf2ef2c08a11fd2a6fe1f1106",
+     "address": "9gVb7o7E3BLeM4sCTPUEpzDzraFSq4sEwaZHkChJrqprVNw8Unk"
+    },
+    {
+     "index": 2,
+     "secret": "d4363a63f377461b2d6ac506c674ad9187e50e200b1c514e8eea06b45e261189",
+     "pub": "0259460d4f661a63abd8ebfa41ce0e979edb2707e3b562b2c2cdf221408af44d4d",
+     "address": "9fCNtbQrHPNWwuGaGWxYRPVQtYaKgT2iZDVMtD6JJdbWnS3JB2D"
+    },
+    {
+     "index": 3,
+     "secret": "f5e02bd09083008c8778a34b30e8f7490061a68eb08c520329b1f9cd776c54a1",
+     "pub": "033e8170d70727d28f62a0b277cbd34d9dcc5ecd0032f69344b7a2b030f572e79f",
+     "address": "9gwLK9vX78npvjJwcJvmdshVzk33Gd98FtkEfoEJdWd2xweY5fW"
+    },
+    {
+     "index": 4,
+     "secret": "f053f05f731dbe8f47756d3e1921d661463a9eac1ebdc4d03f2cdee80377bcbb",
+     "pub": "029b97779ddcfb988d3070e60cb765ff3a1b8321ace51bdf3219d70d26ba82389d",
+     "address": "9fhattKXMzeWUba47oW7oLVKyNqjRuhpH3BQrphHJmboWympYfz"
+    },
+    {
+     "index": 5,
+     "secret": "7e6dd321832549653e09dcb33c027a4734b219031bc1d6e59685cbb5dad40539",
+     "pub": "0273f7ec7a7534b751510128b694bc0a88de1d82a33a0cdbffefefbb8067989e7e",
+     "address": "9fQ8mpGYVLyFKuWgzaun31LeBWT5jvBtPBBbtZcxdCfmxrSBX6r"
+    },
+    {
+     "index": 17,
+     "secret": "b9a26be28ac00c5bc29642b3deb81e611be616f0c7ea1eeea1b99eb2a110f406",
+     "pub": "028120c51fb87bb144152777eb3e6a29e77e3ba4b3a8560f489354030d333a1520",
+     "address": "9fVvv7xZAxJJpFMQfL9ResKrEh4rhun5pwsvqVfMPt1gSatcXmB"
+    },
+    {
+     "index": 31,
+     "secret": "754de50692aed50dc38db4a5ec1b5ff7070ecbd9e2dac30bc9ee839b77555644",
+     "pub": "02cfee6443e6b8bea9b7f377e7215bebc6dcaf3ad455cc51fb29eb6d2586b24165",
+     "address": "9g6dqcKKeahSYzHyrdhFicwZsV6CkJX4oMTCWPUYuntHcNumCZQ"
+    },
+    {
+     "index": 48,
+     "secret": "c14dd084c4582af467525274c9fcc1701938d1954684fdbf8bd0c528409b8e5f",
+     "pub": "0347a48dbbf7673262a9692e6dd92a586e6a0e75180f8801b69738c292c16184d9",
+     "address": "9h1Mi9gTtwsopSyBEMWnN214AbsprZKsvVmChUmSczHL4nimihU"
+    },
+    {
+     "index": 49,
+     "secret": "fc8515a37e17f8b574c6418353d3d41cc7c0fabf55b6dae21d1de639f90e8361",
+     "pub": "0372ef934fcd6443218f4eba791fe1605b6fb75dfab7b5084c72d230e1408b38a7",
+     "address": "9hLRaCfQJxqRA2FZ8sDoR5aom1Rc2yWFD6MivY7FgfXxorRQgGR"
+    }
+   ]
+  },
+  {
+   "note": "12 words, no password (pair with the next)",
+   "words": 12,
+   "mnemonic": "swift object random draft grit select dry stomach perfect have burden width",
+   "password": "",
+   "seed": "2511a1300c5c908bfa1dc621294810909f12d8a1ca0f6295c29eb78760fcf5fc9afb652aa21d11b8871504d41c939ae88fe35e9816352e2b18934b06a26a07d0",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "89f1db79b93a9aff8ac4130134727db813644c5ad462ed2dd1ef147992af2743",
+     "pub": "0258bb45d91c98a3bb860042d5fc09646d94ad63a77d50d3632f40365b6f730ef6",
+     "address": "9fC93SrWecGdF8eh6B7z5zAn5vqGjLqrGdwBPBRHXTEjA6Vwcih"
+    },
+    {
+     "index": 1,
+     "secret": "03f79ee983fbb6ccbb4b04df1c2fa4bb2f53b05286b35a7e05d44112f205c71b",
+     "pub": "0301876c5464f06f53db5fc56e5e24e2bd54f24bceec6dfb1d80002754744f8773",
+     "address": "9gUUkKCaecSpvi2Rv3mTCxjWGE927CAs2veFbNdbDX87GHogdHe"
+    },
+    {
+     "index": 2,
+     "secret": "be4fec1fed5963ed34c8f0d0aeee42dc340df719efcae4a9cd84449a5c2dacf2",
+     "pub": "026d40746f144211f1478c7337c0f29b3b227d5d0f7e59b3ba9c74e24e059bb1e8",
+     "address": "9fMBCqy5kbSGraHmoGFqMZuy4vkmq1KJ7MVrPxizq2H1qMVefrG"
+    },
+    {
+     "index": 3,
+     "secret": "a8c06e3cdcf016a211f3418c453b7d0ae0be1643a7630e4ab03452f2fb9234ad",
+     "pub": "033df24b57fb22fb1b95bedd6d732e1bced57be7746ba0c2ee16566627430d062f",
+     "address": "9gw62jS3WTKD1Jk5fBhSEMhyD1rKYPEgVTtLtkxt1phcoek8tau"
+    },
+    {
+     "index": 4,
+     "secret": "b6318cd35ef7d036d709d65b8fa01b6b7e469a6ba881be12a49554144cf5b3d0",
+     "pub": "03322f75423e72811e9c90904d93454eaa65a7777ebf51610357b46bf38602bfc8",
+     "address": "9gqucKFJSWpSd7GnpfbdVDMp5vUsmuDYYWyMCzMr4fPeTFgbRAC"
+    },
+    {
+     "index": 5,
+     "secret": "12ea852c8cc644b799ee4191a79b427458dedddfa0d8aa0b14af8e056e520ccf",
+     "pub": "02e0c76670ab81b53769b6f6b8b5f89c43f0531fb4bbc110f97aa7a5bc3f8c994d",
+     "address": "9gE4C19ZT4KE8GkUmftvSohvcXKXFoNQjGYvpcd3WmcgnrrQmEW"
+    },
+    {
+     "index": 17,
+     "secret": "b583b77e0c1f2e84d17f562cb16a6c9a01d951f0927e44171195525c858cfd6f",
+     "pub": "02ea198811caf82cf366e5d85e3cd8a0638ca59e997334ee6da5572b69431bf852",
+     "address": "9gJAH77kKWSHWbFRhr459qToMbfzyamtLUFzHWxxXCh8qJrj6eh"
+    },
+    {
+     "index": 31,
+     "secret": "db41e9a46ffa410dc20460689e85aeb7861d3b312b0ad665f7ee4a9163bc3207",
+     "pub": "03ae4ed1157569db727ad839421061f74a5a3c35cf5be60b4fc70d936890f7c122",
+     "address": "9hna9nMk6duKta949dEifQY55YDJTnvxbfgQJeGgigVw3y8g2WS"
+    },
+    {
+     "index": 48,
+     "secret": "8f7ab3cacbff73fa1a82a891a3d33aa0e0f739efb051b1d2158178e4fbb8dc9b",
+     "pub": "02cc02d5fe015776d4cf74576e4d1d1e015378ed4b10f81d9469a9d77608e3d2eb",
+     "address": "9g4uhoAVvKJyMaCY8xjsofvgNgiNsQ5j6yD4io3dmAuxDWJWsbt"
+    },
+    {
+     "index": 49,
+     "secret": "5c0d379ae123d55c0134b31bc9f95ec46460d27247a45837d8c00985eee090da",
+     "pub": "0207acd6febf6054014cbcce896abcdaeca8a8afa2c83ed47ac55c6e96e76791bc",
+     "address": "9eaSZpCpsexXcJaaDiH8wZT9EFcyYRVStqBb19eiMXa4hirNGci"
+    }
+   ]
+  },
+  {
+   "note": "same 12 words, ASCII password",
+   "words": 12,
+   "mnemonic": "swift object random draft grit select dry stomach perfect have burden width",
+   "password": "Basis test-passphrase 1",
+   "seed": "e3b9c11ae798b59b0837b6798ae620a92cb0307a2730923287342a6156affd558d17b35b22fc70bd3e42b9ea2c80b43670c63936422b7a399532c73068ad0792",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "c312d806f0feccb7d76bad05644aca4db20e3095ca2b85181f92e3f167e71262",
+     "pub": "025bc3fce2b8352b9923318b4802be9620e429d7bade2d6daacfd8bf3de760f0d7",
+     "address": "9fDUYUiiJTEHGCWeNiV8N5mh8vG4HuJFMqPPs2JgCSTawoQ8iVx"
+    },
+    {
+     "index": 1,
+     "secret": "1156e092e8f1ec137f0a7d8556ef7536ddc80d4bee9b49c1e177e756e5c253d3",
+     "pub": "03982ff306078a18cffd2a6b47a71405c50753a58c67e244b6fa2dfee59616286c",
+     "address": "9hcq7SNzThkPVWRA12tH9VHtUWUuGW1HK9Q4sMHDPHexNqyqYiY"
+    },
+    {
+     "index": 2,
+     "secret": "0afa259d528e96647fe230a8672062f50075e735bc955b391b67a8879030d375",
+     "pub": "028e079abeca6caf1cda20d8e03a5bf9957f93bb89322e77425ded6ed9e945a5a3",
+     "address": "9fbcUQ9XM68WfeQAH5y4vTBPCp5GBrADBL7myzQhsdbCUASdixf"
+    },
+    {
+     "index": 3,
+     "secret": "0265927c1a47d06318cf1449c108429341664d4aa5496b7a6bc9a00b39dde266",
+     "pub": "0221aa9398b04732bcbc0a646e232d4477ef9155c5e1d78f5d81c3e07b7381fff4",
+     "address": "9emtUZ1FkUZufQLuy3MWmBLGN82h4AyiTDvSxzySxKk82mTQEiy"
+    },
+    {
+     "index": 4,
+     "secret": "ef909a3b13cd3084e03e862ea202f54c7aff0467c7cbe0ffa1dd697d738a12c8",
+     "pub": "02cae5c9162aa70a08e1b3a74b4df1c7e04f279048fff70528bd5bc17aaed7bdcc",
+     "address": "9g4RG9FPMmwpArBhMNZJsvtzRJWhSLTotfeTjagD1pyZk4jSf7V"
+    },
+    {
+     "index": 5,
+     "secret": "b2882f375596e8f14c9c7c90936222495fb19721b3644cb0a4fec805fc5f8a5d",
+     "pub": "03409e0570284532e483db3be1b9419d51b5bd16b8d0578a415258fdfe2be1abbe",
+     "address": "9gxGFcxgEgxZYrih3Z1ab53EkK5fX5v4bR5QfsdHzKKVueKR1MZ"
+    },
+    {
+     "index": 17,
+     "secret": "c80287112651a5be308ae97e8a904680100a635df43bf9c0535202839007c03c",
+     "pub": "023efc8e2dd27eb5a08b703205a279cb272c0ddc1973fbdfde5b6461ef4ae59785",
+     "address": "9ezoRR5TFjifzT8ZZeGq6kRGBSMv1bkyRNQoqY5aDqGKRjVTo3h"
+    },
+    {
+     "index": 31,
+     "secret": "cf0666eca7afd61091cbbe6a50c392d057db0d96304336a3731792d89666de87",
+     "pub": "03322165f5da3f28f12ca41ce2678351cd3a3af67992e2b1c4294c028d714c4b48",
+     "address": "9gqtCwxGhTcw9xcTSb36FzdcDnkRtZdz8mPM3hg1JZrbBp3tarx"
+    },
+    {
+     "index": 48,
+     "secret": "0f43d70ef0b14fa2b9367aacea42705c4d4f519db48004cb34ea916eca1e1323",
+     "pub": "03c5956d2cbe58fe961d27f2764a57c219295df8de07a013e19141d5ad145627c5",
+     "address": "9hxphf6BScmN4WseGb2HbW55bKonKqvhhQWPax4gy1xNpXNxtZJ"
+    },
+    {
+     "index": 49,
+     "secret": "afd73c54c4427a18b06d8544b3af7ddeee573d500cc4405001dda613bcf9619e",
+     "pub": "0352cc286042d5d46c5210f461afff5acf7e2f56e8fecbe5fe40338216190fffca",
+     "address": "9h6GeCgcm6kNuxnGi1yP6c665yUumeeLLFTCvCVXfeDFwtyE5UZ"
+    }
+   ]
+  },
+  {
+   "note": "same 12 words, non-ASCII password (NFC; the ligature folds under NFKD)",
+   "words": 12,
+   "mnemonic": "swift object random draft grit select dry stomach perfect have burden width",
+   "password": "пароль ünïcödé ﬁ",
+   "seed": "624005af7a2359d6f00cff20a4bd2503f0a566204513d2dede2a23c516fcc13a6f8650b077bcc722bed0ae73acf8eae512d4756802023507749ffd0f1f00f21c",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "547f2461eeaad1907bac327f3e193fd374557d94bffa39845622df8eea657f24",
+     "pub": "0307be1b4c6e33c839064b7bf3e7ff9288eb0d8faabd748d3d5f32da9644897faa",
+     "address": "9gXDTyRatqrFL3BhMLiLRUssCpaumD8q8rpDj6WNNm7sH9Gzd9e"
+    },
+    {
+     "index": 1,
+     "secret": "5f7d9dfe250e94f11e61bf8a07c0754d9155bf3c9422e6ab170227b491585117",
+     "pub": "03f53b51c2f16de68c31b7b3fc98c64668496d1f8c8b8a4511ec77a8045b32ba89",
+     "address": "9iKoojJT7axHoknMEqw2i7zQCTDpNMCsVP9qkfK1j7bjA3qxcKL"
+    },
+    {
+     "index": 2,
+     "secret": "c3e7689e37cac8509f575c47e1644b681c8d2dee899abb6d779cd277b0ce9c3a",
+     "pub": "03e1e1af7fa3774329cbc22027b6f0803e7fd6d24f492fe88b53bc30d00fbcca51",
+     "address": "9iBHXtQRig2FprxLwNrnXfLj5wFZ21spPYf8Q4AMr7atiwMXVML"
+    },
+    {
+     "index": 3,
+     "secret": "ef81b20e9ae32d781ceb576aa25c40ee5d085706a59d66e9723bf9c1d33bafc8",
+     "pub": "03353458f6fb3db053ae86979bd7e446a571213ee569351aecc17a5689d0d7cc33",
+     "address": "9gsEjD3QpaztAvntQoBefFSoZLybhaW5nU4Rg5sgVdfYMU7nYDL"
+    },
+    {
+     "index": 4,
+     "secret": "539da1f5928b02341b8ec4e02f6987641bf167a2391bf4fb658a0dca583b1594",
+     "pub": "02c211ec9ce878ffedf33df898a0e09dbdf47cd067ca24e3ffb882d346df9759ff",
+     "address": "9fzXmo4uyVzLUtaGKAjwc6wdmmyfFLoLgntpcxS666QHbdNra3n"
+    },
+    {
+     "index": 5,
+     "secret": "78206d6d6ebde0bd1ed1632ed90006c3136730b2cf46b557fa4ca61d11cc871e",
+     "pub": "036a4d28179444f892692d2e6f2d5ec5fbc3c835fedb666960ea1f2f2f346826c6",
+     "address": "9hGd1zJKufw3YFQJDD5C4DbqTU5dSTQZLibJZ5Lx2Da2TAYg7J5"
+    },
+    {
+     "index": 17,
+     "secret": "5628b1456019d1724442f43a30c1066a4a6fe431c8db9c65f68fd296270e893c",
+     "pub": "03a06c8739e8c71e322744c22e220640bb53bc96f982b92400f4c189ed1dba6bfc",
+     "address": "9hgTWHCNhtZUQKMqwiHTbUPESsVBmjvFFEaccxtnfKPT9djTqKC"
+    },
+    {
+     "index": 31,
+     "secret": "3993f99830f55cbf9446fbb377f689faac014db97a6f9866a3e04700816ea6b8",
+     "pub": "032d11e3458626b74f8c6566a7cb9f484c7d092fbc426f807265e62d719eef7863",
+     "address": "9goewXNvpLwt21aKr8LnUEGd1bqk9iqJdRVNUPEkMZiSSor8nab"
+    },
+    {
+     "index": 48,
+     "secret": "6294e92cb8323872b34f833f19a84fa2ec0e3b56c4ec7bf08a522b78937433ea",
+     "pub": "03f9d45e51007cf0eee819100cd01d6346ad9eddf20d178d9f5b748217b146b75e",
+     "address": "9iMqFb9Tkd79jAn2hu5P2rdgW7396hDm2cMcToYtX571FTv4z3t"
+    },
+    {
+     "index": 49,
+     "secret": "f559f26e6e0e97d1803f135935acf47d2706700f26fc2b819f15f6c4d20b1586",
+     "pub": "022b41c2fec239dda41237b331f7ebbd9d51bf0389ec35dd4739c062139843a448",
+     "address": "9er7THYQW26zersbFzsjqdNcLW6zCNKVfxSqiZ4PjStdzDAjBhu"
+    }
+   ]
+  },
+  {
+   "note": "hardened parent at depth 1 has a leading zero byte (found after 56 tries)",
+   "words": 12,
+   "mnemonic": "voice lecture ring coil dutch gallery west cruel raccoon lonely tower youth",
+   "password": "",
+   "seed": "639ab05f4bcdb69306ade7bf50ad42792d755b0fcb802b108a27bb4f5e2add155b5ef7c0c99d582337514d4828eb295f3b0df869659d8aaeb728918136561619",
+   "keys": [
+    {
+     "index": 0,
+     "secret": "9f2acb62809a7ece3ebe96c3f140b484c84db6ffc4255d38d50b7b36711ec63f",
+     "pub": "021740accf76ff8e2c439e9999c141a95302a52ae453937f9e69a1a424958170f2",
+     "address": "9ehJUMVc2wVVHMyXcq1MfTKtPPu6uenphudhi14wyM7tJjKHZ7Y"
+    },
+    {
+     "index": 1,
+     "secret": "a545657863ac3de00f37e64ca15c0ae75847971887ff9dd639001d33db44d659",
+     "pub": "02834f9de0771fe2131b25e720632fb2cec74c82e79111330c74effd5d9306a216",
+     "address": "9fWtgJEPaFHoSJroJFdJFFAtQHFrwVT1yU7ehck58iUoMCJ2rnb"
+    },
+    {
+     "index": 2,
+     "secret": "d4e1abc07ffa2f9683a3dfa7f0ad2afd950bc4cfd00549c6cb8ff5d17e21bfce",
+     "pub": "0351a94a3e4debce91e80310d5588651dbc8cf1c6ca3d86d239cfc454b0ba686ed",
+     "address": "9h5mct8wRugQpRb99r7SwBSP4ir4nQgXJqLPZzSePxk89A1AGMo"
+    }
+   ]
+  },
+  {
+   "note": "address index 2 has a secret with a leading zero byte",
+   "words": 12,
+   "mnemonic": "farm solution next please cruise kangaroo pave truck hundred cash common wink",
+   "password": "",
+   "seed": "c82a9812d505091259a9c892a5473bc4da5fd80bded89974af6acb96edc5af76d4eeca366e8d60052e77364dc8d2773b2bc3f30966797b941bf783f1ab602ae0",
+   "keys": [
+    {
+     "index": 2,
+     "secret": "00ed54d2d40ac859ea7c6375836c9be00b5f4cee42108d8a04bd7ac130586f14",
+     "pub": "0364312e534bf247695f59bed400b128edcebf16fc7694ae0c19fa3c0f4c6e24ad",
+     "address": "9hDvxtp5r4PsYgS8mbkwBrBmJziVXCWHBgeBPxZzYE3X1TzbYGE"
+    }
+   ]
+  }
+ ],
+ "bip32tv2": {
+  "seed": "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
+  "levels": [
+   {
+    "path": "m",
+    "secret": "4b03d6fc340455b363f51020ad3ecca4f0850280cf436c70c727923f6db46c3e",
+    "chain": "60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689",
+    "pub": "03cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a7"
+   },
+   {
+    "path": "m/0",
+    "secret": "abe74a98f6c7eabee0428f53798f0ab8aa1bd37873999041703c742f15ac7e1e",
+    "chain": "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
+    "pub": "02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea"
+   },
+   {
+    "path": "m/0/2147483647'",
+    "secret": "877c779ad9687164e9c2f4f0f4ff0340814392330693ce95a58fe18fd52e6e93",
+    "chain": "be17a268474a6bb9c61e1d720cf6215e2a88c5406c4aee7b38547f585c9a37d9",
+    "pub": "03c01e7425647bdefa82b12d9bad5e3e6865bee0502694b94ca58b666abc0a5c3b"
+   },
+   {
+    "path": "m/0/2147483647'/1",
+    "secret": "704addf544a06e5ee4bea37098463c23613da32020d604506da8c0518e1da4b7",
+    "chain": "f366f48f1ea9f2d1d3fe958c95ca84ea18e4c4ddb9366c336c927eb246fb38cb",
+    "pub": "03a7d1d856deb74c508e05031f9895dab54626251b3806e16b4bd12e781a7df5b9"
+   },
+   {
+    "path": "m/0/2147483647'/1/2147483646'",
+    "secret": "f1c7c871a54a804afe328b4c83a1c33b8e5ff48f5087273f04efa83b247d6a2d",
+    "chain": "637807030d55d01f9a0cb3a7839515d796bd07706386a6eddf06cc29a65a0e29",
+    "pub": "02d2b36900396c9282fa14628566582f206a5dd0bcc8d5e892611806cafb0301f0"
+   },
+   {
+    "path": "m/0/2147483647'/1/2147483646'/2",
+    "secret": "bb7d39bdb83ecf58f2fd82b6d918341cbef428661ef01ab97c28a4842125ac23",
+    "chain": "9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271",
+    "pub": "024d902e1a2fc7a8755ab5b694c575fce742c48d9ff192e63df5193e4c7afe1f9c"
+   }
+  ]
+ }
+}

@@ -3,7 +3,7 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { pbkdf2 } from "@noble/hashes/pbkdf2";
 import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { describe, expect, it } from "vitest";
 import { p2pkAddress } from "../../../chain/decode";
 import { DB_NAME, KDF_ITERATIONS, KEY_RECORD_ID, STORE_VAULT } from "../constants";
@@ -342,6 +342,41 @@ describe("mainnet vault: import hex", () => {
     expect(await code(v.withSecret("t1", () => 1))).toBe("not-backed-up");
     expect((await v.importHex(` ${ONE.replace(/(..)/g, "$1 ")} `, PASS)).alreadyPresent).toBe(true);
     expect(await code(v.importHex("00".repeat(31) + "02", PASS))).toBe("exists");
+    v.close();
+  });
+
+  it("takes the 32 bytes of a key derived from a seed phrase: a copy, the caller's array untouched; source stays hex", async () => {
+    const b = new FakeBrowser();
+    const v = await openTab(b);
+    expect(await code(v.importHex(new Uint8Array(31), PASS))).toBe("invalid-hex");
+    expect(await code(v.importHex(new Uint8Array(32), PASS))).toBe("out-of-range");
+    expect(await code(v.importHex(new Uint8Array(33).fill(1), PASS))).toBe("invalid-hex");
+    const mine = hexToBytes(ONE);
+    const r = await v.importHex(mine, PASS);
+    expect(r).toMatchObject({ alreadyPresent: false });
+    expect(r.state.key).toMatchObject({ pub: G, address: p2pkAddress(G), source: "hex", backedUpAt: null });
+    expect(bytesToHex(mine)).toBe(ONE); // the vault copied it; wiping it is the caller's job
+    await backUp(v);
+    expect(await revealHex(v)).toBe(ONE);
+    v.close();
+  });
+
+  it("never replaces or touches a key already in this browser, from hex or from bytes", async () => {
+    const b = new FakeBrowser();
+    const v = await openTab(b);
+    await v.create(PASS);
+    await backUp(v);
+    const before = JSON.stringify(storedRecord(b));
+    const pub = v.getState().key!.pub;
+    expect(await code(v.importHex(hexToBytes("00".repeat(31) + "02"), OTHER_PASS))).toBe("exists");
+    expect(await code(v.importHex("00".repeat(31) + "03", OTHER_PASS))).toBe("exists");
+    expect(JSON.stringify(storedRecord(b))).toBe(before);
+    expect(v.getState()).toMatchObject({ backedUp: true, key: { pub, source: "created" } });
+    // the same key again only says so, and changes nothing
+    const same = await revealHex(v);
+    expect((await v.importHex(hexToBytes(same), OTHER_PASS)).alreadyPresent).toBe(true);
+    expect(JSON.stringify(storedRecord(b))).toBe(before);
+    expect(await v.confirmPassphrase(PASS)).toBe(true);
     v.close();
   });
 });
