@@ -714,7 +714,7 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .brand-mark svg { display: block; overflow: visible; }
 .brand-mark .bm-frame { fill: var(--surface-2); stroke: var(--rule-2); stroke-width: 1.5; }
 .brand-mark .bm-top { fill: var(--town-win); }
-.brand-mark .bm-lit { fill: var(--metal); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--metal) 70%, transparent)); transition: fill var(--t-slow); }
+.brand-mark .bm-lit { fill: var(--lamp); filter: drop-shadow(0 0 4px var(--glow-lamp)); transition: fill var(--t-slow); }
 :root[data-theme="light"] .brand-mark .bm-frame { fill: var(--ink); stroke: var(--ink); }
 :root[data-theme="light"] .brand-mark .bm-top { fill: #3A4160; }
 .brand-mark.pulse-on .bm-top { animation: bm-moon var(--t-pulse) var(--ease-io) 1; }
@@ -723,7 +723,7 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .skyline { display: block; width: 100%; height: auto; }
 .skyline .sk-wall { fill: var(--town-wall); }
 .skyline .sk-win { fill: var(--town-win); }
-.skyline .sk-lit { fill: var(--metal); opacity: .9; }
+.skyline .sk-lit { fill: var(--lamp); opacity: .9; }
 .skyline .sk-moon { fill: var(--moon); opacity: .85; }
 .skyline .sk-street { fill: var(--town-street); }
 :root[data-theme="light"] .skyline .sk-lit { opacity: .75; }
@@ -731,7 +731,7 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .house-lights { display: block; overflow: visible; flex: none; }
 .house-lights .hl-wall { fill: var(--town-wall); stroke: var(--rule-2); stroke-width: 1.5; stroke-linejoin: round; }
 .house-lights .hl-win { fill: var(--town-win); stroke: var(--rule-2); stroke-width: 1; transition: fill var(--t-slow) var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
-.house-lights .hl-win.on { fill: var(--metal); stroke: transparent; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--metal) 65%, transparent)); }
+.house-lights .hl-win.on { fill: var(--lamp); stroke: transparent; filter: drop-shadow(0 0 5px var(--glow-lamp)); }
 .house-lights .hl-win.now { fill: transparent; stroke: var(--metal); stroke-width: 2; }
 
 .window-load { flex: none; }
@@ -740,9 +740,9 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 .window-load .wl-w { fill: var(--town-win); animation: wl-on 1.8s var(--ease-io) infinite; }
 .window-load .w2 { animation-delay: .3s; }
 .window-load .w3 { animation-delay: .6s; }
-@keyframes wl-on { 0%, 100% { fill: var(--town-win); } 35%, 60% { fill: var(--metal); } }
-:root.rm .window-load .wl-w, :root.still .window-load .wl-w { animation: none; fill: color-mix(in srgb, var(--metal) 55%, var(--town-win)); }
-@media (prefers-reduced-motion: reduce) { .window-load .wl-w { animation: none; fill: color-mix(in srgb, var(--metal) 55%, var(--town-win)); } }
+@keyframes wl-on { 0%, 100% { fill: var(--town-win); } 35%, 60% { fill: var(--lamp); } }
+:root.rm .window-load .wl-w, :root.still .window-load .wl-w { animation: none; fill: color-mix(in srgb, var(--lamp) 55%, var(--town-win)); }
+@media (prefers-reduced-motion: reduce) { .window-load .wl-w { animation: none; fill: color-mix(in srgb, var(--lamp) 55%, var(--town-win)); } }
 .loading .window-load { width: 72px; height: 72px; }
 .empty .ghost-words { font: 600 15px/1.2 var(--f-display); letter-spacing: -.02em; }
 .skyline .sk-tower .sk-face { fill: var(--bg-2); stroke: var(--moon); stroke-width: 2.5; }

@@ -30,6 +30,8 @@
   font-size: calc(clamp(38px, min(4.4vw, (100svh - var(--hero-top, 104px) - 58px) * .095), 78px) * var(--hero-fit, 1));
 }
 .home-h1 .ln { display: block; white-space: nowrap; }
+/* "Redeem on Ergo." is value on Ergo: the gold light */
+.home-h1 em { color: var(--metal-ink); text-shadow: 0 0 32px rgba(var(--field-rgb), .35); }
 .home-lede { max-width: 33em; margin-top: clamp(20px, 3vh, 32px); }
 .home-lede b { color: var(--ink); font-weight: 500; }
 .home-cta { display: flex; align-items: center; gap: 12px; margin-top: clamp(24px, 3.4vh, 36px); flex-wrap: wrap; }
@@ -127,7 +129,7 @@
 .home-mgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .home-mgrid .moment { padding: 22px 20px 22px; border: 1px solid var(--rule); border-radius: 18px; background: linear-gradient(180deg, var(--surface-2), var(--surface) 220px); box-shadow: inset 0 1px 0 var(--pane-hi); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .home-mgrid .vis { height: 188px; position: relative; display: grid; place-items: center; }
-.home-mgrid .ix { display: inline-grid; place-items: center; align-self: flex-start; min-width: 30px; padding: 0 8px; height: 34px; border-radius: 8px; font: 700 13px/1 var(--f-display); color: var(--on-metal); background: var(--foil-metal); box-shadow: var(--glow-metal); text-transform: lowercase; }
+.home-mgrid .ix { display: inline-grid; place-items: center; align-self: flex-start; min-width: 30px; padding: 0 8px; height: 34px; border-radius: 8px; font: 700 13px/1 var(--f-display); color: var(--on-metal); background: var(--lamp); box-shadow: 0 0 18px -4px var(--glow-lamp); text-transform: lowercase; }
 .home-mgrid h3 { font: 650 23px/1.08 var(--f-display); letter-spacing: -.03em; margin: 0; }
 .home-mgrid p { margin: 0; font: 400 14.5px/1.5 var(--f-ui); color: var(--ink-2); }
 .home-mgrid p b { color: var(--ink); font-weight: 600; }
@@ -308,7 +310,7 @@
 .mn-stats > div { padding: 22px 20px 22px; border-left: 1px solid var(--rule); display: grid; gap: 8px; align-content: start; min-width: 0; }
 .mn-stats > div:first-child { border-left: 0; padding-left: 0; }
 .mn-stats dd { margin: 0; }
-/* counts are measures (Geist); the ERG locked on Ergo is money (serif, metal) — VISUAL §4.2 rule of three */
+/* counts are measures (Geist); the ERG locked on Ergo is money (display face, gold) */
 .mn-stats .v { font: 600 clamp(34px, 2.5vw, 46px)/1 var(--f-ui); letter-spacing: -.035em; font-variant-numeric: tabular-nums lining-nums; color: var(--ink); white-space: nowrap; }
 .mn-stats .metal .v { font: 600 clamp(30px, 2.44vw, 40px)/1.08 var(--f-display); letter-spacing: -.01em; color: var(--metal-ink); }
 .mn-stats .unit { font: 500 12px/1 var(--f-mono); color: var(--ink-3); margin-left: 6px; letter-spacing: .04em; }
@@ -397,7 +399,7 @@
 .ln-grid li:nth-child(5n + 1) .ln-card { padding-left: 0; }
 .ln-card:hover { background: var(--bg-2); }
 .ln-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-.ln-card .n { font-size: 11px; color: var(--metal-ink); letter-spacing: .06em; }
+.ln-card .n { font-size: 11px; color: var(--ink-3); letter-spacing: .06em; }
 .ln-card b { font: 600 18px/1.08 var(--f-display); color: var(--ink); letter-spacing: -.01em; }
 .ln-card .d { font: 400 13px/1.45 var(--f-ui); color: var(--ink-3); }
 

@@ -17,7 +17,7 @@ input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd { margin: 0; }
 ul[class], ol[class] { margin: 0; padding: 0; list-style: none; }
 table { border-collapse: collapse; }
-::selection { background: var(--metal); color: var(--on-metal); }
+::selection { background: var(--lamp); color: var(--on-metal); }
 [hidden] { display: none !important; }
 
 /* ============ focus: 2 px ink outline, offset 2 px, plus a 6 px ink 15 % halo; never removed ============ */
@@ -45,7 +45,7 @@ table { border-collapse: collapse; }
 
 /* ============ type scale: Unbounded for display (one weight step per level), Geist for everything you read ============ */
 .t-hero { font: 700 clamp(40px, 4.4vw, 76px)/1.05 var(--f-display); letter-spacing: -.035em; margin: 0; text-wrap: balance; }
-.t-hero em { font-style: normal; color: var(--metal-ink); text-shadow: 0 0 32px rgba(var(--field-rgb), .35); }
+.t-hero em { font-style: normal; color: var(--ink-2); }
 :root[data-theme="light"] .t-hero em { text-shadow: none; }
 .t-h1 { font: 650 clamp(30px, 2.9vw, 50px)/1.1 var(--f-display); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
 .t-h1 em { font-style: normal; color: var(--ink-2); }
@@ -80,7 +80,7 @@ a.link:hover, .link:hover { text-decoration-color: var(--ink-2); }
 section.sec { padding: clamp(64px, 7vw, 108px) 0; position: relative; }
 .sec-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; align-items: end; margin-bottom: clamp(36px, 4.4vw, 64px); }
 .sec-head .no { font: 600 12px/1 var(--f-ui); color: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-.sec-head .no::before { content: ''; width: 10px; height: 13px; border-radius: var(--r-win); background: var(--metal); box-shadow: var(--glow-metal); flex: none; }
+.sec-head .no::before { content: ''; width: 10px; height: 13px; border-radius: var(--r-win); background: var(--lamp); box-shadow: 0 0 12px -2px var(--glow-lamp); flex: none; }
 .sec-head p { margin: 0; }
 .rule-top { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
 .eyebrow { display: flex; align-items: center; gap: 10px; }

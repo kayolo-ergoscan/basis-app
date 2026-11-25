@@ -18,10 +18,10 @@
 .nav-gap { height: 64px; }
 
 /* ============ pre-launch banner (thin, once per session) ============ */
-.banner { position: relative; z-index: 40; background: color-mix(in srgb, var(--metal) 7%, var(--bg-2)); border-bottom: 1px solid var(--rule); }
+.banner { position: relative; z-index: 40; background: color-mix(in srgb, var(--lamp) 6%, var(--bg-2)); border-bottom: 1px solid var(--rule); }
 .banner .container { display: flex; align-items: center; gap: 12px; min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
 .banner p { flex: 1; font: 400 13px/1.45 var(--f-ui); color: var(--ink-2); min-width: 0; }
-.banner .ic { color: var(--metal-ink); flex: none; }
+.banner .ic { color: var(--ink); flex: none; }
 .banner .x { flex: none; }
 
 /* ============ page frame and transitions (VISUAL §10.7: 240 ms crossfade, 8 px rise) ============ */
@@ -59,7 +59,7 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
 .menu-links a { display: flex; align-items: center; gap: 14px; padding: 12px 12px; border-radius: 12px; font: 600 16px/1.2 var(--f-ui); color: var(--ink-2); }
 .menu-links a svg { width: 20px; height: 20px; color: var(--ink-3); }
 .menu-links a.on { color: var(--ink); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2); }
-.menu-links a.on svg { color: var(--metal-ink); }
+.menu-links a.on svg { color: var(--ink); filter: drop-shadow(0 0 6px var(--glow-lamp)); }
 .menu-links a:hover { color: var(--ink); }
 .menu-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 14px 4px 0; border-top: 1px solid var(--rule); margin-top: 12px; }
 
@@ -75,8 +75,8 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
     background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--rule); }
   .tabbar a { display: grid; justify-items: center; align-content: start; gap: 4px; color: var(--ink-3); font: 600 11px/1.2 var(--f-ui); padding-top: 4px; min-height: 48px; border-radius: 12px; position: relative; }
   .tabbar a.on { color: var(--ink); }
-  .tabbar a.on svg { color: var(--metal-ink); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--metal) 55%, transparent)); }
-  .tabbar a.on::before { content: ''; position: absolute; top: -8px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--metal); box-shadow: var(--glow-metal); }
+  .tabbar a.on svg { color: var(--ink); filter: drop-shadow(0 0 6px var(--glow-lamp)); }
+  .tabbar a.on::before { content: ''; position: absolute; top: -8px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--lamp); box-shadow: var(--glow-metal); }
   .tabbar a svg { width: 24px; height: 24px; }
   .shell-body { padding-bottom: 84px; }
 }

@@ -1,8 +1,10 @@
 /* Basis · Lamplight tokens. The site is a small town at night: the page is the night sky, cards are lit panes, and
- * light carries meaning. Three lights, one job each:
- *   lamplight (amber, --metal*)  — value locked or moving on Ergo: reserves, ERG, tokens, redeem;
+ * light carries meaning. Three signal lights, one job each:
+ *   gold light (--metal*)            — value locked or moving on Ergo: reserves, ERG, tokens, redeem;
  *   moonlight (cool, --holo/--moon*) — recorded on Ergo by the tracker (in the latest digest);
  *   an unlit pane (--hatch, outline) — a promise on trust only.
+ * Window light (--lamp, warm white) is the town and you: the mark, your house, lit windows, the primary key. It never
+ * means money. Gold stays a yellow gold (hue ≈ 42°), never orange.
  * Day (light theme) is the same town by daylight, designed on its own, not an inversion of Night.
  * Contrast, checked 2026-11-25: every text token passes 4.5 : 1 on every surface in both themes (--ink-4, --metal and
  * --moon are fills and rules, never body text: use --metal-ink and --moon-ink for words).
@@ -22,11 +24,13 @@
   /* paper: notes and seals are lit paper in both themes */
   --paper: #F6EEDC; --paper-hi: #FDF8EC; --paper-ink: #17181F; --paper-ink-2: #4A463F; --paper-rule: #DCCFB4;
   /* lamplight = value on Ergo (reserve, ERG, tokens, redeem) */
-  --metal: #FFC36A; --metal-hi: #FFE0A8; --metal-lo: #C98A2C; --metal-ink: #FFC873; --metal-wash: rgba(255,195,106,.12);
+  --metal: #FFD36B; --metal-hi: #FFE6A8; --metal-lo: #C99A2C; --metal-ink: #FFD77E; --metal-wash: rgba(255,211,107,.12);
   --on-metal: #1C1405;
-  --foil-metal: linear-gradient(180deg, #FFD48A 0%, #FFC36A 55%, #F2AE48 100%);
-  --foil-text: linear-gradient(180deg, #FFE0A8 0%, #FFC36A 100%);
-  --glow-metal: 0 0 22px -4px rgba(255,195,106,.7);
+  --foil-metal: linear-gradient(180deg, #FFE08F 0%, #FFD36B 55%, #F0BE4A 100%);
+  --foil-text: linear-gradient(180deg, #FFE6A8 0%, #FFD36B 100%);
+  --glow-metal: 0 0 22px -4px rgba(255,211,107,.7);
+  /* window light: the town, the mark, your house (never money) */
+  --lamp: #FCEBC3; --glow-lamp: rgba(252,235,195,.65);
   /* moonlight = recorded on Ergo (proof); only while the note is in the latest digest */
   --moon: #8EE6D4; --moon-ink: #9EDFF0; --moon-wash: rgba(142,230,212,.12);
   --holo: linear-gradient(118deg, #8EE6D4 0%, #9FC6FF 55%, #C2B6FF 100%);
@@ -43,7 +47,7 @@
   /* shadow tint */
   --shade: 2,4,14; --shadow-a: .6;
   --hatch: repeating-linear-gradient(135deg, var(--ink-3) 0 1px, transparent 1px 5px);
-  --field-rgb: 255,195,106; --field-a: .085;
+  --field-rgb: 255,211,107; --field-a: .085;
   /* the town (illustrations): walls, roofs, unlit windows, the street */
   --town-wall: #18203F; --town-wall-2: #121935; --town-roof: #1F2850; --town-win: #252F58; --town-street: #2A3460; --town-star: rgba(233,236,248,.5);
   /* type */
@@ -68,11 +72,12 @@
   --sky: radial-gradient(1200px 720px at 80% -10%, rgba(255,214,150,.30), transparent 70%), linear-gradient(180deg, #EEF0F6 0%, #F3F2EE 55%);
   --ink: #151A33; --ink-2: #434A66; --ink-3: #5A6280; --ink-4: #A9ADC0;
   --paper: #FBF5E6; --paper-hi: #FFFCF4;
-  --metal: #F2AE48; --metal-hi: #FFD995; --metal-lo: #B57A22; --metal-ink: #8A5300; --metal-wash: rgba(242,174,72,.16);
+  --metal: #EDB83F; --metal-hi: #FFDF95; --metal-lo: #B58722; --metal-ink: #7A5600; --metal-wash: rgba(237,184,63,.16);
   --on-metal: #1C1405;
-  --foil-metal: linear-gradient(180deg, #FFD08A 0%, #F5B347 60%, #E79F33 100%);
-  --foil-text: linear-gradient(180deg, #A76A0A 0%, #8A5300 100%);
-  --glow-metal: 0 6px 18px -8px rgba(201,138,44,.7);
+  --foil-metal: linear-gradient(180deg, #FFDC8A 0%, #F2C04E 60%, #E2AA36 100%);
+  --foil-text: linear-gradient(180deg, #957008 0%, #7A5600 100%);
+  --glow-metal: 0 6px 18px -8px rgba(201,154,44,.7);
+  --lamp: #F4CF77; --glow-lamp: rgba(220,170,60,.45);
   --moon: #1FA7A0; --moon-ink: #0B6E7A; --moon-wash: rgba(31,167,160,.10);
   --holo: linear-gradient(118deg, #34B9AE 0%, #5C8EF0 55%, #8C78E8 100%);
   --holo-stale: linear-gradient(118deg, #A9ADC0 0%, #CFD1DC 50%, #A9ADC0 100%);
