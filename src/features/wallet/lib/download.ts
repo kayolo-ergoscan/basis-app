@@ -55,7 +55,7 @@ export async function noteSvg(noteEl: HTMLElement, f: NoteFace): Promise<string>
   const staleTok = cssVar(document.documentElement, "--holo-stale", "#B9B5AC");
   const stale = staleTok.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#B9B5AC";
   const foilFill = f.committed && stops.length ? "url(#wlholo)" : stale;
-  const serif = "'Noto Serif Display Variable','Noto Serif Display',Georgia,serif";
+  const serif = "'Unbounded Variable',Unbounded,'Geist Variable',Geist,'Helvetica Neue',Arial,sans-serif";
   const ui = "'Geist Variable',Geist,'Helvetica Neue',Arial,sans-serif";
   const mono = "'Geist Mono Variable','Geist Mono',ui-monospace,Menlo,monospace";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="2000" height="880">
@@ -67,9 +67,9 @@ export async function noteSvg(noteEl: HTMLElement, f: NoteFace): Promise<string>
 ${art}
 <text x="64" y="66" font-family="${serif}" font-size="15" font-weight="600" letter-spacing="5.7" fill="${inkA}">BASIS<tspan dx="12" font-family="${mono}" font-size="9.5" letter-spacing="1.3">${esc(f.brandSub)}</tspan></text>
 <text x="850" y="66" text-anchor="end" font-family="${mono}" font-size="12.5" letter-spacing="2" fill="${inkA}">№ ${esc(f.serial)}</text>
-<text x="64" y="132" font-family="${serif}" font-style="italic" font-size="46" fill="${inkA}">${esc(f.issuer)}<tspan dx="13" dy="-6" font-family="${mono}" font-style="normal" font-size="11.5" letter-spacing="2.3">${esc(f.owes.toUpperCase())}</tspan><tspan dx="13" dy="6">${esc(f.receiver)}</tspan></text>
+<text x="64" y="132" font-family="${serif}" font-size="34" font-weight="650" letter-spacing="-1" fill="${inkA}">${esc(f.issuer)}<tspan dx="13" dy="-6" font-family="${mono}" font-style="normal" font-size="11.5" letter-spacing="2.3">${esc(f.owes.toUpperCase())}</tspan><tspan dx="13" dy="6">${esc(f.receiver)}</tspan></text>
 <text x="64" y="160" font-family="${ui}" font-size="10.5" font-weight="600" letter-spacing="2.1" fill="${inkA}" opacity=".8">${esc(f.caption.toUpperCase())}</text>
-<text x="58" y="268" font-family="${serif}" font-size="118" font-weight="520" letter-spacing="-1.4" fill="${paperInk}">${esc(f.amount)}<tspan dx="11" font-family="${mono}" font-size="15" font-weight="600" letter-spacing="2" fill="${inkA}">${esc(f.unit)}</tspan></text>
+<text x="58" y="268" font-family="${serif}" font-size="82" font-weight="650" letter-spacing="-3.5" fill="${paperInk}">${esc(f.amount)}<tspan dx="11" font-family="${mono}" font-size="15" font-weight="600" letter-spacing="2" fill="${inkA}">${esc(f.unit)}</tspan></text>
 <line x1="64" y1="366" x2="294" y2="366" stroke="${inkA}" stroke-opacity=".45"/>
 <line x1="324" y1="366" x2="554" y2="366" stroke="${inkA}" stroke-opacity=".45"/>
 <text x="64" y="384" font-family="${ui}" font-size="9.8" font-weight="600" letter-spacing="1.4" fill="${inkA}">${esc(f.signedLine.toUpperCase())}</text>
