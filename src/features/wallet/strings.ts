@@ -221,6 +221,12 @@ const en: Dict = {
   "wallet.nd.xraySub": "The 80 signed bytes and the 65-byte Schnorr signature. Tap a byte to tamper with it.",
 
   // pay
+  "wallet.flow.aria": "Steps of this action",
+  "wallet.flow.who": "Who",
+  "wallet.flow.whose": "Whose note",
+  "wallet.flow.sign": "Amount and signature",
+  "wallet.flow.signed": "Signed",
+  "wallet.flow.redeemed": "Redeemed",
   "wallet.pay.title": "Pay",
   "wallet.pay.titleTo": "Pay {name}",
   "wallet.pay.sub": "Raise your note: you sign a bigger total",
@@ -928,6 +934,12 @@ const ru: Partial<Dict> = {
   "wallet.nd.xrayT": "Соподпись {id}",
   "wallet.nd.xraySub": "80 подписанных байт и 65-байтная подпись Шнорра. Нажмите на байт, чтобы его подменить.",
 
+  "wallet.flow.aria": "Шаги этого действия",
+  "wallet.flow.who": "Кому",
+  "wallet.flow.whose": "Чья расписка",
+  "wallet.flow.sign": "Сумма и подпись",
+  "wallet.flow.signed": "Подписано",
+  "wallet.flow.redeemed": "Погашено",
   "wallet.pay.title": "Оплата",
   "wallet.pay.titleTo": "Оплата · {name}",
   "wallet.pay.sub": "Увеличьте расписку: вы подписываете новую сумму",

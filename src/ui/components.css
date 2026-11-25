@@ -756,3 +756,13 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
 @keyframes sk-face { 0%, 100% { fill: var(--bg-2); } 30%, 55% { fill: color-mix(in srgb, var(--moon) 45%, var(--bg-2)); } }
 /* phones: a long label in a large key wraps to two lines instead of being cut */
 @media (max-width: 640px) { .key.lg .lbl { white-space: normal; line-height: 1.15; text-align: center; } }
+
+/* flow trail: the steps of one action (fill in → check and sign → done) */
+.flow-trail { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; counter-reset: none; }
+.flow-trail li { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 6px; border-radius: 999px; font: 500 13px/1 var(--f-ui); color: var(--ink-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
+.flow-trail li .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font: 700 11px/1 var(--f-ui); background: var(--town-win); color: var(--ink-2); }
+.flow-trail li.done { color: var(--ink-2); }
+.flow-trail li.done .n { background: color-mix(in srgb, var(--moon) 45%, var(--town-win)); color: var(--ink); }
+.flow-trail li.now { color: var(--ink); font-weight: 600; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.flow-trail li.now .n { background: var(--lamp); color: #1A1408; }
+@media (max-width: 480px) { .flow-trail li { height: 30px; font-size: 12.5px; padding-right: 10px; } }

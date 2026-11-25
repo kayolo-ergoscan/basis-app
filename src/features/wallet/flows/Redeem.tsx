@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { isDenomId, type DenomId } from "@/protocol";
-import { AmountInput, Callout, CoverageMeter, Empty, Field, Honest, Key, Lamp, Ledger, prefersReducedMotion, Tag, Tear } from "@/ui";
+import { AmountInput, Callout, CoverageMeter, Empty, Field, FlowTrail, Honest, Key, Lamp, Ledger, prefersReducedMotion, Tag, Tear } from "@/ui";
 import { parseAmount, previewRedeem, town, TOWN_TRACKER, useClock, useTownView, type RedeemOutcome } from "@/world";
 import { ContractXray, ExitClocks, TxLens } from "@/viz";
 import { copy, pick } from "@/content";
@@ -54,6 +54,7 @@ function RedeemPick({ rows, onPick }: { rows: NonNullable<ReturnType<typeof wall
   if (!rows.length) return <Empty title={t("wallet.rd.none.t")} text={t("wallet.rd.none.b")} action={{ label: t("wallet.keys.request"), to: "/wallet/request" }} />;
   return (
     <div className="wl-form">
+      <RedeemTrail at={0} />
       <h3 className="label">
         <b>{t("wallet.rd.pick")}</b>
       </h3>
@@ -82,6 +83,11 @@ function RedeemPick({ rows, onPick }: { rows: NonNullable<ReturnType<typeof wall
 }
 
 type Stage = 0 | 1 | 2 | 3 | 4;
+
+function RedeemTrail({ at }: { at: number }) {
+  const t = useT();
+  return <FlowTrail steps={[t("wallet.flow.whose"), t("wallet.flow.sign"), t("wallet.flow.redeemed")]} at={at} label={t("wallet.flow.aria")} />;
+}
 
 function RedeemForm({ issuer, denom }: { issuer: string; denom: DenomId }) {
   const t = useT();
@@ -149,6 +155,7 @@ function RedeemForm({ issuer, denom }: { issuer: string; denom: DenomId }) {
   const compliance = p.preflight?.compliance ?? null;
   return (
     <div className="wl-form">
+      <RedeemTrail at={out?.ok ? 2 : 1} />
       <div className="who-line wl-to">
         <PartySeal id={issuer} size="lg" rim />
         <div className="wl-to-t">

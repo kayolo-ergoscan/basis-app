@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { bytesToHex, evaluateAcceptance, type DenomId } from "@/protocol";
-import { AmountInput, Callout, CapBar, CoverageMeter, Field, GrowthPreview, Icon, Key, KeyField, KeySeal, Lamp, Note, PolicySentence, Seg, Tag, TextInput } from "@/ui";
+import { AmountInput, Callout, CapBar, CoverageMeter, Field, FlowTrail, GrowthPreview, Icon, Key, KeyField, KeySeal, Lamp, Note, PolicySentence, Seg, Tag, TextInput } from "@/ui";
 import { parseAmount, previewPay, RESIDENTS, town, TOWN_TRACKER, useTown, useTownView, YOU, type PayOutcome } from "@/world";
 import { StatusLadder, ladderFromEconomy } from "@/viz";
 import { useFmt, useNameOf, useOutcomeToast, useRevealOnMount, useWT } from "../lib/hooks";
@@ -106,6 +106,7 @@ export function PayFlow({ page }: { page: boolean }) {
   const title = to ? t("wallet.pay.titleTo", { name: nameOf(to) }) : t("wallet.pay.title");
   return (
     <Frame page={page} title={title} sub={t("wallet.pay.sub")} labelId="wl-pay-h" className="wl-flow">
+      <FlowTrail steps={[t("wallet.flow.who"), t("wallet.flow.sign"), t("wallet.flow.signed")]} at={done ? 2 : to && to !== YOU ? 1 : 0} label={t("wallet.flow.aria")} />
       {badTo && (
         <Callout tone="alarm" title={t("wallet.pay.badTo.t")}>
           {t("wallet.pay.badTo.b")}

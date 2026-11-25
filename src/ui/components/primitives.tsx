@@ -308,3 +308,18 @@ export function Checks({ stage, issuer = "Alice", tracker = "T-01", block }: Che
 export function TrackerTile({ id = "T-01", stale, size = "md", tileRef }: { id?: string; stale?: boolean; size?: "sm" | "md" | "lg"; tileRef?: React.Ref<HTMLSpanElement> }) {
   return <span ref={tileRef} className={cx("ttile", stale && "stale", size !== "md" && size)} aria-hidden="true">{id}</span>;
 }
+
+/* ---------- FlowTrail: where you are in a short flow (fill in → check and sign → done) ---------- */
+/** One decision per screen: the trail names the steps of this action and marks the current one (aria-current="step"). */
+export function FlowTrail({ steps, at, label }: { steps: readonly string[]; at: number; label: string }) {
+  return (
+    <ol className="flow-trail" aria-label={label}>
+      {steps.map((s, i) => (
+        <li key={s} className={i < at ? "done" : i === at ? "now" : undefined} aria-current={i === at ? "step" : undefined}>
+          <span className="n" aria-hidden="true">{i + 1}</span>
+          {s}
+        </li>
+      ))}
+    </ol>
+  );
+}

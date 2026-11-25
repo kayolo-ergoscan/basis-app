@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorer } from "@/chain/links";
-import { Callout, Card, CopyButton, CoverageTag, Field, Hex, HouseLights, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
+import { Callout, Card, CopyButton, CoverageTag, Field, FlowTrail, Hex, HouseLights, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
 import { TxLens } from "@/viz";
 import { dpOf, reserveTag, type OwnReserve } from "@/mainnet/flows";
 import type { TrackedReserve } from "@/chain/ours";
@@ -135,17 +135,7 @@ export function Steps({ items, label, house }: { items: StepItem[]; label: strin
  *  every warning and the signing key, then the result. Words only; the screens themselves decide what is shown. */
 export function FlowSteps({ at }: { at: 0 | 1 | 2 }) {
   const t = useT();
-  const steps = ["mw.flow.fill", "mw.flow.check", "mw.flow.sent"];
-  return (
-    <ol className="mw-flow" aria-label={t("mw.flow.aria")}>
-      {steps.map((k, i) => (
-        <li key={k} className={i < at ? "done" : i === at ? "now" : undefined} aria-current={i === at ? "step" : undefined}>
-          <span className="n" aria-hidden="true">{i + 1}</span>
-          {t(k)}
-        </li>
-      ))}
-    </ol>
-  );
+  return <FlowTrail steps={[t("mw.flow.fill"), t("mw.flow.check"), t("mw.flow.sent")]} at={at} label={t("mw.flow.aria")} />;
 }
 
 // ─── unlock ─────────────────────────────────────────────────────────────────────────────────────
