@@ -13,14 +13,26 @@
 .nav-links a:hover { color: var(--ink); background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
 .nav-links a.on { color: var(--ink); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2); }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.nav .search-k { display: inline-flex; align-items: center; gap: 8px; }
 .nav .menu-k { display: none; }
+/* the block: a small pill, the word kept (a bare number reads as nothing) */
+.nav .chip.height { height: 30px; padding: 0 10px; gap: 6px; font: 500 12px/1 var(--f-ui); border-radius: 10px; }
+.nav .chip.height b { font-weight: 600; }
+/* one compact control: search, theme, language */
+.qc { display: inline-flex; align-items: center; height: 34px; padding: 2px; border-radius: 11px; background: var(--well); box-shadow: inset 0 0 0 1px var(--rule); }
+.qc-b { position: relative; height: 30px; min-width: 32px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2);
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 12px/1 var(--f-ui); letter-spacing: .02em; cursor: pointer; }
+.qc-b:hover { color: var(--ink); background: var(--surface-2); }
+.qc-b:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 1; }
+.qc-b + .qc-b::before { content: ''; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 1px; background: var(--rule); }
+.qc-b:hover::before, .qc-b:hover + .qc-b::before { opacity: 0; }
+.qc .kbd { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
 .nav-gap { height: 64px; }
 
 /* ============ pre-launch banner (thin, once per session) ============ */
 .banner { position: relative; z-index: 40; background: color-mix(in srgb, var(--lamp) 6%, var(--bg-2)); border-bottom: 1px solid var(--rule); }
-.banner .container { display: flex; align-items: center; gap: 12px; min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
-.banner p { flex: 1; font: 400 13px/1.45 var(--f-ui); color: var(--ink-2); min-width: 0; }
+.banner .container { display: flex; align-items: center; gap: 10px; min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
+.banner p { flex: 1; font: 400 12.5px/1.4 var(--f-ui); color: var(--ink-2); min-width: 0; }
+.banner .x { width: 28px; height: 28px; }
 .banner .ic { color: var(--ink); flex: none; }
 .banner .x { flex: none; }
 
@@ -71,7 +83,7 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
 /* ============ phone tab bar: 84 px glass ============ */
 .tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: calc(84px + env(safe-area-inset-bottom) * .4); padding: 8px 10px 0; display: grid; grid-template-columns: repeat(5, 1fr);
+  .tabbar { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: calc(84px + env(safe-area-inset-bottom) * .4); padding: 8px 10px 0; display: grid; grid-template-columns: repeat(4, 1fr);
     background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--rule); }
   .tabbar a { display: grid; justify-items: center; align-content: start; gap: 4px; color: var(--ink-3); font: 600 11px/1.2 var(--f-ui); padding-top: 4px; min-height: 48px; border-radius: 12px; position: relative; }
   .tabbar a.on { color: var(--ink); }
@@ -88,19 +100,12 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
 .nf .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
 
 /* ============ responsive ============ */
-@media (max-width: 1280px) {
+/* four places fit down to 900 px in both languages once the brand line and the pill step out */
+@media (max-width: 1200px) { .nav .brand-sub { display: none; } }
+@media (max-width: 1060px) { .nav .nav-right .chip { display: none; } .qc .kbd { display: none; } }
+@media (max-width: 900px) {
   .nav-links { display: none; }
   .nav .menu-k { display: inline-flex; }
-}
-/* The header with every link needs ~1560 px in RU («Как это работает», «Кошелёк (бета)»), ~1450 px in EN: at 1440 the
-   wallet key went past the right edge (22 Nov 2026). Up to 1600 px the height pill steps out (the bar at the bottom keeps
-   the height); RU folds the links into the menu up to 1500 px, as every language does up to 1280. */
-@media (min-width: 1281px) and (max-width: 1600px) {
-  .nav .nav-right .chip { display: none; }
-}
-@media (max-width: 1500px) {
-  :root[lang="ru"] .nav-links { display: none; }
-  :root[lang="ru"] .nav .menu-k { display: inline-flex; }
 }
 @media (max-width: 1000px) {
   /* the height pill keeps its word («Блок 1 922 434»): a bare number reads as nothing (UX review, 22 Nov 2026) */
@@ -109,7 +114,9 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
 @media (max-width: 640px) {
   .nav { height: 56px; }
   .nav .container { gap: 12px; }
-  .nav .chip, .nav .seg, .nav .search-k, .nav .brand-sub, .nav .hide-s { display: none; }
+  .nav .chip, .nav .brand-sub, .nav .hide-s { display: none; }
+  .banner .ic { display: none; }
+  .banner p { font-size: 12px; line-height: 1.35; }
   .nav-gap { height: 56px; }
   .shell-body { min-height: calc(100vh - 56px); min-height: calc(100dvh - 56px); }
   /* footer links: the address goes under its label instead of squeezing beside it */
@@ -117,7 +124,6 @@ footer.foot .f-col .mono { font-size: 11.5px; color: var(--ink-3); }
   footer.foot .f-col a .mono { grid-column: 2; overflow-wrap: anywhere; }
   .wordmark { font-size: 19px; }
   .shell-tape { display: none; }
-  .banner p { font-size: 12.5px; }
 }
 @media (max-width: 1000px) { .shell-tape { display: none; } }
 /* the page heading takes focus after a navigation (frame.tsx): no ring on a heading that is not a control */
@@ -127,3 +133,19 @@ footer.foot .f-col a, footer.foot .f-col button { white-space: nowrap; }
 /* ⌘K on touch: no key legend and no keyboard footer (they mean nothing without a keyboard; the query gets the width) */
 @media (pointer: coarse) { .cmdk .cmdk-mod, .cmdk .foot { display: none; } }
 .chip.height .off { color: var(--ink-3); font: 500 12px/1 var(--f-ui); }
+
+/* ============ the Network place sub-nav (network sections + the ErgoScan tracker console) ============ */
+.place-tabs { display: flex; gap: 2px; padding: 3px; background: var(--well); border-radius: 11px; flex-wrap: wrap; max-width: 100%; }
+.place-tabs a { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 0 13px; border-radius: 8px;
+  font: 500 14px/1 var(--f-ui); color: var(--ink-3); text-decoration: none; white-space: nowrap; }
+.place-tabs a:hover { color: var(--ink-2); }
+.place-tabs a.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
+.place-tabs a .n { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
+.place-tabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.trk-place { padding-bottom: 16px; margin-bottom: clamp(28px, 3.2vw, 48px); border-bottom: 1px solid var(--rule); }
+@media (max-width: 640px) {
+  /* phone: the sections scroll sideways in one row instead of stacking four rows high */
+  .place-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .place-tabs::-webkit-scrollbar { display: none; }
+  .place-tabs a { min-height: 40px; }
+}

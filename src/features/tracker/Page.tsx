@@ -11,6 +11,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
 import { Loading, Page } from "@/ui";
+import { NetPlaceNav } from "@/app/chrome";
 import { trackerHomeOf } from "./parts";
 import RunOwn from "./RunOwn";
 import strings from "./strings";
@@ -43,6 +44,8 @@ function ToTrackerHome() {
 export default function TrackerPage() {
   return (
     <Page wide className="trk">
+      {/* the tracker console is part of the Network place: its sub-nav, with this page lit */}
+      <div className="container"><div className="trk-place"><NetPlaceNav /></div></div>
       <Suspense fallback={<Wait />}>
         <Routes>
           <Route index element={<ToTrackerHome />} />

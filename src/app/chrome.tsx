@@ -1,4 +1,6 @@
-// Shell chrome: top nav (VISUAL §12.12), menu sheet (≤ 1280), phone tab bar, pre-launch banner, live tape, footer.
+// Shell chrome: the top bar (the mark, four places, a small block pill and one compact control for search, theme and
+// language), the menu sheet (every page, on narrow screens), the phone tab bar (the same four places), the banner, the
+// live tape and the footer.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { BrandMark, Skyline } from "@/ui/components/Town";
@@ -11,7 +13,7 @@ import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
 import { pulse, usePulse, type Pulse } from "./pulse";
-import { hrefOf, linkOf, NAV, preload } from "./routes";
+import { hrefOf, linkOf, NAV, preload, ROUTES } from "./routes";
 import type { FeatureRoute } from "./types";
 import { useTheme } from "./theme";
 
@@ -62,6 +64,36 @@ export function LangSeg({ className }: { className?: string }) {
   return <Seg ariaLabel={t("app.lang.aria")} className={className} value={lang} onChange={setLang} options={[{ value: "en", label: "EN", title: "English" }, { value: "ru", label: "RU", title: "Русский" }]} />;
 }
 
+/** The four places of the site. Home is the mark; the tracker pages belong to Network (they share its sub-nav). */
+export const PLACES: { id: string; to: string; key: string; icon: IconName; match: (p: string) => boolean }[] = [
+  { id: "play", to: "/play", key: "nav.play", icon: "play", match: (p) => p === "/play" || p.startsWith("/play/") },
+  { id: "wallet", to: "/wallet/mainnet", key: "nav.wallet", icon: "wallet", match: (p) => p === "/wallet" || p.startsWith("/wallet/") },
+  { id: "network", to: "/network", key: "nav.network", icon: "network", match: (p) => /^\/(network|tracker)(\/|$)/.test(p) },
+  { id: "learn", to: "/learn", key: "nav.learn", icon: "learn", match: (p) => p === "/learn" || p.startsWith("/learn/") },
+];
+const warm = (id: string) => { const r = ROUTES.find((x) => x.id === id); if (r) preload(r); };
+
+/** One compact control: search (⌘K), the theme (one press switches) and the language. */
+export function QuickControls() {
+  const t = useT();
+  const { theme, setTheme } = useTheme();
+  const { lang, setLang } = useLang();
+  const night = theme === "night";
+  return (
+    <div className="qc" role="group" aria-label={t("app.qc.aria")}>
+      <button type="button" className="qc-b qc-search" onClick={() => openCommandBar()} aria-label={t("app.cmd.aria")} title={t("app.cmd.aria")}>
+        <Icon name="search" size={16} /><span className="kbd">{MOD} K</span>
+      </button>
+      <button type="button" className="qc-b" onClick={() => setTheme(night ? "cotton" : "night")} aria-label={t(night ? "app.qc.toLight" : "app.qc.toDark")} title={t(night ? "app.qc.toLight" : "app.qc.toDark")}>
+        <Icon name={night ? "moon" : "sun"} size={16} />
+      </button>
+      <button type="button" className="qc-b qc-lang" onClick={() => setLang(lang === "en" ? "ru" : "en")} aria-label={t("app.qc.lang")} title={t("app.qc.lang")} lang={lang === "en" ? "ru" : "en"}>
+        {lang === "en" ? "RU" : "EN"}
+      </button>
+    </div>
+  );
+}
+
 /** A menu entry whose link is not its base (the wallet) stays lit on every page under the base. */
 const inRoute = (r: FeatureRoute, pathname: string): boolean => {
   if (!r.href || r.path === "/") return false;
@@ -83,21 +115,18 @@ export function Nav() {
           <span className="brand-sub">{t("app.brand.sub")}</span>
         </Link>
         <nav className="nav-links" aria-label={t("nav.primary")}>
-          {NAV.map((r) => (
-            <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive || inRoute(r, loc.pathname) ? "on" : undefined)}
-              onMouseEnter={() => preload(r)} onFocus={() => preload(r)}>
-              {t(r.nav!.labelKey)}
-            </NavLink>
-          ))}
+          {PLACES.map((x) => {
+            const on = x.match(loc.pathname);
+            return (
+              <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined} onMouseEnter={() => warm(x.id)} onFocus={() => warm(x.id)}>
+                {t(x.key)}
+              </Link>
+            );
+          })}
         </nav>
         <div className="nav-right">
-          <button type="button" className="key sm quiet search-k" onClick={() => openCommandBar()} aria-label={t("app.cmd.aria")}>
-            <Icon name="search" size={16} /><span className="kbd">{MOD} K</span>
-          </button>
           <HeightChip />
-          <ThemeSeg />
-          <LangSeg className="hide-s" />
-          <Link className="key sm" to="/wallet/mainnet">{t("app.openWallet")}</Link>
+          <QuickControls />
           <button type="button" className="key sm quiet icon-only menu-k" onClick={() => setMenu(true)} aria-label={t("app.menu")} aria-expanded={menu}><Icon name="menu" /></button>
         </div>
       </div>
@@ -123,22 +152,44 @@ export function Nav() {
   );
 }
 
-const TABS: { to: string; key: string; icon: IconName; match: (p: string) => boolean }[] = [
-  { to: "/wallet", key: "nav.wallet", icon: "wallet", match: (p) => p === "/wallet" || (p.startsWith("/wallet/") && !p.startsWith("/wallet/notes") && !p.startsWith("/wallet/settings")) },
-  { to: "/wallet/notes", key: "nav.notes", icon: "notes", match: (p) => p.startsWith("/wallet/notes") },
-  { to: "/play", key: "nav.play", icon: "play", match: (p) => p === "/play" || p.startsWith("/play/") },
-  { to: "/network", key: "nav.network", icon: "network", match: (p) => p === "/network" || p.startsWith("/network/") },
-  { to: "/wallet/settings", key: "nav.you", icon: "you", match: (p) => p.startsWith("/wallet/settings") },
-];
-/** Phone tab bar: Wallet · Notes · Play · Network · You (84 px glass). */
+/** Network is one place with the tracker console in it: the same sub-nav on /network/* and /tracker/*. */
+const NET_TABS = ["overview", "reserves", "trackers", "redemptions", "contracts", "incidents", "ours"] as const;
+type NetTab = (typeof NET_TABS)[number];
+const netHref = (id: NetTab) => (id === "overview" ? "/network" : id === "ours" ? "/tracker/mainnet" : `/network/${id}`);
+function netOn(pathname: string): NetTab {
+  if (pathname.startsWith("/tracker")) return "ours";
+  const p = pathname.replace(/^\/network\/?/, "");
+  if (p.startsWith("reserve")) return "reserves";
+  if (p.startsWith("tracker")) return "trackers";
+  if (p.startsWith("redemption") || p.startsWith("tx")) return "redemptions";
+  if (p.startsWith("contract")) return "contracts";
+  if (p.startsWith("incident")) return "incidents";
+  return "overview";
+}
+export function NetPlaceNav({ counts = {}, className }: { counts?: Partial<Record<NetTab, number>>; className?: string }) {
+  const t = useT();
+  const { pathname } = useLocation();
+  const on = netOn(pathname);
+  return (
+    <nav className={className ? `place-tabs ${className}` : "place-tabs"} aria-label={t("nav.net.aria")}>
+      {NET_TABS.map((id) => (
+        <Link key={id} to={netHref(id)} className={on === id ? "on" : undefined} aria-current={on === id ? "page" : undefined}>
+          {id === "ours" && <Lamp state="live" size={7} />}{t(`nav.net.${id}`)}{counts[id] != null && <span className="n">{counts[id]}</span>}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Phone tab bar: the same four places as the top bar. */
 export function TabBar() {
   const t = useT();
   const { pathname } = useLocation();
   return (
     <nav className="tabbar" aria-label={t("nav.primary")}>
-      {TABS.map((x) => {
+      {PLACES.map((x) => {
         const on = x.match(pathname);
-        return <Link key={x.to} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} />{t(x.key)}</Link>;
+        return <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key === "nav.learn" ? "nav.learnShort" : x.key)}</span></Link>;
       })}
     </nav>
   );

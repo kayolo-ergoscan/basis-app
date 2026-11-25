@@ -1,8 +1,9 @@
 // Shared pieces of the Network pages: explorer links, freshness labels, exit / tracker / contract tags, key names,
 // the network bar (sub-navigation + live status), loading and error frames. Tokens only (network.css).
 import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useT } from "@/app";
+import { NetPlaceNav } from "@/app/chrome";
 import { CopyButton, Icon, KeySeal, Lamp, Loading, Tag, TrackerTile, usePulseClass, type LampState, type TagTone } from "@/ui";
 import { copy, pick } from "@/content";
 import { explorer, oursExtra, useChainStatus, type ContractView, type ExitClass, type Hex, type Observatory, type TrackerView } from "@/chain";
@@ -166,23 +167,9 @@ export function KeyName({ pk, addr, label, size = "sm", to, sub, unknown }: { pk
 }
 
 /* ---------- the network bar: sub-navigation + live status ---------- */
-const TABS = ["", "reserves", "trackers", "redemptions", "contracts", "incidents"] as const;
-type TabId = (typeof TABS)[number];
-function activeTab(path: string): TabId {
-  const p = path.replace(/^\/network\/?/, "");
-  if (!p) return "";
-  if (p.startsWith("reserve")) return "reserves";
-  if (p.startsWith("tracker")) return "trackers";
-  if (p.startsWith("redemption") || p.startsWith("tx")) return "redemptions";
-  if (p.startsWith("contract")) return "contracts";
-  if (p.startsWith("incident")) return "incidents";
-  return "";
-}
 export function NetBar({ obs }: { obs: Observatory | null }) {
   const t = useT();
-  const loc = useLocation();
-  const on = activeTab(loc.pathname);
-  const counts: Partial<Record<TabId, number>> = obs ? {
+  const counts = obs ? {
     reserves: obs.unspent.length,
     // ErgoScan's tracker was minted after the snapshot: counted here until the seed lists it (as on the list page)
     trackers: obs.trackers.length + oursExtra(obs),
@@ -194,13 +181,7 @@ export function NetBar({ obs }: { obs: Observatory | null }) {
     <div className="nw-bar">
       <div className="nw-bar-l">
         <span className="label nw-bar-tag"><Lamp state="live" size={7} /><b>{t("network.bar.mainnet")}</b> · {pick(copy.experimental, t.lang as Lang)}</span>
-        <nav className="nw-tabs" aria-label={t("network.bar.aria")}>
-          {TABS.map((id) => (
-            <Link key={id || "overview"} to={id ? `/network/${id}` : "/network"} className={cx("nw-tab", on === id && "on")} aria-current={on === id ? "page" : undefined}>
-              {t(`network.tab.${id || "overview"}`)}{counts[id] != null && <span className="n">{counts[id]}</span>}
-            </Link>
-          ))}
-        </nav>
+        <NetPlaceNav counts={counts} />
       </div>
       <LiveStatus obs={obs} />
     </div>

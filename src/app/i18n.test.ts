@@ -20,8 +20,8 @@ describe("shell strings", () => {
 
   it("the banner starts with who made the site and says Basis is an experiment, small amounts only", () => {
     const plain = (s: string) => s.replace(/ /g, " ");
-    expect(plain(EN["app.banner"])).toBe("An unofficial site by ErgoScan (not by Better Money Labs). Basis is an experiment: on Ergo mainnet, use small amounts only.");
-    expect(plain(RU["app.banner"])).toBe("Неофициальный сайт от ErgoScan (не от Better Money Labs). Basis — эксперимент: в основной сети Ergo — только небольшие суммы.");
+    expect(plain(EN["app.banner"])).toBe("Unofficial site by ErgoScan, not by Better Money Labs. Basis is an experiment: small amounts only on Ergo mainnet.");
+    expect(plain(RU["app.banner"])).toBe("Неофициальный сайт от ErgoScan, не от Better Money Labs. Basis — эксперимент: в основной сети Ergo только небольшие суммы.");
   });
 
   it("names: «Главная», «Тёмная / Светлая», «Кошелёк (бета)»", () => {
