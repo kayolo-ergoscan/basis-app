@@ -7,7 +7,7 @@ import { addI18n, pulse, useLang, useT, type TFn } from "@/app";
 import type { Lang } from "@/app/types";
 import { copy, pick } from "@/content";
 import { TimeMachine, type DenomId, type Economy, type EconomyEvent, type ScenarioId, type StepResult } from "@/protocol";
-import { Empty, ErrorState, GraphLegend, GuillocheField, Icon, Loading, Odometer, Popover, Seg, Sheet, Tabs, Tag, int, toast, useIsPhone, useMedia, useReducedMotion } from "@/ui";
+import { Empty, ErrorState, GraphLegend, Icon, Loading, Odometer, Popover, Seg, Sheet, Skyline, Tabs, Tag, int, toast, useIsPhone, useMedia, useReducedMotion } from "@/ui";
 import { ContractXray, EventFeed, TxLens, synthCreateTx } from "@/viz";
 import { importRun, RunImportError, useRun, useRunState, type RunController, type RunSpec, type RunState } from "@/world";
 import { Cheats } from "./Cheats";
@@ -717,7 +717,7 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
 
   const stage = (
     <div className={`pl-stage${past ? " past" : ""}${shudder ? ` sh${shudder % 2}` : ""}`} ref={stageRef} style={legendH ? ({ "--pl-leg": `${legendH}px` } as React.CSSProperties) : undefined}>
-      <GuillocheField seed={`play|${scId ?? "free"}|${active.seed}`} className="pl-gfield" focus={[0.18, 0.22]} dim={fieldDim} pulseFilter={sandboxPulse} />
+      <Skyline className={fieldDim < 1 ? "pl-town dim" : "pl-town"} seed={31} height={120} span={1600} lit={0.18} tower={1180} towerFilter={sandboxPulse} />
       {view === "graph" ? (
         model.nodes.length === 0 ? (
           <div className="pl-empty">
