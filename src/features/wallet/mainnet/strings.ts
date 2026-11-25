@@ -412,7 +412,7 @@ const en: Dict = {
   "mw.pay.to.empty": "Write the receiver.",
   "mw.pay.to.self": "That is your own key.",
   "mw.pay.basisT": "Is this key in a Basis wallet?",
-  "mw.pay.basisB": "Only a Basis wallet holding the key of this address can redeem the note. An address from Nautilus or another seed-phrase wallet will not do: that wallet cannot sign the redemption, so the receiver cannot take the money. Better: ask the receiver for the link from «Ask for a payment» in their Basis wallet.",
+  "mw.pay.basisB": "Only a Basis wallet holding the key of this address can redeem the note. An address from Nautilus or another seed-phrase wallet works only once its owner imports that seed phrase into a Basis wallet («Seed phrase» when setting up the key); until then the receiver cannot take the money. Surest: ask the receiver for the link from «Ask for a payment» in their Basis wallet.",
   "mw.pay.basisAck": "The receiver holds this key in a Basis wallet",
   "mw.pay.amount": "Add",
   "mw.pay.amountHelp": "This adds to the note you already gave this receiver.",
@@ -697,6 +697,7 @@ const en: Dict = {
   "mw.set.wipeGo": "Wipe the key",
   "mw.set.whereT": "Where the key lives",
   "mw.set.noSeed": "This wallet has no seed words: the backup file and the passphrase are the whole backup.",
+  "mw.set.noSeedHex": "If this key came from a seed phrase, those words control it too.",
 
   // Home
   "mw.home.h": "Your mainnet key",
@@ -1349,7 +1350,7 @@ const ru: Partial<Dict> = {
   "mw.pay.to.empty": "Укажите получателя.",
   "mw.pay.to.self": "Это ваш собственный ключ.",
   "mw.pay.basisT": "Этот ключ есть в кошельке Basis?",
-  "mw.pay.basisB": "Погасить расписку можно только в кошельке Basis, где есть ключ этого адреса. Адрес из Nautilus или другого кошелька с сид-фразой не подойдёт: такой кошелёк не подпишет погашение, и получатель не сможет забрать деньги. Надёжнее всего попросить у получателя ссылку из «Запросить оплату» в его кошельке Basis.",
+  "mw.pay.basisB": "Погасить расписку можно только в кошельке Basis, где есть ключ этого адреса. Адрес из Nautilus или другого кошелька с сид-фразой подойдёт, только когда его владелец перенесёт эту сид-фразу в кошелёк Basis (вкладка «Сид-фраза» при создании ключа); до тех пор получатель не сможет забрать деньги. Надёжнее всего попросить у получателя ссылку из «Запросить оплату» в его кошельке Basis.",
   "mw.pay.basisAck": "Ключ этого адреса у получателя в кошельке Basis",
   "mw.pay.amount": "Добавить",
   "mw.pay.amountHelp": "Сумма прибавится к расписке, которую вы уже дали этому получателю.",
@@ -1629,6 +1630,7 @@ const ru: Partial<Dict> = {
   "mw.set.wipeGo": "Удалить ключ",
   "mw.set.whereT": "Где хранится ключ",
   "mw.set.noSeed": "У этого кошелька нет сид-фраз: файл копии и пароль — это вся резервная копия.",
+  "mw.set.noSeedHex": "Если ключ пришёл из сид-фразы, те слова тоже им управляют.",
 
   "mw.home.h": "Ваш ключ для основной сети",
   "mw.home.lede": "Свободные ERG, резерв, полученные расписки и то, что в пути.",

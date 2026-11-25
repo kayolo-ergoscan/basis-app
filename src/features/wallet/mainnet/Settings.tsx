@@ -188,7 +188,8 @@ export function SettingsScreen() {
         </div>
         <aside className="mw-side">
           <Callout tone="policy" title={t("mw.set.whereT")}>{t("mw.warn.key")} {t("mw.warn.storage")}</Callout>
-          <Callout tone="calm">{t("mw.set.noSeed")}</Callout>
+          {/* an imported key may have come from a seed phrase (its source says "hex" either way): those words hold it too */}
+          <Callout tone="calm">{t("mw.set.noSeed")}{key?.source === "hex" && <> {t("mw.set.noSeedHex")}</>}</Callout>
           {key && <OneKeyNote address={key.address} />}
         </aside>
       </div>
