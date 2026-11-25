@@ -5,6 +5,7 @@ import { blake2b256, utf8 } from "../engine/bytes";
 import { pairSeal } from "../engine/seal";
 import { Icon } from "./Icon";
 import { Key } from "./Key";
+import { WindowLoader } from "./Town";
 
 export interface EmptyProps {
   title: ReactNode;
@@ -20,7 +21,7 @@ export function Empty({ title, text, action, ghost, className }: EmptyProps) {
   const t = useT();
   return (
     <div className={["empty", className].filter(Boolean).join(" ")}>
-      <div className="ghostnote" aria-hidden="true"><span style={{ font: "italic 400 18px var(--f-display)" }}>{ghost ?? t("ui.empty.ghost")}</span></div>
+      <div className="ghostnote" aria-hidden="true"><span className="ghost-words">{ghost ?? t("ui.empty.ghost")}</span></div>
       <div className="t-h4">{title}</div>
       {text && <p className="t-small" style={{ maxWidth: "26em" }}>{text}</p>}
       {action && <Key variant="primary" size="sm" to={action.to} onClick={action.onClick}>{action.label}</Key>}
@@ -42,13 +43,13 @@ export function Engraving({ seed = "loading", size = 92 }: { seed?: string; size
   return <div className="engraving-load" style={{ width: size, height: size }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
-/** Loading: the engraving seal plus skeleton bars. */
+/** Loading: three windows lighting up in turn, plus skeleton bars. */
 export function Loading({ label, seed, lines = 3 }: { label?: ReactNode; seed?: string; lines?: number }) {
   const t = useT();
   const widths = ["70%", "92%", "48%", "80%", "60%"];
   return (
     <div className="loading" role="status" aria-live="polite">
-      <Engraving seed={seed} />
+      <WindowLoader key={seed} />
       <div className="skel" aria-hidden="true">{Array.from({ length: lines }, (_, i) => <i key={i} style={{ width: widths[i % widths.length] }} />)}</div>
       <span className="sr-only">{label ?? t("ui.loading")}</span>
     </div>

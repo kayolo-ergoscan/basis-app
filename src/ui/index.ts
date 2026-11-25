@@ -3,6 +3,7 @@ export * from "./components/Icon";
 export * from "./components/primitives";
 export * from "./components/Key";
 export * from "./components/Seal";
+export * from "./components/Town";
 export * from "./components/Odometer";
 export * from "./components/Note";
 export * from "./components/measures";

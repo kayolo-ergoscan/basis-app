@@ -75,8 +75,8 @@ const keyOf = (p: Pick<NoteProps, "noteKey" | "issuerPk" | "receiverPk" | "issue
   return demoPair(p.issuer, p.receiver);
 };
 
-/** Size of the engraved total by visible glyphs (tile: 12.8 / 11.6 / 9.8 cqw). */
-const amtSize = (s: string) => { const g = glyphCount(s); return g <= 8 ? 12.8 : g <= 9 ? 11.6 : g <= 11 ? 9.8 : 8.2; };
+/** Size of the engraved total by visible glyphs (tile: 8.2 / 7.4 / 6.3 cqw; the display face is wide). */
+const amtSize = (s: string) => { const g = glyphCount(s); return g <= 8 ? 8.2 : g <= 9 ? 7.4 : g <= 11 ? 6.3 : 5.3; };
 
 /** Genitive of the sandbox cast's Russian names (VISUAL §14: never decline a name we do not know). */
 const RU_GEN: Record<string, string> = {
