@@ -4,10 +4,10 @@
 // Ergo wallet (EIP-3, one chosen address), or (for experts) as hex. The wallet itself makes no seed words and keeps none.
 // One key per browser: a key already here is never replaced (the vault refuses, and the screen says where a second
 // key goes).
-import { forwardRef, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { forwardRef, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short } from "@/ui";
-import { SEED_MAX_INDEX, VAULT, checkPassphrase, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
+import { SEED_MAX_INDEX, VAULT, checkPassphrase, normalizeMnemonic, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
 import { watchExtras, watchIssuer } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
 import { useMw } from "./ctx";
@@ -182,30 +182,34 @@ function ImportHex() {
   );
 }
 
-// keys review P2-5 for the seed words too: the words and the mnemonic password live only in these two fields (the DOM,
-// never React state), drawn as dots, outside the passphrase form, marked for password managers, spell checkers and
-// writing aids to skip (a cloud spell check would send the words away)
+// keys review P2-5 for the seed words too, and review M2: the words and the mnemonic password live only in these two
+// fields (the DOM, never React state), outside the passphrase form. Both are password fields, so phone keyboards neither
+// learn nor suggest from them (iOS also takes the system keyboard there). They say autocomplete="one-time-code": Chromium
+// then never offers to save them, which clearing them does not achieve (measured 2026-11-25 on Chromium 157: a formless
+// password field typed, emptied by script and removed still raised "Save password?"; with one-time-code no prompt).
+// Password managers, spell checkers and writing aids are told to skip them (a cloud spell check would send the words).
 const SKIP = {
-  autoComplete: "off", autoCapitalize: "off", autoCorrect: "off", spellCheck: false,
+  autoComplete: "one-time-code", autoCapitalize: "off", autoCorrect: "off", spellCheck: false, writingsuggestions: "false",
   "data-1p-ignore": "", "data-lpignore": "true", "data-bwignore": "", "data-form-type": "other",
-  "data-gramm": "false", "data-gramm_editor": "false", "data-enable-grammarly": "false",
+  "data-gramm": "false", "data-gramm_editor": "false", "data-enable-grammarly": "false", "data-lt-active": "false",
 } as const;
 
-interface SecretProps { id?: string; "aria-describedby"?: string; invalid?: boolean; shown: boolean; onInput: () => void; trailing: ReactNode }
+interface SecretProps { id?: string; "aria-describedby"?: string; name: string; invalid?: boolean; shown: boolean; onInput: () => void; trailing: ReactNode; flat?: boolean }
 
-const SecretWords = forwardRef<HTMLTextAreaElement, SecretProps>(function SecretWords({ id, invalid, shown, onInput, trailing, ...aria }, ref) {
+/** A password field whose value React never holds. `flat`: a paste with line breaks or tabs comes in as one line of
+ *  single spaces (a phrase copied as a column), wherever the browser would otherwise join the words. */
+const SecretField = forwardRef<HTMLInputElement, SecretProps>(function SecretField({ id, name, invalid, shown, onInput, trailing, flat, ...aria }, ref) {
+  const paste = (e: ClipboardEvent<HTMLInputElement>) => {
+    const s = e.clipboardData.getData("text/plain");
+    if (!flat || !/[\r\n\t\u00a0\u200b-\u200d\u2060]/u.test(s)) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setRangeText(s.replace(/[\s\u200b-\u200d\u2060]+/gu, " ").trim(), el.selectionStart ?? el.value.length, el.selectionEnd ?? el.value.length, "end");
+    onInput();
+  };
   return (
-    <div className={cx("input mono area mw-seed-words", invalid && "err", !shown && "mw-masked")}>
-      <textarea ref={ref} id={id} aria-describedby={aria["aria-describedby"]} aria-invalid={invalid || undefined} rows={3} name="basis-seed-import" onInput={onInput} {...SKIP} />
-      {trailing}
-    </div>
-  );
-});
-
-const SecretLine = forwardRef<HTMLInputElement, SecretProps>(function SecretLine({ id, invalid, shown, onInput, trailing, ...aria }, ref) {
-  return (
-    <div className={cx("input text", invalid && "err", !shown && "mw-masked")}>
-      <input ref={ref} type="text" id={id} aria-describedby={aria["aria-describedby"]} aria-invalid={invalid || undefined} name="basis-seed-extra" onInput={onInput} {...SKIP} />
+    <div className={cx("input text", invalid && "err")}>
+      <input ref={ref} type={shown ? "text" : "password"} id={id} aria-describedby={aria["aria-describedby"]} aria-invalid={invalid || undefined} name={name} onInput={onInput} onPaste={paste} {...SKIP} />
       {trailing}
     </div>
   );
@@ -220,11 +224,12 @@ function ImportSeed() {
   const t = useT();
   const { vault } = useMw();
   const verr = useVaultError();
-  const wordsEl = useRef<HTMLTextAreaElement>(null);
+  const wordsEl = useRef<HTMLInputElement>(null);
   const passEl = useRef<HTMLInputElement>(null);
   const [shown, setShown] = useState(false);
   const [passShown, setPassShown] = useState(false);
-  // public only: indexes, public keys, addresses
+  // public only: how many words are typed, indexes, public keys, addresses
+  const [count, setCount] = useState(0);
   const [keys, setKeys] = useState<SeedKey[] | null>(null);
   const [problem, setProblem] = useState<SeedProblem | null>(null);
   const [upto, setUpto] = useState(FIRST_SHOWN);
@@ -238,6 +243,7 @@ function ImportSeed() {
     clear: () => {
       if (wordsEl.current) wordsEl.current.value = "";
       if (passEl.current) passEl.current.value = "";
+      setCount(0);
     },
   }), []);
   const forget = () => {
@@ -247,22 +253,42 @@ function ImportSeed() {
     setUpto(FIRST_SHOWN);
     setErr(null);
   };
-  // leaving this screen (another tab of it, another page, the page itself) empties both fields
-  useEffect(() => {
+  const typed = () => {
+    forget();
+    const phrase = normalizeMnemonic(wordsEl.current?.value ?? "");
+    setCount(phrase ? phrase.split(" ").length : 0);
+  };
+  // the fields are emptied while they are still on the page (a layout effect's cleanup runs before React removes them):
+  // on leaving this screen (another tab of it, another page), on leaving the page, and after the tab stayed hidden as
+  // long as the vault waits before it locks (review L3)
+  useLayoutEffect(() => {
     const w = wordsEl.current;
     const p = passEl.current;
     const clear = () => {
       if (w) w.value = "";
       if (p) p.value = "";
     };
-    const hide = () => { clear(); forget(); };
-    addEventListener("pagehide", hide);
-    return () => { removeEventListener("pagehide", hide); clear(); };
+    const drop = () => { clear(); forget(); setCount(0); };
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const vis = () => {
+      if (timer !== null) clearTimeout(timer);
+      timer = document.visibilityState === "hidden" ? setTimeout(drop, VAULT.HIDDEN_LOCK_MS) : null;
+    };
+    addEventListener("pagehide", drop);
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      removeEventListener("pagehide", drop);
+      document.removeEventListener("visibilitychange", vis);
+      if (timer !== null) clearTimeout(timer);
+      clear();
+    };
   }, []);
   const match = keys ? findExpected(keys, expected) : null;
   const found = match?.k === "found" ? match.key.index : null;
   const shownUpto = Math.min(SEED_MAX_INDEX, Math.max(upto, found !== null ? found + 1 : 0, pick !== null ? pick + 1 : 0));
   const picked = keys && pick !== null ? keys[pick] ?? null : null;
+  // an address is expected and this is not it: said next to the import (review L1)
+  const notExpected = picked !== null && expected.trim() !== "" && found !== picked.index;
 
   const list = async () => {
     setBusy("list");
@@ -300,17 +326,18 @@ function ImportSeed() {
   const problemText = problem
     ? problem.reason === "word" ? t("mw.start.seed.word", { n: problem.at }) : problem.reason === "count" ? t("mw.start.seed.count", { n: problem.count }) : t(`mw.start.seed.${problem.reason}`)
     : undefined;
+  const expectErr = match?.k === "bad" ? (match.reason === "notP2pk" ? t("mw.start.seedExpectNotP2pk") : t(`mw.pay.to.${match.reason}`)) : undefined;
   const toggle = (on: boolean, set: (v: boolean) => void) => (
     <button type="button" className="key sm quiet" aria-pressed={on} onClick={() => set(!on)}>{on ? t("mw.set.hexHide") : t("mw.start.hexShow")}</button>
   );
   return (
     <>
       <p className="t-body">{t("mw.start.seedB")}</p>
-      <Field label={t("mw.start.seedLabel")} help={t("mw.start.seedHelp")} error={problemText}>
-        <SecretWords ref={wordsEl} shown={shown} onInput={forget} trailing={toggle(shown, setShown)} />
+      <Field label={t("mw.start.seedLabel")} help={count > 0 ? `${t("mw.start.seedCount", { n: count })} ${t("mw.start.seedHelp")}` : t("mw.start.seedHelp")} error={problemText}>
+        <SecretField ref={wordsEl} name="basis-seed-import" flat shown={shown} onInput={typed} trailing={toggle(shown, setShown)} />
       </Field>
       <Field label={t("mw.start.seedPassL")} help={t("mw.start.seedPassHelp")}>
-        <SecretLine ref={passEl} shown={passShown} onInput={forget} trailing={toggle(passShown, setPassShown)} />
+        <SecretField ref={passEl} name="basis-seed-extra" shown={passShown} onInput={forget} trailing={toggle(passShown, setPassShown)} />
       </Field>
       <div className="mw-actions">
         <Key variant={keys ? "default" : "primary"} onClick={() => void list()} disabled={busy !== null}>{busy === "list" ? t("mw.start.seedListing") : keys ? t("mw.start.seedRelist") : t("mw.start.seedList")}</Key>
@@ -318,11 +345,13 @@ function ImportSeed() {
       </div>
       {keys && (
         <div className="mw-form">
-          <Field label={t("mw.start.seedExpectL")} help={t("mw.start.seedExpectHelp", { n: SEED_MAX_INDEX - 1 })} error={match?.k === "bad" ? t(`mw.pay.to.${match.reason}`) : undefined}>
+          <Field label={t("mw.start.seedExpectL")} help={t("mw.start.seedExpectHelp", { n: SEED_MAX_INDEX - 1 })} error={expectErr}>
             <TextInput mono value={expected} onChange={(v) => {
               setExpected(v);
+              // a match is chosen; an address that is not among them (or not an address) leaves nothing chosen
               const m = findExpected(keys, v);
               if (m.k === "found") setPick(m.key.index);
+              else if (m.k !== "empty") setPick(null);
             }} placeholder="9…" autoComplete="off" autoCapitalize="off" autoCorrect="off" />
           </Field>
           {match?.k === "found" && <Callout tone="proof">{t("mw.start.seedFound", { n: match.key.index })}</Callout>}
@@ -333,6 +362,7 @@ function ImportSeed() {
                 <li>{t("mw.start.seedNone1")}</li>
                 <li>{t("mw.start.seedNone2")}</li>
                 <li>{t("mw.start.seedNone3")}</li>
+                <li>{t("mw.start.seedNone4")}</li>
               </ul>
             </Callout>
           )}
@@ -362,11 +392,13 @@ function ImportSeed() {
       )}
       {picked && (
         <>
+          {notExpected && <Callout tone="alarm">{t("mw.start.seedNotExpected", { n: picked.index })}</Callout>}
           <Callout tone="policy" title={t("mw.start.seedWarnT")}>
             <p>{t("mw.start.seedWarnB", { addr: short(picked.address, 8, 6), n: picked.index })}</p>
             <p>{t("mw.start.seedWarnWords")}</p>
           </Callout>
-          <NewPassphrase busy={busy === "import"} label={t("mw.start.seedImport")} understand={t("mw.start.seedUnderstand")} onSubmit={(p) => void go(p)} />
+          {/* a new address starts a new form: no passphrase or consent carries over to another key (review L2) */}
+          <NewPassphrase key={picked.index} busy={busy === "import"} label={t("mw.start.seedImport")} understand={t("mw.start.seedUnderstand")} onSubmit={(p) => void go(p)} />
         </>
       )}
       {err && <Callout tone="alarm">{err}</Callout>}

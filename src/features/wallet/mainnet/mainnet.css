@@ -130,12 +130,8 @@
 .mw-secret.on { display: grid; }
 .mw-secret code { font: 500 14px/1.5 var(--f-mono); color: var(--ink); user-select: all; }
 /* the hex import field: a text field drawn as dots (keys review P2-5); blurred where dots are not supported */
-.mw-masked :is(input, textarea) { -webkit-text-security: disc; }
-@supports not (-webkit-text-security: disc) { .mw-masked :is(input, textarea) { filter: blur(5px); } }
-/* the seed import: the words' well grows with them; the trailing key stays at the top */
-.mw-seed-words { align-items: flex-start; }
-.mw-seed-words textarea { min-height: 84px; resize: vertical; }
-.mw-seed-words > .key { margin-top: 10px; }
+.mw-masked input { -webkit-text-security: disc; }
+@supports not (-webkit-text-security: disc) { .mw-masked input { filter: blur(5px); } }
 .mw-seedpick { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
 .mw-seedpick legend { padding: 0; margin-bottom: 4px; }
 .mw-seedlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
