@@ -17,7 +17,7 @@ import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { Gate, ProblemText, TimeHint } from "./ui";
-import { Amt, DenomSwitch, amtText, useDenom } from "./denom";
+import { Amt, DenomSwitch, amtText, useDenom, useOnDenomChange } from "./denom";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
 function receiptFrom(text: string): ReturnType<typeof decodeReceipt> | null {
@@ -170,6 +170,8 @@ export function ReceiveScreen() {
   const [list] = useWatchList(me?.pub ?? null);
   const [denom, setDenom] = useDenom();
   const [amountText, setAmountText] = useState("");
+  // an amount typed in one denomination is never kept under another (second review LOW-5)
+  useOnDenomChange(denom, () => setAmountText(""));
   const amount = parseUnits(amountText, denomDecimals(denom));
   const initial = useMemo(() => (fragmentOf(loc.hash).note ? loc.hash : ""), [loc.hash]);
   const link = me ? requestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT, ...(denom === "erg" ? {} : { denom }) }) : "";

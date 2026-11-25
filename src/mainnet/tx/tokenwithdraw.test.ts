@@ -62,7 +62,8 @@ describe("the token Withdraw plan", () => {
 
   it("says what is short, and refuses 0 and too many boxes", () => {
     expect(planTokenWithdraw(boxes, owner, to, SIG, 801n, FEE, TIP)).toMatchObject({ ok: false, why: "short-tokens", need: 801n, have: 800n });
-    expect(planTokenWithdraw([sigBox], owner, to, SIG, 500n, FEE, TIP)).toMatchObject({ ok: false, why: "short-erg" });
+    // the need the screen shows (second review LOW-5a): the 0.001 ERG box, the fee and 0.001 ERG for the change box
+    expect(planTokenWithdraw([sigBox], owner, to, SIG, 500n, FEE, TIP)).toMatchObject({ ok: false, why: "short-erg", need: 3_000_000n, have: 1_000_000n });
     expect(planTokenWithdraw(boxes, owner, to, SIG, 0n, FEE, TIP)).toEqual({ ok: false, why: "amount" });
     const many = Array.from({ length: 51 }, (_, i) => p2pkBox(owner, 1_000_000n, { tokens: [{ tokenId: SIGUSD_TOKEN_ID, amount: 1n }], index: i, transactionId: "f1".repeat(32) }));
     expect(planTokenWithdraw([...many, ergBox], owner, to, SIG, 51n, FEE, TIP)).toEqual({ ok: false, why: "too-many-boxes" });

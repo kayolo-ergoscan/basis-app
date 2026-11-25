@@ -24,7 +24,7 @@ import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, ownReserveNow, useResource } from "./data";
 import { Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
-import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, denomQuery, entryDenom, useDenom } from "./denom";
+import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, denomQuery, entryDenom, useDenom, useDenomPhase } from "./denom";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
 export function receiptOf(e: JournalEntry): NoteReceipt | null {
@@ -140,7 +140,7 @@ export function PayScreen() {
   const [toText, setToText] = useState(req?.to ?? "");
   const [amountText, setAmountText] = useState(req?.amount ? unitsInput(req.amount, denomDecimals(req.denom ?? "erg")) : "");
   const [pass, setPass] = useState("");
-  const [phase, setPhase] = useState<Phase>({ k: "edit" });
+  const [phase, setPhase] = useDenomPhase<Phase>(denom, { k: "edit" }, () => setAmountText(""));
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const ks = useResource(me ? R.keyStatus(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const key = parseKeyInput(toText);

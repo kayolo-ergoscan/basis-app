@@ -27,7 +27,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
 import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryAmtText, entryDenom, tokenOf, useDenom, useServed } from "./denom";
+import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryAmtText, entryDenom, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =
   | { k: "edit"; notice?: string }
@@ -91,7 +91,7 @@ function TopUpForm() {
   const [big, setBig] = useState(false);
   const [pass, setPass] = useState("");
   const [passWrong, setPassWrong] = useState(false);
-  const [phase, setPhase] = useState<Phase>({ k: "edit" });
+  const [phase, setPhase] = useDenomPhase<Phase>(ownDenom, { k: "edit" });
   const [xray, setXray] = useState(false);
 
   const read = box ? readIn(box, !!asked, denom) : null;

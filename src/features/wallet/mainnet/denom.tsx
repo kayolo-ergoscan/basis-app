@@ -2,7 +2,7 @@
 // absent), so a link names it and Back keeps it; the switch on Reserve, Top up, Refund, Pay, Receive and Redeem sets it.
 // Amounts of one denomination are only ever shown and added up in that denomination: a SigUSD figure is never next to
 // an ERG total as if they were one sum. Token decimals are pinned in tx/tokens.ts, never read from the tracker.
-import { Fragment, useCallback, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Callout, Key, Num, Seg, units } from "@/ui";
@@ -24,6 +24,32 @@ export function useDenom(): [Denomination, (d: Denomination) => void] {
     }, { replace: true });
   }, [setSp]);
   return [d, set];
+}
+
+/** Runs `fn` when the screen's denomination changes under a mounted screen (the nav or a link changed ?d=), not on
+ *  the first render. */
+export function useOnDenomChange(denom: Denomination, fn: () => void) {
+  const seen = useRef(denom);
+  useEffect(() => {
+    if (seen.current === denom) return;
+    seen.current = denom;
+    fn();
+  }, [denom]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/**
+ * A screen's phase tied to its denomination (second review LOW-5): when ?d= changes under a mounted screen (the nav
+ * drops ?d=, a link sets it), the phase goes back to `initial` (and `onChange` resets the rest), and the setter that
+ * async work captured under the old denomination no longer writes. So a review built for one denomination never
+ * shows, or is signed, under another.
+ */
+export function useDenomPhase<P>(denom: Denomination, initial: P, onChange?: () => void): [P, (p: P) => void] {
+  const [phase, setPhaseRaw] = useState<P>(initial);
+  const now = useRef(denom);
+  now.current = denom;
+  useOnDenomChange(denom, () => { setPhaseRaw(initial); onChange?.(); });
+  const set = useCallback((p: P) => { if (now.current === denom) setPhaseRaw(p); }, [denom]);
+  return [phase, set];
 }
 
 /** The `d` a link names (`?d=`, or `#…&d=` of a request or redeem link) when it is not ERG, SigUSD or rsADA; else null. */

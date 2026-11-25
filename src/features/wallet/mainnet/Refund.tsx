@@ -23,7 +23,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource } from "./data";
 import { EntryProgress, send, signReserve, stuckCompletion } from "./send";
 import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, tokenOf, useDenom } from "./denom";
+import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, tokenOf, useDenom, useDenomPhase } from "./denom";
 
 /** A refund start is signed only while its R7 (tip + 10 at the review) is ahead: at most 5 blocks after the review,
  *  and the next block at least 2 below R7 (review 1 item 2, review 2 stale tip). */
@@ -70,7 +70,7 @@ export function RefundScreen() {
   const token = tokenOf(denom);
   const chain = useResource(me ? R.reservesOnChain(me.pub, denom) : null, { height, enabled: state.backedUp });
   const tracked = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
-  const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const [phase, setPhase] = useDenomPhase<Phase>(denom, { k: "idle" }, () => { setPass(""); setUnderstood(false); });
   const [understood, setUnderstood] = useState(false);
   const [pass, setPass] = useState("");
   const [passWrong, setPassWrong] = useState(false);

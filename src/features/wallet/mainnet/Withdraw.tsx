@@ -15,7 +15,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { Erg, Gate, ProblemText, TxReview, ergText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, TokensAfter, amtText, entryAmtText, entryDenom, useDenom } from "./denom";
+import { Amt, DenomSwitch, TokensAfter, amtText, entryAmtText, entryDenom, useDenom, useDenomPhase } from "./denom";
 
 type Phase =
   | { k: "edit" }
@@ -34,8 +34,9 @@ export function WithdrawScreen() {
   const [toText, setToText] = useState("");
   const [amountText, setAmountText] = useState("");
   const [pass, setPass] = useState("");
-  const [phase, setPhase] = useState<Phase>({ k: "edit" });
   const [denom, setDenom] = useDenom();
+  // ?d= changed under the screen (a link): back to the form, the amount cleared (second review LOW-5)
+  const [phase, setPhase] = useDenomPhase<Phase>(denom, { k: "edit" }, () => setAmountText(""));
   const token = denom === "erg" ? null : reserveTokenById(tokenIdOf(denom) ?? "");
   const usable = useMemo(() => (me && un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub), mem.value ?? []) : []), [me, un.value, mem.value, entries]);
   const max = token ? maxTokenWithdraw(usable, token.id) : maxWithdraw(usable);
@@ -63,7 +64,7 @@ export function WithdrawScreen() {
       if (!q.ok) {
         return setPhase({ k: "error", rule: q.message, text: q.why === "too-many-boxes" ? t("mw.wd.tooMany") : q.why === "amount" ? t("mw.dn.wdMin", { min: amtText(1n, denom) })
           : q.why === "short-tokens" ? t("mw.dn.shortTokens", { need: amtText(q.need, denom), have: amtText(q.have, denom) })
-          : q.why === "short-erg" ? t("mw.dn.wdShortErg", { need: ergText(tokenWithdrawErgNeed()), have: ergText(q.have) }) : t("mw.wd.build") });
+          : q.why === "short-erg" ? t("mw.dn.wdShortErg", { need: ergText(q.need), have: ergText(q.have) }) : t("mw.wd.build") });
       }
       const ct = checkTokenWithdraw(q.tx, q.inputs, { owner: me.pub, to: toText.trim(), token, amount: q.sent, ergValue: q.ergValue, fee: MINER_FEE_NANOERG, height });
       if (!ct.ok) return setPhase({ k: "error", text: t("mw.res.checkFailed"), rule: `${ct.rule}: ${ct.message}` });

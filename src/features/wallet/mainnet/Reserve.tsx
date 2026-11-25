@@ -30,7 +30,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, t1GateOf, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { ChainLink, Erg, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, tokenOf, useDenom, useServed } from "./denom";
+import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =
   | { k: "idle" }
@@ -144,7 +144,7 @@ export function ReserveScreen() {
   const amountText = texts[denom] ?? unitsInput((token ? token.defaultCap : RESERVE_DEFAULT_CAP_NANOERG) / 2n, denomDecimals(denom));
   const setAmountText = (v: string) => setTexts((m) => ({ ...m, [denom]: v }));
   const [big, setBig] = useState(false);
-  const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const [phase, setPhase] = useDenomPhase<Phase>(denom, { k: "idle" }, () => { setPass(""); setBig(false); });
   const [pass, setPass] = useState("");
   const [passWrong, setPassWrong] = useState(false);
   const combineEntry = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && e.kind === "withdraw" && e.meta.combine === true && e.state !== "final" && e.state !== "failed" && e.state !== "abandoned") ?? null : null), [entries, me]);
