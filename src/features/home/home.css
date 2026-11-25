@@ -42,7 +42,7 @@
 .home-how:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
 .home ul.home-materials {
   list-style: none; margin: clamp(26px, 4vh, 44px) 0 0; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 16px;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--surface);
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; max-width: 620px;
 }
 /* rows packed at the top: a one-line caption next to a two-line one stays level with it (the list stretches each li) */
@@ -112,6 +112,7 @@
   .home-foot-l { gap: 10px; }
   .home-stage-col { width: min(100%, 700px); }
   .home-notewrap { padding-top: 8%; }
+  .home-hero .home-town { height: 28px; }
 }
 
 /* ================= shared bits ================= */
