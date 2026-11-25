@@ -200,6 +200,15 @@ describe("coins, signing and broadcast JSON (synthetic key)", () => {
     expect(checkWithdraw(sweep, free, { owner: me.pubHex, to, amount: 300_000_000n - FEE, fee: FEE, height })).toEqual({ ok: true });
   });
 
+  it("the fee is 0.001 … 0.002 ERG, on balanced transactions (the range line alone refuses)", () => {
+    const inputs = [p2pkBox(me.pubHex, 700_000_000n)];
+    const to = p2pkAddress(RECEIVER_B);
+    const at = (fee: bigint) => checkWithdraw(buildWithdraw({ owner: me.pubHex, inputs, to, amount: 500_000_000n, fee, height }), inputs, { owner: me.pubHex, to, amount: 500_000_000n, fee, height });
+    expect(at(2_000_000n)).toEqual({ ok: true });
+    expect(at(3_000_000n)).toMatchObject({ ok: false, rule: "fee-output", message: expect.stringMatching(/^the fee 3000000 is outside/) });
+    expect(at(999_999n)).toMatchObject({ ok: false, rule: "fee-output", message: expect.stringMatching(/^the fee 999999 is outside/) });
+  });
+
   it("never creates outputs before the inputs: the creation height is max(tip, highest input), and it is checked", () => {
     const later = [p2pkBox(me.pubHex, 300_000_000n, { creationHeight: height + 7 }), p2pkBox(me.pubHex, 200_000_000n, { index: 1 })];
     const to = p2pkAddress(RECEIVER_B);

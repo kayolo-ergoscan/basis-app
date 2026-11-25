@@ -118,6 +118,25 @@ describe("the token Withdraw check, one mutation per rule", () => {
   });
 });
 
+describe("the box value and fee ranges, on balanced transactions (second review MEDIUM-1)", () => {
+  // built by the builder with `want` matching, so no equality rule refuses first: only the range lines can
+  const build = (ergValue: bigint, fee: bigint) => {
+    const inputs = [sigBox, ergBox];
+    const tx = buildTokenWithdraw({ owner, inputs, to, token: SIG, amount: 500n, ergValue, fee, height: TIP });
+    return checkTokenWithdraw(tx, inputs, { owner, to, token: SIG, amount: 500n, ergValue, fee, height: TIP });
+  };
+  it("the destination box holds 0.001 ERG plus dust below 0.001 ERG, never 0.002 ERG or more", () => {
+    expect(build(1_999_999n, FEE)).toEqual({ ok: true });
+    expect(build(2_000_000n, FEE)).toMatchObject({ ok: false, rule: "destination", message: expect.stringMatching(/^the destination box value 2000000 nanoERG is not 0\.001 ERG/) });
+    expect(build(40_000_000n, FEE)).toMatchObject({ ok: false, rule: "destination", message: expect.stringMatching(/is not 0\.001 ERG/) });
+  });
+  it("the fee is 0.001 … 0.002 ERG", () => {
+    expect(build(TOKEN_WITHDRAW_BOX_NANOERG, 2_000_000n)).toEqual({ ok: true });
+    expect(build(TOKEN_WITHDRAW_BOX_NANOERG, 3_000_000n)).toMatchObject({ ok: false, rule: "fee-output", message: expect.stringMatching(/^the fee 3000000 is outside/) });
+    expect(build(TOKEN_WITHDRAW_BOX_NANOERG, 999_999n)).toMatchObject({ ok: false, rule: "fee-output", message: expect.stringMatching(/^the fee 999999 is outside/) });
+  });
+});
+
 describe("MaxBoxSize", () => {
   it("a change box over 4096 bytes (many other tokens) is refused; the rule is the size, not the count", () => {
     const many = Array.from({ length: 130 }, (_, i) => ({ tokenId: (i + 1).toString(16).padStart(64, "b"), amount: 1n }));

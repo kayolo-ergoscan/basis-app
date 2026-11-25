@@ -40,6 +40,19 @@ describe("coins with a token", () => {
   });
 });
 
+describe("the fee range, on a balanced token T1 (the range line alone refuses)", () => {
+  it("0.001 … 0.002 ERG", () => {
+    const at = (fee: bigint) => {
+      const inputs = [tokenBox, ergBox];
+      const want = { owner, token: SIG, amount: 500n, ergValue: TOKEN_RESERVE_BOX_NANOERG, fee, height: TIP };
+      return checkTokenReserveCreation(buildTokenReserveCreation({ ...want, inputs }), inputs, want);
+    };
+    expect(at(2_000_000n)).toEqual({ ok: true });
+    expect(at(3_000_000n)).toMatchObject({ ok: false, rule: "fee", message: expect.stringMatching(/^the fee 3000000 is outside/) });
+    expect(at(999_999n)).toMatchObject({ ok: false, rule: "fee", message: expect.stringMatching(/^the fee 999999 is outside/) });
+  });
+});
+
 describe("the plan", () => {
   it("amount within the token's floor and cap; 0.002 ERG in the box", () => {
     const p = planTokenReserveCreation([tokenBox, ergBox], owner, SIG, 500n, FEE);
