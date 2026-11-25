@@ -16,6 +16,7 @@ import { MwCtx, type MwContext } from "./ctx";
 import { useJournal, useJournalWatcher, useVault, useVaultState } from "./data";
 import { MainnetSeal } from "./ui";
 import { HomeScreen } from "./Home";
+import { DenomGuard } from "./denom";
 import { StartScreen } from "./Start";
 import { FundScreen } from "./Fund";
 import { ReserveScreen } from "./Reserve";
@@ -122,6 +123,7 @@ export default function MainnetWallet() {
       <MwCtx.Provider value={ctx}>
         {hasKey && state.backedUp && <MwNav />}
         {/* rendered under the feature's "/wallet/*": these paths are relative to /wallet */}
+        <DenomGuard>
         <Routes>
           <Route path="mainnet">
             <Route index element={hasKey && state.backedUp ? <HomeScreen /> : <StartScreen />} />
@@ -139,6 +141,7 @@ export default function MainnetWallet() {
             <Route path="*" element={<Navigate to="/wallet/mainnet" replace />} />
           </Route>
         </Routes>
+        </DenomGuard>
       </MwCtx.Provider>
     );
   }

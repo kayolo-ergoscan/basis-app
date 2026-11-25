@@ -7,6 +7,7 @@ import { p2pkBox, reserveBox } from "../tx/testkit";
 import { planTokenT1, tokenBalanceOf, tokenT1CreateBody, mempoolCreatesReserve } from "./coins";
 import { linkTarget, ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGate, trustedNft, type TrackedRef } from "./reserveops";
 import { parseRequest, requestLink } from "./receipt";
+import { tokenRedeemMax } from "./redeem";
 import { parseWatchStore, watchIssuer, watchedDenoms } from "./watch";
 import { TRACKER_NFT } from "../tx";
 
@@ -101,5 +102,16 @@ describe("request links and watched issuers per denomination", () => {
     expect(watchedDenoms(l[0])).toEqual(["erg", `token:${SIGUSD_TOKEN_ID}`]);
     const back = parseWatchStore(JSON.stringify({ [me]: [{ ...l[0], tokens: [...l[0].tokens!, { denom: "token:" + "ee".repeat(32), receipt: null }, { denom: "erg", receipt: null }] }] }));
     expect(back[me][0].tokens).toEqual(l[0].tokens);
+  });
+});
+
+describe("the most a token redemption takes now (review LOW-3)", () => {
+  it("the note's redeemable amount, but never the reserve's last raw unit", () => {
+    expect(tokenRedeemMax(300n, 1_000n)).toEqual({ max: 300n, keptOne: false });
+    expect(tokenRedeemMax(1_000n, 1_000n)).toEqual({ max: 999n, keptOne: true });
+    expect(tokenRedeemMax(999n, 1_000n)).toEqual({ max: 999n, keptOne: false });
+    expect(tokenRedeemMax(5n, 1n)).toEqual({ max: 0n, keptOne: true });
+    expect(tokenRedeemMax(5n, 0n)).toEqual({ max: 0n, keptOne: true });
+    expect(tokenRedeemMax(5n, null)).toEqual({ max: 5n, keptOne: false });
   });
 });

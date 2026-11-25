@@ -45,6 +45,17 @@ export const REDEEM_MIN = MIN_BOX_NANOERG + REDEEM_FEE;
 
 export const payoutOf = (amount: bigint, fee: bigint = REDEEM_FEE): bigint => (amount > fee ? amount - fee : 0n);
 
+/**
+ * The most a token redemption can take now (review LOW-3): the note's redeemable amount, and no more than the
+ * reserve's tokens less one raw unit, which the token reserve layout keeps in the box (tokens(1) must stay; the check
+ * in tx/redemption refuses a build that empties it). `collateral` null: not known yet (the build check still holds).
+ */
+export function tokenRedeemMax(redeemableNow: bigint, collateral: bigint | null): { max: bigint; keptOne: boolean } {
+  if (collateral === null) return { max: redeemableNow, keptOne: false };
+  const room = collateral > 1n ? collateral - 1n : 0n;
+  return room < redeemableNow ? { max: room, keptOne: true } : { max: redeemableNow, keptOne: false };
+}
+
 /** Can this amount be redeemed now? */
 export function redeemableAmount(amount: bigint | null, v: NoteView): "ok" | "below-min" | "above" | "none" {
   if (v.redeemableNow < REDEEM_MIN) return "none";

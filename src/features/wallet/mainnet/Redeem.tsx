@@ -13,10 +13,10 @@ import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, Field, Key, KeySeal, Ledger, Seg, Tag, blk, short } from "@/ui";
 import {
   JsonSyntaxError, ShapeError, TOKEN_RECIPIENT_BOX_NANOERG, TrackerRefusal, checkNoteForRedemption, checkRedemption, checkRedemptionContract, denomDecimals, denomOfSlug, denomSymbol,
-  loadContractAvl, parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest,
+  TRACKER_NFT, loadContractAvl, parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest, tokenIdOf,
   type CheckedRedemption, type ChainBoxes, type Denomination, type ErgoBox, type L2Result, type RedemptionExpectation,
 } from "@/mainnet/tx";
-import { REDEEM_FEE, REDEEM_MIN, fragmentOf, noteView, parseUnits, payoutOf, submitBodyOf, submitVerdict, unitsInput, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
+import { REDEEM_FEE, REDEEM_MIN, fragmentOf, noteView, parseUnits, payoutOf, submitBodyOf, submitVerdict, tokenRedeemMax, unitsInput, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
 import { buildScope, isVaultError, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import { ContractXray } from "@/viz";
@@ -136,7 +136,13 @@ export function RedeemScreen() {
 
   let view: NoteView | null = null;
   if (pair.value && me) { try { const n = parseStoredNote(pair.value); if (n.recipient === me.pub && n.issuer === issuer) view = noteView(n); } catch { view = null; } }
-  useEffect(() => { if (view && !amountText && view.redeemableNow >= minAmount) setAmountText(unitsInput(view.redeemableNow, denomDecimals(denom))); }, [view?.redeemableNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  // a token reserve keeps at least one raw unit (review LOW-3): the most now is min(redeemable, the issuer's tokens − 1),
+  // from the tracker's listing of the issuer's reserve in this token (the build check reads the box itself)
+  const issuerRes = useResource(tok && issuer ? R.reservesOf(issuer) : null, { everyMs: 120_000, enabled: !!issuer });
+  const collateral = tok ? (issuerRes.value ?? []).find((r) => r.owner === issuer && r.token === tokenIdOf(denom) && r.nft === TRACKER_NFT)?.collateral ?? null : null;
+  const cap = view ? (tok ? tokenRedeemMax(view.redeemableNow, collateral) : { max: view.redeemableNow, keptOne: false }) : null;
+  const maxNow = cap?.max ?? 0n;
+  useEffect(() => { if (view && cap && !amountText && cap.max >= minAmount) setAmountText(unitsInput(cap.max, denomDecimals(denom))); }, [cap?.max]); // eslint-disable-line react-hooks/exhaustive-deps
   const amount = parseUnits(amountText, denomDecimals(denom));
   const open = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "redeem" && (e.state !== "final" || Date.now() - e.updatedAt < 30 * 60_000) && e.state !== "abandoned") : []), [entries, me]);
   const pending = phase.k === "commit-pending";
@@ -195,6 +201,7 @@ export function RedeemScreen() {
       if ((bp.kind === "clock-skew" || bp.kind === "future-ts") && retry < 2) {
         net().clock.reset();
         if (bp.trackerNowMs === undefined) return prepare(retry + 1);
+        // one scope per receiver for ERG and tokens alike (review LOW-5, kept): the tracker keeps one last request_timestamp per recipient (redemption_build.rs)
         await vault.journal.rewindTimestamp(buildScope(me.pub), claimed, Math.max(0, bp.trackerNowMs - 1));
         return prepare(retry + 1, { nowMs: bp.trackerNowMs, at: Date.now() });
       }
@@ -272,7 +279,7 @@ export function RedeemScreen() {
     id: s, label: t(`mw.red.stage.${s}`), state: i < STAGES.indexOf(at) ? "done" : i === STAGES.indexOf(at) ? (failed ? "fail" : "now") : "todo",
   }));
   const sentEntry = phase.k === "sent" ? entries.find((e) => e.id === phase.id) ?? null : null;
-  const ok = amount !== null && view !== null && amount >= minAmount && amount <= view.redeemableNow;
+  const ok = amount !== null && view !== null && amount >= minAmount && amount <= maxNow;
 
   return (
     <Gate vault={vault} state={state}>
@@ -343,9 +350,10 @@ export function RedeemScreen() {
                       )}
                       {view && view.redeemableNow < minAmount && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
                       <Field label={tok ? t("mw.dn.redAmount", { sym: denomSymbol(denom) }) : t("mw.red.amount")} help={tok ? t("mw.dn.redAmountHelp", { min: amtText(minAmount, denom) }) : t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
-                        error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < minAmount))) ? t("mw.red.amountBad", { min: amtText(minAmount, denom), max: amtText(view?.redeemableNow ?? 0n, denom) }) : undefined}>
-                        <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(unitsInput(view!.redeemableNow, denomDecimals(denom))) } : undefined} />
+                        error={amountText && (amount === null || (view && (amount > maxNow || amount < minAmount))) ? t("mw.red.amountBad", { min: amtText(minAmount, denom), max: amtText(maxNow, denom) }) : undefined}>
+                        <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(unitsInput(maxNow, denomDecimals(denom))) } : undefined} />
                       </Field>
+                      {cap?.keptOne && collateral !== null && <p className="t-small mw-dim">{t("mw.dn.redKeepOne", { max: amtText(maxNow, denom), left: amtText(collateral, denom), sym: denomSymbol(denom) })}</p>}
                       {amount !== null && amount >= minAmount && (tok
                         ? <p className="t-body">{t("mw.red.payout")} <b><Amt raw={amount} denom={denom} tone="up" /></b> <span className="t-small mw-dim">{t("mw.dn.redPayoutWhy", { erg: ergText(TOKEN_RECIPIENT_BOX_NANOERG) })}</span></p>
                         : <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE) })}</span></p>)}

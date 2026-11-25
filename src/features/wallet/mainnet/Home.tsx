@@ -7,12 +7,12 @@ import { useMemo } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Card, Key, Lamp, Tag, int } from "@/ui";
 import { balanceOf, reserveLife, spendable, tokenBalanceOf } from "@/mainnet/flows";
-import { blocksNewT1, blocksNewT1In, isOpenState } from "@/mainnet/vault";
+import { blocksNewT1In, isOpenState } from "@/mainnet/vault";
 import { RESERVE_TOKENS, denomOfToken, type ReserveToken } from "@/mainnet/tx";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent, useWatchList } from "./data";
 import { ChainLink, Erg, ProblemText, ReserveTag, Steps, ergText } from "./ui";
-import { Amt, amtText, denomQuery } from "./denom";
+import { Amt, amtText, denomQuery, entryDenom } from "./denom";
 
 /** A token reserve of this key: its own figures in its own unit (the tracker's entry this key minted, as on Reserve). */
 function TokenReserveCard({ token }: { token: ReserveToken }) {
@@ -75,9 +75,10 @@ export function HomeScreen() {
   const life = reserve ? reserveLife(reserve.refundHeight, height) : null;
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
   const open = mine.filter((e) => isOpenState(e.state));
-  const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned");
+  // the ERG card's notes and T1 only (review LOW-2): a SigUSD note or T1 says nothing about the ERG reserve
+  const notes = mine.filter((e) => e.kind === "note" && e.state !== "failed" && e.state !== "abandoned" && entryDenom(e) === "erg");
   // a T1 retired after a completed refund no longer counts (the key may create a new reserve)
-  const t1 = mine.find(blocksNewT1);
+  const t1 = mine.find((e) => blocksNewT1In(e, "erg"));
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
   const tokenCards = RESERVE_TOKENS.filter((tk) => (listed.value ?? []).some((r) => r.owner === me?.pub && r.token === tk.id) || mine.some((e) => blocksNewT1In(e, denomOfToken(tk))));
   const tokensHere = RESERVE_TOKENS.map((tk) => ({ tk, raw: tokenBalanceOf(usable, tk.id) })).filter((x) => x.raw > 0n);

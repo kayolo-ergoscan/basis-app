@@ -2,16 +2,17 @@
 // absent), so a link names it and Back keeps it; the switch on Reserve, Top up, Refund, Pay, Receive and Redeem sets it.
 // Amounts of one denomination are only ever shown and added up in that denomination: a SigUSD figure is never next to
 // an ERG total as if they were one sum. Token decimals are pinned in tx/tokens.ts, never read from the tracker.
-import { Fragment, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Fragment, useCallback, type ReactNode } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { Callout, Num, Seg, units } from "@/ui";
-import { dpOfUnits } from "@/mainnet/flows";
+import { Callout, Key, Num, Seg, units } from "@/ui";
+import { dpOfUnits, fragmentOf } from "@/mainnet/flows";
 import { WALLET_DENOMS, denomDecimals, denomOfSlug, denomSlug, denomSymbol, mergedTokens, p2pkTree, reserveTokenById, reserveTokenOf, tokenIdOf, tokenReserveAddress, type Denomination, type ReserveToken, type Token, type UnsignedTx } from "@/mainnet/tx";
 import { R, useResource } from "./data";
 import { Erg, ergText } from "./ui";
 
-/** The screen's denomination from `?d=` (unknown or absent: ERG), and a setter that keeps the other parameters. */
+/** The screen's denomination from `?d=` (absent: ERG), and a setter that keeps the other parameters. An unknown `?d=`
+ *  never reaches a screen: DenomGuard shows it instead (review LOW-4), so the ERG fallback here is never shown. */
 export function useDenom(): [Denomination, (d: Denomination) => void] {
   const [sp, setSp] = useSearchParams();
   const d = denomOfSlug(sp.get("d")) ?? "erg";
@@ -23,6 +24,35 @@ export function useDenom(): [Denomination, (d: Denomination) => void] {
     }, { replace: true });
   }, [setSp]);
   return [d, set];
+}
+
+/** The `d` a link names (`?d=`, or `#…&d=` of a request or redeem link) when it is not ERG, SigUSD or rsADA; else null. */
+export function unknownDenomOf(search: string, hash: string): string | null {
+  for (const asked of [new URLSearchParams(search).get("d") ?? "", fragmentOf(hash).d ?? ""]) {
+    if (asked.trim() !== "" && denomOfSlug(asked) === null) return asked;
+  }
+  return null;
+}
+
+/**
+ * Around the mainnet screens: a link with a denomination the wallet does not know shows that, and nothing else (no
+ * amounts, no actions), instead of falling back to ERG (review LOW-4).
+ */
+export function DenomGuard({ children }: { children: ReactNode }) {
+  const t = useT();
+  const loc = useLocation();
+  const unknown = unknownDenomOf(loc.search, loc.hash);
+  if (unknown === null) return <>{children}</>;
+  return (
+    <div className="mw-grid">
+      <div className="mw-main">
+        <Callout tone="alarm" title={t("mw.dn.unknownT")}>
+          <p>{t("mw.dn.unknownB", { d: unknown.slice(0, 40) })}</p>
+          <Key size="sm" to="/wallet/mainnet">{t("mw.dn.unknownHome")}</Key>
+        </Callout>
+      </div>
+    </div>
+  );
 }
 
 /** `?d=…` for a link to another screen in this denomination ("" for ERG: ERG links stay what they were). */
