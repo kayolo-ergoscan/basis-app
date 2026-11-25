@@ -317,7 +317,8 @@ export interface WithdrawInput {
   height: number;
 }
 
-function destinationTree(to: string): Hex {
+/** The tree a Withdraw sends to: never a reserve contract (ERG or token) or the fee contract; a P2PK with a valid key. */
+export function destinationTree(to: string): Hex {
   const tree = treeOfAddress(to);
   if (tree === RESERVE_TREE_HEX || tree === TOKEN_RESERVE_TREE_HEX) throw new Error("this is the reserve contract's address: a box sent there is not a reserve");
   if (tree === FEE_TREE_HEX) throw new Error("this is the miner-fee contract");

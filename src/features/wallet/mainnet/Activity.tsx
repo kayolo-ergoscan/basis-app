@@ -66,7 +66,7 @@ export function ActivityScreen() {
   const { me, entries } = useMw();
   const [f, setF] = useState<Filter>("all");
   const [d, setD] = useState<Denomination | "all">("all");
-  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (d === "all" || (e.kind !== "withdraw" && entryDenom(e) === d) || (e.kind === "withdraw" && d === "erg"))) : []), [entries, me, d]);
+  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (d === "all" || entryDenom(e) === d)) : []), [entries, me, d]);
   const anyToken = useMemo(() => !!me && entries.some((e) => e.pub === me.pub && entryDenom(e) !== "erg"), [entries, me]);
   // "Reserve" lists everything that made or moved the reserve: T1, top-ups, the refund's two steps
   const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : f === "t1" ? e.kind === "t1" || RESERVE_ACTION_KINDS.includes(e.kind) : e.kind === f));

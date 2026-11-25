@@ -4,6 +4,7 @@
 // Token reserves: each one its own card in its own unit (shown once the tracker lists one or this browser made one),
 // and the tokens at the key as their own lines. Nothing is ever added across denominations.
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Callout, Card, Key, Lamp, Tag, int } from "@/ui";
 import { balanceOf, reserveLife, spendable, tokenBalanceOf } from "@/mainnet/flows";
@@ -95,7 +96,7 @@ export function HomeScreen() {
             <div className="mw-figure big"><b>{bal ? <Erg nano={bal.nano} /> : "—"}</b><span className="t-small mw-dim">{t("mw.home.freeB")}</span></div>
             {tokensHere.length > 0 && (
               <ul className="mw-facts mw-facts-tight">
-                {tokensHere.map(({ tk, raw }) => <li key={tk.id}><Amt raw={raw} denom={denomOfToken(tk)} /> <span className="t-small mw-dim">{t("mw.dn.atKey")}</span></li>)}
+                {tokensHere.map(({ tk, raw }) => <li key={tk.id}><Amt raw={raw} denom={denomOfToken(tk)} /> <span className="t-small mw-dim">{t("mw.dn.atKey")}</span> · <Link className="textlink t-small" to={`/wallet/mainnet/withdraw${denomQuery(denomOfToken(tk))}`}>{t("mw.dn.send")}</Link></li>)}
               </ul>
             )}
             <div className="mw-actions">

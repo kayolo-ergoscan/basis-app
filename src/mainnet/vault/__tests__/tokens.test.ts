@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 import { keyPairFromSecret } from "../../../protocol/keys";
 import { checkRedemption, parseBuildResponse, signRedemption, type CheckedRedemption } from "../../tx/redemption";
 import { buildTopUp, signReserveAction } from "../../tx/reserveaction";
+import { p2pkAddress } from "../../tx/address";
+import { signP2pkTransaction } from "../../tx/p2pk";
+import { reserveTokenById } from "../../tx/tokens";
+import { planTokenWithdraw } from "../../flows/coins";
 import { p2pkBox, reserveBox, secretBytes, syntheticTokenRedemption } from "../../tx/testkit";
 import { SIGUSD_TOKEN_ID, RSADA_TOKEN_ID, TOKEN_RESERVE_BOX_NANOERG, TOKEN_RESERVE_TREE_HEX } from "../../tx/tokens";
 import { signNote } from "../../flows/notes";
@@ -107,5 +111,31 @@ describe("the guards in the token layouts", () => {
     const raw = signReserveAction(tx, [reserve, ...coins], secretBytes(payer.secret), "topup").nodeJson;
     expect(reserveActionPaysRight(raw, payer.pubHex, "topup", owner)).toBe(true);
     expect(reserveActionPaysRight(raw, payer.pubHex, "topup", payer.pubHex)).toBe(false);
+  });
+});
+
+describe("a token Withdraw in the vault", () => {
+  it("signs as a withdrawal of this key's boxes, to another address only with the passphrase", async () => {
+    const b = new FakeBrowser();
+    const v = await openTab(b);
+    await v.importHex(SK_HEX, PASS);
+    await backUp(v);
+    const boxes = [p2pkBox(ME, 1_000_000n, { tokens: [{ tokenId: SIGUSD_TOKEN_ID, amount: 800n }], index: 1 }), p2pkBox(ME, 20_000_000n, { index: 2 })];
+    const sign = (to: string) => {
+      const p = planTokenWithdraw(boxes, ME, to, reserveTokenById(SIGUSD_TOKEN_ID)!, 300n, 1_000_000n, 1_925_000);
+      if (!p.ok) throw new Error(p.why);
+      return (sk: Uint8Array) => {
+        const s = signP2pkTransaction(p.tx, p.inputs, sk);
+        return { txId: s.txId, signedRaw: s.nodeJson, inputs: p.inputs.map((x) => x.boxId), meta: { amount: "300", to, denom: SIG } };
+      };
+    };
+    const other = p2pkAddress(keyPairFromSecret(2n).pubHex);
+    expect(await code(v.signToJournal("withdraw", sign(other), { inputBoxes: boxes }))).toBe("passphrase-required");
+    const e = await v.signToJournal("withdraw", sign(other), { inputBoxes: boxes, passphrase: PASS });
+    expect(e.state).toBe("signed");
+    expect(e.meta.denom).toBe(SIG);
+    // the boxes must be the inputs, bound to their ids
+    expect(await code(v.signToJournal("withdraw", sign(other), { inputBoxes: [boxes[1], boxes[0]], passphrase: PASS }))).toBe("bad-input");
+    v.close();
   });
 });

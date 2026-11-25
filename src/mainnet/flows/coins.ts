@@ -3,8 +3,9 @@
 // are confirmed and unspent per /v1; boxes that an open journal entry or a mempool transaction spends are left out.
 import {
   MINER_FEE_NANOERG, MIN_BOX_NANOERG, P2PK_MAX_INPUTS, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, RESERVE_TREE_HEX, buildWithdraw, mergedTokens,
-  TOKEN_RESERVE_TREE_HEX, p2pkTree, parseAddress, planReserveCreation, planTokenReserveCreation, reserveAddress, reserveTreeOf, selectCoins, tokenReserveAddress, treeOfAddress, FEE_TREE_HEX,
-  type Denomination, type ErgoBox, type ReservePlan, type ReserveToken, type TokenPlanResult, type TokenReservePlan, type UnsignedTx,
+  TOKEN_RESERVE_TREE_HEX, TOKEN_WITHDRAW_BOX_NANOERG, buildTokenWithdraw, p2pkTree, parseAddress, planReserveCreation, planTokenReserveCreation, reserveAddress, reserveTreeOf, selectCoins,
+  selectTokenCoins, tokenReserveAddress, treeOfAddress, FEE_TREE_HEX,
+  type Denomination, type ErgoBox, type ReservePlan, type ReserveToken, type Token, type TokenPlanResult, type TokenReservePlan, type UnsignedTx,
 } from "../tx";
 import type { MempoolTx, UnspentBox } from "../net";
 
@@ -152,6 +153,46 @@ export function planWithdraw(boxes: readonly ErgoBox[], owner: string, to: strin
   try {
     const tx = buildWithdraw({ owner, inputs: sel.inputs, to, amount: amount + dust, fee, height });
     return { ok: true, inputs: sel.inputs, tx, change: sel.leftover - dust, sent: amount + dust };
+  } catch (e) {
+    return { ok: false, why: "build", message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ─── token Withdraw ─────────────────────────────────────────────────────────────────────────────
+
+/** What a token Withdraw costs in ERG besides the tokens: the destination box (0.001 ERG) and the fee. */
+export const tokenWithdrawErgNeed = (fee: bigint = MINER_FEE_NANOERG): bigint => TOKEN_WITHDRAW_BOX_NANOERG + fee;
+
+/** The most of `tokenId` one token Withdraw can send: the token in the P2PK_MAX_INPUTS boxes that hold most of it. */
+export function maxTokenWithdraw(boxes: readonly ErgoBox[], tokenId: string): bigint {
+  const amounts = boxes.map((b) => b.tokens.reduce((x, t) => (t.tokenId === tokenId ? x + t.amount : x), 0n)).filter((x) => x > 0n);
+  return amounts.sort((a, b) => (a === b ? 0 : a > b ? -1 : 1)).slice(0, P2PK_MAX_INPUTS).reduce((a, b) => a + b, 0n);
+}
+
+export type TokenWithdrawPlan =
+  | {
+      ok: true; inputs: ErgoBox[]; tx: UnsignedTx; token: ReserveToken; /** raw units to the destination */ sent: bigint;
+      /** nanoERG in the destination box: 0.001 ERG, plus dust */ ergValue: bigint; /** ERG change */ change: bigint; changeTokens: Token[];
+    }
+  | { ok: false; why: "amount" | "too-many-boxes" | "build"; message?: string }
+  | { ok: false; why: "short-tokens" | "short-erg"; need: bigint; have: bigint; message?: string };
+
+/**
+ * SigUSD or rsADA to a P2PK address (tx/tokenwithdraw): the boxes with the token first, then ERG for the 0.001 ERG
+ * destination box and the fee; every other token and the rest of this one stay with the key (change). ERG dust with no
+ * change box goes into the destination box, never to the miner.
+ */
+export function planTokenWithdraw(boxes: readonly ErgoBox[], owner: string, to: string, token: ReserveToken, amount: bigint, fee: bigint, height: number): TokenWithdrawPlan {
+  if (amount < 1n) return { ok: false, why: "amount" };
+  const s = selectTokenCoins(boxes, owner, token.id, amount, tokenWithdrawErgNeed(fee));
+  if (!s.ok) return s;
+  const { inputs, leftover, tokens } = s.sel;
+  if (inputs.length > P2PK_MAX_INPUTS) return { ok: false, why: "too-many-boxes" };
+  const dust = tokens.length === 0 && leftover > 0n && leftover < MIN_BOX_NANOERG ? leftover : 0n;
+  const ergValue = TOKEN_WITHDRAW_BOX_NANOERG + dust;
+  try {
+    const tx = buildTokenWithdraw({ owner, inputs, to, token, amount, ergValue, fee, height });
+    return { ok: true, inputs, tx, token, sent: amount, ergValue, change: leftover - dust, changeTokens: tokens };
   } catch (e) {
     return { ok: false, why: "build", message: e instanceof Error ? e.message : String(e) };
   }
