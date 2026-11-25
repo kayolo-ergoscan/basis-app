@@ -9,7 +9,9 @@
 //       {"id","inputs":[{"boxId","spendingProof":{"proofBytes":"","extension":{…}}}],"dataInputs":[{"boxId"}],
 //        "outputs":[{"boxId","value","ergoTree","assets","creationHeight","additionalRegisters","transactionId","index"}]}
 //   • the answer — {"success":true,"data":{RedemptionBuildResponse fields in struct order},"error":null}.
-import { bigToBytes, bytesToHex } from "../../protocol/bytes";
+import { bigToBytes, bytesToHex, hexToBytes, u64be } from "../../protocol/bytes";
+import type { AvlBackend } from "../../protocol/avl";
+import { debtKey, reserveKey, reserveTreeValue } from "../../protocol/note";
 import { keyPairFromSecret, type KeyPair } from "../../protocol/keys";
 import { EMPTY_AVL_DIGEST_HEX, basisAvlRegister, encodeCollByte, encodeLong } from "../../protocol/registers";
 import { p2pkAddress } from "./address";
@@ -282,6 +284,17 @@ export interface SyntheticTokenOptions extends Omit<SyntheticOptions, "reserveVa
   /** The key the fee boxes sit at (default the tracker's): the proof-reuse attack puts the recipient's here. */
   feeKeySecret?: bigint;
   fee?: bigint;
+  /**
+   * A real AVL+ backend (loadContractAvl): the trees and proofs are then real, made the way the tracker makes them
+   * (basis_store generate_*_proof): the tracker tree holds the pair's debt key → totalDebt and #8 is its lookup proof;
+   * the reserve tree holds `prior` (and `others`), #7 is its lookup proof when `prior` is given, #5 an insertOrUpdate
+   * proof of ts ‖ (prior + amount) and output R5 the digest after it. `first` then follows `prior`.
+   */
+  avl?: AvlBackend;
+  /** With `avl`: what the reserve tree already holds for this pair (a later redemption). */
+  prior?: { timestamp: bigint; redeemed: bigint };
+  /** With `avl`: other receivers' entries in the reserve tree and other pairs' debts in the tracker tree. Default 2. */
+  others?: number;
 }
 
 /**
@@ -301,19 +314,20 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
   const fee = o.fee ?? 1_000_000n;
   const totalDebt = o.totalDebt ?? 1_000n;
   const timestamp = o.timestamp ?? 1_795_357_991_710n;
-  const first = o.first ?? true;
+  const first = o.avl ? !o.prior : o.first ?? true;
   const height = o.height ?? 1_922_400;
+  const real = o.avl ? realTokenTrees(o.avl, issuer.pubHex, recipient.pubHex, o.tokenId, totalDebt, timestamp, amount, o.prior ?? null, o.others ?? 2) : null;
   const reserveBody = {
     value: TOKEN_RESERVE_BOX_NANOERG,
     ergoTree: TOKEN_RESERVE_TREE_HEX,
     creationHeight: height - 30,
     tokens: [{ tokenId: "ab".repeat(32), amount: 1n }, { tokenId: o.tokenId, amount: reserveTokens }],
-    registers: [`07${issuer.pubHex}`, basisAvlRegister("11".repeat(33)), `0e20${nft}`, "0500", ...(o.reserveExtra ?? [])],
+    registers: [`07${issuer.pubHex}`, basisAvlRegister(real?.reserveBefore ?? "11".repeat(33)), `0e20${nft}`, "0500", ...(o.reserveExtra ?? [])],
     transactionId: "c1".repeat(32),
     index: 0,
   };
   const reserve: ErgoBox = { ...reserveBody, boxId: computeBoxId(reserveBody) };
-  const trackerBody = { value: 1_000_000n, ergoTree: p2pkTree(tracker.pubHex), creationHeight: height - 5, tokens: [{ tokenId: nft, amount: 1n }], registers: [`07${tracker.pubHex}`, basisAvlRegister("22".repeat(33)), `0e20${nft}`], transactionId: "d2".repeat(32), index: 0 };
+  const trackerBody = { value: 1_000_000n, ergoTree: p2pkTree(tracker.pubHex), creationHeight: height - 5, tokens: [{ tokenId: nft, amount: 1n }], registers: [`07${tracker.pubHex}`, basisAvlRegister(real?.tracker ?? "22".repeat(33)), `0e20${nft}`], transactionId: "d2".repeat(32), index: 0 };
   const trackerBox: ErgoBox = { ...trackerBody, boxId: computeBoxId(trackerBody) };
   const feeBoxes: ErgoBox[] = (o.feeBoxes ?? [5_000_000n]).map((value, i) => {
     const body = { value, ergoTree: p2pkTree(feeKey.pubHex), creationHeight: height - 50, tokens: [], registers: [], transactionId: "e4".repeat(32), index: i };
@@ -329,15 +343,15 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
     { key: 2, value: encodeCollByte(issuerSig) },
     { key: 3, value: encodeLong(totalDebt) },
     { key: 4, value: encodeLong(timestamp) },
-    { key: 5, value: encodeCollByte("05".repeat(40)) },
+    { key: 5, value: encodeCollByte(real?.insertProof ?? "05".repeat(40)) },
     { key: 6, value: encodeCollByte(trackerSig) },
-    ...(first ? [] : [{ key: 7, value: encodeCollByte("07".repeat(40)) }]),
-    { key: 8, value: encodeCollByte("08".repeat(40)) },
+    ...(first ? [] : [{ key: 7, value: encodeCollByte(real?.lookupProof ?? "07".repeat(40)) }]),
+    { key: 8, value: encodeCollByte(real?.trackerProof ?? "08".repeat(40)) },
   ];
   const feeTotal = feeBoxes.reduce((a, b) => a + b.value, 0n);
   const change = feeTotal - fee - 1_000_000n;
   const outputs: BoxCandidate[] = [
-    { value: reserve.value, ergoTree: TOKEN_RESERVE_TREE_HEX, creationHeight: height, tokens: [{ ...reserve.tokens[0] }, { tokenId: o.tokenId, amount: reserveTokens - amount }], registers: [reserve.registers[0], basisAvlRegister("33".repeat(33)), reserve.registers[2], reserve.registers[3]] },
+    { value: reserve.value, ergoTree: TOKEN_RESERVE_TREE_HEX, creationHeight: height, tokens: [{ ...reserve.tokens[0] }, { tokenId: o.tokenId, amount: reserveTokens - amount }], registers: [reserve.registers[0], basisAvlRegister(real?.reserveAfter ?? "33".repeat(33)), reserve.registers[2], reserve.registers[3]] },
     { value: 1_000_000n, ergoTree: p2pkTree(recipient.pubHex), creationHeight: height, tokens: [{ tokenId: o.tokenId, amount }], registers: [] },
     { value: fee, ergoTree: FEE_TREE_HEX, creationHeight: height, tokens: [], registers: [] },
     ...(change > 0n ? [{ value: change, ergoTree: p2pkTree(tracker.pubHex), creationHeight: height, tokens: [], registers: [] }] : []),
@@ -353,7 +367,7 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
     summary: {
       reserveBoxId: reserve.boxId, trackerBoxId: trackerBox.boxId, reserveOutputValue: reserve.value, recipientOutputValue: 1_000_000n, totalDebt,
       changeAmount: change > 0n ? change : 0n, changeAddress: p2pkAddress(tracker.pubHex), recipientAddress: p2pkAddress(recipient.pubHex), isFirstRedemption: first,
-      fee, newAlreadyRedeemed: amount, feePaidBy: "tracker",
+      fee, newAlreadyRedeemed: (o.avl ? o.prior?.redeemed ?? 0n : 0n) + amount, feePaidBy: "tracker",
     },
   };
   return {
@@ -362,5 +376,40 @@ export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
     chain: { inputs: [reserve, ...feeBoxes], dataInputs: [trackerBox] } as ChainBoxes,
     expect: { issuer: issuer.pubHex, recipient: recipient.pubHex, amount, totalDebt, timestamp, issuerSignature: issuerSig, trackerNft: nft, trackerPk: tracker.pubHex, tipHeight: height, denomination } as RedemptionExpectation,
     issuer, recipient, tracker, proofs,
+  };
+}
+
+/**
+ * The trees of a token redemption as the tracker keeps them (basis_store lib.rs): the tracker tree keyed by
+ * blake2b256(owner ‖ receiver ‖ token id) → totalDebt (8 bytes), the reserve tree keyed by blake2b256(owner ‖
+ * receiver) → timestamp ‖ redeemed (16 bytes, denomination-free keys: only which tree is namespaced). #5 is an
+ * InsertOrUpdate proof for both first and later redemptions, as generate_reserve_insert_proof makes it; the contract
+ * runs it as insert (no #7) or insertOrUpdate (#7), and the prover's bytes are the same for both.
+ */
+function realTokenTrees(avl: AvlBackend, owner: Hex, receiver: Hex, tokenId: Hex, totalDebt: bigint, timestamp: bigint, amount: bigint, prior: { timestamp: bigint; redeemed: bigint } | null, others: number) {
+  const trackerTree = avl.createMap(32);
+  const reserveTree = avl.createMap(32);
+  const tokenBytes = hexToBytes(tokenId);
+  for (let i = 0; i < others; i++) {
+    const other = keyPairFromSecret(100n + BigInt(i)).pubHex;
+    trackerTree.insert(debtKey(owner, other, tokenBytes), u64be(1_000n + BigInt(i)));
+    trackerTree.insert(debtKey(owner, other, null), u64be(7_000_000n + BigInt(i)));
+    reserveTree.insert(reserveKey(owner, other), reserveTreeValue(timestamp - 1_000n - BigInt(i), 10n + BigInt(i)));
+  }
+  const dKey = debtKey(owner, receiver, tokenBytes);
+  trackerTree.insert(dKey, u64be(totalDebt));
+  const rKey = reserveKey(owner, receiver);
+  if (prior) reserveTree.insert(rKey, reserveTreeValue(prior.timestamp, prior.redeemed));
+  const before = reserveTree.digest();
+  const lookupProof = prior ? bytesToHex(reserveTree.proofFor(rKey)) : null;
+  const ins = reserveTree.prove([{ op: "insertOrUpdate", key: rKey, value: reserveTreeValue(timestamp, (prior?.redeemed ?? 0n) + amount) }]);
+  if (bytesToHex(ins.digestBefore) !== bytesToHex(before)) throw new Error("the insert proof does not start at the reserve's digest");
+  return {
+    tracker: bytesToHex(trackerTree.digest()),
+    trackerProof: bytesToHex(trackerTree.proofFor(dKey)),
+    reserveBefore: bytesToHex(before),
+    lookupProof,
+    insertProof: bytesToHex(ins.proof),
+    reserveAfter: bytesToHex(ins.digestAfter),
   };
 }
