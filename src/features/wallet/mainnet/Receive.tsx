@@ -1,10 +1,11 @@
 // /wallet/mainnet/receive — the receiver's side (design §3.2, §6.2 "Receive"): the key's own payment request (link and
 // QR), a receipt imported from a link (verified: the issuer's signature over the 80-byte note message), and the
-// watched issuers, each pair read from the tracker every 2 minutes while this screen is visible (at most 10). Only the
-// committed total is redeemable; the times are the measured ones of §6.5.
+// watched issuers (from a receipt, or added by the payer's key or address when there is no receipt link), each pair
+// read from the tracker every 2 minutes while this screen is visible (at most 10). Only the committed total is
+// redeemable; the times are the measured ones of §6.5.
 // Token notes: an issuer is watched in a token once a receipt in it is imported; each denomination is its own pair at
 // the tracker (?denomination=) with its own figures, never added to another. The request link names its denomination.
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
@@ -13,6 +14,7 @@ import {
   WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, requestLink, unwatchIssuer, watchIssuer, watchedDenoms,
   type NoteReceipt, type NoteView, type WatchedIssuer,
 } from "@/mainnet/flows";
+import { parseKeyInput } from "@/chain/ours";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
@@ -163,6 +165,41 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
   );
 }
 
+/** No receipt link: watch a payer by public key or P2PK address. The pair route (issuer → this key) then shows the
+ *  note, if there is one, exactly as for a watched issuer from a receipt; nothing is trusted that is not signed. */
+function AddPayerCard({ me }: { me: string }) {
+  const t = useT();
+  const [list, update] = useWatchList(me);
+  const [text, setText] = useState("");
+  const [name, setName] = useState("");
+  const key = parseKeyInput(text);
+  const self = key.ok && key.key === me;
+  const have = key.ok && list.some((w) => w.pk === key.key);
+  const err = text.trim() && !key.ok ? t(`mw.pay.to.${key.reason}`) : self ? t("mw.pay.to.self") : have ? t("mw.recv.addHave") : undefined;
+  const add = (e: FormEvent) => {
+    e.preventDefault();
+    if (!key.ok || self || have) return;
+    update((l) => watchIssuer(l, me, key.key, { name: name.trim() || null }));
+    setText("");
+    setName("");
+  };
+  return (
+    <Card title={t("mw.recv.addT")}>
+      <form className="mw-form" onSubmit={add}>
+        <Field label={t("mw.recv.addL")} help={t("mw.recv.addHelp")} error={err}>
+          <TextInput mono value={text} onChange={setText} placeholder="9…" autoComplete="off" autoCapitalize="off" autoCorrect="off" />
+        </Field>
+        {key.ok && !self && !have && (
+          <Field label={t("mw.recv.nameL")} help={t("mw.recv.nameHelp")}>
+            <TextInput value={name} onChange={setName} maxLength={64} />
+          </Field>
+        )}
+        <Key type="submit" disabled={!key.ok || self || have}>{t("mw.recv.addGo")}</Key>
+      </form>
+    </Card>
+  );
+}
+
 export function ReceiveScreen() {
   const t = useT();
   const { vault, state, me } = useMw();
@@ -194,6 +231,7 @@ export function ReceiveScreen() {
               <p className="t-small mw-dim">{t("mw.recv.watchBudget", { n: WATCH_POLLED })}</p>
             </Card>
             {!initial && <ImportCard me={me.pub} initial="" />}
+            <AddPayerCard me={me.pub} />
           </div>
           <aside className="mw-side">
             <Card title={t("mw.recv.askT")}>
