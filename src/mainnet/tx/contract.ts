@@ -19,6 +19,7 @@ import { FEE_TREE_HEX, RESERVE_TREE_HEX, p2pkKeyOfTree } from "./constants";
 import { REGISTER_NAMES, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type UnsignedTx } from "./model";
 import type { ChainBoxes, CheckedRedemption } from "./redemption";
 import type { ReserveActionKind } from "./reserveaction";
+import { TOKEN_RESERVE_TREE_HEX } from "./tokens";
 import { computeTxId, outputBoxes } from "./serialize";
 
 /** Loads avl.wasm once and returns its backend (with the stateless verifier). Does not switch the global backend. */
@@ -56,6 +57,7 @@ class Unmappable extends Error {}
 
 function scriptOf(tree: Hex): ScriptId {
   if (tree === RESERVE_TREE_HEX) return "basis.es";
+  if (tree === TOKEN_RESERVE_TREE_HEX) return "basis-token.es";
   if (tree === FEE_TREE_HEX) return "miner-fee";
   const pk = p2pkKeyOfTree(tree);
   return pk ? `p2pk:${pk}` : "other";
@@ -95,7 +97,7 @@ function registerValue(hex: Hex, where: string): RegisterValue {
  */
 function simBox(b: BoxCandidate & { boxId: Hex }, where: string, opaque = false): SimBox {
   const registers: SimBox["registers"] = {};
-  const lenient = opaque && b.ergoTree !== RESERVE_TREE_HEX;
+  const lenient = opaque && b.ergoTree !== RESERVE_TREE_HEX && b.ergoTree !== TOKEN_RESERVE_TREE_HEX;
   b.registers.forEach((hex, i) => {
     try {
       registers[REGISTER_NAMES[i]] = registerValue(hex, `${where} ${REGISTER_NAMES[i]}`);
@@ -175,14 +177,14 @@ export function simTxOf(c: ContractInput): SimTx | null {
 }
 
 /**
- * Runs the ERG reserve contract on input `inputIndex` of a real transaction. `avl` must carry a stateless verifier
+ * Runs the reserve contract (basis.es, or basis-token.es for a token reserve) on input `inputIndex` of a real transaction. `avl` must carry a stateless verifier
  * (avl.wasm: `loadContractAvl()`); the engine never falls back to replaying trees here.
  */
 export function checkReserveContract(c: ContractInput, avl: AvlBackend): L2Result {
   const idx = c.inputIndex ?? 0;
   if (!avl.verifier) return { ok: false, eval: null, rule: "verifier", message: "this AVL backend cannot verify proofs statelessly" };
   const self = c.inputs[idx];
-  if (!self || self.ergoTree !== RESERVE_TREE_HEX) return { ok: false, eval: null, rule: "adapter", message: `input ${idx} is not under the pinned ERG reserve contract` };
+  if (!self || (self.ergoTree !== RESERVE_TREE_HEX && self.ergoTree !== TOKEN_RESERVE_TREE_HEX)) return { ok: false, eval: null, rule: "adapter", message: `input ${idx} is not under a pinned reserve contract (ERG or token)` };
   let sim: SimTx;
   try {
     sim = toSimTx(c);
@@ -219,11 +221,13 @@ export function checkReserveContract(c: ContractInput, avl: AvlBackend): L2Resul
  * reserve tree records exactly the build's `new_already_redeemed`.
  */
 export function checkRedemptionContract(checked: CheckedRedemption, chain: ChainBoxes, height: number, avl: AvlBackend): L2Result {
+  // only the receiver's proof counts for the reserve input (a token build's fee inputs are proved by the tracker, but the
+  // reserve's condition must hold on the receiver's key alone)
   const r = checkReserveContract({ tx: checked.build.unsigned, inputs: chain.inputs, dataInputs: chain.dataInputs, signers: [checked.expect.recipient], height }, avl);
   if (!r.ok || !r.eval) return r;
   const ev = r.eval;
   if (ev.action !== 0 || ev.outputIndex !== 0 || ev.emergency !== false) return { ok: false, eval: ev, rule: "redeem-shape", message: "the contract does not see a tracker-signed redemption into output 0" };
-  if (ev.redeemed !== checked.expect.amount) return { ok: false, eval: ev, rule: "redeemed-total", message: `the contract sees ${ev.redeemed} nanoERG redeemed, not ${checked.expect.amount}` };
+  if (ev.redeemed !== checked.expect.amount) return { ok: false, eval: ev, rule: "redeemed-total", message: `the contract sees ${ev.redeemed} ${checked.denom === "erg" ? "nanoERG" : "raw token units"} redeemed, not ${checked.expect.amount}` };
   if (ev.newRedeemedTotal !== checked.build.newAlreadyRedeemed) {
     return { ok: false, eval: ev, rule: "redeemed-total", message: `the reserve tree records ${ev.newRedeemedTotal} redeemed in total; the build says ${checked.build.newAlreadyRedeemed}` };
   }

@@ -18,7 +18,10 @@ import { jsonString as q } from "./json";
 import { noteMessage, signBasis } from "./messages";
 import { REGISTER_NAMES, type BoxCandidate, type ErgoBox, type ExtensionEntry, type Hex, type Token, type UnsignedTx } from "./model";
 import type { ChainBoxes, RedemptionExpectation } from "./redemption";
-import { computeBoxId, computeTxId, nodeExtensionOrder, outputBoxes, serializeBox } from "./serialize";
+import { bytesToSign, computeBoxId, computeTxId, nodeExtensionOrder, outputBoxes, serializeBox } from "./serialize";
+import { proveDlog } from "./provedlog";
+import { TOKEN_RESERVE_BOX_NANOERG, TOKEN_RESERVE_TREE_HEX } from "./tokens";
+import type { Denomination } from "./messages";
 
 const assets = (tokens: readonly Token[]) => `[${tokens.map((t) => `{"tokenId":${q(t.tokenId)},"amount":${t.amount}}`).join(",")}]`;
 const registers = (regs: readonly Hex[]) => `{${regs.map((r, i) => `${q(REGISTER_NAMES[i])}:${q(r)}`).join(",")}}`;
@@ -266,4 +269,98 @@ export function reserveBox(owner: Hex, value: bigint, opts: { nft?: Hex; r5?: He
     index: 0,
   };
   return { ...body, boxId: computeBoxId(body) };
+}
+
+// ─── a synthetic token redemption ───────────────────────────────────────────────────────────────
+
+export interface SyntheticTokenOptions extends Omit<SyntheticOptions, "reserveValue" | "fee"> {
+  tokenId: Hex;
+  /** Raw token units in the reserve before. Default 2 000. */
+  reserveTokens?: bigint;
+  /** nanoERG of the tracker's fee boxes. Default [5 000 000]. */
+  feeBoxes?: bigint[];
+  /** The key the fee boxes sit at (default the tracker's): the proof-reuse attack puts the recipient's here. */
+  feeKeySecret?: bigint;
+  fee?: bigint;
+}
+
+/**
+ * A token redemption build in the tracker's layout (redemption_build.rs, fee_paid_by "tracker"): inputs [token reserve,
+ * fee boxes], outputs [reserve (ERG kept, token less the amount), recipient (0.001 ERG + tokens), fee, change], the fee
+ * inputs proved by the fee key in partial_tx. It passes L1; the AVL proofs are placeholders (L2 does not accept it).
+ */
+export function syntheticTokenRedemption(o: SyntheticTokenOptions) {
+  const issuer = keyPairFromSecret(o.issuerSecret ?? 2n);
+  const recipient = keyPairFromSecret(o.recipientSecret ?? 3n);
+  const tracker = keyPairFromSecret(o.trackerSecret ?? 5n);
+  const feeKey = keyPairFromSecret(o.feeKeySecret ?? o.trackerSecret ?? 5n);
+  const nft = o.trackerNft ?? "5a".repeat(32);
+  const denomination: Denomination = `token:${o.tokenId}`;
+  const reserveTokens = o.reserveTokens ?? 2_000n;
+  const amount = o.amount ?? 300n;
+  const fee = o.fee ?? 1_000_000n;
+  const totalDebt = o.totalDebt ?? 1_000n;
+  const timestamp = o.timestamp ?? 1_795_357_991_710n;
+  const first = o.first ?? true;
+  const height = o.height ?? 1_922_400;
+  const reserveBody = {
+    value: TOKEN_RESERVE_BOX_NANOERG,
+    ergoTree: TOKEN_RESERVE_TREE_HEX,
+    creationHeight: height - 30,
+    tokens: [{ tokenId: "ab".repeat(32), amount: 1n }, { tokenId: o.tokenId, amount: reserveTokens }],
+    registers: [`07${issuer.pubHex}`, basisAvlRegister("11".repeat(33)), `0e20${nft}`, "0500", ...(o.reserveExtra ?? [])],
+    transactionId: "c1".repeat(32),
+    index: 0,
+  };
+  const reserve: ErgoBox = { ...reserveBody, boxId: computeBoxId(reserveBody) };
+  const trackerBody = { value: 1_000_000n, ergoTree: p2pkTree(tracker.pubHex), creationHeight: height - 5, tokens: [{ tokenId: nft, amount: 1n }], registers: [`07${tracker.pubHex}`, basisAvlRegister("22".repeat(33)), `0e20${nft}`], transactionId: "d2".repeat(32), index: 0 };
+  const trackerBox: ErgoBox = { ...trackerBody, boxId: computeBoxId(trackerBody) };
+  const feeBoxes: ErgoBox[] = (o.feeBoxes ?? [5_000_000n]).map((value, i) => {
+    const body = { value, ergoTree: p2pkTree(feeKey.pubHex), creationHeight: height - 50, tokens: [], registers: [], transactionId: "e4".repeat(32), index: i };
+    return { ...body, boxId: computeBoxId(body) };
+  });
+  const message = noteMessage({ issuer: issuer.pubHex, recipient: recipient.pubHex, totalDebt, timestamp, trackerNft: nft, denomination });
+  const secret32 = (k: KeyPair) => secretBytes(k.secret);
+  const issuerSig = bytesToHex(signBasis(message, secret32(issuer), issuer.pubHex));
+  const trackerSig = bytesToHex(signBasis(message, secret32(tracker), tracker.pubHex));
+  const entries: ExtensionEntry[] = [
+    { key: 0, value: "0200" },
+    { key: 1, value: `07${recipient.pubHex}` },
+    { key: 2, value: encodeCollByte(issuerSig) },
+    { key: 3, value: encodeLong(totalDebt) },
+    { key: 4, value: encodeLong(timestamp) },
+    { key: 5, value: encodeCollByte("05".repeat(40)) },
+    { key: 6, value: encodeCollByte(trackerSig) },
+    ...(first ? [] : [{ key: 7, value: encodeCollByte("07".repeat(40)) }]),
+    { key: 8, value: encodeCollByte("08".repeat(40)) },
+  ];
+  const feeTotal = feeBoxes.reduce((a, b) => a + b.value, 0n);
+  const change = feeTotal - fee - 1_000_000n;
+  const outputs: BoxCandidate[] = [
+    { value: reserve.value, ergoTree: TOKEN_RESERVE_TREE_HEX, creationHeight: height, tokens: [{ ...reserve.tokens[0] }, { tokenId: o.tokenId, amount: reserveTokens - amount }], registers: [reserve.registers[0], basisAvlRegister("33".repeat(33)), reserve.registers[2], reserve.registers[3]] },
+    { value: 1_000_000n, ergoTree: p2pkTree(recipient.pubHex), creationHeight: height, tokens: [{ tokenId: o.tokenId, amount }], registers: [] },
+    { value: fee, ergoTree: FEE_TREE_HEX, creationHeight: height, tokens: [], registers: [] },
+    ...(change > 0n ? [{ value: change, ergoTree: p2pkTree(tracker.pubHex), creationHeight: height, tokens: [], registers: [] }] : []),
+  ];
+  const unsigned: UnsignedTx = { inputs: [{ boxId: reserve.boxId, extension: nodeExtensionOrder(entries) }, ...feeBoxes.map((b) => ({ boxId: b.boxId, extension: [] }))], dataInputs: [trackerBox.boxId], outputs };
+  const toSign = bytesToSign(unsigned);
+  const proofs = ["", ...feeBoxes.map(() => bytesToHex(proveDlog(toSign, secret32(feeKey))))];
+  const parts: BuildParts = {
+    unsigned,
+    partialJson: ergoLibTxJson(unsigned, { proofs }),
+    inputs: [reserve, ...feeBoxes],
+    dataInputs: [trackerBox],
+    summary: {
+      reserveBoxId: reserve.boxId, trackerBoxId: trackerBox.boxId, reserveOutputValue: reserve.value, recipientOutputValue: 1_000_000n, totalDebt,
+      changeAmount: change > 0n ? change : 0n, changeAddress: p2pkAddress(tracker.pubHex), recipientAddress: p2pkAddress(recipient.pubHex), isFirstRedemption: first,
+      fee, newAlreadyRedeemed: amount, feePaidBy: "tracker",
+    },
+  };
+  return {
+    text: trackerBuildResponse(parts),
+    parts,
+    chain: { inputs: [reserve, ...feeBoxes], dataInputs: [trackerBox] } as ChainBoxes,
+    expect: { issuer: issuer.pubHex, recipient: recipient.pubHex, amount, totalDebt, timestamp, issuerSignature: issuerSig, trackerNft: nft, trackerPk: tracker.pubHex, tipHeight: height, denomination } as RedemptionExpectation,
+    issuer, recipient, tracker, proofs,
+  };
 }

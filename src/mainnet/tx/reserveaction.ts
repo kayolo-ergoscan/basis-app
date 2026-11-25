@@ -26,6 +26,13 @@
 // the tokens, R4 and R6; the top-up and the start add R5 and R7, l. 441–444 and 451–456), so anyone's top-up may add
 // them, even padding the box to 4096 bytes: the wallet reads such a reserve and its own top-up or start writes R4–R7
 // only, which drops them (keeping them could push the new box past 4096 bytes when R7 or the value grows).
+//
+// Token reserves (basis-token.es, the same actions and #0 values): the box holds exactly [NFT × 1, token × amount]
+// and its ERG may never go down (ergPreserved). A top-up adds tokens (≥ 1 raw unit for the contract, the token's
+// floor for the wallet) and keeps the ERG, plus any change dust below 0.001 ERG; the refund start keeps both tokens
+// and the value (plus dust); the completion pays the fee from the box's own ERG (0.002 ERG at creation) and hands the
+// owner the rest with both tokens. Every action names its denomination (`want.denom`, ERG by default): a token
+// reserve is refused unless the caller asked for that very token.
 import { bytesToHex, hexToBytes } from "../../protocol/bytes";
 import { isValidPublicKey } from "../../protocol/keys";
 import { decodeRegister, encodeAvlTree } from "../../protocol/registerCodec";
@@ -36,7 +43,10 @@ import {
 } from "./constants";
 import { utf8Length } from "./json";
 import type { BoxCandidate, ErgoBox, Hex, SignedTx, UnsignedTx } from "./model";
+import type { Denomination } from "./messages";
 import { mergedTokens, outputHeight, type CheckResult } from "./p2pk";
+import { sameTokenList, tokenTotalsOf, tokensLess } from "./tokenreserve";
+import { TOKEN_RESERVE_TREE_HEX, reserveDenomOfBox, reserveTokenOf, reserveTreeOf, type ReserveToken } from "./tokens";
 import { proveDlog, publicKeyOf, verifyDlog, type ProveOptions } from "./provedlog";
 import { boxIdHolds, bytesToSign, computeTxId, oversizedOutput, oversizedText, signedTxToNodeJson } from "./serialize";
 
@@ -68,6 +78,12 @@ export interface ReserveInfo {
   nft: Hex;
   /** R7: 0 = no refund started (or no R7 at all); otherwise the height the refund counts from. */
   refundHeight: bigint;
+  /** "erg", or "token:<id>" for a token reserve. */
+  denom: Denomination;
+  /** The token of a token reserve (null: ERG). */
+  token: ReserveToken | null;
+  /** What the reserve holds in its denomination: nanoERG (the box value) or raw token units (tokens(1)). */
+  collateral: bigint;
 }
 
 /**
@@ -77,11 +93,20 @@ export interface ReserveInfo {
  * (l. 234, getOrElse(0L)) and the tracker too (wallet-t3). R8 and R9 may follow R7 with any value: the contract never
  * reads them, so anyone's top-up can add them (they mean nothing here; the wallet's own actions drop them).
  */
-export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { ok: false; rule: ReserveReadRule; message: string } {
+export function readReserve(box: ErgoBox, denom: Denomination = "erg"): { ok: true; info: ReserveInfo } | { ok: false; rule: ReserveReadRule; message: string } {
   const no = (rule: ReserveReadRule, message: string) => ({ ok: false as const, rule, message });
   if (!boxIdHolds(box)) return no("box-id", "the reserve box does not hash to its id");
-  if (box.ergoTree !== RESERVE_TREE_HEX) return no("contract", "the box is not under the current Basis ERG reserve contract (a legacy test version, a token reserve or another contract)");
-  if (box.tokens.length !== 1 || box.tokens[0].amount !== 1n) return no("tokens", "the reserve does not hold exactly one NFT");
+  const token = reserveTokenOf(denom);
+  if (token === undefined) return no("contract", `the wallet does not make reserves in ${denom}`);
+  if (token === null) {
+    if (box.ergoTree !== RESERVE_TREE_HEX) return no("contract", box.ergoTree === TOKEN_RESERVE_TREE_HEX ? "the box is a token reserve, not an ERG reserve" : "the box is not under the current Basis ERG reserve contract (a legacy test version, a token reserve or another contract)");
+    if (box.tokens.length !== 1 || box.tokens[0].amount !== 1n) return no("tokens", "the reserve does not hold exactly one NFT");
+  } else {
+    if (box.ergoTree !== TOKEN_RESERVE_TREE_HEX) return no("contract", `the box is not under the pinned token reserve contract (${token.symbol})`);
+    if (box.tokens.length !== 2 || box.tokens[0].amount !== 1n) return no("tokens", "the token reserve does not hold exactly its NFT and one token");
+    if (box.tokens[1].tokenId !== token.id) return no("tokens", `the token reserve holds another token, not ${token.symbol}`);
+    if (box.tokens[1].amount < 1n) return no("tokens", "the token reserve holds no token");
+  }
   const [r4, r5, r6, r7] = box.registers;
   if (box.registers.length < 3) return no("registers", "the reserve does not have R4–R6");
   let owner = "", refundHeight = -1n;
@@ -102,7 +127,13 @@ export function readReserve(box: ErgoBox): { ok: true; info: ReserveInfo } | { o
     return no("registers", "a register could not be read");
   }
   if (r6 !== `0e20${TRACKER_NFT}`) return no("tracker", "the reserve is bound to another tracker (R6), not ErgoScan's");
-  return { ok: true, info: { box, owner, nft: box.tokens[0].tokenId, refundHeight } };
+  return { ok: true, info: { box, owner, nft: box.tokens[0].tokenId, refundHeight, denom, token, collateral: token ? box.tokens[1].amount : box.value } };
+}
+
+/** readReserve in the box's own denomination (its tree and tokens tell it): for display and for signing, never as the
+ *  only check before signing (L1 takes the denomination the screen asked for). */
+export function readAnyReserve(box: ErgoBox): ReturnType<typeof readReserve> {
+  return readReserve(box, reserveDenomOfBox(box) ?? "erg");
 }
 
 /** The refund's clock at `tip`: the completion is valid in a block at HEIGHT ≥ R7 + 43 200, the next one is tip + 1. */
@@ -137,6 +168,10 @@ function changeOutputs(owner: Hex, boxes: readonly ErgoBox[], change: bigint, h:
 export interface TopUpInput {
   /** The reserve box as /v1 has it now (readReserve passed). */
   reserve: ErgoBox;
+  /** "erg" (default) or the reserve's token: `amount` is then raw token units. */
+  denom?: Denomination;
+  /** Token reserves: ERG change dust below 0.001 ERG that goes into the box (0 ≤ add < 0.001 ERG). */
+  add?: bigint;
   /** The wallet's key: it pays and signs its own boxes; it need not own the reserve. */
   payer: Hex;
   /** Confirmed, unspent boxes at P2PK(payer). */
@@ -152,6 +187,7 @@ export interface TopUpInput {
  *  not read them): a box padded to 4096 bytes would otherwise grow past MaxBoxSize. */
 export function buildTopUp(t: TopUpInput): UnsignedTx {
   if (t.inputs.length === 0) throw new Error("a top-up needs at least one box of the payer");
+  if ((t.denom ?? "erg") !== "erg") return buildTokenTopUp(t);
   if (t.amount < TOP_UP_MIN_NANOERG) throw new Error(`a top-up adds at least ${TOP_UP_MIN_NANOERG} nanoERG`);
   const h = outputHeight(t.height, [t.reserve, ...t.inputs]);
   const change = sum(t.inputs.map((b) => b.value)) - t.amount - t.fee;
@@ -163,6 +199,33 @@ export function buildTopUp(t: TopUpInput): UnsignedTx {
     outputs: [
       { value: r.value + t.amount, ergoTree: r.ergoTree, creationHeight: h, tokens: r.tokens.map((x) => ({ ...x })), registers: r.registers.slice(0, 4) },
       ...changeOutputs(t.payer, t.inputs, change, h),
+      { value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] },
+    ],
+  };
+}
+
+/** A token reserve's top-up: [reserve with the tokens added and its ERG (+ dust), change?, fee]; the payer's boxes pay
+ *  the tokens and the fee; the change keeps every other token and the rest of this one. */
+function buildTokenTopUp(t: TopUpInput): UnsignedTx {
+  const r = t.reserve;
+  const token = reserveTokenOf(t.denom!);
+  if (!token || r.tokens.length !== 2 || r.tokens[1].tokenId !== token.id) throw new Error("the reserve does not hold this token");
+  if (t.amount < token.min) throw new Error(`a top-up adds at least ${token.min} raw units of ${token.symbol}`);
+  const add = t.add ?? 0n;
+  if (add < 0n || add >= MIN_BOX_NANOERG) throw new Error("only change below 0.001 ERG goes into the reserve");
+  const have = t.inputs.reduce((s, b) => s + b.tokens.reduce((x, k) => (k.tokenId === token.id ? x + k.amount : x), 0n), 0n);
+  if (have < t.amount) throw new Error(`the boxes hold less than ${t.amount} of ${token.symbol}`);
+  const h = outputHeight(t.height, [r, ...t.inputs]);
+  const change = sum(t.inputs.map((b) => b.value)) - t.fee - add;
+  if (change < 0n) throw new Error("the boxes do not cover the fee");
+  const rest = tokensLess(t.inputs, token.id, t.amount);
+  if ((change > 0n || rest.length > 0) && change < MIN_BOX_NANOERG) throw new Error(`change ${change} nanoERG is below ${MIN_BOX_NANOERG}`);
+  return {
+    inputs: [reserveInput(r, "topup"), ...t.inputs.map((b) => ({ boxId: b.boxId, extension: [] }))],
+    dataInputs: [],
+    outputs: [
+      { value: r.value + add, ergoTree: r.ergoTree, creationHeight: h, tokens: [{ ...r.tokens[0] }, { tokenId: token.id, amount: r.tokens[1].amount + t.amount }], registers: r.registers.slice(0, 4) },
+      ...(change > 0n ? [{ value: change, ergoTree: p2pkTree(t.payer), creationHeight: h, tokens: rest, registers: [] }] : []),
       { value: t.fee, ergoTree: FEE_TREE_HEX, creationHeight: h, tokens: [], registers: [] },
     ],
   };
@@ -259,6 +322,10 @@ export interface ReserveActionWant {
   amount?: bigint;
   /** Refund start: the R7 it sets. */
   refundHeight?: bigint;
+  /** The reserve's denomination as the screen shows it: "erg" by default; a token reserve is refused otherwise. */
+  denom?: Denomination;
+  /** Token top-up: the ERG dust that goes into the box with it (0 ≤ add < 0.001 ERG). */
+  add?: bigint;
 }
 
 /**
@@ -273,14 +340,20 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
   return run((refuse) => {
     const reserve = inputs[0];
     if (!reserve) refuse("inputs", "no reserve input");
-    const read = readReserve(reserve);
+    const denom = want.denom ?? "erg";
+    const read = readReserve(reserve, denom);
     if (!read.ok) refuse("reserve", read.message);
     const info = (read as { info: ReserveInfo }).info;
+    const token = info.token;
     const own = p2pkTree(want.signer);
     if (want.fee !== MINER_FEE_NANOERG) refuse("fee", `the miner fee ${want.fee} is not ${MINER_FEE_NANOERG} nanoERG`);
+    const add = want.add ?? 0n;
+    if (add !== 0n && (!token || want.kind !== "topup")) refuse("amount", "only a token top-up adds change dust to the box this way");
+    if (add < 0n || add >= MIN_BOX_NANOERG) refuse("amount", "the dust added to the box is not below 0.001 ERG");
     if (want.kind === "topup") {
       if (info.refundHeight !== 0n) refuse("refund-state", "a refund of this reserve has started: the wallet does not top it up");
-      if (want.amount === undefined || want.amount < TOP_UP_MIN_NANOERG) refuse("amount", `a top-up adds at least ${TOP_UP_MIN_NANOERG} nanoERG`);
+      const min = token ? token.min : TOP_UP_MIN_NANOERG;
+      if (want.amount === undefined || want.amount < min) refuse("amount", token ? `a top-up adds at least ${min} raw units of ${token.symbol}` : `a top-up adds at least ${TOP_UP_MIN_NANOERG} nanoERG`);
     } else {
       if (info.owner !== want.signer) refuse("owner", "only the reserve's owner starts or completes its refund");
       if (want.kind === "refund-start") {
@@ -310,7 +383,12 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
     });
     if (new Set(tx.inputs.map((i) => i.boxId)).size !== tx.inputs.length) refuse("inputs", "a box is spent twice");
     const ownBoxes = inputs.slice(1);
-    const inTokens = mergedTokens(ownBoxes);
+    // what the change must carry: every token of the wallet's boxes (a token top-up: less the amount added)
+    const inTokens = token && want.kind === "topup" ? tokensLess(ownBoxes, token.id, want.amount!) : mergedTokens(ownBoxes);
+    if (token && want.kind === "topup") {
+      const have = ownBoxes.reduce((s, b) => s + b.tokens.reduce((x, k) => (k.tokenId === token.id ? x + k.amount : x), 0n), 0n);
+      if (have < want.amount!) refuse("inputs", `the wallet's boxes hold less than ${want.amount} of ${token.symbol}`);
+    }
 
     const outs = tx.outputs;
     const fee = outs[outs.length - 1];
@@ -322,12 +400,16 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
     } else {
       if (outs.length !== 2 && outs.length !== 3) refuse("outputs", `${outs.length} outputs; this action has [reserve, change?, fee]`);
       const r = outs[0];
-      const tokensOk = r.tokens.length === reserve.tokens.length && reserve.tokens.every((t, i) => r.tokens[i].tokenId === t.tokenId && r.tokens[i].amount === t.amount);
+      // the reserve's tokens after: an ERG reserve's NFT; a token reserve's NFT and its token (+ the amount on a top-up)
+      const after = token && want.kind === "topup" ? [{ ...reserve.tokens[0] }, { tokenId: token.id, amount: reserve.tokens[1].amount + want.amount! }] : reserve.tokens;
+      const tokensOk = sameTokenList(r.tokens, after);
       // a top-up keeps R4–R7 (no R7 stays no R7); a start keeps R4–R6 and writes R7 (index 3); R8, R9 are dropped
       const regs = want.kind === "topup" ? Math.min(4, reserve.registers.length) : 4;
-      if (r.ergoTree !== RESERVE_TREE_HEX || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its NFT and its registers R4–R${3 + regs}`);
+      if (r.ergoTree !== reserveTreeOf(denom) || r.ergoTree !== reserve.ergoTree || !tokensOk || r.registers.length !== regs) refuse("reserve-output", `output 0 does not keep the reserve contract, its tokens and its registers R4–R${3 + regs}`);
       for (let i = 0; i < regs; i++) if ((want.kind === "topup" || i !== 3) && r.registers[i] !== reserve.registers[i]) refuse("reserve-output", `output 0 changes R${4 + i}`);
-      if (want.kind === "topup") {
+      if (want.kind === "topup" && token) {
+        if (r.value !== reserve.value + add) refuse("reserve-output", `output 0 holds ${r.value} nanoERG; a token top-up keeps the reserve's ${reserve.value} (plus the dust ${add})`);
+      } else if (want.kind === "topup") {
         if (r.value !== reserve.value + want.amount!) refuse("reserve-output", `output 0 holds ${r.value}; the reserve ${reserve.value} plus ${want.amount} is ${reserve.value + want.amount!}`);
       } else {
         if (r.registers[3] !== encodeLong(want.refundHeight!)) refuse("reserve-output", `output 0's R7 is not Long ${want.refundHeight}`);
@@ -347,6 +429,9 @@ export function checkReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], w
     const at = outputHeight(want.height, inputs);
     for (const [i, o] of outs.entries()) if (o.creationHeight !== at) refuse("creation-height", `output ${i} is created at ${o.creationHeight}, not at ${at}`);
     if (sum(inputs.map((b) => b.value)) !== sum(outs.map((o) => o.value))) refuse("totals", "ERG in differs from ERG out");
+    const tin = tokenTotalsOf(inputs.map((b) => b.tokens));
+    const tout = tokenTotalsOf(outs.map((o) => o.tokens));
+    if (tin.size !== tout.size || [...tin].some(([id, n]) => tout.get(id) !== n)) refuse("totals", "a token would be minted, burned or changed");
   });
 }
 
@@ -363,7 +448,7 @@ export function signReserveAction(tx: UnsignedTx, inputs: readonly ErgoBox[], se
   const pkHex = bytesToHex(pk);
   const own = p2pkTree(pkHex);
   if (inputs.length !== tx.inputs.length || inputs.length === 0) throw new Error("one box per input");
-  const read = readReserve(inputs[0]);
+  const read = readAnyReserve(inputs[0]);
   if (!read.ok) throw new Error(`input 0 is not a reserve the wallet acts on: ${read.message}`);
   if (kind !== "topup" && read.info.owner !== pkHex) throw new Error("only the reserve's owner signs its refund");
   tx.inputs.forEach((inp, i) => {
@@ -398,7 +483,7 @@ export function verifyReserveAction(tx: SignedTx, inputs: readonly ErgoBox[], ki
     if (!box || box.boxId !== inp.boxId) return false;
     if (i === 0) {
       if (kind === "topup") return inp.proof === "";
-      const read = readReserve(box);
+      const read = readAnyReserve(box);
       return read.ok && verifyDlog(hexToBytes(read.info.owner), message, hexToBytes(inp.proof));
     }
     const pk = p2pkKeyOfTree(box.ergoTree);
