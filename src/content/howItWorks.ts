@@ -75,7 +75,7 @@ export const chapters: Chapter[] = [
       t("It keeps every note in an AVL+ tree: debt key → total.", "Каждую расписку он хранит в AVL+-дереве: ключ долга → итог."),
       t("When Bob redeems, the tracker signs the same 80 bytes with the key in R4 of its box.", "Когда Боб погашает, трекер подписывает те же 80 байт ключом из R4 своего бокса."),
       t("A new note is local only. It becomes pending when the tracker posts a commit, and confirmed two blocks later.", "Новая расписка сначала локальная. Она становится ожидающей, когда трекер отправляет фиксацию, и подтверждённой через два блока."),
-      t("From payment to redeemable usually takes 5–25 minutes, about 14 on average.", "От платежа до возможности погасить обычно проходит 5–25 минут, в среднем около 14."),
+      t("From payment to redeemable usually takes 5–25 minutes on the reference server, about 14 on average; ErgoScan's tracker commits twice as often, so it is usually shorter.", "От платежа до возможности погасить на эталонном сервере обычно проходит 5–25 минут, в среднем около 14; трекер ErgoScan фиксирует вдвое чаще, поэтому обычно быстрее."),
       t("The tracker never holds anyone's money. It holds the record.", "Трекер не держит чужих денег. Он держит запись."),
     ],
     fact: fact("local_only → pending → confirmed (depth ≥ 2)", "local_only → pending → confirmed (глубина ≥ 2)"),
@@ -89,7 +89,7 @@ export const chapters: Chapter[] = [
     title: t("The digest on Ergo", "Дайджест в Ergo"),
     lede: t("The tracker's whole tree fits into 33 bytes, and those bytes live on Ergo.", "Всё дерево трекера умещается в 33 байта, и эти байты хранятся в Ergo."),
     body: [
-      t("Every 600 seconds the tracker re-creates its box on Ergo with the tree's root digest in R5.", "Каждые 600 секунд трекер пересоздаёт свой бокс в Ergo с корневым дайджестом дерева в R5."),
+      t("Every few minutes the tracker re-creates its box on Ergo with the tree's root digest in R5: every 300 s on ErgoScan's tracker, every 600 s by default.", "Раз в несколько минут трекер пересоздаёт свой бокс в Ergo с корневым дайджестом дерева в R5: у трекера ErgoScan раз в 300 с, по умолчанию раз в 600 с."),
       t("If nothing changed, it skips the update. A quiet tracker's box simply grows older.", "Если ничего не изменилось, обновление пропускается. Бокс молчащего трекера просто стареет."),
       t("To redeem, the note must be in that committed tree. The redeemer attaches a lookup proof (#8), and the contract checks it.", "Чтобы погасить расписку, она должна быть в этом зафиксированном дереве. Погашающий прикладывает доказательство поиска (#8), и контракт его проверяет."),
       t("A match proves that the box commits this total. It does not prove that the issuer can pay.", "Совпадение доказывает, что бокс фиксирует этот итог. Оно не доказывает, что эмитент сможет заплатить."),

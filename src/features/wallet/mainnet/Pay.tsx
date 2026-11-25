@@ -3,7 +3,7 @@
 // what the tracker took from this browser, not dated ahead) → the new cumulative total, the coverage after it
 // (wallet policy: warn when notes exceed the reserve), hold to sign (0.7 s; the passphrase again once the notes signed
 // since it was typed promise more than 25 % of the reserve on chain: the vault decides, vault/policy.ts), journal,
-// POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 10–25
+// POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 5–15
 // minutes until the receiver can redeem.
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";

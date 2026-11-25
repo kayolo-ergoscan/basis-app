@@ -68,7 +68,7 @@ export const moments: Moment[] = [
       "Every few minutes the tracker writes a short fingerprint of all notes to Ergo: the digest. Anyone can use it to check that a note is counted, but not whether the payer can pay.",
       "Раз в несколько минут трекер записывает в Ergo короткий отпечаток всех расписок — дайджест. По нему любой проверит, что расписка учтена, но не то, хватит ли у должника денег.",
     ),
-    fact: fact("R5 = AVL+ digest · every 600 s · confirmed at depth 2", "R5 = дайджест AVL+ · раз в 600 с · подтверждено на глубине 2"),
+    fact: fact("R5 = AVL+ digest · every 300 s at ErgoScan · confirmed at depth 2", "R5 = дайджест AVL+ · у ErgoScan раз в 300 с · подтверждено на глубине 2"),
     mini: "digest-pulse",
     miniAlt: t("A pulse travels from the note to the tracker box on Ergo.", "Импульс идёт от расписки к боксу трекера в Ergo."),
     chapter: "digest",

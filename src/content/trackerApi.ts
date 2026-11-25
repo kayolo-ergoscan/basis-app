@@ -652,7 +652,7 @@ export const trackerApi = {
     { id: "builds", value: "60 / h / pair", text: t("Redemption builds per issuer–receiver pair. The only rate limit.", "Сборок погашения на пару эмитент–получатель. Единственный лимит частоты.") },
     { id: "ttl", value: "30 min", text: t("Lifetime of a build before submit.", "Время жизни сборки до отправки.") },
     { id: "pending", value: "1024", text: t("Open builds at once.", "Открытых сборок одновременно.") },
-    { id: "commit", value: "600 s", text: t("Commit cadence; unchanged digests are not posted.", "Частота фиксаций; неизменный дайджест не публикуется.") },
+    { id: "commit", value: "300 s", text: t("Commit cadence (the reference default is 600 s); unchanged digests are not posted.", "Частота фиксаций (по умолчанию у эталонного сервера 600 с); неизменный дайджест не публикуется.") },
     { id: "depth", value: "2", text: t("Confirmation depth.", "Глубина подтверждения.") },
   ] as { id: string; value: string; text: Text }[],
   /** The traps worth a banner on the API page. */
