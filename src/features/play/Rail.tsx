@@ -96,7 +96,13 @@ export const Rail = memo(function Rail({ run, scenario, forkOf, st, t, version, 
     const box = listRef.current.closest(".pl-rail-scroll") as HTMLElement | null;
     if (!box) return;
     const top = el.offsetTop - box.offsetTop;
-    if (top < box.scrollTop + 40 || top + el.offsetHeight > box.scrollTop + box.clientHeight - 40) box.scrollTo({ top: Math.max(0, top - 120), behavior: "smooth" });
+    // scroll only as far as the step needs: a step on the rail's first screen keeps the scenario's title in view
+    const h = el.offsetHeight, ch = box.clientHeight, st = box.scrollTop;
+    const want = top + h <= ch ? 0
+      : top < st + 40 ? Math.max(0, top - 120)
+      : top + h > st + ch - 40 ? Math.max(0, Math.min(top - 120, top + h - ch + 24))
+      : st;
+    if (want !== st) box.scrollTo({ top: want, behavior: "smooth" });
   }, [st.index, st.animating?.step]);
   const failed = st.results.filter((r) => !r.outcome.ok).length;
   const viewing = viewSeq !== null ? st.results.findIndex((r, i) => viewSeq >= r.fromSeq && (i === st.results.length - 1 || viewSeq < st.results[i + 1].fromSeq)) : -1;
