@@ -656,6 +656,7 @@ const en: Dict = {
   "mw.act.emptyB": "Signed transactions and notes appear here.",
   "mw.act.noteLine": "Total {total} nanoERG · timestamp {ts}",
   "mw.act.attempts": "Sent {n} times",
+  "mw.act.replaced": "Replaced by a newer note to this receiver in {sym}, whose total includes this one. The receipt to send is on that newest note.",
 
   // Settings
   "mw.set.h": "Settings",
@@ -1590,6 +1591,7 @@ const ru: Partial<Dict> = {
   "mw.act.emptyB": "Здесь появятся подписанные транзакции и расписки.",
   "mw.act.noteLine": "Сумма {total} nanoERG · метка времени {ts}",
   "mw.act.attempts": "Отправлено раз: {n}",
+  "mw.act.replaced": "Её заменила более новая расписка этому получателю в {sym}, и её сумма включает эту. Квитанция для отправки — у самой новой расписки.",
 
   "mw.set.h": "Настройки",
   "mw.set.lede": "Ключ для основной сети в этом браузере.",

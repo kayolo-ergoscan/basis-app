@@ -1,7 +1,7 @@
 // /wallet/mainnet/activity — the journal of this key: every signed T1, top-up, refund step, note (with its receipt link
-// again, once the tracker took it), redemption and withdrawal, newest first,
-// with its state, its id on ergoscan.me, and the actions an open entry offers (send the same bytes again, discard one
-// that was provably never sent). The journal lives in this browser only. Each amount is in its entry's own
+// again once the tracker took it, on the newest note per receiver and denomination only), redemption and withdrawal,
+// newest first, with its state, its id on ergoscan.me, and the actions an open entry offers (send the same bytes again,
+// discard one that was provably never sent). The journal lives in this browser only. Each amount is in its entry's own
 // denomination (meta.denom: ERG when absent); a denomination filter shows one at a time, nothing is summed.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
@@ -13,7 +13,27 @@ import { EntryProgress } from "./send";
 import { submitEntry } from "./Redeem";
 import { ReceiptCard, receiptOf } from "./Pay";
 import { ChainLink } from "./ui";
-import { Amt, entryDenom } from "./denom";
+import { Amt, UNKNOWN_DENOM, entryDenom } from "./denom";
+
+/** A note whose receipt the receiver can use: the tracker took it (not refused, not given up, not only signed). */
+const RECEIPT_STATES: ReadonlySet<JournalState> = new Set(["sent", "mempool", "confirmed", "final"]);
+
+/** The newest such note per receiver and denomination (by its signed timestamp): an older one's receipt promises a
+ *  smaller total that the newer one already includes, so only the newest offers its receipt (review L5). */
+export function newestNotes(entries: readonly JournalEntry[]): Set<string> {
+  const best = new Map<string, { id: string; ts: bigint }>();
+  for (const e of entries) {
+    if (e.kind !== "note" || !RECEIPT_STATES.has(e.state) || typeof e.meta.to !== "string" || typeof e.meta.ts !== "string") continue;
+    const d = entryDenom(e);
+    if (d === UNKNOWN_DENOM) continue;
+    let ts: bigint;
+    try { ts = BigInt(e.meta.ts); } catch { continue; }
+    const k = `${e.pub}|${e.meta.to}|${d}`;
+    const b = best.get(k);
+    if (!b || ts > b.ts) best.set(k, { id: e.id, ts });
+  }
+  return new Set([...best.values()].map((x) => x.id));
+}
 
 const LAMP: Record<JournalState, LampState> = { signed: "signed", sent: "tracked", mempool: "tracked", confirmed: "tracked", final: "committed", failed: "alarm", abandoned: "off" };
 
@@ -27,11 +47,13 @@ function addressOf(pub: string): string {
   try { return /^0[23][0-9a-f]{64}$/.test(pub) ? p2pkAddress(pub) : ""; } catch { return ""; }
 }
 
-function Row({ e }: { e: JournalEntry }) {
+function Row({ e, newest }: { e: JournalEntry; newest: boolean }) {
   const t = useT();
   const { vault, height } = useMw();
   const [open, setOpen] = useState(false);
-  const receipt = open && e.kind === "note" && e.state !== "failed" && e.state !== "signed" && e.state !== "abandoned" ? receiptOf(e) : null;
+  const d = entryDenom(e);
+  const usable = e.kind === "note" && RECEIPT_STATES.has(e.state) && d !== UNKNOWN_DENOM;
+  const receipt = open && usable && newest ? receiptOf(e) : null;
   const who = e.kind === "note" ? String(e.meta.to ?? "") : e.kind === "redeem" ? String(e.meta.issuer ?? "") : e.kind === "withdraw" ? String(e.meta.to ?? "") :
     e.kind === "topup" && e.meta.own === false ? addressOf(String(e.meta.owner ?? "")) : "";
   return (
@@ -51,6 +73,7 @@ function Row({ e }: { e: JournalEntry }) {
               <p className="t-small">{t("mw.act.noteLine", { total: String(e.meta.total ?? "—"), ts: String(e.meta.ts ?? "—") })}</p>
               {/* the receipt of a note the tracker took, again: the receiver imports it to see and redeem the note */}
               {receipt && <ReceiptCard r={receipt} />}
+              {usable && !newest && <p className="t-small mw-dim">{t("mw.act.replaced", { sym: denomSymbol(d) })}</p>}
             </>
           ) : (
             <EntryProgress vault={vault} entry={e} tip={height} />
@@ -73,6 +96,7 @@ export function ActivityScreen() {
   const [f, setF] = useState<Filter>("all");
   const [d, setD] = useState<Denomination | "all">("all");
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (d === "all" || entryDenom(e) === d)) : []), [entries, me, d]);
+  const newest = useMemo(() => newestNotes(entries), [entries]);
   const anyToken = useMemo(() => !!me && entries.some((e) => e.pub === me.pub && entryDenom(e) !== "erg"), [entries, me]);
   // "Reserve" lists everything that made or moved the reserve: T1, top-ups, the refund's two steps
   const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : f === "t1" ? e.kind === "t1" || RESERVE_ACTION_KINDS.includes(e.kind) : e.kind === f));
@@ -85,7 +109,7 @@ export function ActivityScreen() {
       <Card>
         <Seg ariaLabel={t("mw.act.filter")} value={f} onChange={setF} options={(["all", "open", "t1", "note", "redeem", "withdraw"] as Filter[]).map((v) => ({ value: v, label: t(`mw.act.f.${v}`) }))} />
         {anyToken && <Seg ariaLabel={t("mw.dn.aria")} value={d} onChange={setD} options={[{ value: "all" as const, label: t("mw.act.f.all") }, ...WALLET_DENOMS.map((x) => ({ value: x, label: denomSymbol(x) }))]} />}
-        {shown.length === 0 ? <Empty title={t("mw.act.emptyT")} text={t("mw.act.emptyB")} /> : <ul className="mw-acts">{shown.map((e) => <Row key={e.id} e={e} />)}</ul>}
+        {shown.length === 0 ? <Empty title={t("mw.act.emptyT")} text={t("mw.act.emptyB")} /> : <ul className="mw-acts">{shown.map((e) => <Row key={e.id} e={e} newest={newest.has(e.id)} />)}</ul>}
       </Card>
     </div>
   );
