@@ -3,11 +3,11 @@
 // 30 s → 10 min), the watched issuers kept in this browser, and the journal watcher that follows signed transactions
 // to depth 2 and sends the same bytes again when one was dropped.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { getMainnetVault, attachAutoLock, blocksNewT1, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
+import { getMainnetVault, attachAutoLock, blocksNewT1, blocksNewT1In, isOpenState, type JournalEntry, type MainnetVault, type VaultState } from "@/mainnet/vault";
 import { backoffMs, localProblem, walletNet, type NetOptions, type Problem, type Result, type UnspentBox, type WalletNet } from "@/mainnet/net";
 import { FAILED_FOLLOW_BLOCKS, WATCH_STORAGE_KEY, depthAt, failedAtOf, followsFailed, followsFinal, nextTrackState, ownReserve, parseWatchStore, refundStartExpired, trackedGate, trustedNft, type OwnReserve, type TrackedGate, type TrackedRef, type WatchedIssuer } from "@/mainnet/flows";
-import { boundToUs, type Priority, type TrackedReserve } from "@/chain/ours";
-import { RESERVE_TREE_HEX, boxIdHolds, readReserve } from "@/mainnet/tx";
+import { boundToUs, trackerClient, type Priority, type TrackedReserve } from "@/chain/ours";
+import { RESERVE_TREE_HEX, TOKEN_RESERVE_TREE_HEX, boxIdHolds, isWalletDenom, readReserve, tokenIdOf, type Denomination } from "@/mainnet/tx";
 
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
 
@@ -163,21 +163,35 @@ export function useResource<T>(res: Resource<T> | null, o: PollOptions = {}): Vi
 }
 
 // The wallet's shared answers.
+/** A resource key's denomination suffix: none for ERG (the keys are what they were). */
+const denomKey = (d: Denomination): string => (d === "erg" ? "" : `:${d}`);
+
+/** The token ids the tracker serves as reserve collateral (its /config/reserve-collateral `denominations`,
+ *  "token:<id>" entries), and the token contract's P2S it serves (it must be ours: tokenReserveAddress). */
+export async function collateralOf(o?: NetOptions): Promise<Result<{ tokens: string[]; tokenP2s: string }>> {
+  const a = await trackerClient.collateralConfig({ signal: o?.signal, priority: o?.priority });
+  if (!a.ok) return { ok: false, problem: localProblem(a.kind === "timeout" ? "timeout" : "network", a.message.slice(0, 200)) };
+  const tokens = a.data.denominations.flatMap((d) => { const m = /^token:([0-9a-f]{64})$/.exec(d.id.toLowerCase()); return m ? [m[1]] : []; });
+  return { ok: true, value: { tokens: [...new Set(tokens)], tokenP2s: a.data.tokenP2s } };
+}
+
 export const R = {
   trackerState: () => resource("state", (o) => net().trackerState(o)),
   reservesOf: (pk: string) => resource(`reserves:${pk}`, (o) => net().reservesOf(pk, o)),
   /** The tracker's reserves of a key as reserve NFTs (trackedRefs): which reserve is whose, for top-up and refund. */
   trackedOf: (pk: string) => resource(`tracked-of:${pk}`, (o) => trackedOf(pk, o)),
   /** The tracker's side of a new T1 for a key (trackedGateOf): its own ERG reserve, one this wallet cannot prove, or none. */
-  trackedGate: (pk: string) => resource(`tracked-gate:${pk}`, (o) => trackedGateOf(pk, o)),
+  trackedGate: (pk: string, denom: Denomination = "erg") => resource(`tracked-gate:${pk}${denomKey(denom)}`, (o) => trackedGateOf(pk, o, net(), tokenIdOf(denom))),
   /** What stops a new T1 for a key (t1GateOf): the tracker's side, then the chain's. */
-  t1Gate: (pk: string) => resource(`t1-gate:${pk}`, (o) => t1GateOf(pk, o)),
+  t1Gate: (pk: string, denom: Denomination = "erg") => resource(`t1-gate:${pk}${denomKey(denom)}`, (o) => t1GateOf(pk, o, net(), tokenIdOf(denom))),
   /** The key's reserves as the chain shows them (/v1): what top-up and refund act on. */
-  reservesOnChain: (pk: string) => resource(`chain-reserves:${pk}`, (o) => net().reservesOnChain(pk, o)),
+  reservesOnChain: (pk: string, denom: Denomination = "erg") => resource(`chain-reserves:${pk}${denomKey(denom)}`, (o) => net().reservesOnChain(pk, { ...o, denom })),
   /** The box that holds a reserve NFT now (/v1). */
   reserveByNft: (nft: string) => resource(`reserve-nft:${nft}`, (o) => net().reserveByNft(nft, o)),
   keyStatus: (pk: string) => resource(`key:${pk}`, (o) => net().keyStatus(pk, o)),
-  pair: (issuer: string, recipient: string) => resource(`pair:${issuer}:${recipient}`, (o) => net().pairNote(issuer, recipient, o)),
+  pair: (issuer: string, recipient: string, denom: Denomination = "erg") => resource(`pair:${issuer}:${recipient}${denomKey(denom)}`, (o) => net().pairNote(issuer, recipient, { ...o, denom })),
+  /** The tracker's served denominations (GET /config/reserve-collateral): which tokens it takes reserves in. */
+  collateral: () => resource("collateral", (o) => collateralOf(o)),
   unspent: (address: string, tree: string) => resource(`unspent:${address}`, (o) => net().unspent(address, tree, o)),
   mempool: (address: string) => resource(`mempool:${address}`, (o) => net().mempool(address, o)),
 };
@@ -304,8 +318,9 @@ export function useJournalWatcher(vault: MainnetVault | null, me: { pub: string;
   // one-reserve rule); checked once per block while it is due, so a tab that was closed at depth 10 catches up
   const retireDue = useMemo(() => {
     if (!me || height === null) return null;
-    const t1 = entries.find((e) => e.pub === me.pub && blocksNewT1(e) && e.state === "final");
-    return t1 ? entries.find((e) => e.pub === me.pub && e.kind === "refund-end" && e.state === "final" && e.meta.nft === t1.inputs[0] && depthAt(e.inclusionHeight, height) >= RETIRE_DEPTH) ?? null : null;
+    // every denomination's T1 (one per key and denomination): the first whose completion is deep enough
+    const nfts = new Set(entries.filter((e) => e.pub === me.pub && blocksNewT1(e) && e.state === "final").map((e) => e.inputs[0]));
+    return entries.find((e) => e.pub === me.pub && e.kind === "refund-end" && e.state === "final" && nfts.has(String(e.meta.nft)) && depthAt(e.inclusionHeight, height) >= RETIRE_DEPTH) ?? null;
   }, [entries, me, height]);
   useEffect(() => {
     if (!vault || !me || !visible || height === null || !retireDue) return;
@@ -325,19 +340,21 @@ export async function retireReserveOf(
   vault: Pick<MainnetVault, "journal">, pub: string, done: Pick<JournalEntry, "kind" | "state" | "inclusionHeight" | "meta">, height: number,
   byNft: WalletNet["reserveByNft"] = (nft) => net().reserveByNft(nft),
 ): Promise<boolean> {
-  const t1 = await vault.journal.activeT1(pub);
+  // the completion names its reserve's denomination (meta.denom, absent = ERG): that denomination's T1 is retired
+  const denom = typeof done.meta.denom === "string" && isWalletDenom(done.meta.denom) ? done.meta.denom : "erg";
+  const t1 = await vault.journal.activeT1(pub, denom);
   const nft = t1?.inputs[0];
   if (!t1 || t1.state !== "final" || !nft) return false;
   if (done.kind !== "refund-end" || done.state !== "final" || done.meta.nft !== nft || depthAt(done.inclusionHeight, height) < RETIRE_DEPTH) return false;
   const left = await byNft(nft);
-  if (!left.ok || (left.value !== null && left.value.box.ergoTree === RESERVE_TREE_HEX)) return false;
+  if (!left.ok || (left.value !== null && (left.value.box.ergoTree === RESERVE_TREE_HEX || left.value.box.ergoTree === TOKEN_RESERVE_TREE_HEX))) return false;
   await vault.journal.retireT1(t1.id);
   return true;
 }
 
 /** The reserve NFT of this key's own T1 (the token id is the T1's first input), or null when this browser has none. */
-export function t1NftOf(entries: readonly JournalEntry[], pub: string): string | null {
-  return entries.find((e) => e.pub === pub && blocksNewT1(e))?.inputs[0] ?? null;
+export function t1NftOf(entries: readonly JournalEntry[], pub: string, denom: Denomination = "erg"): string | null {
+  return entries.find((e) => e.pub === pub && blocksNewT1In(e, denom))?.inputs[0] ?? null;
 }
 
 /** boxIdHolds, false for a box that cannot even be serialized (an answer missing a field). */
@@ -380,7 +397,10 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
     if (!boundToUs(r)) continue;
     const b = await box(r.box, { priority: "user" });
     if (!b.ok) return b;
-    const rr = readReserve(b.value.box);
+    // read in the denomination the tracker lists it in (a token it does not know, or ours under another layout: skipped)
+    const denom: Denomination = r.token === null ? "erg" : `token:${r.token}`;
+    if (!isWalletDenom(denom)) continue;
+    const rr = readReserve(b.value.box, denom);
     if (!rr.ok || rr.info.owner !== r.owner) continue;
     const m = await minterOf(rr.info.nft, box);
     if (!m.ok) return m;
@@ -395,13 +415,13 @@ export async function trackedRefs(list: readonly TrackedReserve[], box: WalletNe
  *  index lags): "unchecked", with those boxes, which stops a T1 too (wallet-t3 LOW-4). */
 export const MINTED_CHECK_MAX = 10;
 export type MintedAmong = { k: "mine" } | { k: "unchecked"; boxes: string[] } | { k: "none" };
-export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o)): Promise<Result<MintedAmong>> {
+export async function mintedAmong(boxes: readonly UnspentBox[], pub: string, box: WalletNet["box"] = (id, o) => net().box(id, o), denom: Denomination = "erg"): Promise<Result<MintedAmong>> {
   const seen = new Set<string>();
   const unchecked: string[] = [];
   for (const u of boxes) {
     if (seen.has(u.box.boxId) || seen.size >= MINTED_CHECK_MAX) continue;
     seen.add(u.box.boxId);
-    const rr = readReserve(u.box);
+    const rr = readReserve(u.box, denom);
     if (!rr.ok || rr.info.owner !== pub) continue;
     const m = await minterOf(rr.info.nft, box);
     if (!m.ok) return m;
@@ -424,20 +444,20 @@ export async function trackedOf(pub: string, o?: NetOptions): Promise<Result<Tra
  * wallet cannot prove, and one /v1 cannot show yet (the box, or its minting box) as not checked yet. Entry by entry:
  * a box /v1 does not have does not hide the others (wallet-t3 LOW-3); a failed read is still the whole answer's.
  */
-export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box"> = net()): Promise<Result<TrackedGate<TrackedReserve>>> {
+export async function trackedGateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box"> = net(), token: string | null = null): Promise<Result<TrackedGate<TrackedReserve>>> {
   const opts = o ?? { priority: "user" };
   const l = await n.reservesOf(pub, opts);
   if (!l.ok) return l;
-  const erg = l.value.filter((r) => r.owner === pub && r.token === null);
+  const erg = l.value.filter((r) => r.owner === pub && r.token === token);
   if (erg.length === 0) return { ok: true, value: { k: "none" } };
   const refs: TrackedRef[] = [];
   for (const r of erg) {
     const one = await trackedRefs([r], (id) => n.box(id, opts));
     if (one.ok) refs.push(...one.value);
-    else if (one.problem.kind === "not-found") refs.push({ box: r.box, owner: r.owner, nft: "", token: null, genuine: null });
+    else if (one.problem.kind === "not-found") refs.push({ box: r.box, owner: r.owner, nft: "", token, genuine: null });
     else return one;
   }
-  return { ok: true, value: trackedGate(pub, erg, refs) };
+  return { ok: true, value: trackedGate(pub, erg, refs, token) };
 }
 
 /** What stops a new T1: the tracker's side (TrackedGate), or "chain", a reserve box at the key whose NFT this key
@@ -451,13 +471,14 @@ export type T1Gate = TrackedGate<TrackedReserve> | { k: "chain" } | { k: "unchec
  * over the best-effort listing: boxes it did not mint are planted and do not count, an incomplete listing does not
  * block).
  */
-export async function t1GateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box" | "reservesOnChain"> = net()): Promise<Result<T1Gate>> {
+export async function t1GateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "reservesOf" | "box" | "reservesOnChain"> = net(), token: string | null = null): Promise<Result<T1Gate>> {
   const opts = o ?? { priority: "user" };
-  const tracked = await trackedGateOf(pub, opts, n);
+  const denom: Denomination = token === null ? "erg" : `token:${token}`;
+  const tracked = await trackedGateOf(pub, opts, n, token);
   if (!tracked.ok || tracked.value.k !== "none") return tracked;
-  const onChain = await n.reservesOnChain(pub, opts);
+  const onChain = await n.reservesOnChain(pub, token === null ? opts : { ...opts, denom });
   if (!onChain.ok) return onChain;
-  const minted = await mintedAmong(onChain.value.boxes, pub, (id) => n.box(id, opts));
+  const minted = await mintedAmong(onChain.value.boxes, pub, (id) => n.box(id, opts), denom);
   if (!minted.ok) return minted;
   const m = minted.value;
   return { ok: true, value: m.k === "mine" ? { k: "chain" } : m.k === "unchecked" ? { k: "unchecked-chain", boxes: m.boxes } : { k: "none" } };
@@ -468,14 +489,15 @@ export async function t1GateOf(pub: string, o?: NetOptions, n: Pick<WalletNet, "
  * (trustedNft), the box that holds that NFT by an exact lookup, and the listing at the key only for the warning (a
  * failed or incomplete listing does not matter).
  */
-export async function ownReserveNow(pub: string, entries: readonly JournalEntry[]): Promise<Result<OwnReserve>> {
+export async function ownReserveNow(pub: string, entries: readonly JournalEntry[], denom: Denomination = "erg"): Promise<Result<OwnReserve>> {
+  const token = tokenIdOf(denom);
   const tracked = await trackedOf(pub);
-  const trusted = trustedNft({ owner: pub, t1Nft: t1NftOf(entries, pub), tracked: tracked.ok ? tracked.value : null });
+  const trusted = trustedNft({ owner: pub, t1Nft: t1NftOf(entries, pub, denom), tracked: tracked.ok ? tracked.value : null, token });
   if (!trusted.ok) return { ok: true, value: trusted };
   const held = await net().reserveByNft(trusted.nft, { priority: "user" });
   if (!held.ok) return held;
-  const listing = await net().reservesOnChain(pub, { priority: "user" });
-  return { ok: true, value: ownReserve({ owner: pub, trusted, held: held.value, listing: listing.ok ? listing.value : null }) };
+  const listing = await net().reservesOnChain(pub, { priority: "user", denom });
+  return { ok: true, value: ownReserve({ owner: pub, trusted, held: held.value, listing: listing.ok ? listing.value : null, token }) };
 }
 
 /** Sends a signed T1, Withdraw, top-up or refund again: the exact stored bytes (write-ahead: markSending first). */

@@ -17,6 +17,7 @@ import { asArray, asHex, asObject, asString, asU64, member, required, ShapeError
 import type { BoxCandidate, ErgoBox, Hex, SignedTx, Token, UnsignedTx } from "./model";
 import { proveDlog, publicKeyOf, verifyDlog, type ProveOptions } from "./provedlog";
 import { envelopeData } from "./redemption";
+import { TOKEN_RESERVE_TREE_HEX } from "./tokens";
 import { boxIdHolds, bytesToSign, computeTxId, oversizedOutput, oversizedText, signedTxToNodeJson } from "./serialize";
 
 export type CheckResult<R extends string> = { ok: true } | { ok: false; rule: R; message: string };
@@ -318,7 +319,7 @@ export interface WithdrawInput {
 
 function destinationTree(to: string): Hex {
   const tree = treeOfAddress(to);
-  if (tree === RESERVE_TREE_HEX) throw new Error("this is the reserve contract's address: a box sent there is not a reserve");
+  if (tree === RESERVE_TREE_HEX || tree === TOKEN_RESERVE_TREE_HEX) throw new Error("this is the reserve contract's address: a box sent there is not a reserve");
   if (tree === FEE_TREE_HEX) throw new Error("this is the miner-fee contract");
   const pk = p2pkKeyOfTree(tree);
   if (pk !== null && !isValidPublicKey(pk)) throw new Error("not a valid P2PK address");

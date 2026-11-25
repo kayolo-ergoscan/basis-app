@@ -3,10 +3,16 @@
 //   • top-up: anyone's current reserve of our tracker, never one in refund; ≥ 0.1 ERG; dust goes into the reserve;
 //   • refund start: the owner's box pays the 0.001 ERG fee (the reserve's value may not go down); R7 = tip + 10;
 //   • refund completion: from HEIGHT ≥ R7 + 43 200; the reserve pays its own fee and goes to the owner's address.
+// Token reserves take the same plans in the token's raw units (planTokenTopUp; the refund plans are the same, the
+// box's tokens travel with it); which reserve is the key's own is asked per denomination (`token`: the reserve token
+// id, null = ERG, the default everywhere, so every ERG answer is what it was).
 import {
-  MIN_BOX_NANOERG, P2PK_MAX_INPUTS, REFUND_START_AHEAD, RESERVE_HARD_CAP_NANOERG, RESERVE_TREE_HEX, TOP_UP_MIN_NANOERG, buildRefundComplete, buildRefundStart, buildTopUp,
-  readReserve, refundClock, selectCoins, type ErgoBox, type RefundClock, type UnsignedTx,
+  MIN_BOX_NANOERG, P2PK_MAX_INPUTS, REFUND_START_AHEAD, RESERVE_HARD_CAP_NANOERG, TOP_UP_MIN_NANOERG, buildRefundComplete, buildRefundStart, buildTopUp,
+  readReserve, refundClock, reserveTreeOf, selectCoins, selectTokenCoins, type Denomination, type ErgoBox, type RefundClock, type ReserveToken, type UnsignedTx,
 } from "../tx";
+
+/** The denomination of a reserve token id (null = ERG). */
+const denomOfId = (token: string | null): Denomination => (token === null ? "erg" : `token:${token}`);
 import type { MempoolTx, UnspentBox } from "../net";
 
 /** Boxes a reserve action may spend at the wallet's key besides the reserve (one input fewer than a P2PK spend). */
@@ -16,8 +22,8 @@ export const RESERVE_ACTION_MAX_INPUTS = P2PK_MAX_INPUTS - 1;
  * The most one top-up may add (D5, the beta caps): to the wallet's own reserve, up to `cap` for the reserve in total; to
  * another key's reserve, `cap` per top-up (the wallet does not cap someone else's reserve). Never above 10 ERG.
  */
-export function topUpMax(own: boolean, reserveValue: bigint, cap: bigint): bigint {
-  const c = cap > RESERVE_HARD_CAP_NANOERG ? RESERVE_HARD_CAP_NANOERG : cap;
+export function topUpMax(own: boolean, reserveValue: bigint, cap: bigint, hardCap: bigint = RESERVE_HARD_CAP_NANOERG): bigint {
+  const c = cap > hardCap ? hardCap : cap;
   if (!own) return c;
   const room = c - reserveValue;
   return room > 0n ? room : 0n;
@@ -26,7 +32,8 @@ export function topUpMax(own: boolean, reserveValue: bigint, cap: bigint): bigin
 export type TopUpPlan =
   | { ok: true; inputs: ErgoBox[]; tx: UnsignedTx; /** what the reserve gains (the amount, plus any dust) */ amount: bigint; change: bigint }
   | { ok: false; why: "amount"; min: bigint; max: bigint }
-  | { ok: false; why: "short"; need: bigint; have: bigint }
+  /** `tokens`: what is short is the reserve token (raw units), not ERG */
+  | { ok: false; why: "short"; need: bigint; have: bigint; tokens?: true }
   | { ok: false; why: "too-many-boxes" }
   | { ok: false; why: "build"; message: string };
 
@@ -58,6 +65,25 @@ export function planTopUp(boxes: readonly ErgoBox[], payer: string, reserve: Erg
   try {
     const tx = buildTopUp({ reserve, payer, inputs: use.inputs, amount: final, fee, height });
     return { ok: true, inputs: use.inputs, tx, amount: final, change };
+  } catch (e) {
+    return { ok: false, why: "build", message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * A token reserve's top-up of `amount` raw units: the boxes that hold the token pay it, token-free boxes the fee; the
+ * change keeps every other token and the rest of this one (≥ 0.001 ERG then). ERG dust below 0.001 ERG with no change
+ * box goes into the reserve box (`add`), never to the miner.
+ */
+export function planTokenTopUp(boxes: readonly ErgoBox[], payer: string, reserve: ErgoBox, token: ReserveToken, amount: bigint, fee: bigint, height: number, max: bigint): TopUpPlan & { add?: bigint } {
+  if (amount < token.min || amount > max) return { ok: false, why: "amount", min: token.min, max };
+  const s = selectTokenCoins(boxes, payer, token.id, amount, fee);
+  if (!s.ok) return s.why === "short-tokens" ? { ok: false, why: "short", need: s.need, have: s.have, tokens: true } : { ok: false, why: "short", need: s.need, have: s.have };
+  if (s.sel.inputs.length > RESERVE_ACTION_MAX_INPUTS) return { ok: false, why: "too-many-boxes" };
+  const add = s.sel.tokens.length === 0 && s.sel.leftover > 0n && s.sel.leftover < MIN_BOX_NANOERG ? s.sel.leftover : 0n;
+  try {
+    const tx = buildTopUp({ reserve, payer, inputs: s.sel.inputs, amount, fee, height, denom: `token:${token.id}`, add });
+    return { ok: true, inputs: s.sel.inputs, tx, amount, change: s.sel.leftover - add, add };
   } catch (e) {
     return { ok: false, why: "build", message: e instanceof Error ? e.message : String(e) };
   }
@@ -138,10 +164,10 @@ export interface TrackedRef { box: string; owner: string; nft: string; token: st
  * prepare()'s, after this one.
  */
 export type TrackedGate<T> = { k: "none" } | { k: "own"; r: T } | { k: "unproven"; rs: T[] } | { k: "unchecked"; rs: T[] };
-export function trackedGate<T extends { box: string; owner: string; token: string | null }>(owner: string, list: readonly T[], refs: readonly TrackedRef[]): TrackedGate<T> {
-  const erg = list.filter((r) => r.owner === owner && r.token === null);
+export function trackedGate<T extends { box: string; owner: string; token: string | null }>(owner: string, list: readonly T[], refs: readonly TrackedRef[], token: string | null = null): TrackedGate<T> {
+  const erg = list.filter((r) => r.owner === owner && r.token === token);
   if (erg.length === 0) return { k: "none" };
-  const refOf = (r: T) => refs.find((x) => x.box === r.box && x.owner === owner && x.token === null);
+  const refOf = (r: T) => refs.find((x) => x.box === r.box && x.owner === owner && x.token === token);
   const own = erg.find((r) => refOf(r)?.genuine === true);
   if (own) return { k: "own", r: own };
   const foreign = erg.filter((r) => { const x = refOf(r); return !x || x.genuine === false; });
@@ -171,8 +197,9 @@ export type OwnReserve =
  * this key); otherwise the one reserve the tracker follows for this key whose NFT this key minted. Tracker entries
  * that fail that check are dropped; with a T1, the T1 NFT must be among the remaining ones (when there are any).
  */
-export function trustedNft(o: { owner: string; t1Nft: string | null; tracked: readonly TrackedRef[] | null }): TrustedNft {
-  const named = o.tracked === null ? null : o.tracked.filter((r) => r.owner === o.owner && r.token === null);
+export function trustedNft(o: { owner: string; t1Nft: string | null; tracked: readonly TrackedRef[] | null; token?: string | null }): TrustedNft {
+  const token = o.token ?? null;
+  const named = o.tracked === null ? null : o.tracked.filter((r) => r.owner === o.owner && r.token === token);
   const proven = named === null ? null : [...new Set(named.filter((r) => r.genuine).map((r) => r.nft))];
   if (o.t1Nft) {
     if (proven && proven.length > 0 && !proven.includes(o.t1Nft)) return { ok: false, why: "disagree", t1: o.t1Nft, tracker: proven };
@@ -191,12 +218,13 @@ export function trustedNft(o: { owner: string; t1Nft: string | null; tracked: re
  * reserve contract with R4 = this key and R6 = our tracker. The listing of reserve boxes at the key (`listing`, best
  * effort, may be incomplete or missing) only feeds the warning about other boxes: it never blocks.
  */
-export function ownReserve(o: { owner: string; trusted: TrustedNft; held: UnspentBox | null; listing: { boxes: readonly UnspentBox[] } | null }): OwnReserve {
+export function ownReserve(o: { owner: string; trusted: TrustedNft; held: UnspentBox | null; listing: { boxes: readonly UnspentBox[] } | null; token?: string | null }): OwnReserve {
   if (!o.trusted.ok) return o.trusted;
   const nft = o.trusted.nft;
+  const denom = denomOfId(o.token ?? null);
   // the NFT in no unspent box (the T1 is not in a block yet), or out of the reserve contract (a completed refund)
-  if (!o.held || o.held.box.ergoTree !== RESERVE_TREE_HEX) return { ok: false, why: "none" };
-  const r = readReserve(o.held.box);
+  if (!o.held || o.held.box.ergoTree !== reserveTreeOf(denom)) return { ok: false, why: "none" };
+  const r = readReserve(o.held.box, denom);
   if (!r.ok || r.info.owner !== o.owner || r.info.nft !== nft) return { ok: false, why: "mismatch", boxes: [o.held], nft };
   const seen = new Set([o.held.box.boxId]);
   const others: UnspentBox[] = [];
@@ -209,9 +237,9 @@ export function ownReserve(o: { owner: string; trusted: TrustedNft; held: Unspen
  * genuine one (minted by that owner: TrackedRef.genuine): if the tracker follows a second genuine box with R4 = that
  * owner, the wallet does not pick between them; entries the owner did not mint are not counted.
  */
-export function trackedAs(owner: string, nft: string, tracked: readonly TrackedRef[] | null): boolean {
+export function trackedAs(owner: string, nft: string, tracked: readonly TrackedRef[] | null, token: string | null = null): boolean {
   if (!tracked) return false;
-  const theirs = new Set(tracked.filter((r) => r.owner === owner && r.token === null && r.genuine).map((r) => r.nft));
+  const theirs = new Set(tracked.filter((r) => r.owner === owner && r.token === token && r.genuine).map((r) => r.nft));
   return theirs.size === 1 && theirs.has(nft);
 }
 
@@ -231,8 +259,8 @@ function namedUnchecked(owner: string, nft: string, tracked: readonly TrackedRef
  * names it, the owner did not mint it; "unchecked": it names it, /v1 cannot show who minted it yet (refused, calmly);
  * "untrusted": refuse.
  */
-export function linkTarget(o: { me: string; nft: string; owner: string; own: OwnReserve; trackedOfOwner: readonly TrackedRef[] | null }): "own" | "other" | "untrusted" | "unproven" | "unchecked" {
+export function linkTarget(o: { me: string; nft: string; owner: string; own: OwnReserve; trackedOfOwner: readonly TrackedRef[] | null; token?: string | null }): "own" | "other" | "untrusted" | "unproven" | "unchecked" {
   if (o.owner === o.me) return o.own.ok && o.own.nft === o.nft ? "own" : !o.own.ok && (o.own.why === "unproven" || o.own.why === "unchecked") ? o.own.why : "untrusted";
-  if (trackedAs(o.owner, o.nft, o.trackedOfOwner)) return "other";
+  if (trackedAs(o.owner, o.nft, o.trackedOfOwner, o.token ?? null)) return "other";
   return namedUnproven(o.owner, o.nft, o.trackedOfOwner) ? "unproven" : namedUnchecked(o.owner, o.nft, o.trackedOfOwner) ? "unchecked" : "untrusted";
 }

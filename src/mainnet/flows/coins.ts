@@ -3,7 +3,8 @@
 // are confirmed and unspent per /v1; boxes that an open journal entry or a mempool transaction spends are left out.
 import {
   MINER_FEE_NANOERG, MIN_BOX_NANOERG, P2PK_MAX_INPUTS, RESERVE_HARD_CAP_NANOERG, RESERVE_MIN_NANOERG, RESERVE_TREE_HEX, buildWithdraw, mergedTokens,
-  p2pkTree, parseAddress, planReserveCreation, reserveAddress, selectCoins, treeOfAddress, FEE_TREE_HEX, type ErgoBox, type ReservePlan, type UnsignedTx,
+  TOKEN_RESERVE_TREE_HEX, p2pkTree, parseAddress, planReserveCreation, planTokenReserveCreation, reserveAddress, reserveTreeOf, selectCoins, tokenReserveAddress, treeOfAddress, FEE_TREE_HEX,
+  type Denomination, type ErgoBox, type ReservePlan, type ReserveToken, type TokenPlanResult, type TokenReservePlan, type UnsignedTx,
 } from "../tx";
 import type { MempoolTx, UnspentBox } from "../net";
 
@@ -36,6 +37,10 @@ export function balanceOf(list: readonly UnspentBox[], usable: readonly ErgoBox[
   return { nano, free, boxes: usable.length, tokenBoxes, inFlight: list.filter((u) => !ids.has(u.box.boxId)).length };
 }
 
+/** Raw units of `tokenId` in the usable boxes (what a token T1 or top-up can spend). */
+export const tokenBalanceOf = (usable: readonly ErgoBox[], tokenId: string): bigint =>
+  usable.reduce((s, b) => s + b.tokens.reduce((x, t) => (t.tokenId === tokenId ? x + t.amount : x), 0n), 0n);
+
 /** What one T1 needs at the key: the reserve plus the miner fee. */
 export const t1Need = (amount: bigint, fee: bigint = MINER_FEE_NANOERG): bigint => amount + fee;
 
@@ -62,6 +67,19 @@ export function planT1(boxes: readonly ErgoBox[], owner: string, amount: bigint,
 export const t1CreateBody = (plan: ReservePlan, owner: string): string =>
   `{"nft_id":"${plan.nftId}","owner_pubkey":"${owner}","erg_amount":${plan.amount}}`;
 
+/** `POST /reserves/create` for a token reserve (api.rs create_reserve): the box's ERG, the token and its raw amount. */
+export const tokenT1CreateBody = (plan: TokenReservePlan, owner: string): string =>
+  `{"nft_id":"${plan.nftId}","owner_pubkey":"${owner}","erg_amount":${plan.ergValue},"token_amount":${plan.amount},"token_id":"${plan.token.id}"}`;
+
+export type TokenT1Plan = TokenPlanResult | { ok: false; why: "too-many-boxes"; inputs: number };
+
+/** planT1 for a token reserve: the token's floor and cap, the boxes that hold the token and the ERG (tx/tokenreserve). */
+export function planTokenT1(boxes: readonly ErgoBox[], owner: string, token: ReserveToken, amount: bigint, fee: bigint, cap: bigint): TokenT1Plan {
+  const p = planTokenReserveCreation(boxes, owner, token, amount, fee, cap);
+  if (p.ok && p.plan.inputs.length > P2PK_MAX_INPUTS) return { ok: false, why: "too-many-boxes", inputs: p.plan.inputs.length };
+  return p;
+}
+
 /**
  * A pending transaction in the mempool that creates a reserve of this key (T1 precheck, §2.2). A redemption paying
  * this key, or a top-up, also lists an output under the reserve contract: someone else's reserve (canary 22 Nov
@@ -69,17 +87,20 @@ export const t1CreateBody = (plan: ReservePlan, owner: string): string =>
  * only when the transaction spends at least one of this key's boxes and no box of the reserve contract (redemptions
  * and top-ups spend an existing reserve, a T1 spends only the owner's boxes).
  */
-export function mempoolCreatesReserve(mempool: readonly MempoolTx[], me: { pub: string; address: string }): MempoolTx | null {
+export function mempoolCreatesReserve(mempool: readonly MempoolTx[], me: { pub: string; address: string }, denom: Denomination = "erg"): MempoolTx | null {
   const r4 = `07${me.pub}`;
   const own = p2pkTree(me.pub);
-  const reserveAddr = reserveAddress();
+  // a token reserve sits under the token contract: the same rule over its tree (any token: the tracker keeps one reserve
+  // per denomination, but the mempool's answer may not list the tokens)
+  const tree = reserveTreeOf(denom);
+  const reserveAddr = denom === "erg" ? reserveAddress() : tokenReserveAddress();
   return mempool.find((tx) => {
-    const outs = tx.outputs.filter((o) => o.ergoTree === RESERVE_TREE_HEX);
+    const outs = tx.outputs.filter((o) => o.ergoTree === tree);
     if (outs.length === 0) return false;
     if (outs.some((o) => o.r4 === r4)) return true;
     if (outs.every((o) => o.r4 !== undefined)) return false; // registers given, none is this key's
     const ins = tx.inputs ?? [];
-    const spendsReserve = ins.some((i) => i.ergoTree === RESERVE_TREE_HEX || i.address === reserveAddr);
+    const spendsReserve = ins.some((i) => i.ergoTree === tree || i.address === reserveAddr);
     const spendsMine = ins.some((i) => i.ergoTree === own || i.address === me.address);
     return !spendsReserve && spendsMine;
   }) ?? null;
@@ -102,7 +123,7 @@ export function checkDestination(address: string, own?: string): { ok: true; tre
   if (p.type !== "P2PK" && p.type !== "P2S") return { ok: false, reason: "type" };
   let tree: string;
   try { tree = treeOfAddress(a); } catch { return { ok: false, reason: "format" }; }
-  if (tree === RESERVE_TREE_HEX) return { ok: false, reason: "reserve" };
+  if (tree === RESERVE_TREE_HEX || tree === TOKEN_RESERVE_TREE_HEX) return { ok: false, reason: "reserve" };
   if (tree === FEE_TREE_HEX) return { ok: false, reason: "fee" };
   if (own && a === own) return { ok: false, reason: "own" };
   return { ok: true, tree, p2pk: p.type === "P2PK" };

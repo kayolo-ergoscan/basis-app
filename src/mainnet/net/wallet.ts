@@ -9,13 +9,15 @@ import {
 import type { ServerClock } from "../../chain/ours/clock";
 import { createRawClient, type RawAnswer, type RawClient } from "../../chain/ours/raw";
 import {
-  RESERVE_TEMPLATE_HASH, RESERVE_TREE_HEX, TRACKER_NFT, boxFromV1, boxIdHolds, parseJson, register, saveDevFixture, utf8Length, type ErgoBox, type JsonNode,
+  RESERVE_TEMPLATE_HASH, RESERVE_TREE_HEX, TOKEN_RESERVE_TEMPLATE_HASH, TOKEN_RESERVE_TREE_HEX, TRACKER_NFT, boxFromV1, boxIdHolds, parseJson, register, saveDevFixture, utf8Length, type ErgoBox, type JsonNode,
 } from "../tx";
 import { localProblem, problemOf, type Problem, type WalletRoute } from "./problems";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; problem: Problem };
 
 export interface NetOptions { signal?: AbortSignal; priority?: Priority }
+/** A read about one denomination: "erg" (the default) or "token:<id>". */
+export interface DenomOptions extends NetOptions { denom?: string }
 
 /**
  * How long a redemption build or submit may take (money review P1-2): the tracker calls the node (up to 15 s a call) and
@@ -68,7 +70,7 @@ export interface WalletNet {
   reservesOf(pk: string, o?: NetOptions): Promise<Result<TrackedReserve[]>>;
   keyStatus(pk: string, o?: NetOptions): Promise<Result<KeyStatus>>;
   /** The pair's stored note as text (tx.parseStoredNote reads it); null when the pair has none. */
-  pairNote(issuer: string, recipient: string, o?: NetOptions): Promise<Result<string | null>>;
+  pairNote(issuer: string, recipient: string, o?: DenomOptions): Promise<Result<string | null>>;
   postNote(body: string, o?: NetOptions): Promise<Result<null>>;
   createReserve(body: string, o?: NetOptions): Promise<Result<string>>;
   build(body: string, o?: NetOptions): Promise<Result<string>>;
@@ -79,7 +81,7 @@ export interface WalletNet {
   mempool(address: string, o?: NetOptions): Promise<Result<MempoolTx[]>>;
   box(boxId: string, o?: NetOptions): Promise<Result<ChainBox>>;
   /** The key's unspent reserves under our tracker, from /v1 (never from the tracker): every box id checked. */
-  reservesOnChain(owner: string, o?: NetOptions): Promise<Result<ChainReserves>>;
+  reservesOnChain(owner: string, o?: DenomOptions): Promise<Result<ChainReserves>>;
   /** null: not in a block (yet). */
   txStatus(txId: string, o?: NetOptions): Promise<Result<TxStatus | null>>;
   /**
@@ -246,7 +248,11 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
     },
     async pairNote(issuer, recipient, o) {
       if (!PK.test(issuer) || !PK.test(recipient)) return { ok: false, problem: localProblem("refused", "not a public key") };
-      const a = await ask(tracker, `/notes/issuer/${issuer}/recipient/${recipient}`, o);
+      // always the denomination asked for, ERG too: without it the tracker answers with the pair's only note, whatever
+      // its denomination (api.rs resolve_denomination)
+      const denom = o?.denom ?? "erg";
+      if (denom !== "erg" && !/^token:[0-9a-f]{64}$/.test(denom)) return { ok: false, problem: localProblem("refused", "not a denomination") };
+      const a = await ask(tracker, `/notes/issuer/${issuer}/recipient/${recipient}?denomination=${encodeURIComponent(denom)}`, o);
       if (a.ok && a.status === 404) return { ok: true, value: null };
       const p = problemOf("pair-note", a);
       if (p || !a.ok) return { ok: false, problem: p ?? localProblem("network") };
@@ -291,13 +297,22 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
       if (!PK.test(owner)) return { ok: false, problem: localProblem("refused", "not a public key") };
       const boxes: UnspentBox[] = [];
       const r4 = `07${owner}`, r6 = `0e20${TRACKER_NFT}`;
+      const denom = o?.denom ?? "erg";
+      const token = denom === "erg" ? null : /^token:([0-9a-f]{64})$/.exec(denom)?.[1] ?? "";
+      if (token === "") return { ok: false, problem: localProblem("refused", "not a denomination") };
+      const template = token === null ? RESERVE_TEMPLATE_HASH : TOKEN_RESERVE_TEMPLATE_HASH;
+      const tree = token === null ? RESERVE_TREE_HEX : TOKEN_RESERVE_TREE_HEX;
       for (let page = 0; page < RESERVE_PAGES; page++) {
-        const r = await v1Get(`/boxes/unspent/byErgoTreeTemplateHash/${RESERVE_TEMPLATE_HASH}?limit=${UNSPENT_PAGE}${page ? `&offset=${page * UNSPENT_PAGE}` : ""}`, o);
+        const r = await v1Get(`/boxes/unspent/byErgoTreeTemplateHash/${template}?limit=${UNSPENT_PAGE}${page ? `&offset=${page * UNSPENT_PAGE}` : ""}`, o);
         if (!r.ok) return r;
         if (r.value.status === 404) return { ok: true, value: { boxes, complete: true } };
-        const pg = parseUnspentPage(r.value.text, RESERVE_TREE_HEX);
+        const pg = parseUnspentPage(r.value.text, tree);
         if (!pg) return { ok: false, problem: localProblem("shape", "the reserves on chain could not be read") };
-        for (const u of pg.boxes) if (register(u.box, "R4") === r4 && register(u.box, "R6") === r6 && boxIdHolds(u.box)) boxes.push(u);
+        for (const u of pg.boxes) {
+          if (register(u.box, "R4") !== r4 || register(u.box, "R6") !== r6 || !boxIdHolds(u.box)) continue;
+          if (token !== null && (u.box.tokens.length !== 2 || u.box.tokens[1].tokenId !== token)) continue;
+          boxes.push(u);
+        }
         if (!pg.hasMore) return { ok: true, value: { boxes, complete: true } };
       }
       return { ok: true, value: { boxes, complete: false } };

@@ -119,11 +119,14 @@ describe("wallet routes", () => {
 
   it("pair note: text when there is one, null on 404; reserves of a key with exact amounts", async () => {
     const { net } = fakeNet({
-      [`/notes/issuer/${ME}/recipient/${OTHER}`]: ans(200, TEXT.frontNote),
+      [`/notes/issuer/${ME}/recipient/${OTHER}?denomination=erg`]: ans(200, TEXT.frontNote),
+      [`/notes/issuer/${ME}/recipient/${OTHER}?denomination=token%3A${"03".repeat(32)}`]: ans(200, "token note"),
       [`/reserves/issuer/${ME}`]: ans(200, `{"success":true,"data":[{"box_id":"${"aa".repeat(32)}","owner_pubkey":"${ME}","collateral_amount":9007199254740993,"total_debt":0,"tracker_nft_id":"f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f","last_updated_height":1,"last_updated_timestamp":1,"collateralization_ratio":null,"refund_initiation_height":0}],"error":null}`),
     });
     expect(await net.pairNote(ME, OTHER)).toEqual({ ok: true, value: TEXT.frontNote });
     expect(await net.pairNote(OTHER, ME)).toEqual({ ok: true, value: null });
+    expect(await net.pairNote(ME, OTHER, { denom: `token:${"03".repeat(32)}` })).toEqual({ ok: true, value: "token note" });
+    expect(await net.pairNote(ME, OTHER, { denom: "token:xyz" })).toMatchObject({ ok: false, problem: { kind: "refused" } });
     const r = await net.reservesOf(ME);
     expect(r.ok && r.value[0].collateral).toBe(9007199254740993n);
     expect(await net.reservesOf("02abc")).toMatchObject({ ok: false, problem: { kind: "refused" } });
