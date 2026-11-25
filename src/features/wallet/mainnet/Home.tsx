@@ -163,7 +163,7 @@ export function HomeScreen() {
       </div>
       <aside className="mw-side">
         <Card title={t("mw.home.checkT")}>
-          <Steps label={t("mw.home.checkT")} items={[
+          <Steps house label={t("mw.home.checkT")} items={[
             { id: "key", label: t("mw.home.c.key"), state: "done" },
             { id: "backup", label: t("mw.home.c.backup"), state: state.backedUp ? "done" : "now" },
             { id: "fund", label: t("mw.home.c.fund"), state: funded ? "done" : "now" },

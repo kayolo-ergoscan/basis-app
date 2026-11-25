@@ -4,11 +4,10 @@
 import { useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { useTheme } from "@/app/theme";
-import { Callout, Field, GuillocheField, Key, KeySeal, Seg, TextInput } from "@/ui";
+import { Callout, Field, Key, KeySeal, Seg, TextInput } from "@/ui";
 import { FAUCET_ERG, FAUCET_SUSE, HUMANS, BUSINESSES, town, useTown, useWallet, worldText } from "@/world";
 import { copy, pick } from "@/content";
-import { setPrefs, useAfterFirstPaint, useFmt, useNameOf, useOutcomeToast, usePrefs } from "../lib/hooks";
+import { setPrefs, useFmt, useNameOf, useOutcomeToast, usePrefs } from "../lib/hooks";
 import { saveText } from "../lib/download";
 import { PartySeal, SandboxTag, StepDots } from "../parts/bits";
 
@@ -33,13 +32,11 @@ export function Onboarding() {
   const { identity } = useWallet();
   const joined = useTown((s) => s.joined);
   const p = usePrefs();
-  const { theme } = useTheme();
   const step = !identity ? 0 : !identity.backedUp && !p.backupSkipped && !joined ? 1 : 2;
-  const fieldReady = useAfterFirstPaint();
   return (
     <div className="wl-onb">
       <div className="wl-onb-hero">
-        {fieldReady && <GuillocheField className="wl-field" seed={identity?.pubHex ?? "basis-sandbox-wallet"} still lines={30} rings={12} dim={theme === "cotton" ? 1.05 : 1.6} focus={[0.78, 0.4]} />}
+        <span className="wl-glow" aria-hidden="true" />
         <div className="wl-onb-eyebrow">
           <SandboxTag />
           <StepDots n={3} at={step} label={t("wallet.onb.steps", { n: step + 1 })} />

@@ -1,5 +1,4 @@
-/* Basis · the sandbox wallet (VISUAL §13 /wallet + the phone reference render). Tokens only: Night and Cotton come
- * from src/ui/tokens.css. Three compositions: desktop three columns (≥ 1180), tablet two columns, phone one column. */
+/* Basis · the sandbox wallet. Tokens only: Night and Day come from src/ui/tokens.css. Three compositions: desktop three columns (≥ 1180), tablet two columns, phone one column. */
 
 /* ============ page frame ============ */
 .wl-page { padding-top: clamp(16px, 2.2vw, 28px); }
@@ -10,11 +9,11 @@
 .wl-bar-l { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .wl-bar-l .label { white-space: nowrap; }
 .wl-bar-n { display: flex; gap: 2px; flex-wrap: wrap; }
-.wl-bar-n a { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 8px; font: 500 13.5px/1 var(--f-ui); color: var(--ink-3); white-space: nowrap; transition: color var(--t-fast), background var(--t-fast); }
+.wl-bar-n a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 10px; font: 600 13.5px/1 var(--f-ui); color: var(--ink-3); white-space: nowrap; transition: color var(--t-fast), background var(--t-fast); }
 .wl-bar-n a svg { width: 15px; height: 15px; opacity: .8; }
 .wl-bar-n a:hover { color: var(--ink); }
-.wl-bar-n a.on { color: var(--ink); background: var(--surface-2); box-shadow: 0 1px 0 var(--key2-hi) inset; }
-.wl-bar-n a.on svg { opacity: 1; }
+.wl-bar-n a.on { color: var(--ink); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
+.wl-bar-n a.on svg { opacity: 1; color: var(--metal-ink); }
 
 /* ============ desktop: three columns ============ */
 .wl-grid { display: grid; grid-template-columns: 380px minmax(0, 1fr) 480px; gap: 40px; align-items: start; }
@@ -78,18 +77,18 @@
 .wl-trk.compact .mono { font-size: 12px; }
 .wl-trk-pop { display: grid; gap: 14px; width: min(340px, calc(100vw - 48px)); }
 .wl-dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0; font: 400 13.5px/1.4 var(--f-ui); }
-.wl-dl dt { font: 500 11px/1.6 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.wl-dl dt { font: 600 11px/1.6 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .wl-dl dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 .wl-dl dd.mono { font-size: 12.5px; }
 
 /* ============ the balance sheet on the guilloche field ============ */
 .wl-net { position: relative; isolation: isolate; container-type: inline-size; padding: 14px 0 2px; }
 /* the field fades downward from 55 % (VISUAL §8.5) and softly at the other edges, so a commit wave never shows a hard edge */
-.wl-field { position: absolute; z-index: -1; pointer-events: none; left: -20px; right: -20px; top: -28px; bottom: -6px; width: calc(100% + 40px); height: calc(100% + 34px);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 55%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 55%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  mask-composite: intersect; }
+/* the glow behind the figure: lamplight from below, moonlight from above; it dims while the tracker is quiet */
+.wl-glow { position: absolute; z-index: -1; pointer-events: none; left: -20px; right: -20px; top: -28px; bottom: -6px;
+  background: radial-gradient(60% 70% at 30% 70%, color-mix(in srgb, var(--metal) 9%, transparent), transparent 70%), radial-gradient(50% 60% at 85% 10%, color-mix(in srgb, var(--moon) 8%, transparent), transparent 70%);
+  transition: opacity var(--t-slow); }
+.wl-glow.quiet { opacity: .35; }
 .wl-net-top { align-items: baseline; flex-wrap: nowrap; }
 .wl-net-top .label { white-space: nowrap; }
 .wl-net-side { text-align: right; overflow: hidden; text-overflow: ellipsis; }
@@ -432,7 +431,7 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 /* ============ onboarding ============ */
 .wl-onb { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(32px, 4vw, 72px); align-items: start; padding-top: clamp(8px, 2vw, 32px); }
 .wl-onb-hero { position: relative; isolation: isolate; padding: clamp(24px, 4vw, 64px) 0 32px; min-width: 0; }
-.wl-onb-hero .wl-field { left: calc(-1 * var(--gutter)); right: -24px; top: -40px; bottom: -40px; width: calc(100% + var(--gutter) + 24px); height: calc(100% + 80px); }
+.wl-onb-hero .wl-glow { left: calc(-1 * var(--gutter)); right: -24px; top: -40px; bottom: -40px; width: calc(100% + var(--gutter) + 24px); height: calc(100% + 80px); }
 .wl-onb-eyebrow { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(18px, 2.4vw, 30px); }
 .wl-onb-h { max-width: 11em; }
 .wl-onb-h em { color: var(--ink-2); }
@@ -502,7 +501,7 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
   .wl-narrow-grid { gap: 22px; }
   .wl-narrow-top { gap: 20px; }
   .wl-net { padding-top: 6px; }
-  .wl-field { left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter)); width: calc(100% + 2 * var(--gutter)); top: -96px; height: calc(100% + 120px); }
+  .wl-glow { left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter)); width: calc(100% + 2 * var(--gutter)); top: -96px; height: calc(100% + 120px); }
   .wl-net-v { font-size: min(88px, calc(100cqw / (var(--len) * .48))); margin: 14px 0 20px; }
   .wl-side .v { font-size: 25px; }
   .wl-keys { gap: 9px; }

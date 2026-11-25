@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { explorer } from "@/chain/links";
-import { Callout, Card, CopyButton, CoverageTag, Field, Hex, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
+import { Callout, Card, CopyButton, CoverageTag, Field, Hex, HouseLights, Icon, Key, Lamp, Ledger, Num, Tag, TextInput, units, type LampState, type LedgerRow } from "@/ui";
 import { TxLens } from "@/viz";
 import { dpOf, reserveTag, type OwnReserve } from "@/mainnet/flows";
 import type { TrackedReserve } from "@/chain/ours";
@@ -104,8 +104,18 @@ export function useVaultError(): (e: unknown) => string {
 export interface StepItem { id: string; label: ReactNode; sub?: ReactNode; state: "done" | "now" | "todo" | "fail" }
 const LAMP: Record<StepItem["state"], LampState> = { done: "committed", now: "tracked", todo: "signed", fail: "alarm" };
 
-/** A vertical ladder of states (○ ◐ ●): what happened, what happens now, what is next. */
-export function Steps({ items, label }: { items: StepItem[]; label: string }) {
+/** A vertical ladder of states (○ ◐ ●): what happened, what happens now, what is next. With `house`, the setup
+ *  checklist also shows your house beside it: one window per step, lit when done (decoration; the list says it). */
+export function Steps({ items, label, house }: { items: StepItem[]; label: string; house?: boolean }) {
+  if (house) {
+    const now = items.findIndex((s) => s.state === "now");
+    return (
+      <div className="mw-steps-house">
+        <Steps items={items} label={label} />
+        <HouseLights steps={items.map((s) => s.state === "done")} now={now < 0 ? undefined : now} size={76} />
+      </div>
+    );
+  }
   return (
     <ol className="mw-steps" aria-label={label}>
       {items.map((s) => (

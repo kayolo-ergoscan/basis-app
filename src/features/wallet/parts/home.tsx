@@ -3,11 +3,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { useTheme } from "@/app/theme";
-import { BackedTrustBar, Callout, CoverageMeter, GuillocheField, Key, KeySeal, PolicySentence, prefersReducedMotion } from "@/ui";
+import { BackedTrustBar, Callout, CoverageMeter, Key, KeySeal, PolicySentence, prefersReducedMotion } from "@/ui";
 import { FAUCET_ERG, town, useClock, useTown, useWallet, worldText, YOU } from "@/world";
 import type { DenomId } from "@/protocol";
-import { setPrefs, useAfterFirstPaint, useFmt, useNameOf, useOutcomeToast, usePrefs } from "../lib/hooks";
+import { setPrefs, useFmt, useNameOf, useOutcomeToast, usePrefs } from "../lib/hooks";
 import { share, type WalletModel } from "../lib/model";
 import { policyText } from "../lib/policyText";
 import { Amt, SandboxTag, TrackerChip } from "./bits";
@@ -54,13 +53,10 @@ export function Identity({ m, phone }: { m: WalletModel; phone: boolean }) {
 export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
   const t = useT();
   const f = useFmt();
-  const { theme } = useTheme();
   const s = m.sheet;
   const unit = m.denoms.find((d) => d.id === denom) ?? m.denoms[0];
-  const seed = `wallet-field:${m.youPub ?? 0}`;
-  // the decorative field reads computed colours; after the first paint that read is cheap (no forced style recalc)
-  const fieldReady = useAfterFirstPaint();
-  const dim = (m.tracker.silent || !m.tracker.online ? 0.4 : 1) * (theme === "cotton" ? 1.05 : 1.6);
+  // the glow behind the figure dims while the tracker is silent or offline
+  const quiet = m.tracker.silent || !m.tracker.online;
   if (!s || !unit) return null;
   const net = s.net;
   const side = net > 0n ? "wallet.net.more.in" : net < 0n ? "wallet.net.more.out" : "wallet.net.square";
@@ -71,7 +67,7 @@ export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
   const netText = f.amt(net, unit, { sign: net > 0n ? "favour" : "auto" });
   return (
     <section className="wl-net" aria-labelledby="wl-net-l" data-tour="net">
-      {fieldReady && <GuillocheField className="wl-field" seed={seed} still dim={dim} lines={30} rings={12} focus={[0.74, 0.46]} />}
+      <span className={quiet ? "wl-glow quiet" : "wl-glow"} aria-hidden="true" />
       <div className="spread wl-net-top">
         <h2 className="label" id="wl-net-l">
           {t("wallet.net.label")} ·{" "}
