@@ -63,16 +63,20 @@ function TopUpForm() {
   const asked = (params.get("nft") ?? "").trim().toLowerCase();
   const badParam = asked !== "" && !HEX64.test(asked);
   const [ownDenom, setDenom] = useDenom();
+  // a ?nft= link names its reserve's denomination by its box: this key's own reserve is looked for in that one (a link
+  // to the key's own SigUSD reserve, opened without ?d=, is still its own); the same resource as `target` below
+  const linked = useResource(asked && !badParam ? R.reserveByNft(asked) : null, { height, enabled: state.backedUp });
+  const mineDenom: Denomination = (linked.value?.box ? reserveDenomOfBox(linked.value.box) : null) ?? ownDenom;
   // the key's own reserve: by the NFT this wallet trusts (its T1, a tracked reserve this key minted), found by an exact
   // lookup by token, never in the chain's listing (review 2, re-review P1-1/2); the listing only feeds the warning
-  const mineOnChain = useResource(me ? R.reservesOnChain(me.pub, ownDenom) : null, { height, enabled: state.backedUp });
+  const mineOnChain = useResource(me ? R.reservesOnChain(me.pub, mineDenom) : null, { height, enabled: state.backedUp });
   const trackedMine = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
-  const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub, ownDenom) : null), [entries, me, ownDenom]);
+  const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub, mineDenom) : null), [entries, me, mineDenom]);
   const trackerRead = trackedMine.value !== null || !!trackedMine.problem;
-  const trust = me && trackerRead ? trustedNft({ owner: me.pub, t1Nft, tracked: trackedMine.value ?? null, token: tokenIdOf(ownDenom) }) : null;
+  const trust = me && trackerRead ? trustedNft({ owner: me.pub, t1Nft, tracked: trackedMine.value ?? null, token: tokenIdOf(mineDenom) }) : null;
   const held = useResource(trust?.ok ? R.reserveByNft(trust.nft) : null, { height, enabled: state.backedUp });
   const own: OwnReserve | null = !me || !trust ? null : !trust.ok ? trust
-    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: mineOnChain.value, token: tokenIdOf(ownDenom) }) : null;
+    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: mineOnChain.value, token: tokenIdOf(mineDenom) }) : null;
   const ownProblem = trust?.ok && held.problem && !held.value ? held.problem : null;
   const nft = asked && !badParam ? asked : own?.ok ? own.nft : null;
   const target = useResource(nft ? R.reserveByNft(nft) : null, { height, enabled: state.backedUp });
@@ -98,7 +102,7 @@ function TopUpForm() {
   // a ?nft= link: this key's own only when trusted; another key's only when our tracker tracks it as that owner's
   const link = !asked || !info || !me ? null
     : !theirs ? (own ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own, trackedOfOwner: null }) : "loading")
-    : trackedTheirs.value !== null ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own: own ?? { ok: false, why: "untrusted" }, trackedOfOwner: trackedTheirs.value })
+    : trackedTheirs.value !== null ? linkTarget({ me: me.pub, nft: asked, owner: info.owner, own: own ?? { ok: false, why: "untrusted" }, trackedOfOwner: trackedTheirs.value, token: tokenIdOf(denom) })
     : trackedTheirs.problem ? "down" : "loading";
   const trustKey = link === "untrusted" ? (theirs ? "mw.trust.untracked" : "mw.trust.ownLink") : link === "unproven" ? "mw.trust.unproven" : link === "unchecked" ? "mw.trust.unchecked" : link === "down" ? "mw.trust.trackerDown" : null;
   const servedKey = token && served.k !== "yes" && served.k !== "unknown" ? (served.k === "contract" ? "mw.dn.contractB" : "mw.dn.notServedTop") : null;

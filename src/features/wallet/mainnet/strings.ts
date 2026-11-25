@@ -831,6 +831,7 @@ const en: Dict = {
   "mw.ref.checkedEnd": "Checked: exactly two outputs, everything less the fee to your key with the reserve id token, and the fee; the reserve contract accepts it (checks: {n}).",
   // token reserves (denom.tsx, ?d=sigusd|rsada)
   "mw.dn.label": "Reserve in",
+  "mw.dn.labelNote": "Note in",
   "mw.dn.aria": "Denomination",
   "mw.dn.ergTitle": "ERG: the reserve holds ERG",
   "mw.dn.tokenTitle": "{sym}: the reserve holds the token {id}",
@@ -881,6 +882,8 @@ const en: Dict = {
   "mw.dn.redHow4": "The tracker pays the miner fee and the 0.001 ERG box the {sym} arrive in. No protocol fee.",
   "mw.dn.feeTracker": "paid by the tracker",
   "mw.dn.atKey": "at your address, not in a reserve",
+  "mw.dn.redLede": "Take {sym} from the issuer's {sym} reserve against a committed note. The tracker builds the transaction and pays its ERG; this browser checks every byte and the contract before you sign.",
+  "mw.dn.payHow4": "A note costs no fee. When a {sym} note is redeemed, the tracker pays the miner fee and the 0.001 ERG box the {sym} arrive in.",
   "mw.dn.topHow1": "A top-up adds at least {min} and changes nothing else: owner, notes, tracker, refund height stay.",
   "mw.dn.otherTokens": "other tokens: {n}",
   "mw.dn.lede": "The reserve backs your notes. A {sym} reserve is a box on Ergo under the Basis token contract that holds {sym}, bound to ErgoScan's tracker. One key, one reserve in each currency.",
@@ -1697,6 +1700,7 @@ const ru: Partial<Dict> = {
   "mw.ref.checkedEnd": "Проверено: ровно два выхода — всё, кроме комиссии, на ваш ключ вместе с токеном-идентификатором резерва, и комиссия; контракт резерва её принимает (проверок: {n}).",
   // token reserves (denom.tsx, ?d=sigusd|rsada)
   "mw.dn.label": "Резерв в",
+  "mw.dn.labelNote": "Расписка в",
   "mw.dn.aria": "Валюта резерва",
   "mw.dn.ergTitle": "ERG: резерв хранит ERG",
   "mw.dn.tokenTitle": "{sym}: резерв хранит токен {id}",
@@ -1747,6 +1751,8 @@ const ru: Partial<Dict> = {
   "mw.dn.redHow4": "Комиссию майнеру и бокс на 0,001 ERG, в котором придут {sym}, оплачивает трекер. Комиссии протокола нет.",
   "mw.dn.feeTracker": "платит трекер",
   "mw.dn.atKey": "на вашем адресе, не в резерве",
+  "mw.dn.redLede": "Получите {sym} из резерва эмитента в {sym} по зафиксированной расписке. Транзакцию собирает трекер и платит её ERG; браузер проверяет каждый байт и контракт до вашей подписи.",
+  "mw.dn.payHow4": "Расписка бесплатна. При погашении расписки в {sym} трекер платит комиссию майнеру и 0,001 ERG за бокс, в который приходят {sym}.",
   "mw.dn.topHow1": "Пополнение добавляет не меньше {min} и больше ничего не меняет: владелец, расписки, трекер и высота возврата остаются.",
   "mw.dn.otherTokens": "другие токены: {n}",
   "mw.dn.lede": "Резерв обеспечивает ваши расписки. Резерв в {sym} — это бокс в Ergo под токенным контрактом Basis, в нём лежат {sym}; он привязан к трекеру ErgoScan. Один ключ — один резерв в каждой валюте.",

@@ -280,8 +280,8 @@ export function RedeemScreen() {
         <div className="mw-main">
           <header className="mw-screen-h">
             <h1 className="t-h2">{t("mw.red.h")}</h1>
-            <p className="t-lede">{t("mw.red.lede")}</p>
-            <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "idle" }); }} disabled={phase.k === "working" || phase.k === "review" || phase.k === "sending"} />
+            <p className="t-lede">{tok ? t("mw.dn.redLede", { sym: denomSymbol(denom) }) : t("mw.red.lede")}</p>
+            <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "idle" }); }} disabled={phase.k === "working" || phase.k === "review" || phase.k === "sending"} />
           </header>
           {open.filter((e) => e.id !== (phase.k === "sent" ? phase.id : "")).map((e) => (
             <Card key={e.id} title={t("mw.red.progressT", { amount: amtText(BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}><RedeemProgress e={e} /></Card>

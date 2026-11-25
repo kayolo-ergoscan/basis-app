@@ -196,7 +196,7 @@ export function ReceiveScreen() {
           <aside className="mw-side">
             <Card title={t("mw.recv.askT")}>
               <div className="mw-form">
-                <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
+                <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
                 <div className="mw-qr mw-qr-c"><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
                 <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
                   error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>

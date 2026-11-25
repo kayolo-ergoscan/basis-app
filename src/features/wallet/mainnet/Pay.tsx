@@ -420,7 +420,7 @@ export function PayScreen() {
               <li>{t("mw.warn.notes")}</li>
               <li>{t("mw.pay.how2")}</li>
               <li>{t("mw.pay.how3")}</li>
-              <li>{t("mw.pay.how4")}</li>
+              <li>{token ? t("mw.dn.payHow4", { sym: denomSymbol(denom) }) : t("mw.pay.how4")}</li>
             </ul>
             <TimeHint k="note" />
           </Card>

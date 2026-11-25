@@ -255,7 +255,9 @@ export function RefundScreen() {
           { label: t("mw.ref.rowFromBox"), value: <ChainLink kind="box" id={phase.info.box.boxId} /> },
           { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> },
         ]}
-        sum={{ label: phase.kind === "refund-start" ? t("mw.res.rowSpent", { n: phase.inputs.length }) : t("mw.ref.rowFrom"), value: <Erg nano={phase.kind === "refund-start" ? phase.inputs.reduce((s, b) => s + b.value, 0n) : phase.info.box.value} /> }}
+        sum={{ label: phase.kind === "refund-start" ? t("mw.res.rowSpent", { n: phase.inputs.length }) : t("mw.ref.rowFrom"), value: phase.kind === "refund-start" || !token
+          ? <Erg nano={phase.kind === "refund-start" ? phase.inputs.reduce((s, b) => s + b.value, 0n) : phase.info.box.value} />
+          : <span><Erg nano={phase.info.box.value} /> · <Amt raw={phase.info.collateral} denom={denom} /></span> }}
         extra={<>
           <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t(phase.kind === "refund-end" ? "mw.ref.checkedEnd" : "mw.top.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
           <button type="button" className="textlink t-small" aria-expanded={xray} onClick={() => setXray(!xray)}>{xray ? t("mw.red.hideXray") : t("mw.red.showXray")}</button>

@@ -29,11 +29,11 @@ export function useDenom(): [Denomination, (d: Denomination) => void] {
 export const denomQuery = (d: Denomination, lead: "?" | "&" = "?"): string => (d === "erg" ? "" : `${lead}d=${denomSlug(d)}`);
 
 /** The three denominations as a switch. `disabled`: while something is being prepared or signed. */
-export function DenomSwitch({ value, onChange, disabled }: { value: Denomination; onChange: (d: Denomination) => void; disabled?: boolean }) {
+export function DenomSwitch({ value, onChange, disabled, note }: { value: Denomination; onChange: (d: Denomination) => void; disabled?: boolean; /** "Note in" (Receive, Redeem), not "Reserve in" */ note?: boolean }) {
   const t = useT();
   return (
     <div className="mw-denoms">
-      <span className="label">{t("mw.dn.label")}</span>
+      <span className="label">{t(note ? "mw.dn.labelNote" : "mw.dn.label")}</span>
       <Seg ariaLabel={t("mw.dn.aria")} value={value} onChange={(v) => { if (!disabled) onChange(v); }}
         options={WALLET_DENOMS.map((d) => ({ value: d, label: denomSymbol(d), title: d === "erg" ? t("mw.dn.ergTitle") : t("mw.dn.tokenTitle", { sym: denomSymbol(d), id: tokenIdOf(d)! }) }))} />
     </div>

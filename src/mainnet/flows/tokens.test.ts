@@ -5,7 +5,7 @@ import { keyPairFromSecret } from "../../protocol/keys";
 import { TOKEN_RESERVE_BOX_NANOERG, TOKEN_RESERVE_TREE_HEX, SIGUSD_TOKEN_ID, reserveTokenById, MINER_FEE_NANOERG, checkReserveAction } from "../tx";
 import { p2pkBox, reserveBox } from "../tx/testkit";
 import { planTokenT1, tokenBalanceOf, tokenT1CreateBody, mempoolCreatesReserve } from "./coins";
-import { ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGate, trustedNft, type TrackedRef } from "./reserveops";
+import { linkTarget, ownReserve, planTokenTopUp, topUpMax, trackedAs, trackedGate, trustedNft, type TrackedRef } from "./reserveops";
 import { parseRequest, requestLink } from "./receipt";
 import { parseWatchStore, watchIssuer, watchedDenoms } from "./watch";
 import { TRACKER_NFT } from "../tx";
@@ -60,6 +60,14 @@ describe("which reserve is the key's own, per denomination", () => {
     expect(trackedGate(me, list, [ergRef, sigRef], SIGUSD_TOKEN_ID)).toMatchObject({ k: "own", r: { box: sigRef.box } });
     expect(trackedAs(me, NFT, [sigRef])).toBe(false);
     expect(trackedAs(me, NFT, [sigRef], SIGUSD_TOKEN_ID)).toBe(true);
+  });
+  it("a link to another key's SigUSD reserve opens only when the tracker tracks it in SigUSD (shots 25 Nov: the token was not passed)", () => {
+    const them = keyPairFromSecret(5n).pubHex;
+    const theirSig: TrackedRef = { ...sigRef, owner: them };
+    const own = { ok: false as const, why: "untrusted" as const };
+    expect(linkTarget({ me, nft: NFT, owner: them, own, trackedOfOwner: [theirSig], token: SIGUSD_TOKEN_ID })).toBe("other");
+    expect(linkTarget({ me, nft: NFT, owner: them, own, trackedOfOwner: [theirSig] })).toBe("untrusted");
+    expect(linkTarget({ me, nft: NFT, owner: them, own, trackedOfOwner: [{ ...theirSig, token: null }], token: SIGUSD_TOKEN_ID })).toBe("untrusted");
   });
   it("the box that holds the trusted NFT must be a token reserve of this token", () => {
     const held = { box: reserveBox(me, TOKEN_RESERVE_BOX_NANOERG, { tree: TOKEN_RESERVE_TREE_HEX, tokens: [{ tokenId: NFT, amount: 1n }, { tokenId: SIGUSD_TOKEN_ID, amount: 5n }] }), height: 1 };
