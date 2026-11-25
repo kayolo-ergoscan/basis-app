@@ -248,14 +248,19 @@ export function createWalletNet(deps: WalletNetDeps): WalletNet {
     },
     async pairNote(issuer, recipient, o) {
       if (!PK.test(issuer) || !PK.test(recipient)) return { ok: false, problem: localProblem("refused", "not a public key") };
-      // always the denomination asked for, ERG too: without it the tracker answers with the pair's only note, whatever
-      // its denomination (api.rs resolve_denomination)
+      // ERG: the request the wallet always made (no query, byte for byte as before token reserves). Without a query
+      // the tracker answers with the pair's only note, whatever its denomination (api.rs resolve_denomination): a
+      // token note there means the pair has no ERG note. A token: asked by name.
       const denom = o?.denom ?? "erg";
       if (denom !== "erg" && !/^token:[0-9a-f]{64}$/.test(denom)) return { ok: false, problem: localProblem("refused", "not a denomination") };
-      const a = await ask(tracker, `/notes/issuer/${issuer}/recipient/${recipient}?denomination=${encodeURIComponent(denom)}`, o);
+      const a = await ask(tracker, `/notes/issuer/${issuer}/recipient/${recipient}${denom === "erg" ? "" : `?denomination=${encodeURIComponent(denom)}`}`, o);
       if (a.ok && a.status === 404) return { ok: true, value: null };
       const p = problemOf("pair-note", a);
       if (p || !a.ok) return { ok: false, problem: p ?? localProblem("network") };
+      if (denom === "erg") {
+        const named = noteAnswerDenomination(a.text);
+        if (named !== null && named !== "erg") return { ok: true, value: null };
+      }
       return { ok: true, value: a.text };
     },
     async postNote(body, o) {
@@ -370,4 +375,15 @@ export function walletNet(): WalletNet {
     shared = createWalletNet({ tracker, v1, saveFixture: (n, t) => { void saveDevFixture(n, t); } });
   }
   return shared;
+}
+
+/** The denomination a stored-note answer names (`data.denomination`), or null when it cannot be read (the caller's
+ *  strict parser then says what is wrong with the answer). */
+function noteAnswerDenomination(text: string): string | null {
+  try {
+    const j = JSON.parse(text) as { data?: { denomination?: unknown } } | null;
+    return j && typeof j === "object" && j.data && typeof j.data.denomination === "string" ? j.data.denomination : null;
+  } catch {
+    return null;
+  }
 }
