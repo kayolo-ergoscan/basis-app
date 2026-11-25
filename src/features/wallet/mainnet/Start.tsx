@@ -6,7 +6,7 @@
 // key goes).
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short } from "@/ui";
+import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short, HouseLights } from "@/ui";
 import { SEED_MAX_INDEX, VAULT, checkPassphrase, normalizeMnemonic, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
 import { watchExtras, watchIssuer } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
@@ -39,6 +39,24 @@ function Hero({ children }: { children?: ReactNode }) {
       </ul>
       {children}
     </div>
+  );
+}
+
+/** The whole setup as a quest: five steps, one window each; this screen lights the first two (key, backup). */
+function QuestMap({ lit }: { lit: number }) {
+  const t = useT();
+  const steps = ["key", "backup", "fund", "reserve", "note"];
+  return (
+    <section className="mw-questmap" aria-labelledby="mw-questmap-h">
+      <HouseLights steps={steps.map((_, i) => i < lit)} now={lit < steps.length ? lit : undefined} size={64} />
+      <div>
+        <h2 className="label" id="mw-questmap-h"><b>{t("mw.home.quest.t")}</b></h2>
+        <p className="t-small mw-dim">{t("mw.start.quest.b")}</p>
+        <ol className="mw-questmap-l">
+          {steps.map((k, i) => <li key={k} className={i < lit ? "done" : i === lit ? "now" : undefined}>{t(`mw.home.c.${k}`)}</li>)}
+        </ol>
+      </div>
+    </section>
   );
 }
 
@@ -449,7 +467,7 @@ function BackupSteps() {
           <div className="mono t-small mw-break">{key.address}</div>
         </div>
       </div>
-      <Steps label={t("mw.start.stepsAria")} items={[
+      <Steps house label={t("mw.start.stepsAria")} items={[
         { id: "key", label: t("mw.start.s1"), state: "done" },
         { id: "dl", label: t("mw.start.s2"), sub: t("mw.start.s2b"), state: downloaded ? "done" : "now" },
         { id: "verify", label: t("mw.start.s3"), sub: t("mw.start.s3b"), state: downloaded ? "now" : "todo" },
@@ -557,7 +575,7 @@ export function StartScreen() {
   const shownExtras = extras && me && (extras.watchedIssuers?.length ?? 0) > 0 ? extras : null;
   return (
     <div className="mw-start">
-      <Hero />
+      <Hero><QuestMap lit={state.status === "locked" || state.status === "unlocked" ? (state.backedUp ? 2 : 1) : 0} /></Hero>
       <Card className="mw-start-card">
         <div className="mw-form">
           {body}
