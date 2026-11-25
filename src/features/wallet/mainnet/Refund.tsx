@@ -4,13 +4,16 @@
 // + 10, the value unchanged, the fee from a box at the key, the passphrase and a hold. Completion: shut until HEIGHT ≥
 // R7 + 43 200 (a countdown in blocks and days), then everything less the fee to the key's own address. Both through
 // the same pipeline as T1: the reserve fresh from /v1, the mempool, L1, L2, review, journal, broadcast, depth 2.
+// Token reserves (?d=sigusd|rsada): the same two steps on the key's own reserve of that token. The start keeps the
+// tokens and the box's ERG; the completion sends the tokens and the NFT back to the key with the box's ERG less the fee
+// (0.002 − 0.001 ERG): the key needs 0.001 ERG for the start's fee and nothing for the completion.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Card, Countdown, Field, Key, Switch, Tag, TextInput, int } from "@/ui";
 import { ContractXray } from "@/viz";
 import {
   MINER_FEE_NANOERG, REFUND_PERIOD_BLOCKS, checkReserveAction, checkReserveActionContract, computeTxId, loadContractAvl, readReserve, refundClock, reserveAddress,
-  type ErgoBox, type L2Result, type ReserveActionKind, type ReserveInfo, type UnsignedTx,
+  tokenIdOf, tokenReserveAddress, type ErgoBox, type L2Result, type ReserveActionKind, type ReserveInfo, type UnsignedTx,
 } from "@/mainnet/tx";
 import { isBroadcastLimit, mempoolSpending, ownReserve, planRefundComplete, planRefundStart, spendable, trustedNft, type OwnReserve } from "@/mainnet/flows";
 import { RESERVE_ACTION_KINDS, isOpenState, isVaultError, type JournalEntry } from "@/mainnet/vault";
@@ -19,7 +22,8 @@ import { freshHeight, refreshHeight } from "@/app/height";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource } from "./data";
 import { EntryProgress, send, signReserve, stuckCompletion } from "./send";
-import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, trustText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, tokenOf, useDenom } from "./denom";
 
 /** A refund start is signed only while its R7 (tip + 10 at the review) is ahead: at most 5 blocks after the review,
  *  and the next block at least 2 below R7 (review 1 item 2, review 2 stale tip). */
@@ -62,7 +66,9 @@ export function RefundScreen() {
   const t = useT();
   const { vault, state, me, height, entries } = useMw();
   const verr = useVaultError();
-  const chain = useResource(me ? R.reservesOnChain(me.pub) : null, { height, enabled: state.backedUp });
+  const [denom, setDenom] = useDenom();
+  const token = tokenOf(denom);
+  const chain = useResource(me ? R.reservesOnChain(me.pub, denom) : null, { height, enabled: state.backedUp });
   const tracked = useResource(me ? R.trackedOf(me.pub) : null, { height, enabled: state.backedUp });
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [understood, setUnderstood] = useState(false);
@@ -72,22 +78,23 @@ export function RefundScreen() {
 
   // the key's own reserve by the NFT this wallet trusts (its T1, a tracked reserve this key minted), found by an exact
   // lookup by token, never in the chain's listing (review 2, re-review P1-1/2); the listing only feeds the warning
-  const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub) : null), [entries, me]);
-  const trust = me && (tracked.value !== null || !!tracked.problem) ? trustedNft({ owner: me.pub, t1Nft, tracked: tracked.value ?? null }) : null;
+  const t1Nft = useMemo(() => (me ? t1NftOf(entries, me.pub, denom) : null), [entries, me, denom]);
+  const trust = me && (tracked.value !== null || !!tracked.problem) ? trustedNft({ owner: me.pub, t1Nft, tracked: tracked.value ?? null, token: tokenIdOf(denom) }) : null;
   const held = useResource(trust?.ok ? R.reserveByNft(trust.nft) : null, { height, enabled: state.backedUp });
   const own: OwnReserve | null = !me || !trust ? null : !trust.ok ? trust
-    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: chain.value }) : null;
+    : held.value !== null || held.at ? ownReserve({ owner: me.pub, trusted: trust, held: held.value, listing: chain.value, token: tokenIdOf(denom) }) : null;
   const ownProblem = trust?.ok && held.problem && !held.value ? held.problem : null;
   const box = own?.ok ? own.box.box : null;
-  const read = box ? readReserve(box) : null;
+  const read = box ? readReserve(box, denom) : null;
   const info = read && read.ok ? read.info : null;
   const clock = info && height !== null ? refundClock(info.refundHeight, height) : null;
-  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (e.kind === "refund-start" || e.kind === "refund-end")) : []), [entries, me]);
+  // this denomination's entries only: a SigUSD refund never shows on the ERG screen
+  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (e.kind === "refund-start" || e.kind === "refund-end") && entryDenom(e) === denom) : []), [entries, me, denom]);
   const open = mine.filter((e) => isOpenState(e.state));
   const done = mine.find((e) => e.kind === "refund-end" && e.state === "final") ?? null;
   // a refused or long-unseen completion does not block a new one: any completion of the box pays this key (review 1, item 3)
   const stuck = open.some((e) => stuckCompletion(e));
-  const otherOpen = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && RESERVE_ACTION_KINDS.includes(e.kind) && isOpenState(e.state) && !stuckCompletion(e)) ?? null : null), [entries, me]);
+  const otherOpen = useMemo(() => (me ? entries.find((e) => e.pub === me.pub && RESERVE_ACTION_KINDS.includes(e.kind) && isOpenState(e.state) && !stuckCompletion(e) && entryDenom(e) === denom) ?? null : null), [entries, me, denom]);
   // while the chain still shows no refund, an open start is shown in the start card itself (not "Active" and a toggle)
   const openStart = info && info.refundHeight === 0n ? open.find((e) => e.kind === "refund-start") ?? null : null;
 
@@ -100,7 +107,7 @@ export function RefundScreen() {
     setPhase({ k: "working", step: "reserve" });
     const tip = freshHeight(await refreshHeight());
     if (tip === null) { fail({ text: t("mw.res.staleTip") }); return null; }
-    const o = await ownReserveNow(me.pub, entries);
+    const o = await ownReserveNow(me.pub, entries, denom);
     if (!o.ok) { fail({ problem: o.problem }); return null; }
     if (!o.value.ok) {
       const w = o.value;
@@ -112,7 +119,7 @@ export function RefundScreen() {
     if (!fresh.ok) { fail({ problem: fresh.problem }); return null; }
     if (!fresh.value) { fail({ text: t("mw.ref.gone") }); return null; }
     if (fresh.value.height === null) { fail({ text: t("mw.top.unconfirmed") }); return null; }
-    const r = readReserve(fresh.value.box);
+    const r = readReserve(fresh.value.box, denom);
     if (!r.ok) { fail({ text: t("mw.top.no.shape"), rule: `${r.rule}: ${r.message}` }); return null; }
     if (r.info.owner !== me.pub) { fail({ text: t("mw.ref.notOwner") }); return null; }
     if (r.info.box.creationHeight > tip) { fail({ text: t("mw.res.aheadOfTip") }); return null; }
@@ -121,7 +128,7 @@ export function RefundScreen() {
     // a stuck completion's box may be spent again (only one completion can be mined, both pay this key)
     if (inFlightOf(entries.filter((e) => !stuckCompletion(e)), me.pub).has(r.info.box.boxId)) { fail({ text: t("mw.top.openEntry") }); return null; }
     setPhase({ k: "working", step: "mempool" });
-    const rm = await net().mempool(reserveAddress(), { priority: "user" });
+    const rm = await net().mempool(token ? tokenReserveAddress() : reserveAddress(), { priority: "user" });
     if (!rm.ok) { fail({ problem: rm.problem }); return null; }
     const pending = mempoolSpending(rm.value, r.info.box.boxId);
     if (pending) { fail({ text: t("mw.top.pending"), tx: pending.id }); return null; }
@@ -154,7 +161,7 @@ export function RefundScreen() {
     if (!p.ok) return fail({ text: p.why === "short" ? t("mw.ref.noFee") : p.why === "too-many-boxes" ? t("mw.top.tooMany") : t("mw.wd.build"), rule: p.why === "build" ? p.message : undefined });
     const inputs = [ri.box, ...p.inputs];
     if (inputs.some((b) => b.creationHeight > tip)) return fail({ text: t("mw.res.aheadOfTip") });
-    const l1 = checkReserveAction(p.tx, inputs, { kind: "refund-start", signer: me.pub, height: tip, fee: MINER_FEE_NANOERG, refundHeight: p.refundHeight });
+    const l1 = checkReserveAction(p.tx, inputs, { kind: "refund-start", signer: me.pub, height: tip, fee: MINER_FEE_NANOERG, refundHeight: p.refundHeight, ...(token ? { denom } : {}) });
     if (!l1.ok) return fail({ text: t("mw.res.checkFailed"), rule: `${l1.rule}: ${l1.message}` });
     const l2 = await l2Of("refund-start", p.tx, inputs, tip);
     if (!l2) return;
@@ -169,7 +176,7 @@ export function RefundScreen() {
     setPhase({ k: "working", step: "plan" });
     const p = planRefundComplete(me.pub, ri.box, ri.refundHeight, MINER_FEE_NANOERG, tip);
     if (!p.ok) return fail({ text: p.why === "waiting" ? t("mw.ref.notYet", { blocks: int(p.clock.blocksLeft) }) : p.why === "small" ? t("mw.ref.small") : t("mw.ref.notStarted") });
-    const l1 = checkReserveAction(p.tx, [ri.box], { kind: "refund-end", signer: me.pub, height: tip, fee: MINER_FEE_NANOERG });
+    const l1 = checkReserveAction(p.tx, [ri.box], { kind: "refund-end", signer: me.pub, height: tip, fee: MINER_FEE_NANOERG, ...(token ? { denom } : {}) });
     if (!l1.ok) return fail({ text: t("mw.res.checkFailed"), rule: `${l1.rule}: ${l1.message}` });
     const l2 = await l2Of("refund-end", p.tx, [ri.box], tip);
     if (!l2) return;
@@ -192,9 +199,15 @@ export function RefundScreen() {
       const fresh = await net().reserveByNft(ri.nft, { priority: "user" });
       if (!fresh.ok) return fail({ problem: fresh.problem });
       if (!fresh.value || fresh.value.box.boxId !== ri.box.boxId) return back(t("mw.res.changed"));
-      const meta: Record<string, string> = kind === "refund-start"
-        ? { amount: "0", reserveBox: ri.box.boxId, nft: ri.nft, r7: review.r7!.toString(), reserveValue: ri.box.value.toString() }
-        : { amount: review.payout!.toString(), reserveBox: ri.box.boxId, nft: ri.nft, r7: ri.refundHeight.toString() };
+      // a token reserve's entries name their denomination; the completion's amount is then the tokens that come back
+      // (raw units) and `erg` the ERG with them; ERG entries are what they were
+      const meta: Record<string, string> = ri.token
+        ? kind === "refund-start"
+          ? { amount: "0", reserveBox: ri.box.boxId, nft: ri.nft, r7: review.r7!.toString(), reserveValue: ri.collateral.toString(), denom }
+          : { amount: ri.collateral.toString(), erg: review.payout!.toString(), reserveBox: ri.box.boxId, nft: ri.nft, r7: ri.refundHeight.toString(), denom }
+        : kind === "refund-start"
+          ? { amount: "0", reserveBox: ri.box.boxId, nft: ri.nft, r7: review.r7!.toString(), reserveValue: ri.box.value.toString() }
+          : { amount: review.payout!.toString(), reserveBox: ri.box.boxId, nft: ri.nft, r7: ri.refundHeight.toString() };
       entry = await signReserve(vault, kind, tx, [ri.box, ...inputs], meta, tip, pass);
     } catch (e) {
       if (isVaultError(e, "wrong-passphrase")) { setPassWrong(true); return setPhase(review); }
@@ -229,13 +242,15 @@ export function RefundScreen() {
     <div className="mw-form">
       <TxReview tx={phase.tx} inputs={[phase.info.box, ...phase.inputs]} signers={[me!.pub]} height={phase.tip + 1} txId={phase.txId}
         rows={phase.kind === "refund-start" ? [
-          { label: t("mw.ref.rowStays"), sub: t("mw.ref.rowR7", { h: int(Number(phase.r7!)) }), value: <Erg nano={phase.info.box.value + phase.add} /> },
+          ...(token ? [{ label: t("mw.ref.rowStays"), sub: t("mw.ref.rowR7", { h: int(Number(phase.r7!)) }), value: <Amt raw={phase.info.collateral} denom={denom} /> }, { label: t("mw.dn.rowBoxErg"), value: <Erg nano={phase.info.box.value + phase.add} /> }]
+            : [{ label: t("mw.ref.rowStays"), sub: t("mw.ref.rowR7", { h: int(Number(phase.r7!)) }), value: <Erg nano={phase.info.box.value + phase.add} /> }]),
           { label: t("mw.top.nft"), value: <span className="mono t-small mw-break">{phase.info.nft}</span> },
           { label: t("mw.top.rowBox"), value: <ChainLink kind="box" id={phase.info.box.boxId} /> },
           ...(phase.change > 0n ? [{ label: t("mw.res.rowChange"), value: <Erg nano={phase.change} /> }] : []),
           { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> },
         ] : [
-          { label: t("mw.ref.rowBack"), sub: t("mw.ref.rowNft"), value: <Erg nano={phase.payout!} /> },
+          ...(token ? [{ label: t("mw.ref.rowBack"), sub: t("mw.ref.rowNft"), value: <Amt raw={phase.info.collateral} denom={denom} /> }, { label: t("mw.dn.rowBackErg"), value: <Erg nano={phase.payout!} /> }]
+            : [{ label: t("mw.ref.rowBack"), sub: t("mw.ref.rowNft"), value: <Erg nano={phase.payout!} /> }]),
           { label: t("mw.top.nft"), value: <span className="mono t-small mw-break">{phase.info.nft}</span> },
           { label: t("mw.ref.rowFromBox"), value: <ChainLink kind="box" id={phase.info.box.boxId} /> },
           { label: t("mw.res.rowFee"), value: <Erg nano={MINER_FEE_NANOERG} /> },
@@ -246,6 +261,7 @@ export function RefundScreen() {
           <button type="button" className="textlink t-small" aria-expanded={xray} onClick={() => setXray(!xray)}>{xray ? t("mw.red.hideXray") : t("mw.red.showXray")}</button>
           {xray && phase.l2.eval && <ContractXray evaluation={phase.l2.eval} mode="compact" title={t("mw.top.xrayT")} />}
         </>} />
+      {token && <Callout tone="info">{phase.kind === "refund-start" ? t("mw.dn.refStartPays", { erg: ergText(MINER_FEE_NANOERG) }) : t("mw.dn.refEndPays", { tokens: amtText(phase.info.collateral, denom), erg: ergText(phase.payout ?? 0n), sym: token.symbol })}</Callout>}
       {phase.kind === "refund-start" && <Callout tone="alarm" title={t("mw.ref.finalT")}>{t("mw.ref.finalB")}</Callout>}
       <Field label={t("mw.pay.passAgain")} help={t("mw.ref.passWhy")} error={passWrong ? t("mw.pay.passWrong") : undefined}>
         <TextInput type="password" autoComplete="current-password" value={pass} onChange={(v) => { setPass(v); setPassWrong(false); }} />
@@ -263,7 +279,7 @@ export function RefundScreen() {
       <Card title={t("mw.ref.noneT")}>
         <div className="mw-form">
           <p className="t-small">{done ? t("mw.ref.doneB") : t("mw.ref.noneB")}</p>
-          <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.top.toReserve")}</Key>
+          <Key size="sm" to={`/wallet/mainnet/reserve${denomQuery(denom)}`}>{t("mw.top.toReserve")}</Key>
         </div>
       </Card>
     );
@@ -286,7 +302,7 @@ export function RefundScreen() {
         <Card title={t("mw.ref.startT")} aside={<Tag tone="ok">{t("mw.ref.active")}</Tag>}>
           {phase.k === "review" && phase.kind === "refund-start" ? review : (
             <div className="mw-form">
-              <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={info.box.value} /></b></div>
+              <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b>{token ? <Amt raw={info.collateral} denom={denom} /> : <Erg nano={info.box.value} />}</b>{token && <span className="t-small mw-dim">{t("mw.dn.boxHolds", { erg: ergText(info.box.value) })}</span>}</div>
               <Callout tone="alarm" title={t("mw.ref.warnT")}>
                 <ul className="mw-facts mw-facts-tight">
                   <li>{t("mw.ref.warn1")}</li>
@@ -314,7 +330,7 @@ export function RefundScreen() {
       <Card title={t("mw.ref.runT")} aside={<Tag tone={clock?.open ? "ok" : "metal"}>{clock?.open ? t("mw.ref.tagOpen") : t("mw.ref.tagWaiting")}</Tag>}>
         {phase.k === "review" && phase.kind === "refund-end" ? review : (
           <div className="mw-form">
-            <div className="mw-figure"><span className="label">{t("mw.ref.leftIn")}</span><b><Erg nano={info.box.value} /></b></div>
+            <div className="mw-figure"><span className="label">{t("mw.ref.leftIn")}</span><b>{token ? <Amt raw={info.collateral} denom={denom} /> : <Erg nano={info.box.value} />}</b>{token && <span className="t-small mw-dim">{t("mw.dn.boxHolds", { erg: ergText(info.box.value) })}</span>}</div>
             <RefundFacts r7={info.refundHeight} tip={height} />
             {errorBox}
             {otherOpen && <p className="t-small mw-dim">{t("mw.top.openEntry")}</p>}
@@ -336,9 +352,10 @@ export function RefundScreen() {
       <div className="mw-grid">
         <div className="mw-main">
           <header className="mw-screen-h">
-            <BackLink to="/wallet/mainnet/reserve">{t("mw.nav.reserve")}</BackLink>
+            <BackLink to={`/wallet/mainnet/reserve${denomQuery(denom)}`}>{t("mw.nav.reserve")}</BackLink>
             <h1 className="t-h2">{t("mw.ref.h")}</h1>
             <p className="t-lede">{t("mw.ref.lede")}</p>
+            <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setUnderstood(false); }} disabled={busy || phase.k === "review"} />
           </header>
           {open.filter((e) => e.id !== openStart?.id).map((e) => <RefundProgress key={e.id} entry={e} />)}
           {own?.ok && <OtherBoxesNote own={own} />}

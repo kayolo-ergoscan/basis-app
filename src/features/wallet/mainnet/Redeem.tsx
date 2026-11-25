@@ -4,16 +4,19 @@
 // browser) → review → hold to sign → the proof spliced into the tracker's own text → journal → submit → the chain
 // (depth 2) → the tracker counts it (C8). Payout = amount − miner fee. Nothing is signed before L1 and L2 pass. Once
 // signed, a redemption is only ever closed by a definite answer or by the chain (flows.submitVerdict, money P1-2).
+// Token notes (#issuer=…&d=sigusd, or the switch): the tracker's fee boxes pay the miner fee and the recipient's
+// 0.001 ERG box, and the receiver gets the tokens in full; every input box is read from /v1 (the reserve and each fee
+// box), L1 checks the token layout byte for byte (checkToken), L2 runs the token contract. The receiver needs no ERG.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, Field, Key, KeySeal, Ledger, Seg, Tag, blk, short } from "@/ui";
 import {
-  JsonSyntaxError, ShapeError, TrackerRefusal, checkNoteForRedemption, checkRedemption, checkRedemptionContract, loadContractAvl,
-  parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest,
-  type CheckedRedemption, type ChainBoxes, type L2Result, type RedemptionExpectation,
+  JsonSyntaxError, ShapeError, TOKEN_RECIPIENT_BOX_NANOERG, TrackerRefusal, checkNoteForRedemption, checkRedemption, checkRedemptionContract, denomDecimals, denomOfSlug, denomSymbol,
+  loadContractAvl, parseBuildResponse, parseStoredNote, parseSubmitResponse, redemptionSubmitBody, signRedemption, signedBuildRequest,
+  type CheckedRedemption, type ChainBoxes, type Denomination, type ErgoBox, type L2Result, type RedemptionExpectation,
 } from "@/mainnet/tx";
-import { REDEEM_FEE, REDEEM_MIN, ergInput, fragmentOf, noteView, parseErg, payoutOf, submitBodyOf, submitVerdict, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
+import { REDEEM_FEE, REDEEM_MIN, fragmentOf, noteView, parseUnits, payoutOf, submitBodyOf, submitVerdict, unitsInput, type NoteView, type SubmitVerdict } from "@/mainnet/flows";
 import { buildScope, isVaultError, type JournalEntry, type MainnetVault } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import { ContractXray } from "@/viz";
@@ -21,6 +24,12 @@ import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { EntryProgress } from "./send";
 import { ChainLink, CopyReport, Erg, Gate, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
+import { Amt, DenomSwitch, amtText, entryDenom, useDenom } from "./denom";
+
+/** The most inputs a token redemption's build may spend (the reserve and the tracker's fee boxes): each is read from /v1. */
+const TOKEN_REDEEM_MAX_INPUTS = 20;
+/** The smallest token redemption: one raw unit (the tracker pays the fee, nothing comes out of the payout). */
+const TOKEN_REDEEM_MIN = 1n;
 
 type Stage = "note" | "commit" | "request" | "build" | "chain" | "l1" | "l2";
 const STAGES: Stage[] = ["note", "commit", "request", "build", "chain", "l1", "l2"];
@@ -78,7 +87,7 @@ function RedeemProgress({ e, first }: { e: JournalEntry; first?: Submitted }) {
   const [busy, setBusy] = useState(false);
   const issuer = typeof e.meta.issuer === "string" ? e.meta.issuer : null;
   const want = typeof e.meta.newRedeemed === "string" ? BigInt(e.meta.newRedeemed) : null;
-  const pair = useResource(issuer ? R.pair(issuer, e.pub) : null, { everyMs: 60_000, enabled: e.state === "final" });
+  const pair = useResource(issuer ? R.pair(issuer, e.pub, entryDenom(e)) : null, { everyMs: 60_000, enabled: e.state === "final" });
   let synced = false;
   if (pair.value && want !== null) { try { synced = parseStoredNote(pair.value).amountRedeemed >= want; } catch { /* not yet */ } }
   const extra: StepItem[] = [{ id: "synced", label: t("mw.red.synced"), sub: e.state === "final" && !synced ? t("mw.red.syncedWait") : undefined, state: synced ? "done" : e.state === "final" ? "now" : "todo" }];
@@ -113,17 +122,22 @@ export function RedeemScreen() {
   const loc = useLocation();
   const [list] = useWatchList(me?.pub ?? null);
   const fromHash = useMemo(() => (fragmentOf(loc.hash).issuer ?? "").toLowerCase(), [loc.hash]);
+  // the denomination: a link's #…&d= first, else ?d= (the switch keeps it in this screen's state: the fragment stays)
+  const [queryDenom] = useDenom();
+  const [denom, setDenom] = useState<Denomination>(() => denomOfSlug(fragmentOf(loc.hash).d) ?? queryDenom);
+  const tok = denom !== "erg";
+  const minAmount = tok ? TOKEN_REDEEM_MIN : REDEEM_MIN;
   const [issuer, setIssuer] = useState<string>(fromHash || list[0]?.pk || "");
   useEffect(() => { if (!issuer && list[0]) setIssuer(list[0].pk); }, [issuer, list]);
-  const pair = useResource(me && issuer ? R.pair(issuer, me.pub) : null, { everyMs: 120_000, enabled: !!issuer });
+  const pair = useResource(me && issuer ? R.pair(issuer, me.pub, denom) : null, { everyMs: 120_000, enabled: !!issuer });
   const [amountText, setAmountText] = useState("");
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [showXray, setShowXray] = useState(false);
 
   let view: NoteView | null = null;
   if (pair.value && me) { try { const n = parseStoredNote(pair.value); if (n.recipient === me.pub && n.issuer === issuer) view = noteView(n); } catch { view = null; } }
-  useEffect(() => { if (view && !amountText && view.redeemableNow >= REDEEM_MIN) setAmountText(ergInput(view.redeemableNow)); }, [view?.redeemableNow]); // eslint-disable-line react-hooks/exhaustive-deps
-  const amount = parseErg(amountText);
+  useEffect(() => { if (view && !amountText && view.redeemableNow >= minAmount) setAmountText(unitsInput(view.redeemableNow, denomDecimals(denom))); }, [view?.redeemableNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  const amount = parseUnits(amountText, denomDecimals(denom));
   const open = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "redeem" && (e.state !== "final" || Date.now() - e.updatedAt < 30 * 60_000) && e.state !== "abandoned") : []), [entries, me]);
   const pending = phase.k === "commit-pending";
   const pend = useResource(pending ? R.trackerState() : null, { everyMs: 60_000, enabled: pending });
@@ -143,12 +157,12 @@ export function RedeemScreen() {
     if (height === null) return stop("note", { text: t("mw.res.noHeight") });
     // 1. the note
     setPhase({ k: "working", at: "note" });
-    const p = await net().pairNote(issuer, me.pub, { priority: "user" });
+    const p = await net().pairNote(issuer, me.pub, { priority: "user", denom });
     if (!p.ok) return stop("note", { problem: p.problem });
     if (p.value === null) return stop("note", { text: t("mw.recv.noNote") });
     let expect: RedemptionExpectation;
     try {
-      const c = checkNoteForRedemption(parseStoredNote(p.value), { issuer, recipient: me.pub, amount });
+      const c = checkNoteForRedemption(parseStoredNote(p.value), tok ? { issuer, recipient: me.pub, amount, denomination: denom } : { issuer, recipient: me.pub, amount });
       if (!c.ok) return stop("note", { text: t(`mw.red.rule.${c.rule}`), rule: `${c.rule}: ${c.message}` });
       expect = c.expect;
     } catch { return stop("note", { problem: localProblem("shape") }); }
@@ -168,7 +182,9 @@ export function RedeemScreen() {
       const now = trackerClock ? trackerClock.nowMs + (Date.now() - trackerClock.at) : net().clock.now();
       claimed = await vault.journal.claimTimestamp(buildScope(me.pub), now);
       const ts = BigInt(claimed);
-      body = await vault.withSecret("build-request", (sk) => signedBuildRequest(sk, { issuer, recipient: me.pub, amount, issuerSignature: expect.issuerSignature, requestTimestamp: ts }).body);
+      body = await vault.withSecret("build-request", (sk) => signedBuildRequest(sk, tok
+        ? { issuer, recipient: me.pub, amount, issuerSignature: expect.issuerSignature, requestTimestamp: ts, denomination: denom }
+        : { issuer, recipient: me.pub, amount, issuerSignature: expect.issuerSignature, requestTimestamp: ts }).body);
     } catch (e) { return stop("request", { text: verr(e) }); }
     // 4. the build, kept as raw text
     setPhase({ k: "working", at: "build" });
@@ -200,7 +216,20 @@ export function RedeemScreen() {
     const tb = await net().box(build.trackerBoxId, { priority: "user" });
     if (!tb.ok) return stop("chain", { problem: tb.problem });
     if (rb.value.spentBy || tb.value.spentBy) return stop("chain", { text: t("mw.red.boxSpent"), report: b.value });
-    const chain: ChainBoxes = { inputs: [rb.value.box], dataInputs: [tb.value.box] };
+    // a token redemption also spends the tracker's fee boxes: each one read from /v1 too (unspent, hashing to its id),
+    // so that L1 and the vault see every box the transaction spends
+    const inputs: ErgoBox[] = [rb.value.box];
+    if (tok) {
+      const ids = build.unsigned.inputs.slice(1).map((i) => i.boxId);
+      if (ids.length === 0 || ids.length + 1 > TOKEN_REDEEM_MAX_INPUTS) return stop("chain", { text: t("mw.red.l1Failed"), rule: `reserve-input: ${ids.length + 1} inputs`, report: b.value });
+      for (const id of ids) {
+        const fb = await net().box(id, { priority: "user" });
+        if (!fb.ok) return stop("chain", { problem: fb.problem });
+        if (fb.value.spentBy) return stop("chain", { text: t("mw.red.boxSpent"), report: b.value });
+        inputs.push(fb.value.box);
+      }
+    }
+    const chain: ChainBoxes = { inputs, dataInputs: [tb.value.box] };
     // 6. L1
     setPhase({ k: "working", at: "l1" });
     const tip = height;
@@ -225,7 +254,10 @@ export function RedeemScreen() {
       entry = await vault.signToJournal("redeem", (sk) => {
         const s = signRedemption(l1, sk);
         const body = redemptionSubmitBody(l1, s);
-        const meta = { issuer: l1.expect.issuer, amount: l1.expect.amount.toString(), newRedeemed: l1.build.newAlreadyRedeemed.toString(), payout: l1.payout.toString(), fee: l1.fee.toString(), trackerBox: l1.build.trackerBoxId, reserveBox: l1.build.reserveBoxId };
+        // a token redemption: amount and payout in the token's raw units, the ERG box with them, the fee the tracker's
+        const meta: Record<string, string> = l1.token
+          ? { issuer: l1.expect.issuer, amount: l1.expect.amount.toString(), newRedeemed: l1.build.newAlreadyRedeemed.toString(), payout: l1.payout.toString(), fee: l1.fee.toString(), trackerBox: l1.build.trackerBoxId, reserveBox: l1.build.reserveBoxId, denom: l1.denom, erg: l1.payoutErg.toString(), feePaidBy: l1.feePaidBy }
+          : { issuer: l1.expect.issuer, amount: l1.expect.amount.toString(), newRedeemed: l1.build.newAlreadyRedeemed.toString(), payout: l1.payout.toString(), fee: l1.fee.toString(), trackerBox: l1.build.trackerBoxId, reserveBox: l1.build.reserveBoxId };
         const rebuilt = submitBodyOf({ signedRaw: s.signedRaw, unsignedRaw: l1.build.unsignedRaw, issuer: meta.issuer, recipient: l1.expect.recipient, amount: l1.expect.amount, newRedeemed: l1.build.newAlreadyRedeemed });
         if (rebuilt !== body) throw new Error("the submit body cannot be rebuilt from the journal");
         return { txId: s.txId, signedRaw: s.signedRaw, unsignedRaw: l1.build.unsignedRaw, inputs: [l1.build.reserveBoxId], meta, height: tip };
@@ -240,7 +272,7 @@ export function RedeemScreen() {
     id: s, label: t(`mw.red.stage.${s}`), state: i < STAGES.indexOf(at) ? "done" : i === STAGES.indexOf(at) ? (failed ? "fail" : "now") : "todo",
   }));
   const sentEntry = phase.k === "sent" ? entries.find((e) => e.id === phase.id) ?? null : null;
-  const ok = amount !== null && view !== null && amount >= REDEEM_MIN && amount <= view.redeemableNow;
+  const ok = amount !== null && view !== null && amount >= minAmount && amount <= view.redeemableNow;
 
   return (
     <Gate vault={vault} state={state}>
@@ -249,9 +281,10 @@ export function RedeemScreen() {
           <header className="mw-screen-h">
             <h1 className="t-h2">{t("mw.red.h")}</h1>
             <p className="t-lede">{t("mw.red.lede")}</p>
+            <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "idle" }); }} disabled={phase.k === "working" || phase.k === "review" || phase.k === "sending"} />
           </header>
           {open.filter((e) => e.id !== (phase.k === "sent" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.red.progressT", { amount: ergText(BigInt(String(e.meta.amount ?? "0"))) })}><RedeemProgress e={e} /></Card>
+            <Card key={e.id} title={t("mw.red.progressT", { amount: amtText(BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}><RedeemProgress e={e} /></Card>
           ))}
           <Gate vault={vault} state={state} unlocked why={t("mw.red.unlockWhy")}>
             <Card title={t("mw.red.formT")}>
@@ -264,20 +297,25 @@ export function RedeemScreen() {
               ) : phase.k === "review" ? (
                 <div className="mw-form">
                   <TxReview tx={phase.l1.build.unsigned} inputs={phase.chain.inputs} dataInputs={phase.chain.dataInputs} signers={[me!.pub]} height={phase.tip + 1} txId={phase.l1.txId}
-                    rows={[
+                    rows={phase.l1.token ? [
+                      { label: t("mw.red.rowAmount"), value: <Amt raw={phase.l1.expect.amount} denom={phase.l1.denom} /> },
+                      { label: t("mw.dn.redBox"), sub: t("mw.dn.redBoxSub"), value: <Erg nano={phase.l1.payoutErg} /> },
+                      { label: t("mw.red.rowFee"), sub: t("mw.dn.redFeeSub"), value: <Erg nano={phase.l1.fee} /> },
+                    ] : [
                       { label: t("mw.red.rowAmount"), value: <Erg nano={phase.l1.expect.amount} /> },
                       { label: t("mw.red.rowFee"), sub: t("mw.red.rowFeeSub"), value: <Erg nano={phase.l1.fee} sign="owe" /> },
                     ]}
-                    sum={{ label: t("mw.red.rowPayout"), value: <Erg nano={phase.l1.payout} tone="up" />, tone: "up" }}
+                    sum={{ label: t("mw.red.rowPayout"), value: <Amt raw={phase.l1.payout} denom={phase.l1.denom} tone="up" />, tone: "up" }}
                     extra={(
                       <>
                         <p className="t-small"><Tag tone="ok" glyph="✓">L1</Tag> <Tag tone="ok" glyph="✓">L2</Tag> {t("mw.red.checked", { n: phase.l2.eval?.checks.length ?? 0 })}</p>
-                        <p className="t-small mw-dim">{t("mw.red.reserveAfter", { v: ergText(phase.l1.reserveAfter.value) })}</p>
+                        <p className="t-small mw-dim">{t("mw.red.reserveAfter", { v: phase.l1.token ? amtText(phase.l1.reserveAfter.tokens[1]?.amount ?? 0n, phase.l1.denom) : ergText(phase.l1.reserveAfter.value) })}</p>
+                        {phase.l1.token && <p className="t-small">{t("mw.dn.redPaysB", { sym: phase.l1.token.symbol, n: phase.l1.feeInputs })}</p>}
                         <button type="button" className="textlink t-small" aria-expanded={showXray} onClick={() => setShowXray(!showXray)}>{showXray ? t("mw.red.hideXray") : t("mw.red.showXray")}</button>
                         {showXray && phase.l2.eval && <ContractXray evaluation={phase.l2.eval} mode="compact" title={t("mw.red.xrayT")} />}
                       </>
                     )} />
-                  <Key variant="metal" hold block onAct={() => void sign()}>{t("mw.red.hold", { amount: ergText(phase.l1.payout) })}</Key>
+                  <Key variant="metal" hold block onAct={() => void sign()}>{t("mw.red.hold", { amount: amtText(phase.l1.payout, phase.l1.denom) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "idle" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (
@@ -299,16 +337,18 @@ export function RedeemScreen() {
                           <div>
                             <div className="label">{t("mw.recv.issuer")}</div>
                             <div className="mono t-small mw-break">{issuer}</div>
-                            {view && <div className="t-small">{t("mw.red.noteLine", { total: ergText(view.total), redeemed: ergText(view.redeemed), now: ergText(view.redeemableNow) })}</div>}
+                            {view && <div className="t-small">{t("mw.red.noteLine", { total: amtText(view.total, denom), redeemed: amtText(view.redeemed, denom), now: amtText(view.redeemableNow, denom) })}</div>}
                           </div>
                         </div>
                       )}
-                      {view && view.redeemableNow < REDEEM_MIN && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
-                      <Field label={t("mw.red.amount")} help={t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
-                        error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < REDEEM_MIN))) ? t("mw.red.amountBad", { min: ergText(REDEEM_MIN), max: ergText(view?.redeemableNow ?? 0n) }) : undefined}>
-                        <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(ergInput(view!.redeemableNow)) } : undefined} />
+                      {view && view.redeemableNow < minAmount && <Callout tone="calm">{view.stage === "committed" ? t("mw.red.nothing") : t(`mw.recv.wait.${view.stage}`)} <TimeHint k="note" /></Callout>}
+                      <Field label={tok ? t("mw.dn.redAmount", { sym: denomSymbol(denom) }) : t("mw.red.amount")} help={tok ? t("mw.dn.redAmountHelp", { min: amtText(minAmount, denom) }) : t("mw.red.amountHelp", { min: ergText(REDEEM_MIN), fee: ergText(REDEEM_FEE) })}
+                        error={amountText && (amount === null || (view && (amount > view.redeemableNow || amount < minAmount))) ? t("mw.red.amountBad", { min: amtText(minAmount, denom), max: amtText(view?.redeemableNow ?? 0n, denom) }) : undefined}>
+                        <AmountInput value={amountText} onChange={setAmountText} max={view ? { label: t("mw.red.all"), onMax: () => setAmountText(unitsInput(view!.redeemableNow, denomDecimals(denom))) } : undefined} />
                       </Field>
-                      {amount !== null && amount >= REDEEM_MIN && <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE) })}</span></p>}
+                      {amount !== null && amount >= minAmount && (tok
+                        ? <p className="t-body">{t("mw.red.payout")} <b><Amt raw={amount} denom={denom} tone="up" /></b> <span className="t-small mw-dim">{t("mw.dn.redPayoutWhy", { erg: ergText(TOKEN_RECIPIENT_BOX_NANOERG) })}</span></p>
+                        : <p className="t-body">{t("mw.red.payout")} <b><Erg nano={payoutOf(amount)} tone="up" /></b> <span className="t-small mw-dim">{t("mw.red.payoutWhy", { fee: ergText(REDEEM_FEE) })}</span></p>)}
                       {phase.k === "working" && <Steps label={t("mw.red.stepsAria")} items={stageItems(phase.at, false)} />}
                       {phase.k === "commit-pending" && (
                         <Callout tone="calm" title={t("mw.red.commitT")}>
@@ -352,20 +392,22 @@ export function RedeemScreen() {
               <li>{t("mw.red.how1")}</li>
               <li>{t("mw.red.how2")}</li>
               <li>{t("mw.red.how3")}</li>
-              <li>{t("mw.red.how4", { fee: ergText(REDEEM_FEE) })}</li>
+              <li>{tok ? t("mw.dn.redHow4", { sym: denomSymbol(denom) }) : t("mw.red.how4", { fee: ergText(REDEEM_FEE) })}</li>
             </ul>
             <TimeHint k="redeem" />
           </Card>
           <Card title={t("mw.red.recentT")}>
             {entries.filter((e) => me && e.pub === me.pub && e.kind === "redeem").slice(0, 5).map((e) => (
               <p key={e.id} className="t-small mw-row-line">
-                <span>{t(`mw.state.${e.state}`)}</span> <Erg nano={BigInt(String(e.meta.payout ?? "0"))} /> {e.txId && <ChainLink kind="tx" id={e.txId} />}
+                <span>{t(`mw.state.${e.state}`)}</span> <Amt raw={BigInt(String(e.meta.payout ?? "0"))} denom={entryDenom(e)} /> {e.txId && <ChainLink kind="tx" id={e.txId} />}
                 {e.inclusionHeight !== null && <span className="mw-dim"> · {blk(e.inclusionHeight)}</span>}
               </p>
             ))}
             <p className="t-small mw-dim"><Link className="textlink" to="/wallet/mainnet/activity">{t("mw.nav.activity")}</Link></p>
           </Card>
-          <Ledger rows={[{ label: t("mw.red.feeL"), value: <Erg nano={REDEEM_FEE} /> }, { label: t("mw.red.minL"), value: <Erg nano={REDEEM_MIN} /> }]} />
+          {tok
+            ? <Ledger rows={[{ label: t("mw.red.feeL"), value: <span className="t-small">{t("mw.dn.feeTracker")}</span> }, { label: t("mw.red.minL"), value: <Amt raw={minAmount} denom={denom} /> }]} />
+            : <Ledger rows={[{ label: t("mw.red.feeL"), value: <Erg nano={REDEEM_FEE} /> }, { label: t("mw.red.minL"), value: <Erg nano={REDEEM_MIN} /> }]} />}
         </aside>
       </div>
     </Gate>

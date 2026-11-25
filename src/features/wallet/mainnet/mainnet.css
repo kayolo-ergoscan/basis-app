@@ -162,3 +162,10 @@
 }
 .mw-dest { display: grid; gap: 6px; padding: 12px 14px; border-radius: 10px; background: var(--well); }
 .mw-dest code { font-size: 13px; line-height: 1.5; color: var(--ink); }
+
+/* token reserves: the denomination switch, and a watched pair with notes in more than one denomination */
+.mw-denoms { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.mw-denoms .label { color: var(--ink-2); }
+.mw-pair-one { display: contents; }
+.mw-pair-d { display: grid; gap: 10px; padding-top: 4px; }
+.mw-pair-dh { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

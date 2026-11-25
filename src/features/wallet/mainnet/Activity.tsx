@@ -1,16 +1,18 @@
 // /wallet/mainnet/activity — the journal of this key: every signed T1, top-up, refund step, note, redemption and
 // withdrawal, newest first,
 // with its state, its id on ergoscan.me, and the actions an open entry offers (send the same bytes again, discard one
-// that was provably never sent). The journal lives in this browser only.
+// that was provably never sent). The journal lives in this browser only. Each amount is in its entry's own
+// denomination (meta.denom: ERG when absent); a denomination filter shows one at a time, nothing is summed.
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { Card, Empty, Key, Lamp, Seg, short, type LampState, int } from "@/ui";
 import { RESERVE_ACTION_KINDS, type JournalEntry, type JournalState } from "@/mainnet/vault";
-import { p2pkAddress } from "@/mainnet/tx";
+import { WALLET_DENOMS, denomSymbol, p2pkAddress, type Denomination } from "@/mainnet/tx";
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
 import { submitEntry } from "./Redeem";
-import { ChainLink, Erg } from "./ui";
+import { ChainLink } from "./ui";
+import { Amt, entryDenom } from "./denom";
 
 const LAMP: Record<JournalState, LampState> = { signed: "signed", sent: "tracked", mempool: "tracked", confirmed: "tracked", final: "committed", failed: "alarm", abandoned: "off" };
 
@@ -36,7 +38,7 @@ function Row({ e }: { e: JournalEntry }) {
         <Lamp state={LAMP[e.state]} size={10} />
         <span className="mw-act-k">{t(`mw.kind.${e.meta.combine === true ? "combine" : e.kind}`)}</span>
         <span className="mw-act-w mono t-small">{who ? short(who, 6, 6) : ""}</span>
-        <span className="mw-act-v"><Erg nano={amountOf(e)} sign={e.kind === "redeem" ? "favour" : "none"} tone={e.kind === "redeem" ? "up" : undefined} /></span>
+        <span className="mw-act-v"><Amt raw={amountOf(e)} denom={entryDenom(e)} sign={e.kind === "redeem" ? "favour" : "none"} tone={e.kind === "redeem" ? "up" : undefined} /></span>
         <span className="mw-act-s t-small">{t(`mw.state.${e.state}`)}</span>
         <span className="mw-act-d t-small mw-dim">{new Date(e.createdAt).toISOString().slice(0, 16).replace("T", " ")}</span>
       </button>
@@ -63,7 +65,9 @@ export function ActivityScreen() {
   const t = useT();
   const { me, entries } = useMw();
   const [f, setF] = useState<Filter>("all");
-  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub) : []), [entries, me]);
+  const [d, setD] = useState<Denomination | "all">("all");
+  const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (d === "all" || (e.kind !== "withdraw" && entryDenom(e) === d) || (e.kind === "withdraw" && d === "erg"))) : []), [entries, me, d]);
+  const anyToken = useMemo(() => !!me && entries.some((e) => e.pub === me.pub && entryDenom(e) !== "erg"), [entries, me]);
   // "Reserve" lists everything that made or moved the reserve: T1, top-ups, the refund's two steps
   const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : f === "t1" ? e.kind === "t1" || RESERVE_ACTION_KINDS.includes(e.kind) : e.kind === f));
   return (
@@ -74,6 +78,7 @@ export function ActivityScreen() {
       </header>
       <Card>
         <Seg ariaLabel={t("mw.act.filter")} value={f} onChange={setF} options={(["all", "open", "t1", "note", "redeem", "withdraw"] as Filter[]).map((v) => ({ value: v, label: t(`mw.act.f.${v}`) }))} />
+        {anyToken && <Seg ariaLabel={t("mw.dn.aria")} value={d} onChange={setD} options={[{ value: "all" as const, label: t("mw.act.f.all") }, ...WALLET_DENOMS.map((x) => ({ value: x, label: denomSymbol(x) }))]} />}
         {shown.length === 0 ? <Empty title={t("mw.act.emptyT")} text={t("mw.act.emptyB")} /> : <ul className="mw-acts">{shown.map((e) => <Row key={e.id} e={e} />)}</ul>}
       </Card>
     </div>

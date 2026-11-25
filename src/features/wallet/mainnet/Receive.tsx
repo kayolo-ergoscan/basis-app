@@ -2,16 +2,22 @@
 // QR), a receipt imported from a link (verified: the issuer's signature over the 80-byte note message), and the
 // watched issuers, each pair read from the tracker every 2 minutes while this screen is visible (at most 10). Only the
 // committed total is redeemable; the times are the measured ones of §6.5.
-import { useMemo, useState } from "react";
+// Token notes: an issuer is watched in a token once a receipt in it is imported; each denomination is its own pair at
+// the tracker (?denomination=) with its own figures, never added to another. The request link names its denomination.
+import { useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
-import { TRACKER_NFT, parseStoredNote } from "@/mainnet/tx";
-import { WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseErg, requestLink, unwatchIssuer, watchIssuer, type NoteReceipt, type NoteView, type WatchedIssuer } from "@/mainnet/flows";
+import { TRACKER_NFT, denomDecimals, denomSlug, denomSymbol, parseStoredNote, type Denomination } from "@/mainnet/tx";
+import {
+  WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, requestLink, unwatchIssuer, watchIssuer, watchedDenoms,
+  type NoteReceipt, type NoteView, type WatchedIssuer,
+} from "@/mainnet/flows";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
-import { Erg, Gate, ProblemText, TimeHint, ergText } from "./ui";
+import { Gate, ProblemText, TimeHint } from "./ui";
+import { Amt, DenomSwitch, amtText, useDenom } from "./denom";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
 function receiptFrom(text: string): ReturnType<typeof decodeReceipt> | null {
@@ -26,41 +32,70 @@ const STAGE_LAMP = { local: "signed", pending: "tracked", committed: "committed"
 
 function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number }) {
   const t = useT();
-  const nav = useNavigate();
   const [, update] = useWatchList(me);
   const polled = index < WATCH_POLLED;
-  const pair = useResource(R.pair(w.pk, me), { everyMs: 120_000, enabled: polled });
+  const denoms = watchedDenoms(w);
+  const who = (lamp: ReactNode) => (
+    <div className="mw-pair-h">
+      <KeySeal pk={w.pk} size="sm" />
+      <div className="mw-pair-who">
+        <b>{w.name ?? short(w.pk, 8, 6)}</b>
+        <span className="mono t-small mw-dim">{short(w.pk, 8, 6)}</span>
+      </div>
+      {lamp}
+    </div>
+  );
+  // ERG only (every issuer before token notes): the row as it was, the lamp in the header
+  return (
+    <li className="mw-pair">
+      {denoms.length > 1 && who(null)}
+      {denoms.map((d) => <PairDenom key={d} w={w} me={me} denom={d} polled={polled} titled={denoms.length > 1} header={denoms.length > 1 ? undefined : who} />)}
+      <div className="mw-actions">
+        <Key size="sm" variant="quiet" onClick={() => update((l) => unwatchIssuer(l, w.pk))}>{t("mw.recv.unwatch")}</Key>
+      </div>
+    </li>
+  );
+}
+
+/** One denomination of a watched pair: its own note at the tracker, checked, in its own unit. */
+function PairDenom({ w, me, denom, polled, titled, header }: { w: WatchedIssuer; me: string; denom: Denomination; polled: boolean; titled: boolean; header?: (lamp: ReactNode) => ReactNode }) {
+  const t = useT();
+  const nav = useNavigate();
+  const pair = useResource(R.pair(w.pk, me, denom), { everyMs: 120_000, enabled: polled });
   let v: NoteView | null = null;
   let bad = false;
   if (pair.value) {
     try {
-      // the total is the issuer's signed promise: checked here, never taken from the tracker on trust (money P2-5)
+      // the total is the issuer's signed promise: checked here, never taken from the tracker on trust (money P2-5);
+      // a token note is checked over the token's message (its denomination is part of what was signed)
       const n = parseStoredNote(pair.value);
-      if (checkPreviousNote(n, { issuer: w.pk, recipient: me, accepted: 0n, serverNowMs: net().clock.now() }).ok) v = noteView(n);
+      if (checkPreviousNote(n, { issuer: w.pk, recipient: me, accepted: 0n, serverNowMs: net().clock.now(), ...(denom === "erg" ? {} : { denomination: denom }) }).ok) v = noteView(n);
       else bad = true;
     } catch { bad = true; }
   }
   const none = pair.at !== null && pair.value === null && !pair.problem;
+  const receipt = denom === "erg" ? w.receipt : w.tokens?.find((x) => x.denom === denom)?.receipt ?? null;
+  // an issuer watched for a token only: its empty ERG pair is not worth a line
+  if (denom === "erg" && titled && none && !w.receipt) return null;
+  const lamp = v ? <Lamp state={STAGE_LAMP[v.stage]} label={t(`mw.recv.stage.${v.stage}`)} /> : null;
   return (
-    <li className="mw-pair">
-      <div className="mw-pair-h">
-        <KeySeal pk={w.pk} size="sm" />
-        <div className="mw-pair-who">
-          <b>{w.name ?? short(w.pk, 8, 6)}</b>
-          <span className="mono t-small mw-dim">{short(w.pk, 8, 6)}</span>
+    <div className={titled ? "mw-pair-d" : "mw-pair-one"}>
+      {header ? header(lamp) : (
+        <div className="mw-pair-dh">
+          <b className="t-small">{denomSymbol(denom)}</b>
+          {lamp}
         </div>
-        {v && <Lamp state={STAGE_LAMP[v.stage]} label={t(`mw.recv.stage.${v.stage}`)} />}
-      </div>
+      )}
       {v ? (
         <>
           <div className="mw-figs">
-            <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Erg nano={v.total} /></b><span className="t-small mw-dim">{t("mw.recv.totalSigned")}</span></div>
-            <div className="mw-figure"><span className="label">{t("mw.recv.redeemed")}</span><b><Erg nano={v.redeemed} /></b></div>
-            <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Erg nano={v.redeemableNow} tone={v.redeemableNow > 0n ? "up" : undefined} /></b></div>
+            <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Amt raw={v.total} denom={denom} /></b><span className="t-small mw-dim">{t("mw.recv.totalSigned")}</span></div>
+            <div className="mw-figure"><span className="label">{t("mw.recv.redeemed")}</span><b><Amt raw={v.redeemed} denom={denom} /></b></div>
+            <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Amt raw={v.redeemableNow} denom={denom} tone={v.redeemableNow > 0n ? "up" : undefined} /></b></div>
           </div>
           {v.stage === "committed" && v.confirmedHeight !== null && <p className="t-small mw-dim">{t("mw.recv.committedAt", { h: int(v.confirmedHeight) })}</p>}
           {v.stage !== "committed" && <p className="t-small">{t(`mw.recv.wait.${v.stage}`)} <TimeHint k="note" /></p>}
-          {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: ergText(v.committed) })}</p>}
+          {v.committed !== null && v.committed < v.total && <p className="t-small mw-dim">{t("mw.recv.partCommitted", { c: amtText(v.committed, denom) })}</p>}
           <p className="t-small mw-dim">{t("mw.recv.trackerFigures")}</p>
         </>
       ) : none ? (
@@ -72,16 +107,15 @@ function PairRow({ w, me, index }: { w: WatchedIssuer; me: string; index: number
       ) : (
         <p className="t-small mw-dim">{t("mw.recv.reading")}</p>
       )}
-      {w.receipt && (!v || BigInt(w.receipt.total) > v.total) && (
-        <p className="t-small">{t("mw.recv.receiptAhead", { total: ergText(BigInt(w.receipt.total)) })}</p>
+      {receipt && (!v || BigInt(receipt.total) > v.total) && (
+        <p className="t-small">{t("mw.recv.receiptAhead", { total: amtText(BigInt(receipt.total), denom) })}</p>
       )}
       {pair.problem && <p className="t-small"><ProblemText p={pair.problem} what="read" /></p>}
       <div className="mw-actions">
-        {v && v.redeemableNow > 0n && <Key size="sm" variant="metal" icon="redeem" onClick={() => nav(`/wallet/mainnet/redeem#issuer=${w.pk}`)}>{t("mw.recv.redeem")}</Key>}
+        {v && v.redeemableNow > 0n && <Key size="sm" variant="metal" icon="redeem" onClick={() => nav(`/wallet/mainnet/redeem#issuer=${w.pk}${denom === "erg" ? "" : `&d=${denomSlug(denom)}`}`)}>{t("mw.recv.redeem")}</Key>}
         {polled && <Key size="sm" variant="quiet" onClick={() => void pair.refresh()} disabled={pair.loading}>{t("mw.recv.refresh")}</Key>}
-        <Key size="sm" variant="quiet" onClick={() => update((l) => unwatchIssuer(l, w.pk))}>{t("mw.recv.unwatch")}</Key>
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -109,7 +143,7 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
         {r && r.ok && mine && (
           <div className="mw-form">
             <Callout tone="proof" title={t("mw.recv.validT")}>
-              {t("mw.recv.validB", { total: ergText(r.receipt.total), at: new Date(Number(r.receipt.timestamp)).toISOString().slice(0, 16).replace("T", " ") + " UTC" })}
+              {t("mw.recv.validB", { total: amtText(r.receipt.total, r.receipt.denom ?? "erg"), at: new Date(Number(r.receipt.timestamp)).toISOString().slice(0, 16).replace("T", " ") + " UTC" })}
             </Callout>
             <div className="mw-filecard">
               <KeySeal pk={r.receipt.issuer} size="sm" />
@@ -134,10 +168,11 @@ export function ReceiveScreen() {
   const { vault, state, me } = useMw();
   const loc = useLocation();
   const [list] = useWatchList(me?.pub ?? null);
+  const [denom, setDenom] = useDenom();
   const [amountText, setAmountText] = useState("");
-  const amount = parseErg(amountText);
+  const amount = parseUnits(amountText, denomDecimals(denom));
   const initial = useMemo(() => (fragmentOf(loc.hash).note ? loc.hash : ""), [loc.hash]);
-  const link = me ? requestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT }) : "";
+  const link = me ? requestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT, ...(denom === "erg" ? {} : { denom }) }) : "";
   return (
     <Gate vault={vault} state={state}>
       {me && (
@@ -161,8 +196,10 @@ export function ReceiveScreen() {
           <aside className="mw-side">
             <Card title={t("mw.recv.askT")}>
               <div className="mw-form">
+                <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
                 <div className="mw-qr mw-qr-c"><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
-                <Field label={t("mw.recv.askAmount")} help={t("mw.recv.askAmountHelp")} error={amountText && amount === null ? t("mw.amount.bad") : undefined}>
+                <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
+                  error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
                   <AmountInput value={amountText} onChange={setAmountText} />
                 </Field>
                 <div className="mw-actions">

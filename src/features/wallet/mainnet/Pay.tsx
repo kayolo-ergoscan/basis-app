@@ -5,28 +5,33 @@
 // since it was typed promise more than 25 % of the reserve on chain: the vault decides, vault/policy.ts), journal,
 // POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 5–15
 // minutes until the receiver can redeem.
+// Token notes (?d=sigusd|rsada, or a request link's d=): the same flow per denomination. The note promises raw units of
+// the token, is signed over the token's message, and needs this key's active reserve in that token (the tracker's rule);
+// the pair's note is read for that denomination only, and nothing is ever added across denominations.
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, Switch, TextInput, int, short } from "@/ui";
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
-import { TRACKER_NFT, parseStoredNote, p2pkAddress, type StoredNote } from "@/mainnet/tx";
+import { TRACKER_NFT, denomDecimals, denomSymbol, parseStoredNote, p2pkAddress, tokenIdOf, type Denomination, type StoredNote } from "@/mainnet/tx";
 import {
-  checkPreviousNote, coverage, ergInput, laterNoteCovers, noteEntryFields, noteTimestamp, pairJournalOf, parseErg, parseRequest, receiptLink, signNote, storedIsEntry,
-  type CheckedPrev, type NoteReceipt, type PrevNoteRule,
+  checkPreviousNote, coverage, laterNoteCovers, noteDenomOf, noteEntryFields, noteTimestamp, pairJournalOf, parseRequest, parseUnits, receiptLink, signNote, storedIsEntry,
+  unitsInput, type CheckedPrev, type NoteReceipt, type PrevNoteRule,
 } from "@/mainnet/flows";
-import { isVaultError, noteScope, type JournalEntry, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
+import { isVaultError, noteScope, type JournalEntry, type JournalMetaValue, type MainnetVault, type NoteIntent } from "@/mainnet/vault";
 import { localProblem, type Problem } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, ownReserveNow, useResource } from "./data";
-import { Erg, Gate, ProblemText, Steps, TimeHint, ergText, useVaultError } from "./ui";
+import { Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
+import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, useDenom } from "./denom";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
 export function receiptOf(e: JournalEntry): NoteReceipt | null {
   const m = e.meta;
   if (typeof m.to !== "string" || typeof m.total !== "string" || typeof m.ts !== "string" || typeof m.sig !== "string") return null;
-  return { nft: TRACKER_NFT, issuer: e.pub, recipient: m.to, total: BigInt(m.total), timestamp: BigInt(m.ts), signature: m.sig };
+  const denom = entryDenom(e);
+  return { nft: TRACKER_NFT, issuer: e.pub, recipient: m.to, total: BigInt(m.total), timestamp: BigInt(m.ts), signature: m.sig, ...(denom === "erg" ? {} : { denom }) };
 }
 
 /** Follows a recorded note at the tracker: pending (a commit carries it) → committed. A note sent without an answer
@@ -35,7 +40,7 @@ export function useNoteTracking(vault: MainnetVault, e: JournalEntry | null) {
   const uncertain = !!e && e.state === "signed" && e.sendAttempts > 0;
   const open = !!e && (e.state === "sent" || e.state === "mempool" || e.state === "confirmed" || uncertain);
   const to = e && typeof e.meta.to === "string" ? e.meta.to : null;
-  const pair = useResource(e && to ? R.pair(e.pub, to) : null, { everyMs: 120_000, enabled: open });
+  const pair = useResource(e && to ? R.pair(e.pub, to, entryDenom(e)) : null, { everyMs: 120_000, enabled: open });
   useEffect(() => {
     if (!e || !open || !pair.value) return;
     let n;
@@ -96,14 +101,16 @@ function NoteStatus({ e }: { e: JournalEntry }) {
 
 /** reserve: the tracker's view; onChain: the value of the key's own reserve read from /v1 (ownReserveNow; the
  *  passphrase rule counts this one). */
-type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; onChain: bigint; debt: bigint; needPass?: boolean };
+type Draft = { to: string; add: bigint; prev: CheckedPrev | null; reserve: TrackedReserve | null; onChain: bigint; debt: bigint; needPass?: boolean; denom: Denomination };
 
-/** What the note promises, as the vault checks it (vault/policy.ts). */
+/** What the note promises, as the vault checks it (vault/policy.ts): a token note names its denomination, and its
+ *  total and reserve value are that token's raw units. */
 const intentOf = (d: Draft): NoteIntent => ({
   recipient: d.to,
   total: (d.prev?.total ?? 0n) + d.add,
   reserveValue: d.onChain,
   prev: d.prev ? { total: d.prev.total, timestamp: d.prev.timestamp, signature: d.prev.signature } : null,
+  ...(d.denom === "erg" ? {} : { denomination: d.denom }),
 });
 
 /** The journal error of a note a later one replaced (stored as plain text, like the tracker's reasons). */
@@ -124,28 +131,36 @@ export function PayScreen() {
   const verr = useVaultError();
   const loc = useLocation();
   const req = useMemo(() => parseRequest(loc.hash), [loc.hash]);
+  // a request link names its denomination (absent: ERG); otherwise the switch
+  const [denomParam, setDenom] = useDenom();
+  const denom: Denomination = req ? req.denom ?? "erg" : denomParam;
+  const token = tokenIdOf(denom);
   const [toText, setToText] = useState(req?.to ?? "");
-  const [amountText, setAmountText] = useState(req?.amount ? ergInput(req.amount) : "");
+  const [amountText, setAmountText] = useState(req?.amount ? unitsInput(req.amount, denomDecimals(req.denom ?? "erg")) : "");
   const [pass, setPass] = useState("");
   const [phase, setPhase] = useState<Phase>({ k: "edit" });
   const res = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const ks = useResource(me ? R.keyStatus(me.pub) : null, { everyMs: 120_000, enabled: state.backedUp });
   const key = parseKeyInput(toText);
-  const add = parseErg(amountText);
+  const add = parseUnits(amountText, denomDecimals(denom));
   const toErr = toText.trim() && !key.ok ? t(`mw.pay.to.${key.reason}`) : key.ok && me && key.key === me.pub ? t("mw.pay.to.self") : null;
-  const reserve = (res.value ?? [])[0] ?? null;
+  // the key's reserves in this denomination only (an ERG reserve never backs a SigUSD note)
+  const inDenom = res.value === null ? null : res.value.filter((r) => r.token === token);
+  const reserve = (inDenom ?? [])[0] ?? null;
   // 25.11 (operator): a note can be redeemed only from a Basis wallet holding the receiver's key. A Nautilus or other
   // seed-phrase address looks the same, so unless the receiver came from a Basis payment request or already uses
-  // Basis (a reserve or notes of its own at the tracker), the payer confirms it before signing.
+  // Basis (a reserve or notes of its own at the tracker), the payer confirms it before signing. Per key, not per
+  // denomination: a key that uses Basis in ERG can redeem a SigUSD note with the same wallet.
   const toPk = phase.k === "review" ? phase.d.to : key.ok ? key.key : null;
   const fromRequest = !!req && toPk === req.to;
   const toStatus = useResource(toPk && !fromRequest ? R.keyStatus(toPk) : null, { everyMs: 300_000, enabled: state.backedUp });
   const toUsesBasis = fromRequest || (toStatus.value !== null && (toStatus.value.notes > 0 || toStatus.value.denominations.some((x) => x.reserve !== null || x.collateral > 0n)));
   const [basisAck, setBasisAck] = useState(false);
   useEffect(() => setBasisAck(false), [toPk]);
-  // notes_require_reserve: the tracker takes notes only from a key with exactly one active reserve under it
-  const noReserve = res.value !== null && (res.value.length !== 1 || res.value[0].refundHeight > 0);
-  const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note").slice(0, 8) : []), [entries, me]);
+  // notes_require_reserve: the tracker takes notes only from a key with exactly one active reserve under it, in the
+  // note's denomination
+  const noReserve = inDenom !== null && (inDenom.length !== 1 || inDenom[0].refundHeight > 0);
+  const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note" && noteDenomOf(e) === denom).slice(0, 8) : []), [entries, me, denom]);
   const current = phase.k === "done" ? entries.find((e) => e.id === phase.id) ?? null : null;
 
   const prevText = (rule: PrevNoteRule) => t(`mw.pay.prev.${rule}`);
@@ -158,12 +173,12 @@ export function PayScreen() {
   async function checkedPrev(to: string, stored: StoredNote | null): Promise<{ prev: CheckedPrev | null } | { stop: Phase }> {
     if (!me) return { stop: { k: "edit" } };
     let list = await vault.journal.list({ pub: me.pub, kind: "note" });
-    for (const u of pairJournalOf(list, me.pub, to).uncertain) {
+    for (const u of pairJournalOf(list, me.pub, to, denom).uncertain) {
       if (stored && storedIsEntry(stored, u)) await vault.journal.update(u.id, { state: "sent", error: null, meta: { status: "local_only" } });
     }
     list = await vault.journal.list({ pub: me.pub, kind: "note" });
-    const pj = pairJournalOf(list, me.pub, to);
-    const c = checkPreviousNote(stored, { issuer: me.pub, recipient: to, accepted: pj.accepted, serverNowMs: net().clock.now() });
+    const pj = pairJournalOf(list, me.pub, to, denom);
+    const c = checkPreviousNote(stored, { issuer: me.pub, recipient: to, accepted: pj.accepted, serverNowMs: net().clock.now(), denomination: denom });
     if (!c.ok) return { stop: { k: "error", text: prevText(c.rule) } };
     for (const u of pj.uncertain) {
       const f = noteEntryFields(u);
@@ -177,7 +192,7 @@ export function PayScreen() {
   async function review() {
     if (!me || !key.ok || add === null || key.key === me.pub) return;
     setPhase({ k: "working" });
-    const p = await net().pairNote(me.pub, key.key, { priority: "user" });
+    const p = await net().pairNote(me.pub, key.key, { priority: "user", denom });
     if (!p.ok) return setPhase({ k: "error", problem: p.problem });
     const stored = readPair(p.value);
     if (stored === "bad") return setPhase({ k: "error", problem: localProblem("shape") });
@@ -186,16 +201,17 @@ export function PayScreen() {
     const prev = cp.prev;
     const rs = await net().reservesOf(me.pub, { priority: "user" });
     if (!rs.ok) return setPhase({ k: "error", problem: rs.problem });
-    const r = rs.value[0] ?? null;
+    const r = rs.value.filter((x) => x.token === token)[0] ?? null;
     // the passphrase rule counts the value of this key's own reserve on chain (wallet-t3): the box that holds the NFT
     // the wallet trusts (ownReserveNow, an exact lookup), never the tracker's figure nor the listing at the key, which
-    // anyone can flood or plant into. No reserve it can prove counts as 0: the passphrase every time.
-    const own = await ownReserveNow(me.pub, entries);
+    // anyone can flood or plant into. No reserve it can prove counts as 0: the passphrase every time. A token
+    // reserve counts its tokens (tokens(1) of that box, which ownReserve read as a reserve of exactly this token).
+    const own = await ownReserveNow(me.pub, entries, denom);
     if (!own.ok) return setPhase({ k: "error", problem: own.problem });
-    const onChain = own.value.ok ? own.value.box.box.value : 0n;
-    const ksDebt = ks.value?.denominations.find((d) => d.id === "erg")?.debt ?? 0n;
+    const onChain = !own.value.ok ? 0n : token === null ? own.value.box.box.value : own.value.box.box.tokens[1]?.tokenId === token ? own.value.box.box.tokens[1].amount : 0n;
+    const ksDebt = ks.value?.denominations.find((x) => x.id === denom)?.debt ?? 0n;
     const debt = r && r.debt > ksDebt ? r.debt : ksDebt;
-    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain, debt } });
+    setPhase({ k: "review", d: { to: key.key, add, prev, reserve: r, onChain, debt, denom } });
   }
 
   async function signAndPost(d: Draft, retry = 0): Promise<void> {
@@ -208,7 +224,11 @@ export function PayScreen() {
     try {
       const cand = Number(noteTimestamp(d.prev?.timestamp ?? null, net().clock.now()));
       ts = BigInt(await vault.journal.claimTimestamp(noteScope(me.pub, d.to), cand));
-      entry = await vault.signToJournal("note", (sk) => {
+      entry = await vault.signToJournal("note", (sk): { txId: null; signedRaw: string; inputs: string[]; meta: Record<string, JournalMetaValue> } => {
+        if (d.denom !== "erg") {
+          const s = signNote(sk, { issuer: me.pub, recipient: d.to, total, timestamp: ts, denomination: d.denom });
+          return { txId: null, signedRaw: s.body, inputs: [], meta: { to: d.to, total: total.toString(), added: d.add.toString(), ts: ts.toString(), sig: s.signature, status: "draft", denom: d.denom } };
+        }
         const s = signNote(sk, { issuer: me.pub, recipient: d.to, total, timestamp: ts });
         return { txId: null, signedRaw: s.body, inputs: [], meta: { to: d.to, total: total.toString(), added: d.add.toString(), ts: ts.toString(), sig: s.signature, status: "draft" } };
       }, pass ? { note: intent, passphrase: pass } : { note: intent });
@@ -227,7 +247,7 @@ export function PayScreen() {
     const pr = r.problem;
     // a POST that may have arrived: the pair route tells (the same total, timestamp and signature = it is ours)
     if (pr.kind === "timeout" || pr.kind === "network" || pr.kind === "past-ts") {
-      const chk = await net().pairNote(me.pub, d.to, { priority: "user" });
+      const chk = await net().pairNote(me.pub, d.to, { priority: "user", denom: d.denom });
       const n = chk.ok ? readPair(chk.value) : "bad";
       if (n !== "bad" && n !== null && storedIsEntry(n, entry)) {
         await vault.journal.update(entry.id, { state: "sent", error: null, meta: { status: "local_only" } });
@@ -247,7 +267,7 @@ export function PayScreen() {
       // take the refused claim back (as builds do), down to the pair's newest known note, so the next one follows the
       // tracker's clock again instead of staying ahead of it
       const known = (await vault.journal.list({ pub: me.pub, kind: "note" })).filter((x) => x.id !== entry.id).map(noteEntryFields)
-        .filter((f): f is NonNullable<typeof f> => f !== null && f.to === d.to).map((f) => Number(f.timestamp));
+        .filter((f): f is NonNullable<typeof f> => f !== null && f.to === d.to && f.denom === d.denom).map((f) => Number(f.timestamp));
       await vault.journal.rewindTimestamp(noteScope(me.pub, d.to), Number(ts), Math.max(Number(d.prev?.timestamp ?? 0n), ...known));
       net().clock.reset();
       await net().trackerState({ priority: "user" });
@@ -265,7 +285,8 @@ export function PayScreen() {
     const f = e ? noteEntryFields(e) : null;
     if (!me || !e || !f || e.state !== "signed") return;
     setPhase({ k: "working" });
-    const chk = await net().pairNote(me.pub, f.to, { priority: "user" });
+    const fd = entryDenom(e);
+    const chk = await net().pairNote(me.pub, f.to, { priority: "user", denom: fd });
     if (!chk.ok) return setPhase({ k: "error", problem: chk.problem, id: e.id });
     const n = readPair(chk.value);
     if (n === "bad") return setPhase({ k: "error", problem: localProblem("shape"), id: e.id });
@@ -274,7 +295,7 @@ export function PayScreen() {
       return setPhase({ k: "done", id: e.id });
     }
     const list = (await vault.journal.list({ pub: me.pub, kind: "note" })).filter((x) => x.id !== e.id);
-    const c = checkPreviousNote(n, { issuer: me.pub, recipient: f.to, accepted: pairJournalOf(list, me.pub, f.to).accepted, serverNowMs: net().clock.now() });
+    const c = checkPreviousNote(n, { issuer: me.pub, recipient: f.to, accepted: pairJournalOf(list, me.pub, f.to, fd).accepted, serverNowMs: net().clock.now(), denomination: fd });
     if (!c.ok) return setPhase({ k: "error", text: prevText(c.rule) });
     if (c.prev && c.prev.timestamp >= f.timestamp) {
       const included = laterNoteCovers(c.prev, f);
@@ -307,11 +328,12 @@ export function PayScreen() {
           <header className="mw-screen-h">
             <h1 className="t-h2">{t("mw.pay.h")}</h1>
             <p className="t-lede">{t("mw.pay.lede")}</p>
+            {!req && <DenomSwitch value={denom} onChange={(x) => { setDenom(x); setPhase({ k: "edit" }); setAmountText(""); }} disabled={phase.k === "working" || phase.k === "review"} />}
           </header>
           {noReserve && (
-            <Callout tone="alarm" title={t("mw.pay.noReserveT")}>
-              <p>{t("mw.pay.noReserveB")}</p>
-              <Key to="/wallet/mainnet/reserve" icon="coin">{t("mw.pay.toReserve")}</Key>
+            <Callout tone="alarm" title={denom === "erg" ? t("mw.pay.noReserveT") : t("mw.dn.payNoReserveT", { sym: denomSymbol(denom) })}>
+              <p>{denom === "erg" ? t("mw.pay.noReserveB") : t("mw.dn.payNoReserveB", { sym: denomSymbol(denom) })}</p>
+              <Key to={`/wallet/mainnet/reserve${denomQuery(denom)}`} icon="coin">{t("mw.pay.toReserve")}</Key>
             </Callout>
           )}
           <Gate vault={vault} state={state} unlocked why={t("mw.pay.unlockWhy")}>
@@ -328,12 +350,13 @@ export function PayScreen() {
                     <div><div className="label">{t("mw.pay.toL")}</div><div className="mono t-small mw-break">{p2pkAddress(d.to)}</div></div>
                   </div>
                   <Ledger rows={[
-                    { label: t("mw.pay.rowPrev"), sub: d.prev ? t("mw.pay.prevChecked") : t("mw.pay.prevNone"), value: <Erg nano={d.prev?.total ?? 0n} /> },
-                    { label: t("mw.pay.rowAdd"), value: <Erg nano={d.add} sign="favour" /> },
-                  ]} sum={{ label: t("mw.pay.rowTotal"), value: <Erg nano={total!} /> }} />
+                    { label: t("mw.pay.rowPrev"), sub: d.prev ? t("mw.pay.prevChecked") : t("mw.pay.prevNone"), value: <Amt raw={d.prev?.total ?? 0n} denom={d.denom} /> },
+                    { label: t("mw.pay.rowAdd"), value: <Amt raw={d.add} denom={d.denom} sign="favour" /> },
+                  ]} sum={{ label: t("mw.pay.rowTotal"), value: <Amt raw={total!} denom={d.denom} /> }} />
+                  {d.denom !== "erg" && <Callout tone="info">{t("mw.dn.payNote", { sym: denomSymbol(d.denom) })}</Callout>}
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
                   {d.onChain > 0n ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: ergText(d.onChain), debt: ergText(debtAfter!), pct: cov !== null ? int(cov) : "—" })}</p>
+                    <p className="t-small">{t("mw.pay.cov", { reserve: amtText(d.onChain, d.denom), debt: amtText(debtAfter!, d.denom), pct: cov !== null ? int(cov) : "—" })}</p>
                   ) : null}
                   {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>
@@ -348,16 +371,17 @@ export function PayScreen() {
                       <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
                     </Field>
                   )}
-                  <Key variant="primary" hold="sign" block disabled={(askPass && !pass) || (!toUsesBasis && !basisAck)} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: ergText(d.add) })}</Key>
+                  <Key variant="primary" hold="sign" block disabled={(askPass && !pass) || (!toUsesBasis && !basisAck)} onAct={() => void signAndPost(d)}>{t("mw.pay.hold", { amount: amtText(d.add, d.denom) })}</Key>
                   <Key variant="quiet" onClick={() => setPhase({ k: "edit" })}>{t("mw.cancel")}</Key>
                 </div>
               ) : (
                 <div className="mw-form">
-                  {req && <Callout tone="info">{t("mw.pay.fromRequest")}</Callout>}
+                  {req && <Callout tone="info">{req.denom ? t("mw.dn.fromRequest", { sym: denomSymbol(req.denom) }) : t("mw.pay.fromRequest")}</Callout>}
                   <Field label={t("mw.pay.to")} help={t("mw.pay.toHelp")} error={toErr ?? undefined}>
                     <TextInput mono value={toText} onChange={setToText} placeholder={t("mw.pay.toPh")} autoComplete="off" />
                   </Field>
-                  <Field label={t("mw.pay.amount")} help={t("mw.pay.amountHelp")} error={amountText && add === null ? t("mw.amount.bad") : undefined}>
+                  <Field label={denom === "erg" ? t("mw.pay.amount") : t("mw.dn.payAmount", { sym: denomSymbol(denom) })} help={denom === "erg" ? t("mw.pay.amountHelp") : t("mw.dn.payAmountHelp", { sym: denomSymbol(denom) })}
+                    error={amountText && add === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
                     <AmountInput plus value={amountText} onChange={setAmountText} />
                   </Field>
                   {phase.k === "error" && (
@@ -382,7 +406,7 @@ export function PayScreen() {
                   <li key={e.id} className="mw-row">
                     <KeySeal pk={String(e.meta.to ?? "")} size="sm" />
                     <span className="mono t-small">{short(String(e.meta.to ?? ""), 6, 6)}</span>
-                    <span className="mw-row-v"><Erg nano={BigInt(String(e.meta.total ?? "0"))} /></span>
+                    <span className="mw-row-v"><Amt raw={BigInt(String(e.meta.total ?? "0"))} denom={entryDenom(e)} /></span>
                     <span className="t-small mw-dim">{t(`mw.state.${e.state}`)}</span>
                   </li>
                 ))}
@@ -403,8 +427,8 @@ export function PayScreen() {
           {reserve && (
             <Card title={t("mw.pay.reserveT")}>
               <div className="mw-figs">
-                <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Erg nano={reserve.collateral} /></b></div>
-                <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Erg nano={reserve.debt} /></b></div>
+                <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Amt raw={reserve.collateral} denom={denom} /></b></div>
+                <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Amt raw={reserve.debt} denom={denom} /></b></div>
               </div>
             </Card>
           )}

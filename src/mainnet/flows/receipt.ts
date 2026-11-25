@@ -1,10 +1,11 @@
 // Note receipts and payment requests (design §6.2): links to our own site with the data in the URL fragment, so it
 // never reaches a server log.
-//   request: /wallet/mainnet/pay#to=<pk>&amount=<nano>&nft=<tracker>
+//   request: /wallet/mainnet/pay#to=<pk>&amount=<nano>&nft=<tracker>[&d=sigusd|rsada]  (d: a token request, the amount
+//            in that token's raw units; absent for ERG)
 //   receipt: /wallet/mainnet/receive#note=<base64url of {v,nft,i,r,a,ts,s[,d]}>  (d: "token:<id>" of a token note;
 //            absent for ERG, so ERG links are what they were)
 // A receipt is verified (the issuer's signature over the 80-byte note message) before the wallet watches anything.
-import { TRACKER_NFT, isWalletDenom, noteMessage, verifyBasis, type Denomination } from "../tx";
+import { TRACKER_NFT, denomOfSlug, denomSlug, isWalletDenom, noteMessage, verifyBasis, type Denomination } from "../tx";
 
 export interface NoteReceipt {
   nft: string;
@@ -20,7 +21,7 @@ export interface NoteReceipt {
   denom?: Denomination;
 }
 
-export interface PayRequest { to: string; amount: bigint | null; nft: string }
+export interface PayRequest { to: string; amount: bigint | null; nft: string; /** a token request; absent = ERG */ denom?: Denomination }
 
 export type ReceiptRefusal = "format" | "version" | "tracker" | "keys" | "same-key" | "signature";
 
@@ -101,6 +102,7 @@ export function requestLink(origin: string, req: PayRequest): string {
   const p = new URLSearchParams({ to: req.to });
   if (req.amount !== null) p.set("amount", req.amount.toString());
   p.set("nft", req.nft);
+  if (req.denom && req.denom !== "erg") p.set("d", denomSlug(req.denom));
   return `${origin}/wallet/mainnet/pay#${p.toString()}`;
 }
 
@@ -112,5 +114,8 @@ export function parseRequest(hash: string, opts: { trackerNft?: string } = {}): 
   const nft = (f.nft ?? "").toLowerCase();
   if (nft && nft !== (opts.trackerNft ?? TRACKER_NFT)) return null;
   const amount = f.amount && U63.test(f.amount) && BigInt(f.amount) > 0n && BigInt(f.amount) <= I64_MAX ? BigInt(f.amount) : null;
-  return { to, amount, nft: opts.trackerNft ?? TRACKER_NFT };
+  // a denomination this wallet does not know is not read as ERG: the request is refused
+  const denom = f.d === undefined ? "erg" : denomOfSlug(f.d);
+  if (denom === null) return null;
+  return denom === "erg" ? { to, amount, nft: opts.trackerNft ?? TRACKER_NFT } : { to, amount, nft: opts.trackerNft ?? TRACKER_NFT, denom };
 }

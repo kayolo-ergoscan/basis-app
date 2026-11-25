@@ -1,14 +1,61 @@
 // /wallet/mainnet — the key's balance sheet: free ERG at the key, the reserve (what it holds, what its notes promise),
 // the notes received and redeemable now, what is in flight, and the next step of the checklist (backup → fund →
 // reserve → first note). Reads within the §6.4 budget, only while visible.
+// Token reserves: each one its own card in its own unit (shown once the tracker lists one or this browser made one),
+// and the tokens at the key as their own lines. Nothing is ever added across denominations.
 import { useMemo } from "react";
 import { useT } from "@/app/lang";
 import { Callout, Card, Key, Lamp, Tag, int } from "@/ui";
-import { balanceOf, reserveLife, spendable } from "@/mainnet/flows";
-import { blocksNewT1, isOpenState } from "@/mainnet/vault";
+import { balanceOf, reserveLife, spendable, tokenBalanceOf } from "@/mainnet/flows";
+import { blocksNewT1, blocksNewT1In, isOpenState } from "@/mainnet/vault";
+import { RESERVE_TOKENS, denomOfToken, type ReserveToken } from "@/mainnet/tx";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent, useWatchList } from "./data";
 import { ChainLink, Erg, ProblemText, ReserveTag, Steps, ergText } from "./ui";
+import { Amt, amtText, denomQuery } from "./denom";
+
+/** A token reserve of this key: its own figures in its own unit (the tracker's entry this key minted, as on Reserve). */
+function TokenReserveCard({ token }: { token: ReserveToken }) {
+  const t = useT();
+  const { me, height, entries } = useMw();
+  const denom = denomOfToken(token);
+  const gate = useResource(me ? R.trackedGate(me.pub, denom) : null, { everyMs: 120_000 });
+  const reserve = gate.value?.k === "own" ? gate.value.r : null;
+  const t1 = me ? entries.find((e) => e.pub === me.pub && blocksNewT1In(e, denom)) ?? null : null;
+  const life = reserve ? reserveLife(reserve.refundHeight, height) : null;
+  const q = denomQuery(denom);
+  return (
+    <Card title={t("mw.dn.cardT", { sym: token.symbol })} aside={reserve ? <ReserveTag r={reserve} small /> : undefined}>
+      {reserve ? (
+        <>
+          <div className="mw-figure big"><b><Amt raw={reserve.collateral} denom={denom} /></b><span className="t-small mw-dim">{t("mw.home.promised", { debt: amtText(reserve.debt, denom) })}</span></div>
+          {life?.kind === "refund" && (
+            <p className="t-small"><Tag tone={life.clock.open ? "ok" : "metal"} glyph="◷">{life.clock.open ? t("mw.ref.tagOpen") : t("mw.ref.tagWaiting")}</Tag> {life.clock.open ? t("mw.home.refundOpen") : t("mw.home.refundRun", { h: int(Number(life.clock.unlockAt)) })}</p>
+          )}
+          <div className="mw-actions">
+            {life?.kind === "refund" ? (
+              <Key size="sm" icon="coin" variant={life.clock.open ? "primary" : undefined} to={`/wallet/mainnet/refund${q}`}>{t("mw.home.refundSee")}</Key>
+            ) : (
+              <>
+                <Key size="sm" icon="pay" variant="primary" to={`/wallet/mainnet/pay${q}`}>{t("mw.nav.pay")}</Key>
+                <Key size="sm" icon="in" to={`/wallet/mainnet/topup${q}`}>{t("mw.res.topUp")}</Key>
+              </>
+            )}
+            <Key size="sm" icon="coin" variant="quiet" to={`/wallet/mainnet/reserve${q}`}>{t("mw.home.reserveOpen")}</Key>
+          </div>
+        </>
+      ) : t1 ? (
+        <p className="t-small">{t("mw.home.t1Open", { state: t(`mw.state.${t1.state}`) })} <Key size="sm" to={`/wallet/mainnet/reserve${q}`}>{t("mw.home.reserveOpen")}</Key></p>
+      ) : gate.value?.k === "unproven" ? (
+        <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to={`/wallet/mainnet/reserve${q}`}>{t("mw.home.reserveOpen")}</Key></p>
+      ) : gate.value === null && !gate.problem ? (
+        <p className="t-small mw-dim">{t("mw.top.loading")}</p>
+      ) : (
+        <p className="t-small mw-dim">{t("mw.home.unchecked")}</p>
+      )}
+    </Card>
+  );
+}
 
 export function HomeScreen() {
   const t = useT();
@@ -16,6 +63,9 @@ export function HomeScreen() {
   const un = useUnspent(me, height);
   // the key's own reserve, never one planted under it (wallet-t3 P2: the reserve screen's rule, trackedGateOf)
   const gate = useResource(me ? R.trackedGate(me.pub) : null, { everyMs: 120_000 });
+  // token reserves get their card only when the tracker lists one for this key or this browser made one (no reads
+  // for a key that has none: the listing is the one the ERG card's gate reads anyway)
+  const listed = useResource(me ? R.reservesOf(me.pub) : null, { everyMs: 120_000 });
   const [watch] = useWatchList(me?.pub ?? null);
   const usable = useMemo(() => (me && un.value ? spendable(un.value.boxes, inFlightOf(entries, me.pub)) : []), [me, un.value, entries]);
   const bal = un.value ? balanceOf(un.value.boxes, usable) : null;
@@ -29,6 +79,8 @@ export function HomeScreen() {
   // a T1 retired after a completed refund no longer counts (the key may create a new reserve)
   const t1 = mine.find(blocksNewT1);
   const funded = (bal?.nano ?? 0n) > 0n || !!reserve || !!t1;
+  const tokenCards = RESERVE_TOKENS.filter((tk) => (listed.value ?? []).some((r) => r.owner === me?.pub && r.token === tk.id) || mine.some((e) => blocksNewT1In(e, denomOfToken(tk))));
+  const tokensHere = RESERVE_TOKENS.map((tk) => ({ tk, raw: tokenBalanceOf(usable, tk.id) })).filter((x) => x.raw > 0n);
   const step = !funded ? "fund" : !reserve && !t1 && gate.value?.k === "none" ? "reserve" : notes.length === 0 && reserve && life?.kind !== "refund" ? "note" : null;
   return (
     <div className="mw-grid">
@@ -40,6 +92,11 @@ export function HomeScreen() {
         <div className="mw-sheet">
           <Card title={t("mw.home.freeT")} aside={un.problem ? <Lamp state="stale" label={t("mw.home.stale")} /> : undefined}>
             <div className="mw-figure big"><b>{bal ? <Erg nano={bal.nano} /> : "—"}</b><span className="t-small mw-dim">{t("mw.home.freeB")}</span></div>
+            {tokensHere.length > 0 && (
+              <ul className="mw-facts mw-facts-tight">
+                {tokensHere.map(({ tk, raw }) => <li key={tk.id}><Amt raw={raw} denom={denomOfToken(tk)} /> <span className="t-small mw-dim">{t("mw.dn.atKey")}</span></li>)}
+              </ul>
+            )}
             <div className="mw-actions">
               <Key size="sm" icon="in" to="/wallet/mainnet/fund">{t("mw.home.fund")}</Key>
               <Key size="sm" icon="right" to={bal && bal.nano > 0n ? "/wallet/mainnet/withdraw" : undefined} disabled={!bal || bal.nano === 0n}>{t("mw.home.withdraw")}</Key>
@@ -76,6 +133,7 @@ export function HomeScreen() {
               <p className="t-small mw-dim">{t("mw.home.noReserve")}</p>
             )}
           </Card>
+          {tokenCards.map((tk) => <TokenReserveCard key={tk.id} token={tk} />)}
           <Card title={t("mw.home.recvT")}>
             <div className="mw-figure big"><b>{watch.length}</b><span className="t-small mw-dim">{t("mw.home.recvB")}</span></div>
             <div className="mw-actions">

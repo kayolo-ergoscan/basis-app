@@ -2,6 +2,9 @@
 // last receipt each one handed over. Kept per key in this browser (localStorage `basis.mainnet.watch.v1`), and sealed
 // into the backup file as its extras. Not secret, but private: it is never sent anywhere except as the pair route's
 // two keys.
+// An issuer's token notes are watched too once a receipt in that token is imported (`tokens`, absent for ERG only: an
+// ERG-only list is stored exactly as before). Each denomination keeps its own newest receipt; nothing is summed.
+import { isWalletDenom, type Denomination } from "../tx";
 import type { NoteReceipt } from "./receipt";
 
 export const WATCH_STORAGE_KEY = "basis.mainnet.watch.v1";
@@ -16,7 +19,15 @@ export interface WatchedIssuer {
   addedAt: number;
   /** The newest receipt from this issuer (verified when it was imported). */
   receipt: { total: string; timestamp: string; signature: string } | null;
+  /** Token denominations this issuer's notes are watched in, each with its newest receipt (raw units). */
+  tokens?: WatchedToken[];
 }
+
+type StoredReceipt = { total: string; timestamp: string; signature: string };
+export interface WatchedToken { denom: Denomination; receipt: StoredReceipt | null }
+
+/** The denominations an issuer is watched in: ERG first, then its tokens. */
+export const watchedDenoms = (w: WatchedIssuer): Denomination[] => ["erg", ...(w.tokens ?? []).map((x) => x.denom)];
 
 type Store = Record<string, WatchedIssuer[]>;
 
@@ -34,13 +45,27 @@ function clean(list: unknown): WatchedIssuer[] {
     const pk = typeof o.pk === "string" ? o.pk.toLowerCase() : "";
     if (!PK.test(pk) || seen.has(pk)) continue;
     seen.add(pk);
-    const r = o.receipt as Record<string, unknown> | null | undefined;
-    const receipt = r && typeof r === "object" && typeof r.total === "string" && NUM.test(r.total) && typeof r.timestamp === "string" && NUM.test(r.timestamp) && typeof r.signature === "string" && SIG.test(r.signature)
-      ? { total: r.total, timestamp: r.timestamp, signature: r.signature } : null;
-    out.push({ pk, name: typeof o.name === "string" && o.name.trim() ? o.name.trim().slice(0, 64) : null, addedAt: typeof o.addedAt === "number" && Number.isFinite(o.addedAt) ? o.addedAt : 0, receipt });
+    const receipt = cleanReceipt(o.receipt);
+    const tokens: WatchedToken[] = [];
+    if (Array.isArray(o.tokens)) {
+      for (const x of o.tokens) {
+        const tk = x as Record<string, unknown> | null;
+        const d = tk && typeof tk === "object" && typeof tk.denom === "string" ? tk.denom : "";
+        if (d === "erg" || !isWalletDenom(d) || tokens.some((y) => y.denom === d)) continue;
+        tokens.push({ denom: d, receipt: cleanReceipt(tk!.receipt) });
+      }
+    }
+    const w: WatchedIssuer = { pk, name: typeof o.name === "string" && o.name.trim() ? o.name.trim().slice(0, 64) : null, addedAt: typeof o.addedAt === "number" && Number.isFinite(o.addedAt) ? o.addedAt : 0, receipt };
+    out.push(tokens.length ? { ...w, tokens } : w);
     if (out.length >= WATCH_KEPT) break;
   }
   return out;
+}
+
+function cleanReceipt(v: unknown): StoredReceipt | null {
+  const r = v as Record<string, unknown> | null | undefined;
+  return r && typeof r === "object" && typeof r.total === "string" && NUM.test(r.total) && typeof r.timestamp === "string" && NUM.test(r.timestamp) && typeof r.signature === "string" && SIG.test(r.signature)
+    ? { total: r.total, timestamp: r.timestamp, signature: r.signature } : null;
 }
 
 export function parseWatchStore(text: string | null): Store {
@@ -60,12 +85,22 @@ export function watchIssuer(list: readonly WatchedIssuer[], me: string, pk: stri
   if (!PK.test(k) || k === me) return [...list];
   const old = list.find((x) => x.pk === k) ?? null;
   const r = o.receipt && o.receipt.issuer === k && o.receipt.recipient === me ? o.receipt : null;
-  const newer = r && (!old?.receipt || BigInt(old.receipt.timestamp) < r.timestamp);
+  const rd: Denomination = r?.denom ?? "erg";
+  const ergR = rd === "erg" ? r : null;
+  const newer = ergR && (!old?.receipt || BigInt(old.receipt.timestamp) < ergR.timestamp);
+  const stored = (x: NoteReceipt): StoredReceipt => ({ total: x.total.toString(), timestamp: x.timestamp.toString(), signature: x.signature });
+  let tokens = old?.tokens ? [...old.tokens] : [];
+  if (r && rd !== "erg") {
+    const prev = tokens.find((x) => x.denom === rd) ?? null;
+    const keep = prev?.receipt && BigInt(prev.receipt.timestamp) >= r.timestamp ? prev.receipt : stored(r);
+    tokens = [...tokens.filter((x) => x.denom !== rd), { denom: rd, receipt: keep }];
+  }
   const next: WatchedIssuer = {
     pk: k,
     name: o.name !== undefined ? (o.name && o.name.trim() ? o.name.trim().slice(0, 64) : null) : old?.name ?? null,
     addedAt: old?.addedAt ?? o.now ?? Date.now(),
-    receipt: newer && r ? { total: r.total.toString(), timestamp: r.timestamp.toString(), signature: r.signature } : old?.receipt ?? null,
+    receipt: newer && ergR ? stored(ergR) : old?.receipt ?? null,
+    ...(tokens.length ? { tokens } : {}),
   };
   return [next, ...list.filter((x) => x.pk !== k)].slice(0, WATCH_KEPT);
 }

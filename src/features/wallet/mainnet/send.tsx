@@ -17,11 +17,12 @@ export interface SendResult { entry: JournalEntry; problem: Problem | null }
 
 /** Signs (the key never leaves the vault's callback), records, then broadcasts the recorded bytes. Throws VaultError
  *  (locked, t1-exists, …) or the signer's "broadcast limit" Error before anything is recorded or sent. */
-export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", tx: UnsignedTx, inputs: readonly ErgoBox[], meta: Record<string, JournalMetaValue>, height: number, passphrase?: string): Promise<SendResult> {
+export async function signAndSend(vault: MainnetVault, kind: "t1" | "withdraw", tx: UnsignedTx, inputs: readonly ErgoBox[], meta: Record<string, JournalMetaValue>, height: number, passphrase?: string, denom?: string): Promise<SendResult> {
+  // a token T1 names its denomination twice (opts.denom and meta.denom): the vault refuses when they differ
   const entry = await vault.signToJournal(kind, (sk) => {
     const s = signP2pkTransaction(tx, inputs, sk);
     return { txId: s.txId, signedRaw: s.nodeJson, inputs: inputs.map((b) => b.boxId), meta, height };
-  }, { ...(passphrase ? { passphrase } : {}), ...(kind === "withdraw" ? { inputBoxes: inputs } : {}) });
+  }, { ...(passphrase ? { passphrase } : {}), ...(kind === "withdraw" ? { inputBoxes: inputs } : {}), ...(kind === "t1" && denom && denom !== "erg" ? { denom } : {}) });
   return send(vault, entry);
 }
 
