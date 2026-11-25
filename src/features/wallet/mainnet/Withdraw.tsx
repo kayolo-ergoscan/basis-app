@@ -15,7 +15,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
 import { Erg, Gate, ProblemText, TxReview, ergText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, TokensAfter, amtText, entryDenom, useDenom } from "./denom";
+import { Amt, DenomSwitch, TokensAfter, amtText, entryAmtText, entryDenom, useDenom } from "./denom";
 
 type Phase =
   | { k: "edit" }
@@ -162,7 +162,7 @@ export function WithdrawScreen() {
             </Card>
           </Gate>
           {recent.filter((e) => e.id !== (phase.k === "done" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.wd.progressT", { amount: amtText(amountOfMeta(e.meta.amount), entryDenom(e)) })}>
+            <Card key={e.id} title={t("mw.wd.progressT", { amount: entryAmtText(t, amountOfMeta(e.meta.amount), entryDenom(e)) })}>
               <EntryProgress vault={vault} entry={e} tip={height} />
             </Card>
           ))}

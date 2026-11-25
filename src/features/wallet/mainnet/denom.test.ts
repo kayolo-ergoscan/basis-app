@@ -2,7 +2,7 @@
 // P2PK(owner), every token (SigUSD, rsADA and any other the spent boxes held), never only the reserve's.
 import { describe, expect, it } from "vitest";
 import { FEE_TREE_HEX, TOKEN_RESERVE_TREE_HEX, p2pkTree, type UnsignedTx } from "@/mainnet/tx";
-import { backToKey, unknownDenomOf } from "./denom";
+import { UNKNOWN_DENOM, backToKey, entryAmtText, entryDenom, unknownDenomOf } from "./denom";
 
 const OWNER = `02${"4a".repeat(32)}`;
 const SIG = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
@@ -32,5 +32,21 @@ describe("a link's denomination the wallet does not know (review LOW-4)", () => 
     expect(unknownDenomOf("", "#to=02ab&amount=5&d=rsada")).toBeNull();
     // either place: a known query does not hide an unknown fragment
     expect(unknownDenomOf("?d=sigusd", "#d=nope")).toBe("nope");
+  });
+});
+
+describe("a journal entry's denomination (second review LOW-4)", () => {
+  const e = (denom?: unknown) => ({ meta: denom === undefined ? {} : { denom } });
+  it("ERG when absent or erg; a pinned token as itself; anything else unknown, never ERG", () => {
+    expect(entryDenom(e())).toBe("erg");
+    expect(entryDenom(e("erg"))).toBe("erg");
+    expect(entryDenom(e(`token:${SIG}`))).toBe(`token:${SIG}`);
+    expect(entryDenom(e(`token:${RSA}`))).toBe(`token:${RSA}`);
+    for (const bad of [`token:${"03".repeat(32)}`, `token:${SIG.toUpperCase()}`, "token:", "sigusd", "ERG", 7, null]) expect(entryDenom(e(bad))).toBe(UNKNOWN_DENOM);
+  });
+  it("an unknown entry's amount is never shown, only the words", () => {
+    const t = (k: string) => `<${k}>`;
+    expect(entryAmtText(t, 1_250n, UNKNOWN_DENOM)).toBe("<mw.dn.unknownAmt>");
+    expect(entryAmtText(t, 1_250n, `token:${SIG}`)).toMatch(/^12.50\sSigUSD$/);
   });
 });

@@ -24,7 +24,7 @@ import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { EntryProgress } from "./send";
 import { ChainLink, CopyReport, Erg, Gate, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
-import { Amt, DenomSwitch, amtText, entryDenom, useDenom } from "./denom";
+import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, entryAmtText, entryDenom, useDenom } from "./denom";
 
 /** The most inputs a token redemption's build may spend (the reserve and the tracker's fee boxes): each is read from /v1. */
 const TOKEN_REDEEM_MAX_INPUTS = 20;
@@ -87,7 +87,8 @@ function RedeemProgress({ e, first }: { e: JournalEntry; first?: Submitted }) {
   const [busy, setBusy] = useState(false);
   const issuer = typeof e.meta.issuer === "string" ? e.meta.issuer : null;
   const want = typeof e.meta.newRedeemed === "string" ? BigInt(e.meta.newRedeemed) : null;
-  const pair = useResource(issuer ? R.pair(issuer, e.pub, entryDenom(e)) : null, { everyMs: 60_000, enabled: e.state === "final" });
+  const ed = entryDenom(e);
+  const pair = useResource(issuer && ed !== UNKNOWN_DENOM ? R.pair(issuer, e.pub, ed) : null, { everyMs: 60_000, enabled: e.state === "final" });
   let synced = false;
   if (pair.value && want !== null) { try { synced = parseStoredNote(pair.value).amountRedeemed >= want; } catch { /* not yet */ } }
   const extra: StepItem[] = [{ id: "synced", label: t("mw.red.synced"), sub: e.state === "final" && !synced ? t("mw.red.syncedWait") : undefined, state: synced ? "done" : e.state === "final" ? "now" : "todo" }];
@@ -299,7 +300,7 @@ export function RedeemScreen() {
             <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "idle" }); }} disabled={phase.k === "working" || phase.k === "review" || phase.k === "sending"} />
           </header>
           {open.filter((e) => e.id !== (phase.k === "sent" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.red.progressT", { amount: amtText(BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}><RedeemProgress e={e} /></Card>
+            <Card key={e.id} title={t("mw.red.progressT", { amount: entryAmtText(t, BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}><RedeemProgress e={e} /></Card>
           ))}
           <Gate vault={vault} state={state} unlocked why={t("mw.red.unlockWhy")}>
             <Card title={t("mw.red.formT")}>

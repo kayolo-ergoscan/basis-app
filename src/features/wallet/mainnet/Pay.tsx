@@ -24,13 +24,14 @@ import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, ownReserveNow, useResource } from "./data";
 import { Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
-import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, useDenom } from "./denom";
+import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, denomQuery, entryDenom, useDenom } from "./denom";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
 export function receiptOf(e: JournalEntry): NoteReceipt | null {
   const m = e.meta;
   if (typeof m.to !== "string" || typeof m.total !== "string" || typeof m.ts !== "string" || typeof m.sig !== "string") return null;
   const denom = entryDenom(e);
+  if (denom === UNKNOWN_DENOM) return null; // no receipt for a denomination the wallet does not know
   return { nft: TRACKER_NFT, issuer: e.pub, recipient: m.to, total: BigInt(m.total), timestamp: BigInt(m.ts), signature: m.sig, ...(denom === "erg" ? {} : { denom }) };
 }
 
@@ -40,7 +41,8 @@ export function useNoteTracking(vault: MainnetVault, e: JournalEntry | null) {
   const uncertain = !!e && e.state === "signed" && e.sendAttempts > 0;
   const open = !!e && (e.state === "sent" || e.state === "mempool" || e.state === "confirmed" || uncertain);
   const to = e && typeof e.meta.to === "string" ? e.meta.to : null;
-  const pair = useResource(e && to ? R.pair(e.pub, to, entryDenom(e)) : null, { everyMs: 120_000, enabled: open });
+  const ed = e ? entryDenom(e) : UNKNOWN_DENOM;
+  const pair = useResource(e && to && ed !== UNKNOWN_DENOM ? R.pair(e.pub, to, ed) : null, { everyMs: 120_000, enabled: open });
   useEffect(() => {
     if (!e || !open || !pair.value) return;
     let n;
@@ -286,6 +288,7 @@ export function PayScreen() {
     if (!me || !e || !f || e.state !== "signed") return;
     setPhase({ k: "working" });
     const fd = entryDenom(e);
+    if (fd === UNKNOWN_DENOM) return setPhase({ k: "error", text: t("mw.dn.unknownAmt"), id: e.id });
     const chk = await net().pairNote(me.pub, f.to, { priority: "user", denom: fd });
     if (!chk.ok) return setPhase({ k: "error", problem: chk.problem, id: e.id });
     const n = readPair(chk.value);

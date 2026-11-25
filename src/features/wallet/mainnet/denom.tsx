@@ -70,8 +70,11 @@ export function DenomSwitch({ value, onChange, disabled, note, send }: { value: 
   );
 }
 
-/** An amount in its denomination, formatted like <Erg> (ERG: exactly <Erg>). */
-export function Amt({ raw, denom, sign, tone }: { raw: bigint; denom: Denomination; sign?: "favour" | "owe" | "none"; tone?: "up" | "alarm" | "metal" | "dim" }) {
+/** An amount in its denomination, formatted like <Erg> (ERG: exactly <Erg>). A journal entry's denomination the
+ *  wallet does not know shows no amount at all, only «unknown denomination» (second review LOW-4). */
+export function Amt({ raw, denom, sign, tone }: { raw: bigint; denom: EntryDenom; sign?: "favour" | "owe" | "none"; tone?: "up" | "alarm" | "metal" | "dim" }) {
+  const t = useT();
+  if (denom === UNKNOWN_DENOM) return <span className="mw-dim">{t("mw.dn.unknownAmt")}</span>;
   if (denom === "erg") return <Erg nano={raw} sign={sign} tone={tone} />;
   const dec = denomDecimals(denom);
   return <Num value={raw} decimals={dec} dp={dpOfUnits(raw, dec)} unit={denomSymbol(denom)} sign={sign ?? "auto"} tone={tone} reveal />;
@@ -80,6 +83,10 @@ export function Amt({ raw, denom, sign, tone }: { raw: bigint; denom: Denominati
 /** The same amount as text inside a sentence («12,5 SigUSD»). */
 export const amtText = (raw: bigint, denom: Denomination): string =>
   denom === "erg" ? ergText(raw) : `${units(raw, denomDecimals(denom), dpOfUnits(raw, denomDecimals(denom)))} ${denomSymbol(denom)}`;
+
+/** amtText for a journal entry's amount: no amount for a denomination the wallet does not know, only the words. */
+export const entryAmtText = (t: (k: string) => string, raw: bigint, denom: EntryDenom): string =>
+  denom === UNKNOWN_DENOM ? t("mw.dn.unknownAmt") : amtText(raw, denom);
 
 /**
  * Whether the tracker takes reserves in this token now (GET /config/reserve-collateral lists it, and the token
@@ -111,9 +118,20 @@ export function NotServed({ served, denom }: { served: Served; denom: Denominati
 /** The token of a denomination this screen works in (null: ERG). Unknown tokens never reach here (useDenom). */
 export const tokenOf = (d: Denomination): ReserveToken | null => reserveTokenOf(d) ?? null;
 
-/** The denomination a journal entry records (meta.denom; absent: ERG, as every entry before token reserves). */
-export const entryDenom = (e: { meta: Readonly<Record<string, unknown>> }): Denomination =>
-  (typeof e.meta.denom === "string" && e.meta.denom.startsWith("token:") ? (e.meta.denom as Denomination) : "erg");
+/** A journal entry's denomination the wallet does not know: a `meta.denom` that is not ERG, SigUSD or rsADA. */
+export const UNKNOWN_DENOM = "unknown" as const;
+export type EntryDenom = Denomination | typeof UNKNOWN_DENOM;
+
+/**
+ * The denomination a journal entry records (meta.denom; absent: ERG, as every entry before token reserves). Anything
+ * else than ERG or a pinned token's `token:<id>` is UNKNOWN_DENOM (second review LOW-4): never read as ERG, never
+ * shown with an amount, never asked of the tracker.
+ */
+export function entryDenom(e: { meta: Readonly<Record<string, unknown>> }): EntryDenom {
+  const d = e.meta.denom;
+  if (d === undefined || d === "erg") return "erg";
+  return typeof d === "string" && reserveTokenOf(d) ? (d as Denomination) : UNKNOWN_DENOM;
+}
 
 /**
  * Tokens after an ERG amount in a review row (" · 47.50 SigUSD · 150 rsADA · 1 other token"): SigUSD and rsADA in

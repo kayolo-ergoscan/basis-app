@@ -27,7 +27,7 @@ import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
 import { BackLink, ChainLink, Erg, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
-import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryDenom, tokenOf, useDenom, useServed } from "./denom";
+import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryAmtText, entryDenom, tokenOf, useDenom, useServed } from "./denom";
 
 type Phase =
   | { k: "edit"; notice?: string }
@@ -380,7 +380,7 @@ function TopUpForm() {
           )}
 
           {recent.filter((e) => e.id !== (phase.k === "done" ? phase.id : "")).map((e) => (
-            <Card key={e.id} title={t("mw.top.progressT", { amount: amtText(BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}>
+            <Card key={e.id} title={t("mw.top.progressT", { amount: entryAmtText(t, BigInt(String(e.meta.amount ?? "0")), entryDenom(e)) })}>
               <EntryProgress vault={vault} entry={e} tip={height} />
             </Card>
           ))}
