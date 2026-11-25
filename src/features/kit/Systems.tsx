@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { openCommandBar } from "@/app/commands";
 import { rich, useLang, useT } from "@/app/lang";
 import {
-  BacksBar, Bytes, CapBar, Card, Cluster, Coin, Col, Grid, CommandBar, CoverageMeter, CoverageTag, Dial, Empty, EclipseCard, Engraving, ErrorState,
+  BacksBar, Bytes, CapBar, Card, Cluster, Coin, Col, Grid, CommandBar, CoverageMeter, CoverageTag, Dial, Empty, EclipseCard, ErrorState,
   Faces, FaceTabs, Graph, Heartbeat, Key, Lamp, Loading, MiniCap, PolicySentence, ReserveCard, Section, Sheet, Spread, Stack, Tag, Toast,
-  TrackerCard, be, money, short, toast, trackerBand, useLens, type GraphNode, type PolicyPill, type ToastKind,
+  TrackerCard, be, money, short, toast, trackerBand, useLens, type GraphNode, type PolicyPill, type ToastKind, WindowLoader,
 } from "@/ui";
 import { NEVER } from "./copy";
 import { DIGEST, GRAPH_EDGES, GRAPH_LOOPS, GRAPH_NODES, KEY_AB, NOTE_AB, PK, SIGS_AB, TRACKER_NFT, bigTown } from "./data";
@@ -201,9 +201,9 @@ export function StatesSection() {
         <Spec tag="<Empty title text action>" name={t("kit.st.empty")}>
           <Card flush><Empty title={t("kit.st.empty.t")} text={t("kit.st.empty.b")} action={{ label: t("kit.st.empty.a"), to: "/play" }} /></Card>
         </Spec>
-        <Spec tag="<Loading label seed> <Engraving>" name={t("kit.st.loading")} note={t("kit.st.loading.n")}>
+        <Spec tag="<Loading label seed> <WindowLoader>" name={t("kit.st.loading")} note={t("kit.st.loading.n")}>
           <Card><Loading label={t("ui.loading")} seed="Eve>Bob" /></Card>
-          <div className="kit-row" style={{ marginTop: 12 }}><Engraving seed="a" size={48} /><Engraving seed="b" size={64} /></div>
+          <div className="kit-row" style={{ marginTop: 12 }}><WindowLoader size={48} /><WindowLoader size={64} /></div>
         </Spec>
         <Spec tag="<ErrorState title text onRetry detail>" name={t("kit.st.error")}>
           <ErrorState key={err} title={t("kit.st.error.t")} text={t("kit.st.error.b")} onRetry={() => { setErr((n) => n + 1); toast(t("kit.st.error.retry")); }} retryLabel={t("ui.retry")} detail="GET /v1/info → 502 Bad Gateway" />
