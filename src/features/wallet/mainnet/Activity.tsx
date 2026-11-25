@@ -1,5 +1,5 @@
-// /wallet/mainnet/activity — the journal of this key: every signed T1, top-up, refund step, note, redemption and
-// withdrawal, newest first,
+// /wallet/mainnet/activity — the journal of this key: every signed T1, top-up, refund step, note (with its receipt link
+// again, once the tracker took it), redemption and withdrawal, newest first,
 // with its state, its id on ergoscan.me, and the actions an open entry offers (send the same bytes again, discard one
 // that was provably never sent). The journal lives in this browser only. Each amount is in its entry's own
 // denomination (meta.denom: ERG when absent); a denomination filter shows one at a time, nothing is summed.
@@ -11,6 +11,7 @@ import { WALLET_DENOMS, denomSymbol, p2pkAddress, type Denomination } from "@/ma
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
 import { submitEntry } from "./Redeem";
+import { ReceiptCard, receiptOf } from "./Pay";
 import { ChainLink } from "./ui";
 import { Amt, entryDenom } from "./denom";
 
@@ -30,6 +31,7 @@ function Row({ e }: { e: JournalEntry }) {
   const t = useT();
   const { vault, height } = useMw();
   const [open, setOpen] = useState(false);
+  const receipt = open && e.kind === "note" && e.state !== "failed" && e.state !== "signed" && e.state !== "abandoned" ? receiptOf(e) : null;
   const who = e.kind === "note" ? String(e.meta.to ?? "") : e.kind === "redeem" ? String(e.meta.issuer ?? "") : e.kind === "withdraw" ? String(e.meta.to ?? "") :
     e.kind === "topup" && e.meta.own === false ? addressOf(String(e.meta.owner ?? "")) : "";
   return (
@@ -45,7 +47,11 @@ function Row({ e }: { e: JournalEntry }) {
       {open && (
         <div className="mw-act-b">
           {e.kind === "note" ? (
-            <p className="t-small">{t("mw.act.noteLine", { total: String(e.meta.total ?? "—"), ts: String(e.meta.ts ?? "—") })}</p>
+            <>
+              <p className="t-small">{t("mw.act.noteLine", { total: String(e.meta.total ?? "—"), ts: String(e.meta.ts ?? "—") })}</p>
+              {/* the receipt of a note the tracker took, again: the receiver imports it to see and redeem the note */}
+              {receipt && <ReceiptCard r={receipt} />}
+            </>
           ) : (
             <EntryProgress vault={vault} entry={e} tip={height} />
           )}
