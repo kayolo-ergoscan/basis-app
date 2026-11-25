@@ -1,7 +1,7 @@
 // Shell chrome: top nav (VISUAL §12.12), menu sheet (≤ 1280), phone tab bar, pre-launch banner, live tape, footer.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { BrandSeal } from "@/ui/components/Seal";
+import { BrandMark, Skyline } from "@/ui/components/Town";
 import { Icon, type IconName } from "@/ui/components/Icon";
 import { Chip, Lamp, Seg } from "@/ui/components/primitives";
 import { Sheet } from "@/ui/components/Sheet";
@@ -20,11 +20,9 @@ export const iconOf = (id: string, icon?: string): IconName => (icon as IconName
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 export const MOD = isMac ? "⌘" : "Ctrl";
 
-/** The wordmark "Basis" with the i-dot as the pulse point. */
+/** The wordmark "Basis" (the mark beside it carries the pulse). */
 function Wordmark() {
-  const dot = useRef<HTMLElement>(null);
-  usePulseClass(dot);
-  return <span className="wordmark" aria-hidden="true">Bas<span className="i">ı<b className="idot" ref={dot} /></span>s</span>;
+  return <span className="wordmark" aria-hidden="true">Basis</span>;
 }
 
 /** Live Ergo height: lamp pings once per new block; the chip is part of the pulse. */
@@ -80,7 +78,7 @@ export function Nav() {
     <header className="nav">
       <div className="container">
         <Link className="brand" to="/" aria-label={t("app.brand.home")}>
-          <BrandSeal />
+          <BrandMark />
           <Wordmark />
           <span className="brand-sub">{t("app.brand.sub")}</span>
         </Link>
@@ -103,7 +101,7 @@ export function Nav() {
           <button type="button" className="key sm quiet icon-only menu-k" onClick={() => setMenu(true)} aria-label={t("app.menu")} aria-expanded={menu}><Icon name="menu" /></button>
         </div>
       </div>
-      <Sheet open={menu} onClose={() => setMenu(false)} title={<span className="cluster" style={{ "--gap": "10px" } as CSSProperties}><BrandSeal pulse={false} />Basis</span>} ariaLabel={t("app.menu")} width={380}>
+      <Sheet open={menu} onClose={() => setMenu(false)} title={<span className="cluster menu-brand" style={{ "--gap": "10px" } as CSSProperties}><BrandMark pulse={false} size={26} />Basis</span>} ariaLabel={t("app.menu")} width={380}>
         <nav className="menu-links" aria-label={t("nav.primary")}>
           {NAV.map((r) => (
             <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive || inRoute(r, loc.pathname) ? "on" : undefined)}>
@@ -202,9 +200,10 @@ export function Footer() {
   const t = useT();
   return (
     <footer className="foot">
+      <Skyline className="foot-town" seed={11} height={110} />
       <div className="container">
         <div className="f-brand">
-          <span className="cluster" style={{ "--gap": "10px" } as CSSProperties}><BrandSeal pulse={false} size={24} /><b>Basis</b><span className="mono" style={{ fontSize: 11 }}>{t("app.footer.unofficial")}</span></span>
+          <span className="cluster" style={{ "--gap": "10px" } as CSSProperties}><BrandMark pulse={false} size={24} /><b className="f-word">Basis</b><span className="f-unoff">{t("app.footer.unofficial")}</span></span>
           <span>{t("app.footer.line")}</span>
           <span>{t("app.footer.prelaunch")}</span>
         </div>
