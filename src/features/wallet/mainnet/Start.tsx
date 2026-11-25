@@ -1,14 +1,18 @@
 // /wallet/mainnet/setup — the mainnet key (design §4, D4 = K1): create one (a random 32-byte key, encrypted with the
 // passphrase), download the backup file and prove it by loading it back (mandatory before funding and before any
-// signature), or restore from a backup file, or (for experts) import a hex key. No seed words anywhere.
-import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+// signature), or restore from a backup file, or bring in an existing key: from the seed phrase of Nautilus or another
+// Ergo wallet (EIP-3, one chosen address), or (for experts) as hex. The wallet itself makes no seed words and keeps none.
+// One key per browser: a key already here is never replaced (the vault refuses, and the screen says where a second
+// key goes).
+import { forwardRef, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, TextInput } from "@/ui";
-import { VAULT, checkPassphrase, parseBackup, type BackupExtras } from "@/mainnet/vault";
+import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short } from "@/ui";
+import { SEED_MAX_INDEX, VAULT, checkPassphrase, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
 import { watchExtras, watchIssuer } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
 import { useMw } from "./ctx";
 import { useWatchList } from "./data";
+import { findExpected, importSeedKey, listSeedKeys, type SeedFields } from "./seedflow";
 import { Steps, UnlockCard, cx, useVaultError } from "./ui";
 
 const MAX_FILE = 256 * 1024;
@@ -51,7 +55,7 @@ function Strength({ pass }: { pass: string }) {
 }
 
 /** Passphrase twice, the meter, and "I understand". */
-function NewPassphrase({ onSubmit, busy, label, extra }: { onSubmit: (p: string) => void; busy: boolean; label: string; extra?: ReactNode }) {
+function NewPassphrase({ onSubmit, busy, label, extra, understand }: { onSubmit: (p: string) => void; busy: boolean; label: string; extra?: ReactNode; understand?: string }) {
   const t = useT();
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
@@ -69,7 +73,7 @@ function NewPassphrase({ onSubmit, busy, label, extra }: { onSubmit: (p: string)
       <Field label={t("mw.pass.again")} error={mismatch ? t("mw.pass.mismatch") : undefined}>
         <TextInput type="password" autoComplete="new-password" value={p2} onChange={setP2} />
       </Field>
-      <Switch checked={ok} onChange={setOk} label={t("mw.start.understand")} />
+      <Switch checked={ok} onChange={setOk} label={understand ?? t("mw.start.understand")} />
       <Key variant="primary" type="submit" block disabled={!ready}>{busy ? t("mw.start.deriving") : label}</Key>
     </form>
   );
@@ -176,6 +180,204 @@ function ImportHex() {
       <NewPassphrase busy={busy} label={t("mw.start.import")} onSubmit={(p) => void go(p)} />
     </>
   );
+}
+
+// keys review P2-5 for the seed words too: the words and the mnemonic password live only in these two fields (the DOM,
+// never React state), drawn as dots, outside the passphrase form, marked for password managers, spell checkers and
+// writing aids to skip (a cloud spell check would send the words away)
+const SKIP = {
+  autoComplete: "off", autoCapitalize: "off", autoCorrect: "off", spellCheck: false,
+  "data-1p-ignore": "", "data-lpignore": "true", "data-bwignore": "", "data-form-type": "other",
+  "data-gramm": "false", "data-gramm_editor": "false", "data-enable-grammarly": "false",
+} as const;
+
+interface SecretProps { id?: string; "aria-describedby"?: string; invalid?: boolean; shown: boolean; onInput: () => void; trailing: ReactNode }
+
+const SecretWords = forwardRef<HTMLTextAreaElement, SecretProps>(function SecretWords({ id, invalid, shown, onInput, trailing, ...aria }, ref) {
+  return (
+    <div className={cx("input mono area mw-seed-words", invalid && "err", !shown && "mw-masked")}>
+      <textarea ref={ref} id={id} aria-describedby={aria["aria-describedby"]} aria-invalid={invalid || undefined} rows={3} name="basis-seed-import" onInput={onInput} {...SKIP} />
+      {trailing}
+    </div>
+  );
+});
+
+const SecretLine = forwardRef<HTMLInputElement, SecretProps>(function SecretLine({ id, invalid, shown, onInput, trailing, ...aria }, ref) {
+  return (
+    <div className={cx("input text", invalid && "err", !shown && "mw-masked")}>
+      <input ref={ref} type="text" id={id} aria-describedby={aria["aria-describedby"]} aria-invalid={invalid || undefined} name="basis-seed-extra" onInput={onInput} {...SKIP} />
+      {trailing}
+    </div>
+  );
+});
+
+const FIRST_SHOWN = 5;
+const MORE_STEP = 10;
+
+/** From the seed phrase of Nautilus or another Ergo wallet: the words → addresses 0–49 → the chosen key, through
+ *  vault.importHex under a new Basis passphrase. */
+function ImportSeed() {
+  const t = useT();
+  const { vault } = useMw();
+  const verr = useVaultError();
+  const wordsEl = useRef<HTMLTextAreaElement>(null);
+  const passEl = useRef<HTMLInputElement>(null);
+  const [shown, setShown] = useState(false);
+  const [passShown, setPassShown] = useState(false);
+  // public only: indexes, public keys, addresses
+  const [keys, setKeys] = useState<SeedKey[] | null>(null);
+  const [problem, setProblem] = useState<SeedProblem | null>(null);
+  const [upto, setUpto] = useState(FIRST_SHOWN);
+  const [pick, setPick] = useState<number | null>(null);
+  const [expected, setExpected] = useState("");
+  const [busy, setBusy] = useState<"list" | "import" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const fields = useMemo<SeedFields>(() => ({
+    words: () => wordsEl.current?.value ?? "",
+    password: () => passEl.current?.value ?? "",
+    clear: () => {
+      if (wordsEl.current) wordsEl.current.value = "";
+      if (passEl.current) passEl.current.value = "";
+    },
+  }), []);
+  const forget = () => {
+    setKeys(null);
+    setProblem(null);
+    setPick(null);
+    setUpto(FIRST_SHOWN);
+    setErr(null);
+  };
+  // leaving this screen (another tab of it, another page, the page itself) empties both fields
+  useEffect(() => {
+    const w = wordsEl.current;
+    const p = passEl.current;
+    const clear = () => {
+      if (w) w.value = "";
+      if (p) p.value = "";
+    };
+    const hide = () => { clear(); forget(); };
+    addEventListener("pagehide", hide);
+    return () => { removeEventListener("pagehide", hide); clear(); };
+  }, []);
+  const match = keys ? findExpected(keys, expected) : null;
+  const found = match?.k === "found" ? match.key.index : null;
+  const shownUpto = Math.min(SEED_MAX_INDEX, Math.max(upto, found !== null ? found + 1 : 0, pick !== null ? pick + 1 : 0));
+  const picked = keys && pick !== null ? keys[pick] ?? null : null;
+
+  const list = async () => {
+    setBusy("list");
+    setErr(null);
+    try {
+      const r = await listSeedKeys(fields);
+      if (!r.ok) {
+        forget();
+        setProblem(r.problem);
+        return;
+      }
+      setProblem(null);
+      setKeys(r.keys);
+      setUpto(FIRST_SHOWN);
+      const m = findExpected(r.keys, expected);
+      setPick(m.k === "found" ? m.key.index : null);
+    } catch (e) { setErr(verr(e)); } finally { setBusy(null); }
+  };
+  const go = async (pass: string) => {
+    if (!picked) return;
+    setBusy("import");
+    setErr(null);
+    try {
+      const r = await importSeedKey(vault, fields, picked, pass);
+      if (!r.ok) {
+        forget();
+        setErr(t("mw.start.seed.changed"));
+        return;
+      }
+      // the key is in: the backup steps follow (this form goes away); nothing is kept
+      forget();
+      setExpected("");
+    } catch (e) { setErr(verr(e)); } finally { setBusy(null); }
+  };
+  const problemText = problem
+    ? problem.reason === "word" ? t("mw.start.seed.word", { n: problem.at }) : problem.reason === "count" ? t("mw.start.seed.count", { n: problem.count }) : t(`mw.start.seed.${problem.reason}`)
+    : undefined;
+  const toggle = (on: boolean, set: (v: boolean) => void) => (
+    <button type="button" className="key sm quiet" aria-pressed={on} onClick={() => set(!on)}>{on ? t("mw.set.hexHide") : t("mw.start.hexShow")}</button>
+  );
+  return (
+    <>
+      <p className="t-body">{t("mw.start.seedB")}</p>
+      <Field label={t("mw.start.seedLabel")} help={t("mw.start.seedHelp")} error={problemText}>
+        <SecretWords ref={wordsEl} shown={shown} onInput={forget} trailing={toggle(shown, setShown)} />
+      </Field>
+      <Field label={t("mw.start.seedPassL")} help={t("mw.start.seedPassHelp")}>
+        <SecretLine ref={passEl} shown={passShown} onInput={forget} trailing={toggle(passShown, setPassShown)} />
+      </Field>
+      <div className="mw-actions">
+        <Key variant={keys ? "default" : "primary"} onClick={() => void list()} disabled={busy !== null}>{busy === "list" ? t("mw.start.seedListing") : keys ? t("mw.start.seedRelist") : t("mw.start.seedList")}</Key>
+        <Key variant="quiet" onClick={() => { fields.clear(); forget(); setExpected(""); }} disabled={busy !== null}>{t("mw.start.seedClear")}</Key>
+      </div>
+      {keys && (
+        <div className="mw-form">
+          <Field label={t("mw.start.seedExpectL")} help={t("mw.start.seedExpectHelp", { n: SEED_MAX_INDEX - 1 })} error={match?.k === "bad" ? t(`mw.pay.to.${match.reason}`) : undefined}>
+            <TextInput mono value={expected} onChange={(v) => {
+              setExpected(v);
+              const m = findExpected(keys, v);
+              if (m.k === "found") setPick(m.key.index);
+            }} placeholder="9…" autoComplete="off" autoCapitalize="off" autoCorrect="off" />
+          </Field>
+          {match?.k === "found" && <Callout tone="proof">{t("mw.start.seedFound", { n: match.key.index })}</Callout>}
+          {match?.k === "none" && (
+            <Callout tone="info" title={t("mw.start.seedNoneT", { n: SEED_MAX_INDEX - 1 })}>
+              <p>{t("mw.start.seedNoneB")}</p>
+              <ul className="mw-facts mw-facts-tight">
+                <li>{t("mw.start.seedNone1")}</li>
+                <li>{t("mw.start.seedNone2")}</li>
+                <li>{t("mw.start.seedNone3")}</li>
+              </ul>
+            </Callout>
+          )}
+          <fieldset className="mw-seedpick">
+            <legend className="label">{t("mw.start.seedPick")}</legend>
+            <p className="t-small mw-dim">{t("mw.start.seedPickHelp")}</p>
+            <ul className="mw-seedlist">
+              {keys.slice(0, shownUpto).map((k) => (
+                <li key={k.index}>
+                  <label className={cx("mw-seedrow", pick === k.index && "on")}>
+                    <input type="radio" name="basis-seed-pick" checked={pick === k.index} onChange={() => setPick(k.index)} />
+                    <span className="mw-seedrow-i mono">{k.index}</span>
+                    <KeySeal pk={k.pub} size="sm" />
+                    <span className="mono t-small mw-break">{k.address}</span>
+                    {found === k.index && <Tag tone="ok">{t("mw.start.seedMatchTag")}</Tag>}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {shownUpto < SEED_MAX_INDEX && (
+              <button type="button" className="textlink t-small" onClick={() => setUpto(Math.min(SEED_MAX_INDEX, shownUpto + MORE_STEP))}>
+                {t("mw.start.seedMore", { n: Math.min(MORE_STEP, SEED_MAX_INDEX - shownUpto) })}
+              </button>
+            )}
+          </fieldset>
+        </div>
+      )}
+      {picked && (
+        <>
+          <Callout tone="policy" title={t("mw.start.seedWarnT")}>
+            <p>{t("mw.start.seedWarnB", { addr: short(picked.address, 8, 6), n: picked.index })}</p>
+            <p>{t("mw.start.seedWarnWords")}</p>
+          </Callout>
+          <NewPassphrase busy={busy === "import"} label={t("mw.start.seedImport")} understand={t("mw.start.seedUnderstand")} onSubmit={(p) => void go(p)} />
+        </>
+      )}
+      {err && <Callout tone="alarm">{err}</Callout>}
+    </>
+  );
+}
+
+/** One key per browser: what to do for a second one (the vault never replaces a key). */
+export function OneKeyNote({ address }: { address: string }) {
+  const t = useT();
+  return <Callout tone="info" title={t("mw.start.oneKeyT")}>{t("mw.start.oneKeyB", { addr: short(address, 8, 6) })}</Callout>;
 }
 
 /** Key made, not yet backed up: download the file, then load it back with the passphrase. */
@@ -299,7 +501,7 @@ function Done() {
   );
 }
 
-type Mode = "create" | "restore" | "hex";
+type Mode = "create" | "restore" | "seed" | "hex";
 
 export function StartScreen() {
   const t = useT();
@@ -313,12 +515,13 @@ export function StartScreen() {
     body = (
       <>
         <Seg ariaLabel={t("mw.start.modeAria")} value={mode} onChange={setMode}
-          options={[{ value: "create", label: t("mw.start.tab.create") }, { value: "restore", label: t("mw.start.tab.restore") }, { value: "hex", label: t("mw.start.tab.hex") }]} />
-        {mode === "create" ? <CreateKey /> : mode === "restore" ? <RestoreFile onExtras={setExtras} /> : <ImportHex />}
+          options={[{ value: "create", label: t("mw.start.tab.create") }, { value: "restore", label: t("mw.start.tab.restore") }, { value: "seed", label: t("mw.start.tab.seed") }, { value: "hex", label: t("mw.start.tab.hex") }]} />
+        {mode === "create" ? <CreateKey /> : mode === "restore" ? <RestoreFile onExtras={setExtras} /> : mode === "seed" ? <ImportSeed /> : <ImportHex />}
       </>
     );
   } else if (!state.backedUp) body = <BackupSteps />;
   else body = <Done />;
+  const oneKey = (state.status === "locked" || state.status === "unlocked") && state.key ? <OneKeyNote address={state.key.address} /> : null;
   const shownExtras = extras && me && (extras.watchedIssuers?.length ?? 0) > 0 ? extras : null;
   return (
     <div className="mw-start">
@@ -326,6 +529,7 @@ export function StartScreen() {
       <Card className="mw-start-card">
         <div className="mw-form">
           {body}
+          {oneKey}
           {shownExtras && me && (
             <Callout tone="info" title={t("mw.start.extrasT", { n: shownExtras.watchedIssuers!.length })}>
               <p>{t("mw.start.extrasB")}</p>

@@ -130,8 +130,23 @@
 .mw-secret.on { display: grid; }
 .mw-secret code { font: 500 14px/1.5 var(--f-mono); color: var(--ink); user-select: all; }
 /* the hex import field: a text field drawn as dots (keys review P2-5); blurred where dots are not supported */
-.mw-masked input { -webkit-text-security: disc; }
-@supports not (-webkit-text-security: disc) { .mw-masked input { filter: blur(5px); } }
+.mw-masked :is(input, textarea) { -webkit-text-security: disc; }
+@supports not (-webkit-text-security: disc) { .mw-masked :is(input, textarea) { filter: blur(5px); } }
+/* the seed import: the words' well grows with them; the trailing key stays at the top */
+.mw-seed-words { align-items: flex-start; }
+.mw-seed-words textarea { min-height: 84px; resize: vertical; }
+.mw-seed-words > .key { margin-top: 10px; }
+.mw-seedpick { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
+.mw-seedpick legend { padding: 0; margin-bottom: 4px; }
+.mw-seedlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mw-seedrow { display: grid; grid-template-columns: auto 26px auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.mw-seedrow:hover { background: var(--well); }
+.mw-seedrow.on { background: var(--well); box-shadow: 0 0 0 1px var(--rule-2) inset; }
+.mw-seedrow:has(input:focus-visible) { box-shadow: var(--focus-halo); }
+.mw-seedrow > .mono { font-size: 12px; letter-spacing: 0; }
+.mw-seedrow input { margin: 0; accent-color: var(--ink); }
+.mw-seedrow-i { font-size: 12.5px; color: var(--ink-3); text-align: right; }
+@media (max-width: 480px) { .mw-seedrow { grid-template-columns: auto 22px auto minmax(0, 1fr); } .mw-seedrow .tag { grid-column: 4; justify-self: start; } }
 
 /* the sandbox/mainnet switch sits in the top bar here */
 .mw-top .wl-mode { margin: 0; }

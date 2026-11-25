@@ -10,7 +10,7 @@ import { watchExtras } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
 import { useMw } from "./ctx";
 import { forgetWatchList, useWatchList } from "./data";
-import { Persistence } from "./Start";
+import { OneKeyNote, Persistence } from "./Start";
 import { Gate, useVaultError } from "./ui";
 
 const HEX_SHOWN_MS = 60_000;
@@ -189,6 +189,7 @@ export function SettingsScreen() {
         <aside className="mw-side">
           <Callout tone="policy" title={t("mw.set.whereT")}>{t("mw.warn.key")} {t("mw.warn.storage")}</Callout>
           <Callout tone="calm">{t("mw.set.noSeed")}</Callout>
+          {key && <OneKeyNote address={key.address} />}
         </aside>
       </div>
     </Gate>
