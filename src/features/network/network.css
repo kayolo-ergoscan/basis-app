@@ -745,3 +745,8 @@
 .nw-status .sep { color: var(--ink-3); }
 .nw-hero.nw-about { align-items: center; }
 .nw-hero.nw-about .t-lede { margin: 0; }
+@media (max-width: 640px) {
+  .nw-status { display: grid; gap: 4px; }
+  .nw-status .sep { display: none; }
+}
+.nw-status .lamp { margin-right: 6px; vertical-align: 1px; }

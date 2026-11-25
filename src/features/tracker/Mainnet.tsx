@@ -13,7 +13,7 @@ import {
   type KeyDenomination, type KeyStatus, type OurEvent, type OurStatus, type OurView, type TrackedReserve,
 } from "@/chain";
 import {
-  blk, Card, CopyButton, CoverageTag, Dial, Digest, Empty, Field, Honest, Icon, int, Key, KeySeal, Lamp, PageHead, ratioPct, Section,
+  blk, blockWord, Card, CopyButton, CoverageTag, Dial, Digest, Empty, Field, Honest, Icon, int, Key, KeySeal, Lamp, PageHead, ratioPct, Section,
   short, Table, Tape, TextInput, TrackerTile, units, useIsPhone, usePulseClass, type Column, type LampState, type TapeEvent,
 } from "@/ui";
 import { HeadActions, htime, md, ModeSwitch } from "./parts";
@@ -128,7 +128,7 @@ function TrackerLead({ v }: { v: OurView }) {
         </div>
         <div>
           <dt>{t("tracker.m.lead.exit")}</dt>
-          <dd className="v">{em ? (em.open ? t("tracker.m.lead.exitOpen") : blk(em.blocksLeft, lang)) : DASH}</dd>
+          <dd className="v">{em ? (em.open ? t("tracker.m.lead.exitOpen") : <>{int(em.blocksLeft)}<span className="u">{blockWord(em.blocksLeft, lang)}</span></>) : DASH}</dd>
           <dd className="s">{t("tracker.m.dialLeft")}</dd>
         </div>
       </dl>

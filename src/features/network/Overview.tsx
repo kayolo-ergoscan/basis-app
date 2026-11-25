@@ -76,9 +76,8 @@ function StatusLine({ obs }: { obs: Observatory }) {
   const src = totalsSource(obs);
   const n = obs.detector.found.filter((b) => b.unspent).length;
   return (
-    <p className="nw-status" role="status">
-      <Lamp state={obs.heightLive ? "live" : "stale"} size={8} />
-      <span>{t("network.ov.statusBlock", { h: fmtH(obs.height) })} <span className="dim">({obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })})</span></span>
+    <p className="nw-status">
+      <span><Lamp state={obs.heightLive ? "live" : "stale"} size={8} /> {t("network.ov.statusBlock", { h: fmtH(obs.height) })} <span className="dim">({obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })})</span></span>
       <span className="sep" aria-hidden="true">·</span>
       <span>{src === "checking" ? t("chain.checking") : `${n} ${t.p("network.det.count", n)}`}</span>
       <span className="sep" aria-hidden="true">·</span>
