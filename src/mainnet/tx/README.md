@@ -35,6 +35,9 @@ Import from `src/mainnet/tx` (the `index.ts` barrel). Inside the repo, use **rel
 | `contract.ts` | **L2**: `loadContractAvl`, `checkRedemptionContract`, `checkReserveContract`, `checkReserveActionContract` |
 | `reserveaction.ts` | The reserve's own actions (basis.es #1–#3): `readReserve`, `refundClock`, `buildTopUp`, `buildRefundStart`, `buildRefundComplete`, `checkReserveAction` (L1), `signReserveAction`, `verifyReserveAction`, `actionVar` |
 | `p2pk.ts` | T1 and Withdraw: `selectCoins`, `planReserveCreation`, `parseReservePayload`, `checkReservePayload`, `buildReserveCreation`, `checkReserveCreation`, `buildWithdraw`, `checkWithdraw`, `signP2pkTransaction`, `verifyP2pkTransaction`, `P2PK_MAX_INPUTS` |
+| `tokens.ts` | Token reserves (basis-token.es): `TOKEN_RESERVE_TREE_HEX`, `SIGUSD`, `RSADA`, `reserveTokenById`, the `Denomination` helpers |
+| `tokenreserve.ts` | Token T1: `selectTokenCoins`, `checkTokenReservePayload`, `planTokenReserveCreation`, `buildTokenReserveCreation`, `checkTokenReserveCreation` |
+| `tokenwithdraw.ts` | Token Withdraw: `buildTokenWithdraw`, `checkTokenWithdraw` (the plan is `planTokenWithdraw` in `flows/coins.ts`) |
 | `devfixture.ts` | **Dev builds only.** `saveDevFixture(name, text)` saves a raw tracker answer to `/root/basis/qa/fixtures/` during the closed wallet canary (see "Raw answers from the canary"). `devFixtureHandler` is the dev server's half, wired in `vite.config.ts`. |
 | `testkit.ts` | **Tests and UI fixtures only, never in production code.** `syntheticRedemption()`, `trackerBuildResponse()`, `trackerRefusal()`, `p2pkBox()`, `reserveBox()`, `secretBytes()` |
 | `fixtures/` | Mainnet JSON, saved byte for byte (see `fixtures/chain.ts`), R3's rebuilt build answer (`fixtures/r3-build.ts`), and R3's dry-run `unsigned_tx` as the canary printed it (a shape fixture, not a span fixture) |
@@ -164,6 +167,11 @@ const combine = tx.buildWithdraw({ owner, inputs: batch, to: tx.p2pkAddress(owne
 `buildWithdraw({ owner, inputs, to, amount, fee, height })` gives `[destination, change?, fee]`. `checkWithdraw` checks it, then `signP2pkTransaction` signs it.
 - **`to`:** a mainnet P2PK or P2S address. The reserve contract, the fee contract, P2SH and testnet addresses are refused.
 - **Tokens** stay with the owner, in the change output.
+
+A token Withdraw (SigUSD, rsADA): `buildTokenWithdraw({ owner, inputs, to, token, amount, ergValue, fee, height })` gives
+`[destination, change?, fee]`; the destination holds 0.001 ERG (plus any ERG dust) and exactly `amount` of the token,
+the change every other token and the rest of this one. `checkTokenWithdraw` checks it like `checkWithdraw`, with `to` a
+mainnet P2PK only (both reserve contracts, the fee contract and scripts refused) and per token id in = out.
 
 ## Top-up and refund (basis.es actions 1, 2, 3)
 
@@ -298,3 +306,5 @@ Once a build answer is saved, it becomes the raw-span golden. Test it for:
 - dust at the cap lowers the amount.
 
 For UI work without the network, `syntheticRedemption({ first })` gives a build that passes L1, with known keys (secrets 2, 3 and 5), and `parts` you can mutate. Its AVL proofs are placeholders, so L2 refuses it. For a build that passes both L1 and L2, use `fixtures/r3-build.ts`; it cannot be signed, because the receiver key is not here.
+`syntheticTokenRedemption({ tokenId, avl, prior })` with the stock backend (`loadContractAvl()`) builds real trees and
+proofs the tracker's way and passes L2 (`tokenredemption.l2.test.ts`); without `avl` its proofs are placeholders.
