@@ -81,7 +81,7 @@
 .kit .mat { padding: 22px 20px; border-left: 1px solid var(--rule); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .kit .mat:first-child { border-left: 0; }
 .kit .mat .swatch { height: 132px; border-radius: 3px; position: relative; overflow: hidden; }
-.kit .mat h4 { margin: 4px 0 0; font: 600 22px/1.08 var(--f-display); font-variation-settings: 'wdth' 80; }
+.kit .mat h4 { margin: 4px 0 0; font: 600 22px/1.08 var(--f-display); }
 .kit .mat .means { font: 500 13.5px/1.4 var(--f-ui); color: var(--ink); margin: 0; }
 .kit .mat .never { font: 400 12.5px/1.45 var(--f-ui); color: var(--ink-3); margin: 0; }
 .kit .mat .tok { font: 400 11.5px/1.5 var(--f-mono); color: var(--ink-3); margin-top: auto; }

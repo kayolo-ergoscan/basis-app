@@ -77,7 +77,7 @@ export function Coin({ coverage, size = 170, label = true, className }: CoinProp
       ${ticks}
       <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#${gid})"/>${rings}${reeds}
       <circle cx="${cx}" cy="${cy}" r="${R - 6}" fill="none" stroke="rgba(255,245,210,.6)" stroke-width=".8"/>
-      <text x="${cx}" y="${cy + 6}" text-anchor="middle" font-family="var(--f-display)" font-weight="600" font-size="19" fill="rgba(48,32,4,.85)" style="font-variation-settings:'wdth' 75">ERG</text>
+      <text x="${cx}" y="${cy + 6}" text-anchor="middle" font-family="var(--f-display)" font-weight="600" font-size="19" fill="rgba(48,32,4,.85)">ERG</text>
       <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="6" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>`;
   }, [coverage, gid]);
   return (

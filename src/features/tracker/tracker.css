@@ -32,7 +32,7 @@
 .trk-xl-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 24px; flex-wrap: wrap; padding: 22px 26px; border-bottom: 1px solid var(--rule); }
 .trk-xl-id { display: flex; gap: 18px; align-items: center; min-width: 0; }
 .trk-xl-who { display: grid; gap: 6px; min-width: 0; }
-.trk-xl-name { font: 600 27px/1.08 var(--f-display); font-variation-settings: 'wdth' 78; letter-spacing: -.014em; margin: 0; }
+.trk-xl-name { font: 600 27px/1.08 var(--f-display); letter-spacing: -.014em; margin: 0; }
 .trk-xl-sub { display: flex; flex-wrap: wrap; gap: 2px 0; font: 400 11.5px/1.5 var(--f-mono); color: var(--ink-3); }
 .trk-xl-sub > span + span::before { content: '·'; margin: 0 8px; color: var(--ink-4); }
 .trk-xl-tags { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
@@ -259,7 +259,7 @@
 .trk-steps { display: grid; counter-reset: step; }
 .trk-step { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 0 22px; padding: 30px 0; border-top: 1px solid var(--rule); }
 .trk-step:first-child { border-top: 0; padding-top: 4px; }
-.trk-step-no { font: 600 33px/1.08 var(--f-display); font-variation-settings: 'wdth' 70; color: var(--ink-3); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
+.trk-step-no { font: 600 33px/1.08 var(--f-display); color: var(--ink-3); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
 .trk-step.done .trk-step-no { color: var(--up); }
 .trk-step-b { display: grid; gap: 14px; min-width: 0; }
 .trk-step-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; }

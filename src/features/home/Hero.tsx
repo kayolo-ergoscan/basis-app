@@ -1,10 +1,11 @@
-// The hero (VISUAL §13 Home): copy on the left; on the right the note stack signed live in this page by the
-// story economy, with the numbered callouts and their dashed leaders, the checks row and the live strip.
+// The hero: copy on the left; on the right the note stack signed live in this page by the story economy, with the
+// numbered callouts and their dashed leaders and the checks row; the sandbox town along the bottom (its tracker's
+// tower catches moonlight on each commitment) and the live strip.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { useLang, useT, rich } from "@/app/lang";
 import { copy, pick } from "@/content";
-import { Checks, GuillocheField, Key, Lamp, NoteStack, prefersReducedMotion, short, money, int, type NoteProps } from "@/ui";
+import { Checks, Key, Lamp, NoteStack, Skyline, prefersReducedMotion, short, money, int, type NoteProps } from "@/ui";
 import { FAQ_HREF } from "./Faq";
 import { LiveStrip } from "./LiveStrip";
 import { STORY, storyKeys, TRACKER_ID, TRACKER_NAME } from "./story";
@@ -184,7 +185,7 @@ export function Hero() {
 
   return (
     <section className="hero home-hero" ref={heroRef} aria-label={t("home.hero.aria")}>
-      <GuillocheField seed={keys.noteKey} className="field" focus={[0.72, 0.46]} pulseFilter={(p) => p.trackerId === TRACKER_ID} />
+      <Skyline className="home-town" seed={23} height={170} lit={0.2} tower={760} towerFilter={(p) => p.trackerId === TRACKER_ID} />
       <div className="container home-hero-grid">
         <div className="home-hero-copy">
           <p className="eyebrow label home-eyebrow"><Lamp state="committed" />{pick(copy.eyebrow, lang)}</p>
