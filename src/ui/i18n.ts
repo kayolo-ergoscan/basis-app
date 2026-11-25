@@ -14,6 +14,10 @@ const en = {
   "ui.time.s": "{n} s",
   "ui.time.m": "{n} m",
 
+  "ui.cov.tag.fine": "Reserve fine",
+  "ui.cov.tag.watch": "Reserve: watch",
+  "ui.cov.tag.warn": "Reserve: warning",
+  "ui.cov.tag.under": "Reserve: short",
   "ui.cov.fine": "Fine",
   "ui.cov.watch": "Watch",
   "ui.cov.warn": "Warn",
@@ -189,6 +193,10 @@ const ru: Record<string, string> = {
   "ui.time.s": "{n} с",
   "ui.time.m": "{n} мин",
 
+  "ui.cov.tag.fine": "Резерв в норме",
+  "ui.cov.tag.watch": "Резерв: внимание",
+  "ui.cov.tag.warn": "Резерв: тревога",
+  "ui.cov.tag.under": "Резерв: недобор",
   "ui.cov.fine": "Норма",
   "ui.cov.watch": "Внимание",
   "ui.cov.warn": "Тревога",

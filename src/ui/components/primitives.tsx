@@ -50,7 +50,7 @@ export function CoverageTag({ pct, long, small }: { pct: number; long?: boolean;
   const [tone, glyph] = BAND_TAG[b];
   return (
     <Tag tone={tone} glyph={small ? undefined : glyph} style={small ? { height: 18 } : undefined}>
-      {t(`ui.cov.${b}`)}{long && b !== "fine" ? ` · ${t(`ui.cov.${b}.long`)}` : ""}
+      {t(`ui.cov.tag.${b}`)}{long && b !== "fine" ? ` · ${t(`ui.cov.${b}.long`)}` : ""}
     </Tag>
   );
 }
