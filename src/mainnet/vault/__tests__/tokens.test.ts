@@ -9,7 +9,10 @@ import { buildTopUp, signReserveAction } from "../../tx/reserveaction";
 import { p2pkAddress } from "../../tx/address";
 import { signP2pkTransaction } from "../../tx/p2pk";
 import { reserveTokenById } from "../../tx/tokens";
-import { planTokenWithdraw } from "../../flows/coins";
+import { planCancel, planCombine, planTokenWithdraw, planWithdraw } from "../../flows/coins";
+import { FEE_TREE_HEX } from "../../tx/constants";
+import type { UnsignedTx } from "../../tx/model";
+import { withdrawKeepsTokens } from "../policy";
 import { p2pkBox, reserveBox, secretBytes, syntheticTokenRedemption } from "../../tx/testkit";
 import { SIGUSD_TOKEN_ID, RSADA_TOKEN_ID, TOKEN_RESERVE_BOX_NANOERG, TOKEN_RESERVE_TREE_HEX } from "../../tx/tokens";
 import { signNote } from "../../flows/notes";
@@ -137,5 +140,64 @@ describe("a token Withdraw in the vault", () => {
     // the boxes must be the inputs, bound to their ids
     expect(await code(v.signToJournal("withdraw", sign(other), { inputBoxes: [boxes[1], boxes[0]], passphrase: PASS }))).toBe("bad-input");
     v.close();
+  });
+});
+
+describe("a withdrawal never makes or burns a token (second review LOW-1)", () => {
+  const OTHER = "77".repeat(32);
+  const boxes = [p2pkBox(ME, 1_000_000n, { tokens: [{ tokenId: SIGUSD_TOKEN_ID, amount: 800n }, { tokenId: OTHER, amount: 3n }], index: 1 }), p2pkBox(ME, 20_000_000n, { index: 2 })];
+  const to = p2pkAddress(keyPairFromSecret(2n).pubHex);
+  const plan = () => {
+    const p = planTokenWithdraw(boxes, ME, to, reserveTokenById(SIGUSD_TOKEN_ID)!, 300n, 1_000_000n, 1_925_000);
+    if (!p.ok) throw new Error(p.why);
+    return p;
+  };
+  const copy = (tx: UnsignedTx): UnsignedTx => ({ ...tx, outputs: tx.outputs.map((o) => ({ ...o, tokens: o.tokens.map((t) => ({ ...t })) })) });
+  const signer = (tx: UnsignedTx, inputs: typeof boxes) => (sk: Uint8Array) => {
+    const r = signP2pkTransaction(tx, inputs, sk);
+    return { txId: r.txId, signedRaw: r.nodeJson, inputs: inputs.map((x) => x.boxId), meta: { amount: "300", to, denom: SIG } };
+  };
+
+  it("refuses a burned, a minted, or a fee-carried token, passphrase or not", async () => {
+    const b = new FakeBrowser();
+    const v = await openTab(b);
+    await v.importHex(SK_HEX, PASS);
+    await backUp(v);
+    const p = plan();
+    const burn = copy(p.tx);
+    burn.outputs[1].tokens = burn.outputs[1].tokens.filter((t) => t.tokenId !== OTHER);
+    const mint = copy(p.tx);
+    mint.outputs[0].tokens[0].amount += 1n;
+    const toFee = copy(p.tx);
+    toFee.outputs[2].tokens = [{ tokenId: OTHER, amount: 3n }];
+    toFee.outputs[1].tokens = toFee.outputs[1].tokens.filter((t) => t.tokenId !== OTHER);
+    for (const bad of [burn, mint, toFee]) {
+      expect(await code(v.signToJournal("withdraw", signer(bad, p.inputs), { inputBoxes: p.inputs, passphrase: PASS }))).toBe("bad-input");
+    }
+    expect(await v.journal.list({ kind: "withdraw" })).toHaveLength(0);
+    expect((await v.signToJournal("withdraw", signer(p.tx, p.inputs), { inputBoxes: p.inputs, passphrase: PASS })).state).toBe("signed");
+    v.close();
+  });
+
+  it("ERG Withdraw, Combine and Cancel with token boxes keep every token in the change and pass as before", () => {
+    const sign = (tx: UnsignedTx, inputs: readonly typeof boxes[number][]) => signP2pkTransaction(tx, inputs, SK).nodeJson;
+    const fat = p2pkBox(ME, 5_000_000n, { tokens: [{ tokenId: SIGUSD_TOKEN_ID, amount: 10n }, { tokenId: OTHER, amount: 1n }], index: 4 });
+    // 0.022 ERG needs the token box too: its tokens go to the change
+    const erg = planWithdraw([boxes[1], fat], ME, to, 22_000_000n, 1_000_000n, 1_925_000);
+    if (!erg.ok) throw new Error(erg.why);
+    expect(erg.tx.outputs[1].tokens.length).toBe(2);
+    expect(withdrawKeepsTokens(sign(erg.tx, erg.inputs), erg.inputs)).toBe(true);
+    const comb = planCombine([boxes[1], p2pkBox(ME, 5_000_000n, { index: 3 })], ME, p2pkAddress(ME), 1_925_000);
+    if (!comb.ok) throw new Error(comb.why);
+    expect(withdrawKeepsTokens(sign(comb.tx, comb.inputs), comb.inputs)).toBe(true);
+    const cancel = planCancel([fat.boxId], [fat], ME, p2pkAddress(ME), 1_925_000);
+    if (!cancel.ok) throw new Error(cancel.why);
+    expect(cancel.tx.outputs[1]?.tokens.length).toBe(2);
+    expect(withdrawKeepsTokens(sign(cancel.tx, cancel.inputs), cancel.inputs)).toBe(true);
+    // the same checks on the raw JSON: a token on the fee output, and boxes that are not the inputs
+    const raw = sign(erg.tx, erg.inputs);
+    expect(withdrawKeepsTokens(raw, [...erg.inputs].reverse())).toBe(false);
+    expect(withdrawKeepsTokens(raw, undefined)).toBe(false);
+    expect(raw).toContain(FEE_TREE_HEX);
   });
 });

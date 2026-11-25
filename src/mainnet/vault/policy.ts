@@ -225,6 +225,45 @@ export function redeemsReserveBox(signedRaw: string, boxes: readonly ErgoBox[] |
   return bound[0].ergoTree === TOKEN_RESERVE_TREE_HEX && bound.length >= 2 && bound.slice(1).every((b) => b.ergoTree === `0008cd${trackerPk}` && b.tokens.length === 0);
 }
 
+/** Each output's tree and tokens (node JSON `assets`; none listed = none), or null when unreadable. */
+function outputTokensOf(signedRaw: string): { tree: string; tokens: { tokenId: string; amount: bigint }[] }[] | null {
+  const o = strictObject(signedRaw);
+  if (!o) return null;
+  try {
+    return asArray(member(o, "outputs"), "outputs").items.map((x, i) => {
+      const b = asObject(x, `outputs[${i}]`);
+      const a = member(b, "assets");
+      const tokens = a === undefined ? [] : asArray(a, `outputs[${i}].assets`).items.map((t, j) => {
+        const tk = asObject(t, `outputs[${i}].assets[${j}]`);
+        return { tokenId: asString(member(tk, "tokenId"), `outputs[${i}].assets[${j}].tokenId`).toLowerCase(), amount: asU64(member(tk, "amount"), `outputs[${i}].assets[${j}].amount`) };
+      });
+      return { tree: asString(member(b, "ergoTree"), `outputs[${i}].ergoTree`), tokens };
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A withdrawal (Withdraw, Combine, Cancel, token Withdraw) moves tokens and never makes or burns one (second review
+ * LOW-1): per token id, the input boxes (bound to the signed inputs' ids) hold exactly what the signed outputs hold,
+ * and the miner-fee output holds none. A token sent to the fee contract would be anyone's to take.
+ */
+export function withdrawKeepsTokens(signedRaw: string, boxes: readonly ErgoBox[] | undefined): boolean {
+  const bound = boundInputs(signedRaw, boxes);
+  const outs = outputTokensOf(signedRaw);
+  if (!bound || !outs) return false;
+  if (outs.some((o) => o.tree === FEE_TREE_HEX && o.tokens.length > 0)) return false;
+  const total = (lists: readonly (readonly { tokenId: string; amount: bigint }[])[]) => {
+    const m = new Map<string, bigint>();
+    for (const l of lists) for (const t of l) m.set(t.tokenId.toLowerCase(), (m.get(t.tokenId.toLowerCase()) ?? 0n) + t.amount);
+    return m;
+  };
+  const tin = total(bound.map((b) => b.tokens));
+  const tout = total(outs.map((o) => o.tokens));
+  return tin.size === tout.size && [...tin].every(([id, n]) => tout.get(id) === n);
+}
+
 /** The redemption's context variable #0: action 0 (redeem), output 0 (basis.es: a Byte, action × 10 + index). */
 const REDEEM_ACTION_VAR = "0200";
 

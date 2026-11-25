@@ -23,7 +23,7 @@ import { acquireSignerLock, signerLockHeld, type LockManagerLike, type SignerLea
 import { checkPassphrase } from "./passphrase";
 import { isPersisted, requestPersist, type Persistence } from "./persist";
 import type { ErgoBox } from "../tx/model";
-import { checkNoteBody, nextPromise, notePolicy, promiseKey, paysOnlyOwnKey, redeemsReserveBox, redemptionPaysOwnKey, reserveActionPaysRight, spendsOnlyOwnBoxes, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
+import { checkNoteBody, nextPromise, notePolicy, promiseKey, paysOnlyOwnKey, redeemsReserveBox, redemptionPaysOwnKey, reserveActionPaysRight, spendsOnlyOwnBoxes, withdrawKeepsTokens, type NoteIntent, type NotePolicy, type PairPromise, type ReserveActionKind } from "./policy";
 import { addressOf, backupAad, isObject, keyAad, parseKeyRecord, type KeyRecord, type KeySource } from "./record";
 
 export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unlocked" | "damaged";
@@ -657,6 +657,7 @@ export class MainnetVault {
         if (!isObject(part) || typeof part.signedRaw !== "string") return; // refused below as "bad-input"
         if (kind === "t1" && t1DenomOf({ meta: isObject(part.meta) ? (part.meta as JournalEntry["meta"]) : {} }) !== t1Denom) throw new VaultError("bad-input", "the reserve creation's meta.denom is not the denomination it was checked for (opts.denom)");
         if (kind === "withdraw" && !spendsOnlyOwnBoxes(part.signedRaw, s.pub, inputBoxes)) throw new VaultError("bad-input", "a withdrawal spends only this key's own boxes (opts.inputBoxes), without context variables");
+        if (kind === "withdraw" && !withdrawKeepsTokens(part.signedRaw, inputBoxes)) throw new VaultError("bad-input", "a withdrawal moves the input boxes' tokens: per token id the outputs hold exactly what the inputs hold, and the miner fee none");
         if (kind === "withdraw" && !typed && !paysOnlyOwnKey(part.signedRaw, s.pub)) throw needPass("a withdrawal to another address, or a fee above the wallet's, needs the passphrase", "withdraw-foreign");
         if (kind === "redeem" && !redemptionPaysOwnKey(part.signedRaw, s.pub)) throw new VaultError("bad-input", "a redemption pays this key: ERG, one input (action 0, another key's reserve) and outputs [the reserve, P2PK(this key), a miner fee of at most 0.001 ERG]; a token, the token reserve (action 0) and the tracker's fee boxes, outputs [the reserve, P2PK(this key), a miner fee of at most 0.002 ERG, the tracker's change?]");
         if (kind === "redeem" && !redeemsReserveBox(part.signedRaw, inputBoxes)) throw new VaultError("bad-input", "a redemption spends one reserve-contract box: the reviewed box (opts.inputBoxes)");
