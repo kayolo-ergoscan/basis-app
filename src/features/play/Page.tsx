@@ -212,6 +212,9 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
   const [sel, setSel] = useState<Sel | null>(null);
   const [view, setView] = useState<View>("graph");
   const [insTab, setInsTab] = useState<InsTab>("inspect");
+  // desktop: the inspector is a drawer at the right; the stage keeps the room until you pick something or open it
+  const [insOpen, setInsOpen] = useState(false);
+  const openIns = (tab: InsTab) => { setInsTab(tab); setInsOpen(true); };
   const [phoneTab, setPhoneTab] = useState<PhoneTab>(id ? "steps" : "steps");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [denomPick, setDenomPick] = useState<string | null>(null);
@@ -724,21 +727,21 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
             <Empty title={t(toolsMode ? "play.stage.emptyFree" : "play.stage.empty")} />
           </div>
         ) : (
-          <StageGraph model={model} selected={sel} onSelect={(s) => { setSel(s); if (s && compact) { setPhoneTab("inspect"); } if (s) setInsTab("inspect"); }} beams={past ? {} : beams} t={t} phone={phone} fitKey={fitKey} />
+          <StageGraph model={model} selected={sel} onSelect={(s) => { setSel(s); if (s && compact) { setPhoneTab("inspect"); } if (s) { setInsTab("inspect"); setInsOpen(true); } }} beams={past ? {} : beams} t={t} phone={phone} fitKey={fitKey} />
         )
       ) : (
         <div className="pl-tablewrap">
-          <StageTable model={model} selected={sel} onSelect={(s) => { setSel(s); setInsTab("inspect"); }} t={t} />
+          <StageTable model={model} selected={sel} onSelect={(s) => { setSel(s); setInsTab("inspect"); setInsOpen(true); }} t={t} />
         </div>
       )}
-      {view === "graph" && shortStage && !compact && (
-        // a short stage keeps only the Σ line below; the key opens from a button under the zoom keys
+      {view === "graph" && !compact && (
+        // the stage keeps only the Σ line below; the key to its marks opens from «?» under the zoom keys
         <div className="pl-keyfloat">
           <Popover
             align="end"
             trigger={(tp) => (
-              <button type="button" className="key sm icon-only" {...tp} aria-label={t("play.stage.key")} title={t("play.stage.key")}>
-                <Icon name="info" />
+              <button type="button" className="key sm icon-only pl-qmark" {...tp} aria-label={t("play.stage.key")} title={t("play.stage.key")}>
+                <span aria-hidden="true">?</span>
               </button>
             )}
           >
@@ -752,7 +755,6 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
       <Cartouche boxRef={cartRef} t={t} compact={compact} sandLine={pick(copy.sandboxNothingReal, lang)} model={model} eco={shown} past={past} view={view} setView={(v) => startTransition(() => setView(v))} denoms={withNotes.length > 1 ? withNotes.map((d) => ({ value: d.id, label: d.symbol })) : null} denom={denom} setDenom={setDenomPick} />
       {view === "graph" && !compact && (
         <div className="pl-legend" ref={legendRef}>
-          {!shortStage && legendBody}
           <span className="pl-legend-sum mono">
             {t("play.stage.sumNet", { v: fmtAmt(model.netSum, model.decimals) })}
             {model.netted ? ` · ${t("play.stage.netted")}` : ""}
@@ -912,7 +914,7 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
         {t("play.title")}: {title}
       </h1>
       {topBar}
-      <div className="pl-main">
+      <div className={`pl-main${insOpen ? "" : " ins-closed"}`}>
         <aside className="pl-rail" aria-label={toolsMode ? t("play.free.title") : t("play.rail.steps")}>
           <Rail run={active} scenario={scenario} forkOf={forkOf} st={steps} t={t} version={st.v} viewSeq={viewSeq} onViewStep={(r) => scrub(r.toSeq >= lastSeq ? null : r.toSeq)} onXray={(e) => openRefusal(active, e)}>
             {tools}
@@ -930,24 +932,41 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
             {feedShown && feed(150)}
           </div>
         </div>
-        <aside className="pl-ins" aria-label={t("play.ins.tabs")}>
-          <div className="pl-ins-tabs">
-            <Tabs<InsTab>
-              value={insTab}
-              onChange={setInsTab}
-              block
-              ariaLabel={t("play.ins.tabs")}
-              idBase="pl-ins"
-              tabs={[
-                { id: "inspect", label: t("play.ins.tab.inspect") },
-                { id: "cheat", label: t("play.ins.tab.cheat") },
-              ]}
-            />
-          </div>
-          <div className="pl-ins-scroll" role="tabpanel" id={`pl-ins-panel-${insTab}`} aria-labelledby={`pl-ins-tab-${insTab}`}>
-            {insTab === "inspect" ? inspector : cheats}
-          </div>
-        </aside>
+        {insOpen ? (
+          <aside className="pl-ins" aria-label={t("play.ins.tabs")}>
+            <div className="pl-ins-tabs">
+              <Tabs<InsTab>
+                value={insTab}
+                onChange={setInsTab}
+                block
+                ariaLabel={t("play.ins.tabs")}
+                idBase="pl-ins"
+                tabs={[
+                  { id: "inspect", label: t("play.ins.tab.inspect") },
+                  { id: "cheat", label: t("play.ins.tab.cheat") },
+                ]}
+              />
+              <button type="button" className="key sm icon-only quiet pl-ins-x" onClick={() => { setInsOpen(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".pl-ins-handle button")?.focus()); }} aria-label={t("play.ins.hide")} title={t("play.ins.hide")}>
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="pl-ins-scroll" role="tabpanel" id={`pl-ins-panel-${insTab}`} aria-labelledby={`pl-ins-tab-${insTab}`}>
+              {insTab === "inspect" ? inspector : cheats}
+            </div>
+          </aside>
+        ) : (
+          // the closed drawer: two handles at the right edge open it on either tab
+          <aside className="pl-ins-handle" aria-label={t("play.ins.tabs")}>
+            <button type="button" onClick={() => openIns("inspect")} aria-expanded={false}>
+              <Icon name="search" />
+              <span>{t("play.ins.tab.inspect")}</span>
+            </button>
+            <button type="button" onClick={() => openIns("cheat")} aria-expanded={false}>
+              <Icon name="warn" />
+              <span>{t("play.ins.tab.cheat")}</span>
+            </button>
+          </aside>
+        )}
       </div>
       {timeBar}
       {xraySheet}

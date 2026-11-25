@@ -41,6 +41,7 @@ const S: Record<string, Pair> = {
   "play.rail.all": ["All 11 scenarios", "Все 11 сценариев"],
   "play.rail.hide": ["Hide the list", "Свернуть список"],
   "play.rail.steps": ["Steps", "Шаги"],
+  "play.rail.quest": ["Quest log", "Задания"],
   "play.rail.stepOf": ["Step {n} of {total}", "Шаг {n} из {total}"],
   "play.rail.ok": ["The protocol behaved as the story says", "Протокол повёл себя так, как сказано в истории"],
   "play.rail.fail": ["The protocol did not behave as the story says", "Протокол повёл себя не так, как сказано в истории"],
@@ -139,6 +140,7 @@ const S: Record<string, Pair> = {
 
   // ---------------- inspector ----------------
   "play.ins.tab.inspect": ["Inspect", "Осмотр"],
+  "play.ins.hide": ["Hide the panel", "Скрыть панель"],
   "play.ins.tab.cheat": ["Try to cheat", "Обмануть"],
   "play.phone.tab.cheat": ["Cheat", "Обмануть"],
   "play.ins.tab.steps": ["Steps", "Шаги"],

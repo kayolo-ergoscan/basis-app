@@ -125,9 +125,16 @@ export const Rail = memo(function Rail({ run, scenario, forkOf, st, t, version, 
       {scenario && st.steps.length > 0 && (
         <section className="pl-steps" aria-label={t("play.rail.steps")}>
           <div className="pl-steps-h">
-            <span className="label">{t("play.rail.steps")}</span>
+            <span className="label">{t("play.rail.quest")}</span>
             <span className="mono pl-mini">{t("play.rail.stepOf", { n: String(Math.min(st.index + (st.index < st.steps.length ? 1 : 0), st.steps.length)), total: String(st.steps.length) })}</span>
           </div>
+          {/* the quest log's progress: one window per step, lit once the step ran as the story says */}
+          <span className="pl-qwins" aria-hidden="true">
+            {st.steps.map((s) => {
+              const r = st.results[s.index];
+              return <i key={s.id} className={r ? (r.outcome.ok ? "on" : "fail") : s.index === st.index ? "now" : undefined} />;
+            })}
+          </span>
           <ol className="pl-steplist" ref={listRef}>
             {st.steps.map((s) => {
               const r = st.results[s.index];

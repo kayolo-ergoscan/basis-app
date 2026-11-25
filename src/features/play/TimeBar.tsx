@@ -279,7 +279,7 @@ function Player({ story, canNext, animating, busy, done, auto, canBack, speed, o
   if (!story) return <div className="pl-player empty" />;
   const nextSpeed = ORDER[(ORDER.indexOf(speed) + 1) % ORDER.length];
   return (
-    <div className="pl-player">
+    <div className="pl-player pl-pad">
       <button type="button" className="key sm icon-only quiet" onClick={onBack} disabled={!canBack || busy} aria-label={t("play.player.back")} title={t("play.player.back")}>
         <Icon name="left" />
       </button>
@@ -293,8 +293,9 @@ function Player({ story, canNext, animating, busy, done, auto, canBack, speed, o
         </button>
       ) : (
         <button type="button" className="key sm primary pl-next" onClick={onNext} disabled={!canNext || busy} aria-keyshortcuts="N">
-          {compact ? <Icon name="right" /> : null}
+          <Icon name="right" />
           {t("play.player.next")}
+          {!compact && <span className="kbd" aria-hidden="true">N</span>}
         </button>
       )}
       <button type="button" className={`key sm icon-only${auto ? "" : " quiet"}`} onClick={onAuto} disabled={done} aria-pressed={auto} aria-label={auto ? t("play.player.pause") : t("play.player.auto")} title={auto ? t("play.player.pause") : t("play.player.auto")}>
