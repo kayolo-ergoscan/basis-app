@@ -2,10 +2,11 @@
 // street), with light carrying the meaning: lamplight (amber) = value on Ergo, moonlight = recorded by a tracker.
 //   <BrandMark>    the mark: one window, lit; it catches moonlight once per commitment (the pulse)
 //   <Skyline>      a quiet row of houses (footer, page heads, 404, empty states): deterministic, no data
+//   <NightScene>   the town with depth (sky, moon, stars, three rows of houses, the tower): the place you enter
 //   <HouseLights>  your house: one window per step you finished (the wallet checklists)
 //   <WindowLoader> loading: three windows light up in turn (static under reduced motion)
 // Everything here is decoration with aria-hidden, except HouseLights, which carries a label.
-import { memo, useMemo, useRef, type CSSProperties } from "react";
+import { memo, useId, useMemo, useRef, type CSSProperties } from "react";
 import type { Pulse } from "@/app/pulse";
 import { usePulseClass } from "../hooks";
 
@@ -34,13 +35,15 @@ function rng(seed: number) {
 
 interface Bld { x: number; w: number; h: number; roof: "flat" | "gable" | "arch"; wins: { x: number; y: number; w: number; h: number; lit: 0 | 1 | 2 }[] }
 
-/** Builds a row of houses across `width` units, ground at `ground`. lit: 1 = lamplight, 2 = moonlight. */
-function buildRow(seed: number, width: number, ground: number, maxH: number, litShare: number): Bld[] {
+/** Builds a row of houses across `width` units, ground at `ground`. lit: 1 = lamplight, 2 = moonlight. maxH may follow
+ *  x (the scene keeps its houses low where the words are). */
+function buildRow(seed: number, width: number, ground: number, maxHAt: number | ((x: number) => number), litShare: number): Bld[] {
   const r = rng(seed);
   const out: Bld[] = [];
   let x = 0;
   while (x < width) {
     const w = 46 + Math.round(r() * 64);
+    const maxH = typeof maxHAt === "number" ? maxHAt : maxHAt(x + w / 2);
     const h = Math.round(maxH * (0.38 + r() * 0.62));
     const roofPick = r();
     const roof: Bld["roof"] = roofPick < 0.22 ? "gable" : roofPick < 0.3 ? "arch" : "flat";
@@ -110,6 +113,74 @@ export const Skyline = memo(function Skyline({ seed = 7, lit = 0.22, height = 12
         </g>
       )}
       <rect className="sk-street" x="0" y={ground} width={span} height="4" />
+    </svg>
+  );
+});
+
+export interface NightSceneProps {
+  /** Which commitments light the tower's face (default: every one). Pass a stable function. */
+  towerFilter?: (p: Pulse) => boolean;
+  className?: string;
+}
+/** The town with depth: a sky with the moon and a few stars, a far row (hazy, small windows), a middle row and a near
+ *  row (dark, big windows) with the clock tower. One SVG, deterministic, aria-hidden. Memoised like the skyline. */
+export const NightScene = memo(function NightScene({ towerFilter, className }: NightSceneProps) {
+  const W = 1600, H = 560, ground = H - 6;
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const layers = useMemo(() => {
+    // low on the left, where the words stand; full height from the middle to the right, under the moon
+    const env = (f: number) => (x: number) => f * (0.3 + 0.7 * Math.min(1, Math.max(0, (x / W - 0.3) / 0.3)));
+    const far = buildRow(61, W, ground, env(330), 0.07);
+    const mid = buildRow(23, W, ground, env(230), 0.14);
+    // the near row is drawn 1.4× (bigger windows, nearer): its own width and ground in its own units
+    const k = 1.4, nw = Math.ceil(W / k), ng = Math.round(ground / k);
+    const tower = Math.round(nw * 0.64);
+    const near = buildRow(7, nw, ng, (x) => env(120)(x * k), 0.3).filter((b) => b.x + b.w < tower - 8 || b.x > tower + 64);
+    const r = rng(5);
+    const stars = Array.from({ length: 46 }, () => ({ x: Math.round(r() * W), y: Math.round(r() * 250), s: r() < 0.15 ? 1.6 : 1 }));
+    return { far, mid, near, k, ng, tower, stars };
+  }, [ground]);
+  const towerRef = useRef<SVGGElement>(null);
+  usePulseClass(towerRef, towerFilter);
+  const draw = (b: Bld, i: number, g: number) => (
+    <g key={i}>
+      {b.roof === "gable" ? (
+        <path className="sk-wall" d={`M${b.x} ${g} V${g - b.h + 14} L${b.x + b.w / 2} ${g - b.h - 8} L${b.x + b.w} ${g - b.h + 14} V${g} Z`} />
+      ) : b.roof === "arch" ? (
+        <path className="sk-wall" d={`M${b.x} ${g} V${g - b.h + 10} Q${b.x + b.w / 2} ${g - b.h - 14} ${b.x + b.w} ${g - b.h + 10} V${g} Z`} />
+      ) : (
+        <rect className="sk-wall" x={b.x} y={g - b.h} width={b.w} height={b.h} rx="5" />
+      )}
+      {b.wins.map((w, j) => <rect key={j} className={w.lit === 2 ? "sk-moon" : w.lit === 1 ? "sk-lit" : "sk-win"} x={w.x} y={w.y} width={w.w} height={w.h} rx="2.5" />)}
+    </g>
+  );
+  const { far, mid, near, k, ng, tower, stars } = layers;
+  const th = 176;
+  return (
+    <svg className={cx("night-scene", className)} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id={`${uid}-halo`}><stop offset="0" className="ns-halo-0" /><stop offset="1" className="ns-halo-1" /></radialGradient>
+        <linearGradient id={`${uid}-haze`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="ns-haze-0" /><stop offset="1" className="ns-haze-1" /></linearGradient>
+      </defs>
+      <g className="ns-stars">{stars.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.s} />)}</g>
+      <circle className="ns-halo" cx="1210" cy="120" r="150" fill={`url(#${uid}-halo)`} />
+      <circle className="ns-moon" cx="1210" cy="120" r="44" />
+      <circle className="ns-moon-shade" cx="1228" cy="108" r="40" />
+      <g className="ns-far">{far.map((b, i) => draw(b, i, ground))}</g>
+      <rect className="ns-haze" x="0" y={ground - 340} width={W} height="340" fill={`url(#${uid}-haze)`} />
+      <g className="ns-mid">{mid.map((b, i) => draw(b, i, ground))}</g>
+      <g className="ns-near" transform={`scale(${k})`}>
+        {near.map((b, i) => draw(b, i, ng))}
+        <g className="sk-tower" ref={towerRef}>
+          <path className="sk-wall" d={`M${tower} ${ng} V${ng - th + 34} L${tower + 28} ${ng - th + 4} L${tower + 56} ${ng - th + 34} V${ng} Z`} />
+          <circle className="sk-face-glow" cx={tower + 28} cy={ng - th + 56} r="30" />
+          <circle className="sk-face" cx={tower + 28} cy={ng - th + 56} r="15" />
+          <path className="sk-hands" d={`M${tower + 28} ${ng - th + 56} V${ng - th + 46} M${tower + 28} ${ng - th + 56} L${tower + 35} ${ng - th + 60}`} />
+          <rect className="sk-moon" x={tower + 23} y={ng - th + 86} width="10" height="13" rx="2.5" />
+          <rect className="sk-lit" x={tower + 23} y={ng - th + 112} width="10" height="13" rx="2.5" />
+        </g>
+      </g>
+      <rect className="sk-street" x="0" y={ground} width={W} height="6" />
     </svg>
   );
 });

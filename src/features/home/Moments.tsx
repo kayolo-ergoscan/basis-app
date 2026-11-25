@@ -290,7 +290,7 @@ export function Moments() {
   const story = useDeferredValue(useStory());
   const ordered = useMemo(() => [...moments].sort((a, b) => a.n - b.n), []);
   return (
-    <Section id="moments" className="home-moments" no={<>01 · {t("home.m.no")}</>} title={rich(t("home.m.title"))} lede={pick(momentsLede, lang)}>
+    <Section id="moments" className="home-moments" no={<>02 · {t("home.m.no")}</>} title={rich(t("home.m.title"))} lede={pick(momentsLede, lang)}>
       <p className="home-sandbox-note label"><Lamp state="live" size={8} /><b>{t("home.m.sandbox")}</b></p>
       <MiniCtx.Provider value={story}>
       <div className="home-mgrid">

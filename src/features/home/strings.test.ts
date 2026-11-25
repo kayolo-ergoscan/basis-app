@@ -36,10 +36,10 @@ describe("home strings", () => {
 });
 
 describe("home first screen", () => {
-  it("says what Basis is and why in two sentences, in both languages", () => {
+  it("says what Basis is in one sentence, in both languages (the how and the cost are the three stops below)", () => {
     const sentences = (s: string) => s.replace(/\*\*/g, "").split(/(?<=[.!?])\s+/).filter(Boolean);
-    expect(sentences(EN["home.lede"])).toHaveLength(2);
-    expect(sentences(RU["home.lede"])).toHaveLength(2);
+    expect(sentences(EN["home.lede"])).toHaveLength(1);
+    expect(sentences(RU["home.lede"])).toHaveLength(1);
     expect(EN["home.lede"]).toMatch(/^Basis is \*\*notes instead of transfers\*\*/);
     expect(RU["home.lede"]).toMatch(/^Basis — это \*\*расписки вместо переводов\*\*/);
   });

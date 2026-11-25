@@ -1,5 +1,6 @@
-// / — the story in one scroll (VISUAL §13 Home): the hero with a note signed live in this page, the live strip,
-// 01 Five moments, 02 Three doors, 03 Mainnet now, the money spectrum with the personas, three FAQ questions, 04 Learn.
+// / — the story in one scroll: the hero (the town at night, one sentence, two actions, the live strip), «How it works» as
+// three lit stops with the note signed live in this page, the three doors, the five moments to try, mainnet now, the
+// money spectrum with the personas, three FAQ questions, Learn.
 import "./home.css";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -11,6 +12,7 @@ import { Learn } from "./Learn";
 import { Mainnet } from "./Mainnet";
 import { Moments } from "./Moments";
 import { Spectrum } from "./Spectrum";
+import { Street } from "./Street";
 import strings from "./strings";
 import { createStoryStore, StoryContext } from "./useStory";
 
@@ -39,8 +41,9 @@ export default function HomePage() {
     <StoryContext.Provider value={store}>
       <div className="home">
         <Hero />
-        <Moments />
+        <Street />
         <Doors />
+        <Moments />
         <Mainnet />
         <Spectrum />
         <HomeFaq />

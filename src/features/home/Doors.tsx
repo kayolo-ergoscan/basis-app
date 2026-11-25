@@ -191,7 +191,7 @@ export function Doors() {
     { id: "network", k: t("home.d.net.k"), title: t("home.d.net.t"), p: netText, go: t("home.d.net.go"), to: "/network", icon: "network" as const, kbd: "N", vis: <MainnetStrip /> },
   ];
   return (
-    <Section id="doors" className="home-doors" no={<>02 · {t("home.d.no")}</>} title={rich(t("home.d.title"))} lede={t("home.d.lede")}>
+    <Section id="doors" className="home-doors" no={<>01 · {t("home.d.no")}</>} title={rich(t("home.d.title"))} lede={t("home.d.lede")}>
       <div className="home-door-grid" ref={ref}>
         {doors.map((d) => (
           <article key={d.id} className={`card home-door door-${d.id}`} aria-labelledby={`door-${d.id}`}>

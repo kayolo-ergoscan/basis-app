@@ -2,90 +2,71 @@
    03 Mainnet now, the money spectrum, the personas and 04 Learn.
    Tokens only; the kit owns .callout-n, .leaders, .note-stage, .checks, .board, .meter, .tear, .coin. */
 
-/* ================= hero ================= */
+/* ================= hero: the town at night, one sentence, two actions ================= */
 .home-hero {
   position: relative; display: flex; flex-direction: column; isolation: isolate; overflow: hidden; overflow-x: clip;
-  /* exactly one screen under the nav and the banner (Hero.tsx measures --hero-top): the live strip closes the first
-     screen at every desktop height, as in the approved render (936 + 64 nav), and nothing of 01 peeks under it */
+  /* one screen under the nav and the banner (Hero.tsx measures --hero-top); the live strip is its street */
   min-height: clamp(560px, calc(100svh - var(--hero-top, 104px)), 1240px);
+  background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg-2) 70%, var(--bg)) 100%);
 }
-.home-hero::before {
-  content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none;
-  background:
-    radial-gradient(48% 60% at 70% 42%, color-mix(in srgb, var(--metal) 10%, transparent), transparent 70%),
-    radial-gradient(30% 40% at 88% 8%, color-mix(in srgb, var(--moon) 7%, transparent), transparent 70%);
-}
-/* the sandbox town: one low row of houses standing on the live strip (its street), in the band under the copy and the
-   stage, so no window ever sits behind a word */
-.home-hero .home-town { position: absolute; left: 0; right: 0; bottom: 58px; width: 100%; height: clamp(34px, 5.4vh, 52px); z-index: -1; pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 45%); mask-image: linear-gradient(180deg, transparent 0%, #000 45%); }
-.home-hero .home-town .sk-wall { fill: color-mix(in srgb, var(--town-wall) 70%, var(--bg)); }
-.home-hero-grid {
-  flex: 1; display: grid; grid-template-columns: minmax(0, 5.5fr) minmax(0, 6.5fr); gap: 24px; align-items: center;
-  padding-top: clamp(24px, 4vh, 56px); padding-bottom: 24px;
-}
+/* the scene fills the hero behind the copy: sky and moon at the top, three rows of houses at the bottom */
+.home-scene { position: absolute; left: 0; right: 0; top: 0; bottom: 58px; z-index: -1; pointer-events: none; }
+.home-scene .night-scene { position: absolute; inset: 0; }
+.home-hero-grid { flex: 1; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-content: start; padding-top: clamp(40px, 9vh, 120px); padding-bottom: 24px; }
 .home-hero-copy { position: relative; z-index: 2; min-width: 0; }
-.home-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 clamp(18px, 2.6vh, 30px); }
+.home-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 clamp(16px, 2.4vh, 26px); }
 .home-h1 {
-  /* as large as the column and the screen height allow (4.4vw, capped by the free height) */
-  font-size: calc(clamp(38px, min(4.4vw, (100svh - var(--hero-top, 104px) - 58px) * .095), 78px) * var(--hero-fit, 1));
+  /* as large as the column and the screen height allow, capped by the free height */
+  font-size: calc(clamp(40px, min(5vw, (100svh - var(--hero-top, 104px) - 58px) * .1), 88px) * var(--hero-fit, 1));
+  text-shadow: 0 2px 24px var(--bg);
 }
 .home-h1 .ln { display: block; white-space: nowrap; }
 /* "Redeem on Ergo." is value on Ergo: the gold light */
 .home-h1 em { color: var(--metal-ink); text-shadow: 0 0 32px rgba(var(--field-rgb), .35); }
-.home-lede { max-width: 33em; margin-top: clamp(20px, 3vh, 32px); }
+.home-lede { max-width: 34em; margin-top: clamp(16px, 2.6vh, 26px); color: var(--ink-2); text-shadow: 0 1px 12px var(--bg); }
 .home-lede b { color: var(--ink); font-weight: 500; }
-.home-cta { display: flex; align-items: center; gap: 12px; margin-top: clamp(24px, 3.4vh, 36px); flex-wrap: wrap; }
-/* the text link keeps a 10 px hit pad on each side but sits 12 px from the keys (as in the reference render), and
-   lines up with the copy's left edge when the row wraps (RU at laptop width) */
-.home-how { background: none; border: 0; padding: 0 10px; margin-left: -10px; height: 52px; cursor: pointer; }
-.home-how:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
-.home ul.home-materials {
-  list-style: none; margin: clamp(26px, 4vh, 44px) 0 0; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 16px;
-  background: var(--surface);
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; max-width: 620px;
-}
-/* rows packed at the top: a one-line caption next to a two-line one stays level with it (the list stretches each li) */
-.home-materials li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 3px 12px; align-items: start; align-content: start; }
-/* the three lights, drawn as windows */
-.home-materials .msw { grid-row: span 2; width: 22px; height: 28px; border-radius: 6px; margin-top: 2px; }
-.home-materials .msw.line { color: var(--ink-3); background: repeating-linear-gradient(135deg, currentColor 0 1.2px, transparent 1.2px 4.5px); box-shadow: inset 0 0 0 1.5px var(--rule-2); }
-.home-materials .msw.metal { background: var(--foil-metal); box-shadow: var(--glow-metal); }
-.home-materials .msw.light { background: var(--holo); box-shadow: var(--glow-moon); }
-.home-materials b { font: 600 14px/1.2 var(--f-ui); color: var(--ink); }
-.home-materials span { font: 400 12.5px/1.3 var(--f-ui); color: var(--ink-3); }
+.home-cta { display: flex; align-items: center; gap: 12px; margin-top: clamp(22px, 3.2vh, 34px); flex-wrap: wrap; }
+.home-more { margin: 14px 0 0; }
+.home-how { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0 10px; margin-left: -10px; height: 40px; cursor: pointer; color: var(--ink-2); }
+.home-how:hover { color: var(--ink); }
+.home-how:focus-visible, .home-down:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+/* the scroll cue to «How it works», on the street just above the live strip */
+.home-down { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border-radius: 999px; border: 1px solid var(--rule-2); background: color-mix(in srgb, var(--bg) 70%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  font: 600 13px/1 var(--f-ui); color: var(--ink); cursor: pointer; }
+.home-down:hover { background: var(--surface-2); }
 
-/* the stage: callouts ① ③ above the stack, the stack, the checks and ② under it */
-.home-stage { position: relative; min-width: 0; display: grid; justify-items: center; align-self: center; }
-.home-stage-col { position: relative; width: min(100%, 780px); }
-.home-callrow { position: relative; z-index: 3; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 6px; }
-.home-callrow .callout-n, .home-foot .callout-n { position: static; }
-.home-callrow .home-c3 { text-align: right; justify-items: end; }
-.home-callrow .home-c3 .k { flex-direction: row-reverse; }
-/* room above for the back notes (percent padding follows the width, like the note) and on the right for their shift */
-.home-notewrap { position: relative; padding: 9.5% 0 0 0; perspective: 1800px; }
-@media (max-width: 1440px) { .home-notewrap { padding-right: 4%; } }
-.home-notes.note-stage { min-height: 0; height: auto; display: block; perspective: none; animation: home-in 700ms var(--ease-out) both; }
-.home-notes .note-stage-inner { width: 100%; }
-.home-notes .back-note { transition: transform 700ms var(--ease-out), filter 700ms var(--ease-out); }
-.home-notes .back-note:not(.b2) { animation: home-behind 700ms var(--ease-out) both; }
-@keyframes home-behind { from { transform: rotateX(7deg) rotateY(-12deg) rotateZ(-1.2deg); filter: none; } }
-@keyframes home-in { from { opacity: 0; transform: translateY(10px); } }
-.home-note-ph {
-  aspect-ratio: 1000 / 440; border-radius: var(--r-note); transform: rotateX(7deg) rotateY(-12deg) rotateZ(-1.2deg);
-  background: color-mix(in srgb, var(--paper) 7%, transparent); box-shadow: inset 0 0 0 1px var(--rule);
-}
-.home-foot { margin-top: 30px; flex-wrap: nowrap; }
-.home-foot-l { display: grid; gap: 12px; min-width: 0; flex: 1 1 auto; }
-.home-foot .home-c2 { flex: 0 0 auto; width: 210px; }
-.home-sbx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0; font: 400 12.5px/1.35 var(--f-ui); color: var(--ink-3); }
-.home-sbx b { color: var(--ink-2); font-weight: 600; }
-.home-sbx .avl { font: 600 10px/1 var(--f-ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--rule-2); border-radius: 7px; padding: 4px 7px; }
-.home-sbx-tail { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
-.home-replay { background: none; border: 0; padding: 2px 0; font: inherit; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; cursor: pointer; }
-.home-replay:hover { color: var(--ink); }
-.home-callist { display: none; }
-.home-key { white-space: nowrap; font-size: .92em; }
+/* the scene's own paint: far row hazy, near row dark with big windows; Day keeps the same rows in daylight */
+.night-scene { display: block; width: 100%; height: 100%; }
+.night-scene .ns-stars circle { fill: var(--town-star); }
+.night-scene .ns-moon { fill: color-mix(in srgb, var(--moon) 18%, #F6F2E4); }
+.night-scene .ns-moon-shade { display: none; }
+.night-scene .ns-halo-0 { stop-color: var(--moon); stop-opacity: .26; }
+.night-scene .ns-halo-1 { stop-color: var(--moon); stop-opacity: 0; }
+.night-scene .ns-haze-0 { stop-color: var(--bg); stop-opacity: 0; }
+.night-scene .ns-haze-1 { stop-color: var(--bg-2); stop-opacity: .7; }
+.night-scene .sk-wall { fill: var(--town-wall); }
+.night-scene .sk-win { fill: var(--town-win); }
+.night-scene .sk-lit { fill: var(--lamp); }
+.night-scene .sk-moon { fill: var(--moon); }
+.night-scene .sk-street { fill: var(--town-street); }
+.night-scene .ns-far .sk-wall { fill: color-mix(in srgb, var(--town-wall) 62%, var(--bg)); }
+.night-scene .ns-far .sk-win { fill: color-mix(in srgb, var(--town-win) 55%, var(--bg)); }
+.night-scene .ns-far :is(.sk-lit, .sk-moon) { opacity: .45; }
+.night-scene .ns-mid .sk-lit, .night-scene .ns-mid .sk-moon { opacity: .75; }
+.night-scene .ns-near .sk-wall { fill: color-mix(in srgb, var(--town-wall) 72%, #050712); }
+.night-scene .ns-near .sk-lit { filter: drop-shadow(0 0 6px var(--glow-lamp)); }
+.night-scene .sk-tower .sk-face { fill: var(--bg-2); stroke: var(--moon); stroke-width: 2.5; }
+.night-scene .sk-tower .sk-hands { stroke: var(--moon); stroke-width: 2.5; stroke-linecap: round; fill: none; }
+.night-scene .sk-tower .sk-face-glow { fill: var(--moon); opacity: .1; }
+.night-scene .sk-tower.pulse-on .sk-face-glow { animation: sk-glow var(--t-pulse) var(--ease-io) 1; }
+.night-scene .sk-tower.pulse-on .sk-face { animation: sk-face var(--t-pulse) var(--ease-io) 1; }
+:root[data-theme="light"] .night-scene .ns-moon { fill: #FFF6D8; }
+:root[data-theme="light"] .night-scene .ns-halo-0 { stop-color: var(--lamp); stop-opacity: .35; }
+:root[data-theme="light"] .night-scene .ns-halo-1 { stop-color: var(--lamp); }
+:root[data-theme="light"] .night-scene .ns-near .sk-wall { fill: color-mix(in srgb, var(--town-wall) 82%, var(--ink)); }
+:root[data-theme="light"] .night-scene .ns-far .sk-wall { fill: color-mix(in srgb, var(--town-wall) 45%, var(--bg)); }
+:root[data-theme="light"] .night-scene .ns-near .sk-lit { filter: none; }
 
 /* live strip */
 .home-board .container { min-width: 0; }
@@ -95,25 +76,58 @@
 .home-board .board-row .mono { font-size: 12px; color: var(--ink-3); }
 .home-board .board-row .up { color: var(--up); }
 
-/* narrower desktops: the checks keep one row (the block number stays in the sandbox line under them) */
-@media (min-width: 1001px) and (max-width: 1400px) {
-  .home-foot .check .mono { display: none; }
-  .home-foot .check { gap: 8px; padding: 0 11px 0 9px; }
-  .home-sbx { font-size: 12px; }
+/* ================= How it works: three stops on one lit street ================= */
+.home-how-sec { padding: clamp(64px, 8vw, 120px) 0 clamp(40px, 5vw, 72px); scroll-margin-top: 24px; }
+.how-head { margin-bottom: clamp(24px, 3vw, 40px); }
+.how-head .eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.how-head h2 { margin: 0; }
+.how-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 4vw, 64px); align-items: center; }
+.how-note { margin: 0; display: grid; gap: 18px; }
+.how-notewrap { position: relative; padding: 6% 4% 0 0; perspective: 1800px; max-width: 520px; }
+.how-cap { display: grid; gap: 10px; }
+.home-notes.note-stage { min-height: 0; height: auto; display: block; perspective: none; animation: home-in 700ms var(--ease-out) both; }
+.home-notes .note-stage-inner { width: 100%; }
+.home-notes .back-note { transition: transform 700ms var(--ease-out), filter 700ms var(--ease-out); }
+@keyframes home-in { from { opacity: 0; transform: translateY(10px); } }
+.home-note-ph {
+  aspect-ratio: 1000 / 440; border-radius: var(--r-note); transform: rotateX(7deg) rotateY(-12deg) rotateZ(-1.2deg);
+  background: color-mix(in srgb, var(--paper) 7%, transparent); box-shadow: inset 0 0 0 1px var(--rule);
 }
-/* short laptop screens: tighter rhythm so the strip stays on the first screen */
-@media (min-width: 1001px) and (max-height: 820px) {
-  .home-hero-grid { padding-top: 18px; padding-bottom: 16px; }
-  .home-eyebrow { margin-bottom: 14px; }
-  .home-lede { margin-top: 16px; font-size: 16.5px; }
-  .home-cta { margin-top: 20px; }
-  .home ul.home-materials { margin-top: 20px; padding-top: 14px; }
-  .home-foot { margin-top: 20px; }
-  .home-foot-l { gap: 10px; }
-  .home-stage-col { width: min(100%, 700px); }
-  .home-notewrap { padding-top: 8%; }
-  .home-hero .home-town { height: 28px; }
-}
+.home-sbx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0; font: 400 12.5px/1.35 var(--f-ui); color: var(--ink-3); }
+.home-sbx b { color: var(--ink-2); font-weight: 600; }
+.home-sbx .avl { font: 600 10px/1 var(--f-ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--rule-2); border-radius: 7px; padding: 4px 7px; }
+.home-sbx-tail { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.home-replay { background: none; border: 0; padding: 2px 0; font: inherit; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; cursor: pointer; }
+.home-replay:hover { color: var(--ink); }
+.home-key { white-space: nowrap; font-size: .92em; }
+/* what the note shows: folded under it */
+.how-read { margin-top: 2px; }
+.how-read summary { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font: 600 13px/1.2 var(--f-ui); color: var(--ink-2); list-style: none; border-radius: 6px; }
+.how-read summary::-webkit-details-marker { display: none; }
+.how-read summary::before { content: '+'; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--rule-2); font: 600 13px/1 var(--f-ui); color: var(--ink-2); }
+.how-read[open] summary::before { content: '−'; }
+.how-read summary:hover { color: var(--ink); }
+.how-read summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.how-read ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 12px; max-width: 520px; }
+.how-read li { display: grid; gap: 3px; }
+.how-read .k { font: 600 10.5px/1.2 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
+.how-read .k i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--ink-3); font-size: 10px; color: var(--ink); letter-spacing: 0; }
+.how-read p { margin: 0; font: 500 14px/1.4 var(--f-ui); color: var(--ink); }
+.how-read p span { color: var(--ink-3); font-weight: 400; }
+/* the street: three stops joined by a lit line; each stop is a pane with one window in its light */
+.how-street { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; position: relative; }
+.how-street::before { content: ''; position: absolute; left: 8%; right: 8%; top: 46px; height: 2px; background: linear-gradient(90deg, var(--rule-2), color-mix(in srgb, var(--moon) 60%, var(--rule-2)), var(--metal)); opacity: .7; }
+.how-stop { position: relative; display: grid; gap: 8px; align-content: start; padding: 20px 18px 20px; border-radius: 18px; border: 1px solid var(--rule); background: linear-gradient(180deg, var(--surface-2), var(--surface) 70%); box-shadow: inset 0 1px 0 var(--pane-hi); }
+.how-win { width: 52px; height: 52px; border-radius: 14px; background: var(--town-wall); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--rule-2); position: relative; z-index: 1; }
+.how-win i { width: 24px; height: 30px; border-radius: 6px; background: var(--town-win); transition: background var(--t-slow) var(--ease-out), box-shadow var(--t-slow) var(--ease-out); }
+.how-stop.line .how-win i { background: repeating-linear-gradient(135deg, var(--ink-3) 0 1.2px, transparent 1.2px 4.5px); box-shadow: inset 0 0 0 1.5px var(--rule-2); }
+.how-stop.light.on .how-win i { background: var(--holo); box-shadow: var(--glow-moon); }
+.how-stop.metal.on .how-win i { background: var(--foil-metal); box-shadow: var(--glow-metal); }
+.how-n { position: absolute; top: 18px; right: 18px; font: 700 13px/1 var(--f-display); color: var(--ink-3); }
+.how-stop h3 { margin: 6px 0 0; font: 650 20px/1.15 var(--f-display); letter-spacing: -.02em; }
+.how-stop p { margin: 0; font: 400 14.5px/1.45 var(--f-ui); color: var(--ink-2); }
+.how-stop .how-light { margin-top: 4px; font-size: 12.5px; color: var(--ink-3); }
+.how-stop .how-light b { color: var(--ink); font-weight: 600; }
 
 /* ================= shared bits ================= */
 .home .skel { width: min(220px, 80%); }
@@ -415,25 +429,13 @@
 }
 @media (max-width: 1000px) {
   .home-hero { min-height: 0; }
-  .home-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 28px; }
-  /* one column: copy, then the note stack, then the materials legend under it */
-  .home-hero-copy { display: contents; }
-  .home-hero-grid > *, .home-hero-copy > * { position: relative; z-index: 2; min-width: 0; }
-  .home-stage { order: 1; }
-  .home ul.home-materials { order: 2; margin-top: 28px; }
-  /* one column: the town would sit behind the legend; the footer street carries it on narrow screens */
-  .home-hero .home-town { display: none; }
-  .home-stage { padding: 24px 0 8px; }
-  .home-stage-col { width: 100%; }
-  .home-callrow { display: none; }
-  .home-notewrap { padding: 9% 7% 0 0; }
-  .home ol.home-callist { display: grid; gap: 14px; list-style: none; margin: 24px 0 0; padding: 18px 0 0; border-top: 1px solid var(--rule); }
-  .home-callist li { display: grid; gap: 4px; }
-  .home-callist .k { font: 600 10.5px/1.2 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
-  .home-callist .k i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--ink-3); font-size: 10px; color: var(--ink); letter-spacing: 0; }
-  .home-callist p { margin: 0; font: 500 14px/1.4 var(--f-ui); color: var(--ink); }
-  .home-callist p span { color: var(--ink-3); font-weight: 400; }
-  .home-foot { margin-top: 22px; }
+  .home-hero-grid { grid-template-columns: minmax(0, 1fr); padding-top: 36px; padding-bottom: 0; }
+  /* one column: the copy, then the town as its own picture under it, then the street */
+  .home-scene { position: relative; order: 2; height: clamp(220px, 46vw, 360px); bottom: auto; margin-top: 8px; z-index: 0; }
+  .home-down { display: none; }
+  .home-hero > :last-child { order: 3; }
+  .how-grid { grid-template-columns: minmax(0, 1fr); }
+  .how-notewrap { max-width: 460px; }
   .home-door-grid { grid-template-columns: minmax(0, 1fr); }
   .mn-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .sp-detail { grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -445,11 +447,18 @@
   .ln-grid li:nth-child(2n + 1) .ln-card { padding-left: 0; }
 }
 @media (max-width: 640px) {
-  .home-hero-grid { padding-top: 22px; }
-  .home-stage { padding-top: 6px; }
-  .home ul.home-materials { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .home-hero-grid { padding-top: 26px; }
   .home-cta .key { flex: 1 1 auto; justify-content: center; }
-  .home-how { width: 100%; margin-left: 0; justify-content: center; height: 44px; }
+  .home-more { text-align: center; }
+  .how-street { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .how-street::before { left: 43px; right: auto; top: 30px; bottom: 30px; width: 2px; height: auto; background: linear-gradient(180deg, var(--rule-2), color-mix(in srgb, var(--moon) 60%, var(--rule-2)), var(--metal)); }
+  .how-stop { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; row-gap: 4px; padding: 16px 14px; }
+  .how-win { grid-row: 1 / span 3; }
+  .how-stop h3 { margin: 0; font-size: 17px; }
+  .how-stop p { font-size: 14px; }
+  .how-n { top: 14px; right: 14px; }
+  .mn-stats .metal .v { font-size: 30px; }
+  .mn-stats .v { font-size: 30px; }
   .home-mgrid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .home-mgrid .moment { padding: 20px 16px 22px; }
   .home-mgrid .vis { height: auto; min-height: 176px; }
@@ -458,8 +467,6 @@
   .mini-out { min-height: 0; }
   .home-door .door-vis { height: 220px; }
   .home-door .door-b { padding: 18px 16px 20px; }
-  .mn-stats .v { font-size: 34px; }
-  .mn-stats .metal .v { font-size: 40px; }
   .mn-stats > div { padding: 16px 12px 16px 14px; }
   .sp-stop { padding: 12px 10px 14px; }
   .sp-stop b { font: 600 15px/1.25 var(--f-ui); letter-spacing: -.005em; }
