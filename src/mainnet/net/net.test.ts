@@ -18,6 +18,9 @@ const env = (error: string) => JSON.stringify({ success: false, data: null, erro
 describe("problems", () => {
   it("names the front's 429 as busy (Retry-After, else the backoff) and a tracker cap as a cap", () => {
     expect(problemOf("notes", ans(429, env("too many requests, slow down")))).toMatchObject({ kind: "busy", retryInMs: 30_000 });
+    // Round 7, N9: a key with past redemptions cannot open a new reserve of that denomination.
+    expect(problemOf("reserves-create", ans(409, env("reserve_reopen_blocked: owner 02ab… has redemptions")))).toMatchObject({ kind: "reopen-blocked", status: 409 });
+    expect(problemOf("notes", ans(409, env("reserve_reopen_blocked: x")))).toMatchObject({ kind: "conflict" });
     expect(problemOf("state", ans(429, env("slow"), 120_000))).toMatchObject({ kind: "busy", retryInMs: 120_000 });
     const cap = problemOf("notes", ans(429, env(`issuer ${ME} already has 50 recipients, the most this tracker accepts per issuer (server.notes_max_recipients_per_issuer = 50)`)));
     expect(cap).toMatchObject({ kind: "cap", status: 429, retryInMs: null });

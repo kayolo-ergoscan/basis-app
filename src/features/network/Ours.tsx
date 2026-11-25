@@ -70,6 +70,10 @@ function DigestShort({ d, a = 8, b = 6 }: { d: string | null; a?: number; b?: nu
   );
 }
 
+/** Our tracker re-commits an unchanged digest every 720 blocks (`[transaction] heartbeat_blocks`), so
+ * the emergency window only opens if it stops. The countdown alone read as if it would open (25.11). */
+const OUR_HEARTBEAT_BLOCKS = 720;
+
 /** The five figures: last commit, emergency window, reserves, collateral, fee funds. */
 function OurFigures({ v }: { v: OurView }) {
   const t = useT();
@@ -87,7 +91,15 @@ function OurFigures({ v }: { v: OurView }) {
         <dt>{t("network.ours.window")}</dt>
         {/* the count big, its word small like ERG beside an amount: «2 037 блоков» fits a phone column */}
         <dd><span className="v num">{em ? (em.open ? t("network.ours.windowOpen") : fmtH(em.blocksLeft)) : DASH}</span>{em && !em.open && <span className="u plain">{blockWord(em.blocksLeft, lang)}</span>}</dd>
-        <dd className="s">{em ? t(em.open ? "network.ours.windowOpenAt" : "network.ours.windowAt", { h: fmtH(em.opensAt) }) : DASH}</dd>
+        <dd className="s">
+          {em
+            ? em.open
+              ? t("network.ours.windowOpenAt", { h: fmtH(em.opensAt) })
+              : v.height !== null
+                ? t("network.ours.windowAtHb", { h: fmtH(em.opensAt), hb: fmtH(v.height + OUR_HEARTBEAT_BLOCKS) })
+                : t("network.ours.windowAt", { h: fmtH(em.opensAt) })
+            : DASH}
+        </dd>
       </div>
       <div className="fig">
         <dt>{t("network.ours.reserves")}</dt>

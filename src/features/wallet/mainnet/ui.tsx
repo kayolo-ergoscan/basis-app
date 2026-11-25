@@ -64,6 +64,7 @@ export function ProblemText({ p, what, reasonOnly }: { p: Problem; what?: "creat
     case "replaced": text = t("mw.err.replaced"); break;
     case "waiting-chain": text = t("mw.err.waitingChain"); break;
     case "cap": text = t("mw.err.cap"); break;
+    case "reopen-blocked": text = t("mw.err.reopenBlocked"); break;
     case "conflict": text = what === "note" ? t("mw.err.conflictNote") : t("mw.err.conflict"); break;
     case "future-ts": text = t("mw.err.futureTs"); break;
     case "past-ts": text = t("mw.err.pastTs"); break;

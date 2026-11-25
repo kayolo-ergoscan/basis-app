@@ -13,6 +13,7 @@ export type ProblemKind =
   | "waiting-chain" // 409 on /redemption/build (round 5, C8): an earlier redemption waits for 2 confirmations
   | "replaced"      // 409 on /redemption/submit: the build is unknown, expired or used (maybe by an earlier attempt)
   | "stale-ts"      // 409 on /redemption/build: request_timestamp not after this receiver's previous one (previousTs)
+  | "reopen-blocked" // 409 reserve_reopen_blocked on /reserves/create (round 7, N9): this key already had redemptions
   | "conflict"      // 409 otherwise (no active reserve, reserve in refund, two reserves …): the reason says which
   | "future-ts"     // 400 "Future timestamp": the note is later than the tracker's clock
   | "past-ts"       // 400 "Past timestamp": not after the pair's last note
@@ -102,6 +103,7 @@ export function problemOf(route: WalletRoute, a: RawAnswer, failures = 0): Probl
     const stale = route === "build" ? NOT_GREATER.exec(reason) : null;
     if (stale) return p("stale-ts", { previousTs: Number(stale[1]) });
     if (route === "submit") return p("replaced");
+    if (route === "reserves-create" && /^reserve_reopen_blocked\b/i.test(reason)) return p("reopen-blocked");
     return p("conflict");
   }
   if (s === 400) {
