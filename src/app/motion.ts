@@ -65,10 +65,12 @@ history.listen = (fn) => listen((u: Update) => {
   const same = path === shown;
   const go = () => {
     if (my !== seq) return; // a newer switch took over
-    setPending(null);
     shown = path;
-    if (same || !canFade()) { fn(u); return; }
-    crossFade(() => { fn(u); return settled(u.location.key); });
+    // the pending place hands over to the router's own in the same update (cleared before it, the old place lit up
+    // again for the one frame the fade takes to capture the old view)
+    const apply = () => { fn(u); setPending(null); };
+    if (same || !canFade()) { apply(); return; }
+    crossFade(() => { apply(); return settled(u.location.key); });
   };
   const w = same ? null : warmPath(path);
   if (!w) { go(); return; }
