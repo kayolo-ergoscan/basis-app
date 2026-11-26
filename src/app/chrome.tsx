@@ -189,7 +189,7 @@ export function TabBar() {
     <nav className="tabbar" aria-label={t("nav.primary")}>
       {PLACES.map((x) => {
         const on = x.match(pathname);
-        return <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key === "nav.learn" ? "nav.learnShort" : x.key)}</span></Link>;
+        return <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key)}</span></Link>;
       })}
     </nav>
   );
