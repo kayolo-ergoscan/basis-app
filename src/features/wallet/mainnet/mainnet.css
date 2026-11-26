@@ -5,7 +5,7 @@
 .mw-page :where(.mw-main, .mw-side, .mw-single) > * { min-width: 0; }
 .mw-page .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .mw-page .seg::-webkit-scrollbar { display: none; }
-.mw-page :is(p, .t-small, li) > a:not(.key):not(.textlink):not(.mw-link) { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+.mw-page :is(p, .t-small, li) > a:not(.key):not(.textlink):not(.mw-link):not(.mw-hrow) { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
 .mw-page button.textlink { border: 0; background: none; padding: 2px 0; cursor: pointer; border-radius: 4px; justify-self: start; }
 .mw-page button.textlink:focus-visible { box-shadow: var(--focus-halo); }
 .mw-dim { color: var(--ink-3); }
