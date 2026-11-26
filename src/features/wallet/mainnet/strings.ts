@@ -232,6 +232,10 @@ const en: Dict = {
   "mw.start.seedImport": "Import this key",
   "mw.start.oneKeyT": "One key per browser",
   "mw.start.oneKeyB": "This browser holds the key {addr}, and a new key never replaces it. To bring in another key (a seed phrase, a hex key or another backup file), open the wallet in another browser or a private window; a private window forgets its key when it closes, so keep that key's backup file. Or wipe this key in Settings first, once its backup file is proven.",
+  // ─── polish: key setup with one warning line (the four stay under «More»), the key moved from an Ergo wallet ───
+  "mw.start.warnLine": "The key lives only in this browser; only the backup file and its passphrase bring it back. Small amounts only.",
+  "mw.start.warnMore": "More",
+  "mw.start.seedTip": "Better a separate wallet with a small amount.",
   "mw.persist.yes": "This browser keeps the site's data (persistent storage granted).",
   "mw.persist.no": "This browser may clear the site's data under pressure. The backup file matters even more.",
   "mw.persist.unknown": "Unknown whether this browser keeps the site's data.",
@@ -1031,10 +1035,6 @@ const en: Dict = {
   "mw.tip.qrL": "QR code of the button's link",
   "mw.tip.reserve": "Only a key with a reserve can pay through the button today: ErgoScan's tracker takes notes only from a key with an active reserve in the same currency.",
   "mw.tip.receipt": "You see a payment once the payer sends you the receipt link: say next to the button where to send it.",
-  // ─── polish: key setup with one warning line (the four stay under «More»), the key moved from an Ergo wallet ───
-  "mw.start.warnLine": "The key lives only in this browser; only the backup file and its passphrase bring it back. Small amounts only.",
-  "mw.start.warnMore": "More",
-  "mw.start.seedTip": "Better a separate wallet with a small amount.",
 };
 
 const ru: Partial<Dict> = {
@@ -1259,6 +1259,10 @@ const ru: Partial<Dict> = {
   "mw.start.seedImport": "Импортировать этот ключ",
   "mw.start.oneKeyT": "Один ключ на браузер",
   "mw.start.oneKeyB": "В этом браузере уже есть ключ {addr}, и новый его не заменит. Чтобы перенести другой ключ (сид-фразу, hex-ключ или другой файл копии), откройте кошелёк в другом браузере или в приватном окне; приватное окно забывает ключ при закрытии, поэтому сохраните файл копии того ключа. Или сначала удалите этот ключ в настройках, когда его файл копии проверен.",
+  // ─── polish: настройка ключа с одной строкой предупреждения (четыре — под «Подробнее»), ключ из кошелька Ergo ───
+  "mw.start.warnLine": "Ключ хранится только в этом браузере, вернуть его можно только файлом копии и паролем. Только небольшие суммы.",
+  "mw.start.warnMore": "Подробнее",
+  "mw.start.seedTip": "Лучше — отдельный кошелёк с небольшой суммой.",
   "mw.persist.yes": "Браузер сохраняет данные сайта (постоянное хранилище разрешено).",
   "mw.persist.no": "Браузер может стереть данные сайта при нехватке места. Файл копии тем важнее.",
   "mw.persist.unknown": "Неизвестно, сохраняет ли браузер данные сайта.",
@@ -2047,10 +2051,6 @@ const ru: Partial<Dict> = {
   "mw.tip.qrL": "QR-код ссылки кнопки",
   "mw.tip.reserve": "Платить по кнопке сейчас может только ключ с резервом: трекер ErgoScan принимает расписки лишь от ключа, у которого есть действующий резерв в той же валюте.",
   "mw.tip.receipt": "Оплату вы увидите, когда плательщик пришлёт вам ссылку-квитанцию: напишите рядом с кнопкой, куда её прислать.",
-  // ─── polish: настройка ключа с одной строкой предупреждения (четыре — под «Подробнее»), ключ из кошелька Ergo ───
-  "mw.start.warnLine": "Ключ хранится только в этом браузере, вернуть его можно только файлом копии и паролем. Только небольшие суммы.",
-  "mw.start.warnMore": "Подробнее",
-  "mw.start.seedTip": "Лучше — отдельный кошелёк с небольшой суммой.",
 };
 
 export default { en, ru };

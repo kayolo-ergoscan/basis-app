@@ -331,7 +331,7 @@
   .mw-recv { gap: 20px; }
   .mw-recv > :is(.mw-main, .mw-side), .mw-recv .mw-screen-h { display: contents; }
   .mw-recv .mw-screen-h > h1 { order: -5; }
-  .mw-recv .mw-recv-link { order: -4; }
+  .mw-recv .mw-screen-h + .mw-recv-import { order: -4; } /* only the one opened from a link sits right under the title */
   .mw-recv .mw-ask { order: -3; }
   .mw-recv .mw-tip { order: -2; }
   .mw-recv .mw-screen-h > .t-lede { order: -1; }

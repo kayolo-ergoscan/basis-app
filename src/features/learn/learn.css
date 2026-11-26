@@ -84,6 +84,7 @@
 .lrn-p { font: 400 17px/1.72 var(--f-ui); color: var(--ink-2); margin: 0; }
 .lrn-p + .lrn-p, .lrn-p + .lrn-ul, .lrn-ul + .lrn-p { margin-top: 1em; }
 .lrn-p b, .lrn-ul b { color: var(--ink); font-weight: 600; }
+.lrn-minute-go { margin-top: 22px; } /* polish: «Basis in one minute» at the top of /learn/how */
 .lrn-p a, .lrn-ul a, .lrn-side a, .lrn-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .lrn-p a:hover, .lrn-ul a:hover, .lrn-side a:hover, .lrn-link:hover { text-decoration-color: var(--ink-2); }
 /* pills already read as links; in a source row only the title is underlined, not its kind label */
@@ -1027,6 +1028,3 @@ ul.lx-who-row { list-style: none; margin: 0; padding: 0; display: grid; grid-tem
 @media (max-width: 1280px) { ul.lx-who-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1000px) { ul.lx-who-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { ul.lx-who-row { grid-template-columns: minmax(0, 1fr); } }
-
-/* polish: «Basis in one minute» at the top of /learn/how */
-.lrn-minute-go { margin-top: 22px; }
