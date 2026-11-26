@@ -9,10 +9,10 @@
 // The request link may also carry how to sign the receiver and what for (after #, plain text, unchecked: reqlink.ts),
 // and «A button for your project» makes the same link into a README button (Tip.tsx). «Inbox» lists every note to this
 // key, read with the key's own signature, where the tracker has that route (Inbox.tsx); elsewhere the receipt link stays.
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLang, useT } from "@/app/lang";
-import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
+import { AmountInput, Callout, Card, CopyButton, Field, Icon, Key, KeySeal, Lamp, Seg, TextInput, short, int, useHoldHeight } from "@/ui";
 import { TRACKER_NFT, WALLET_DENOMS, denomDecimals, denomSlug, denomSymbol, parseStoredNote, type Denomination } from "@/mainnet/tx";
 import {
   WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, unwatchIssuer, watchIssuer, watchedDenoms,
@@ -22,7 +22,8 @@ import { parseKeyInput } from "@/chain/ours";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
-import { Gate, ProblemText, TimeHint } from "./ui";
+import { ProblemText, TimeHint } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, amtText, useDenom, useOnDenomChange } from "./denom";
 import { LONG_LINK, MEMO_MAX, NAME_MAX, labelledRequestLink } from "./reqlink";
 import { ProjectButton } from "./Tip";
@@ -136,7 +137,7 @@ function PairDenom({ w, me, denom, polled, titled, header, onQuiet }: { w: Watch
   );
 }
 
-function ImportCard({ me, initial }: { me: string; initial: string }) {
+function ImportCard({ me, initial, bare }: { me: string; initial: string; bare?: boolean }) {
   const t = useT();
   const [text, setText] = useState(initial);
   const [list, update] = useWatchList(me);
@@ -149,8 +150,7 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
     setText("");
     setName("");
   };
-  return (
-    <Card title={t("mw.recv.importT")} className="mw-recv-import">
+  const body = (
       <div className="mw-form">
         <Field label={t("mw.recv.importL")} help={t("mw.recv.importHelp")}>
           <TextInput mono value={text} onChange={setText} placeholder={t("mw.recv.importPh")} autoComplete="off" />
@@ -176,13 +176,13 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
           </div>
         )}
       </div>
-    </Card>
   );
+  return bare ? body : <Card title={t("mw.recv.importT")} className="mw-recv-import">{body}</Card>;
 }
 
 /** No receipt link: watch a payer by public key or P2PK address. The pair route (issuer → this key) then shows the
  *  note, if there is one, exactly as for a watched issuer from a receipt; nothing is trusted that is not signed. */
-function AddPayerCard({ me }: { me: string }) {
+function AddPayerCard({ me, bare }: { me: string; bare?: boolean }) {
   const t = useT();
   const { lang } = useLang();
   const [list, update] = useWatchList(me);
@@ -201,8 +201,7 @@ function AddPayerCard({ me }: { me: string }) {
     setText("");
     setName("");
   };
-  return (
-    <Card title={t("mw.recv.addT")}>
+  const body = (
       <form className="mw-form" onSubmit={add}>
         <Field label={t("mw.recv.addL")} help={t("mw.recv.addHelp", { syms: new Intl.ListFormat(lang === "ru" ? "ru" : "en").format(WALLET_DENOMS.map(denomSymbol)) })} error={err}>
           <TextInput mono value={text} onChange={setText} placeholder="9…" autoComplete="off" autoCapitalize="off" autoCorrect="off" />
@@ -214,8 +213,30 @@ function AddPayerCard({ me }: { me: string }) {
         )}
         <Key type="submit" disabled={!key.ok || self || have}>{t("mw.recv.addGo")}</Key>
       </form>
-    </Card>
   );
+  return bare ? body : <Card title={t("mw.recv.addT")}>{body}</Card>;
+}
+
+type Kind = "note" | "erg";
+
+/** One folded way under «More ways»: its name and a hint, the card's own form inside. */
+function Fold({ title, hint, children, open }: { title: string; hint: string; children: ReactNode; open?: boolean }) {
+  return (
+    <details className="mw-fold" open={open}>
+      <summary><b>{title}</b><span className="t-small mw-dim">{hint}</span><Icon name="plus" size={16} className="mw-fold-i" /></summary>
+      <div className="mw-fold-b">{children}</div>
+    </details>
+  );
+}
+
+/** Copy a link or Share it (only where the browser can share). */
+function ShareButton({ url, title }: { url: string; title: string }) {
+  const t = useT();
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") return null;
+  const go = async () => {
+    try { await navigator.share({ title, url }); } catch { /* closed by the person, or refused: the copy button is next to it */ }
+  };
+  return <Key size="sm" icon="arrow" onClick={() => void go()}>{t("mw.recv.share")}</Key>;
 }
 
 export function ReceiveScreen() {
@@ -224,6 +245,7 @@ export function ReceiveScreen() {
   const loc = useLocation();
   const [list] = useWatchList(me?.pub ?? null);
   const [denom, setDenom] = useDenom();
+  const [kind, setKind] = useState<Kind>("note");
   const [amountText, setAmountText] = useState("");
   const [nameText, setNameText] = useState("");
   const [memoText, setMemoText] = useState("");
@@ -232,7 +254,13 @@ export function ReceiveScreen() {
   const amount = parseUnits(amountText, denomDecimals(denom));
   const initial = useMemo(() => (fragmentOf(loc.hash).note ? loc.hash : ""), [loc.hash]);
   const link = me ? labelledRequestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT, ...(denom === "erg" ? {} : { denom }) }, { name: nameText, memo: memoText }) : "";
+  // the two kinds of request are forms of different heights: the card keeps the taller one, so switching never moves
+  // what is below it (motion round)
+  const askRef = useRef<HTMLDivElement>(null);
+  useHoldHeight(askRef, me?.pub ?? null, [kind]);
   return (
+    // the whole screen waits for the key's backup: the request link, its QR, the key to share and the key's address
+    // are not shown before it is checked (gate.tsx)
     <Gate vault={vault} state={state}>
       {me && (
         <div className="mw-grid mw-recv">
@@ -242,42 +270,80 @@ export function ReceiveScreen() {
               <p className="t-lede">{t("mw.recv.lede")}</p>
             </header>
             {initial && <ImportCard me={me.pub} initial={initial} key={initial} />}
-            <InboxCard me={me.pub} />
-            <Card title={t("mw.recv.watchT", { n: list.length })}>
-              {list.length === 0 ? (
-                <p className="t-small mw-dim">{t("mw.recv.watchEmpty")}</p>
-              ) : (
-                <ul className="mw-pairs">{list.map((w, i) => <PairRow key={w.pk} w={w} me={me.pub} index={i} />)}</ul>
-              )}
-              <p className="t-small mw-dim">{t("mw.recv.watchBudget", { n: WATCH_POLLED })}</p>
-            </Card>
-            {!initial && <ImportCard me={me.pub} initial="" />}
-            <AddPayerCard me={me.pub} />
-            <ProjectButton me={me.pub} />
-          </div>
-          <aside className="mw-side">
             <Card title={t("mw.recv.askT")} className="mw-ask">
-              <div className="mw-form">
-                <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
-                <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
-                <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
-                  error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
-                  <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} />
-                </Field>
-                <Field label={t("mw.rq.nameL")}>
-                  <TextInput value={nameText} onChange={setNameText} maxLength={NAME_MAX} autoComplete="off" />
-                </Field>
-                <Field label={t("mw.rq.memoL")} help={t("mw.rq.labelsHelp")}>
-                  <TextInput value={memoText} onChange={setMemoText} maxLength={MEMO_MAX} autoComplete="off" />
-                </Field>
-                <div className="mw-actions">
-                  <CopyButton value={link} label={t("mw.recv.copyLink")} />
-                  <CopyButton value={me.pub} label={t("mw.recv.copyPk")} />
+              <div className="mw-ask-g" ref={askRef}>
+                <div className="mw-ask-l">
+                  {kind === "note" ? (
+                    <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={204} label={t("mw.recv.askQr")} /></div>
+                  ) : (
+                    <div className="mw-qr mw-qr-c"><QrCode text={me.address} size={204} label={t("mw.recv.ergQr")} /></div>
+                  )}
+                  <p className="t-small mw-dim mono">{short(me.address, 6, 4)}</p>
                 </div>
-                <p className="t-small">{t("mw.rq.askReceipt")}</p>
-                <p className="t-small mw-dim">{t("mw.recv.askB")}</p>
+                <div className="mw-form mw-ask-r">
+                  <div className="mw-denoms">
+                    <span className="label">{t("mw.recv.kindL")}</span>
+                    <Seg ariaLabel={t("mw.recv.kindAria")} value={kind} onChange={setKind}
+                      options={[{ value: "note", label: t("mw.recv.kind.note") }, { value: "erg", label: t("mw.recv.kind.erg") }]} />
+                  </div>
+                  {kind === "note" ? (
+                    <>
+                      <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
+                      <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
+                        error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
+                        <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} />
+                      </Field>
+                      <Field label={t("mw.rq.nameL")}>
+                        <TextInput value={nameText} onChange={setNameText} maxLength={NAME_MAX} autoComplete="off" />
+                      </Field>
+                      <Field label={t("mw.rq.memoL")} help={t("mw.rq.labelsHelp")}>
+                        <TextInput value={memoText} onChange={setMemoText} maxLength={MEMO_MAX} autoComplete="off" />
+                      </Field>
+                      <div className="mw-actions">
+                        <CopyButton className="primary" value={link} label={t("mw.recv.copyLink")} />
+                        <ShareButton url={link} title={t("mw.recv.shareTitle")} />
+                        <CopyButton className="quiet" value={me.pub} label={t("mw.recv.copyPk")} />
+                      </div>
+                      <p className="t-small">{t("mw.recv.paidHere")}</p>
+                      <p className="t-small mw-dim">{t("mw.rq.askReceipt")} {t("mw.recv.askB")}</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="label">{t("mw.fund.addr")}</div>
+                      <div className="mono mw-break mw-addr">{me.address}</div>
+                      <div className="mw-actions">
+                        <CopyButton className="primary" value={me.address} label={t("mw.fund.copy")} />
+                        <ShareButton url={me.address} title={t("mw.fund.addr")} />
+                        <Key size="sm" variant="quiet" icon="in" to="/wallet/mainnet/fund">{t("mw.recv.ergWatch")}</Key>
+                      </div>
+                      <p className="t-small">{t("mw.recv.ergB")}</p>
+                      <p className="t-small mw-dim">{t("mw.dn.fundTokens")}</p>
+                    </>
+                  )}
+                </div>
               </div>
             </Card>
+            <Card title={t("mw.recv.mineT")} className="mw-mine">
+              <div className="mw-form">
+                <InboxCard me={me.pub} bare />
+                {list.length === 0 ? (
+                  <p className="t-small mw-dim">{t("mw.recv.watchNone")}</p>
+                ) : (
+                  <>
+                    <h2 className="label mw-mine-h"><b>{t("mw.recv.watchT", { n: list.length })}</b></h2>
+                    <ul className="mw-pairs">{list.map((w, i) => <PairRow key={w.pk} w={w} me={me.pub} index={i} />)}</ul>
+                    <p className="t-small mw-dim">{t("mw.recv.watchBudget", { n: WATCH_POLLED })}</p>
+                  </>
+                )}
+              </div>
+            </Card>
+            <Card title={t("mw.recv.moreT")} className="mw-more">
+              {!initial && <Fold title={t("mw.recv.importT")} hint={t("mw.recv.more.import")}><ImportCard me={me.pub} initial="" bare /></Fold>}
+              <Fold title={t("mw.recv.addT")} hint={t("mw.recv.more.watch")}><AddPayerCard me={me.pub} bare /></Fold>
+              <Fold title={t("mw.tip.t")} hint={t("mw.recv.more.tip")}><ProjectButton me={me.pub} bare /></Fold>
+            </Card>
+          </div>
+          <aside className="mw-side">
             <Card title={t("mw.recv.timesT")}>
               <ul className="mw-facts">
                 <li>{t("mw.time.note")}</li>

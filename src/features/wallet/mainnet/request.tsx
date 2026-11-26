@@ -157,6 +157,8 @@ export function ReceiptHandoff({ r, name }: { r: NoteReceipt; name: string | nul
       <h2 className="t-h3" id="mw-handoff-h">{t("mw.rq.sendH")}</h2>
       <p>{name ? t("mw.rq.sendB", { name }) : t("mw.rq.sendBAnon")}</p>
       <Key variant="primary" size="lg" block icon={canShare ? undefined : "copy"} onClick={() => void (canShare ? share() : copy())}>{t(canShare ? "mw.rq.share" : "mw.rq.copy")}</Key>
+      {/* the receipt is the quick way; without it the receiver still finds the note in their inbox */}
+      <p className="t-small">{t("mw.rq.inboxToo")}</p>
       <div className="mw-actions">
         {canShare && <CopyButton value={link} label={t("mw.rq.copyLink")} />}
         <Key size="sm" aria-expanded={qr} onClick={() => setQr(!qr)}>{t(qr ? "mw.rq.qrHide" : "mw.rq.qr")}</Key>

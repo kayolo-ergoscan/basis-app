@@ -29,7 +29,8 @@ type Phase =
 
 const nowMs = () => net().clock.now();
 
-export function InboxCard({ me }: { me: string }) {
+/** `bare`: the inbox inside another card («Notes to me» on Receive), without its own. */
+export function InboxCard({ me, bare }: { me: string; bare?: boolean }) {
   const t = useT();
   const { lang } = useLang();
   const verr = useVaultError();
@@ -100,9 +101,8 @@ export function InboxCard({ me }: { me: string }) {
   const forget = () => { dropToken(me); setPhase({ k: "idle" }); };
   const at = (until: string) => new Date(Number(until) * 1000).toLocaleTimeString(lang === "ru" ? "ru-RU" : "en-GB", { hour: "2-digit", minute: "2-digit" });
 
-  return (
-    <Card title={t("mw.in.t")} className="mw-inbox">
-      <div className="mw-form">
+  const body = (
+      <div className="mw-form mw-inbox">
         {phase.k === "list" ? (
           <InboxList me={me} items={phase.items} refused={phase.refused} list={list} onWatch={(pk, denoms) => update((l) => watchIssuer(l, me, pk, { denoms }))} />
         ) : phase.k === "closed" ? (
@@ -126,8 +126,8 @@ export function InboxCard({ me }: { me: string }) {
           </div>
         )}
       </div>
-    </Card>
   );
+  return bare ? body : <Card title={t("mw.in.t")} className="mw-inbox">{body}</Card>;
 }
 
 /** One row per payer (as on the watch list): each denomination it paid in, and one tap to watch them all. */

@@ -28,7 +28,8 @@ export function badgeSnippet(origin: string, link: string, lang: BadgeLang, form
   return format === "md" ? `[![${b.alt}](${img})](${link})` : `<a href="${attr(link)}"><img src="${attr(img)}" alt="${attr(b.alt)}" height="20"></a>`;
 }
 
-export function ProjectButton({ me }: { me: string }) {
+/** `bare`: inside «More ways» on Receive, without its own card. */
+export function ProjectButton({ me, bare }: { me: string; bare?: boolean }) {
   const t = useT();
   const { lang } = useLang();
   const [open, setOpen] = useState(false);
@@ -41,9 +42,8 @@ export function ProjectButton({ me }: { me: string }) {
   const amount = parseUnits(amountText, 9);
   const link = labelledRequestLink(location.origin, { to: me, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT }, { name, memo });
   const code = badgeSnippet(location.origin, link, blang, format);
-  return (
-    <Card title={t("mw.tip.t")} className="mw-tip">
-      <div className="mw-form">
+  const body = (
+      <div className="mw-form mw-tip">
         <p className="t-small">{t("mw.tip.lede")}</p>
         {!open ? (
           <Key onClick={() => setOpen(true)}>{t("mw.tip.open")}</Key>
@@ -79,6 +79,6 @@ export function ProjectButton({ me }: { me: string }) {
           </>
         )}
       </div>
-    </Card>
   );
+  return bare ? body : <Card title={t("mw.tip.t")} className="mw-tip">{body}</Card>;
 }
