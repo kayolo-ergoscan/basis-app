@@ -58,8 +58,10 @@ export function useBookSections(secs: TocSection[]) {
   useEffect(() => {
     ctx?.setSecs(secs);
     ctx?.ready();
-    return () => ctx?.setSecs([]);
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // cleared when the page goes, not between two versions of its list (the phone's contents line showed the chapter
+  // without its section for a frame: motion round)
+  useEffect(() => () => ctx?.setSecs([]), []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function pageIdOf(pathname: string): LearnPageId | null {
@@ -139,14 +141,17 @@ export function BookLayout() {
 
   const closeMobile = () => { if (mRef.current) mRef.current.open = false; };
   const curPage = current ? pageOf(current) : null;
-  const curSec = secs.find((s) => s.id === active);
+  // a new chapter's list arrives before the scroll spy has looked at it: its first section until then (where the spy
+  // lands at the top of a page), so the contents line never shows the chapter without a section in between
+  const curSec = secs.find((s) => s.id === active) ?? secs[0];
+  const activeId = curSec?.id ?? null;
 
   return (
     <BookCtx.Provider value={ctx}>
       <Page className="lrn-page">
         <div className="lrn">
           <aside className="lrn-toc" ref={railRef} aria-label={t("learn.toc.label")}>
-            <Toc current={current} secs={secs} active={active} here="end" />
+            <Toc current={current} secs={secs} active={activeId} here="end" />
           </aside>
           <div className="lrn-flow" ref={flowRef}>
             <details className="lrn-toc-m" ref={mRef}>
@@ -157,7 +162,7 @@ export function BookLayout() {
               </summary>
               {/* same wrapper as the rail, so the drawer gets the rail's list styles (no list numbers, no stray progress line) */}
               <div className="lrn-toc">
-                <Toc current={current} secs={secs} active={active} onNav={closeMobile} />
+                <Toc current={current} secs={secs} active={activeId} onNav={closeMobile} />
               </div>
             </details>
             <Suspense fallback={<PageLoading label={t("learn.loading")} />}>
