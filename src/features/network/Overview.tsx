@@ -539,8 +539,9 @@ function Records({ obs }: { obs: Observatory }) {
   const lg = rec("largestRedemption");
   if (lg) cells.push({ k: "largestRedemption", v: <>{lg.unit === "erg" || !lg.unit ? `${ergs(BigInt(lg.amount ?? "0"))} ERG` : lg.amount}</>, s: date(lg.at, lang), to: `/network/tx/${lg.tx}` });
   if (rec("firstTokenReserve")) cells.push({ k: "firstTokenReserve", v: date(rec("firstTokenReserve").at, lang), s: <>{fmtH(rec("firstTokenReserve").height)} · <span className="hex">{sid(rec("firstTokenReserve").box)}</span></>, to: rec("firstTokenReserve").box ? `/network/reserve/${rec("firstTokenReserve").box}` : undefined });
-  const la = rec("lastActivity");
-  if (la) cells.push({ k: "lastActivity", v: date(la.at, lang), s: la.what?.includes("burned") ? t("network.rec.what.sweep") : fmtH(la.height), to: la.tx ? `/network/tx/${la.tx}` : undefined });
+  // the newest redemption (the list is newest first): when someone last took money out of a reserve, and how much
+  const lr = obs.redemptions[0];
+  if (lr) cells.push({ k: "lastRedemption", v: date(lr.at, lang), s: <>{redemptionAmount(lr, lang)} · {fmtH(lr.height)}</>, to: `/network/tx/${lr.tx}` });
   return (
     <section className="nw-records" aria-labelledby="nw-rec-h">
       <h2 id="nw-rec-h" className="label">{t("network.rec.title")}</h2>
