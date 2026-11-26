@@ -8,7 +8,7 @@ import { Icon, type IconName } from "@/ui/components/Icon";
 import { Chip, Lamp, Seg } from "@/ui/components/primitives";
 import { Sheet } from "@/ui/components/Sheet";
 import { flash, usePulseClass } from "@/ui/hooks";
-import { useGlide } from "@/ui/motion";
+import { useLight } from "@/ui/motion";
 import { int, short } from "@/ui/engine/money";
 import { REPOS } from "@/content/repos";
 import { openCommandBar, openHelp } from "./commands";
@@ -133,7 +133,7 @@ export function Nav() {
   const loc = useLocation();
   const lit = useLitPath();
   const links = useRef<HTMLElement>(null);
-  useGlide(links);
+  useLight(links);
   useEffect(() => setMenu(false), [loc.pathname]);
   return (
     <header className="nav">
@@ -144,7 +144,7 @@ export function Nav() {
           <span className="brand-sub">{t("app.brand.sub")}</span>
         </Link>
         <nav className="nav-links" aria-label={t("nav.primary")} ref={links}>
-          <span className="glide" aria-hidden="true" />
+          <span className="light" aria-hidden="true" />
           {PLACES.map((x) => {
             const on = x.match(loc.pathname);
             return (
@@ -206,11 +206,11 @@ export function NetPlaceNav({ counts = {}, className }: { counts?: NetCounts; cl
   const { pathname } = useLocation();
   const on = netOn(pathname);
   const ref = useRef<HTMLElement>(null);
-  // the network pages and the tracker console draw the same bar in the same place: the plate glides on between them
-  useGlide(ref, undefined, "net-place");
+  // the network pages and the tracker console draw the same bar in the same place: the light moves on between them
+  useLight(ref, undefined, "net-place");
   return (
     <nav className={className ? `place-tabs ${className}` : "place-tabs"} aria-label={t("nav.net.aria")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {NET_TABS.map((id) => (
         <Link key={id} to={netHref(id)} className={on === id ? "on" : undefined} aria-current={on === id ? "page" : undefined}>
           {id === "ours" && <Lamp state="live" size={7} />}{t(`nav.net.${id}`)}{COUNTED.includes(id) && <span className="n">{counts[id] ?? ""}</span>}
@@ -245,10 +245,10 @@ export function TabBar() {
   const { pathname } = useLocation();
   const lit = useLitPath();
   const ref = useRef<HTMLElement>(null);
-  useGlide(ref);
+  useLight(ref);
   return (
     <nav className="tabbar" aria-label={t("nav.primary")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {PLACES.map((x) => {
         const on = x.match(pathname);
         return <Link key={x.id} to={x.to} className={x.match(lit) ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key)}</span></Link>;

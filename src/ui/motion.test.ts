@@ -2,7 +2,7 @@
 // allowed and the tab is visible; anything else switches at once. The bars that stay live during the fade are named for
 // that one switch and unnamed after it.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canFade, crossFade, FADE_MS, GLIDE_MS } from "./motion";
+import { canFade, crossFade, FADE_MS } from "./motion";
 import { setUiSettings } from "./settings";
 
 const g = globalThis as unknown as Record<string, unknown>;
@@ -40,7 +40,6 @@ function fakeDom(opts: { vt?: boolean; hidden?: boolean } = {}) {
 
 describe("motion budget", () => {
   it("stays quick: every duration ≤ 250 ms", () => {
-    expect(GLIDE_MS).toBeLessThanOrEqual(250);
     expect(FADE_MS).toBeLessThanOrEqual(250);
   });
 });

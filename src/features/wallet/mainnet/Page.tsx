@@ -8,7 +8,7 @@ import { addI18n, getLang, useT } from "@/app/lang";
 import { useTitle } from "@/app/frame";
 import { useHeight } from "@/app/height";
 import { typo } from "@/content";
-import { Callout, ErrorState, Icon, Key, KeySeal, Loading, Page, short, useGlide } from "@/ui";
+import { Callout, ErrorState, Icon, Key, KeySeal, Loading, Page, short, useLight } from "@/ui";
 import { p2pkTree } from "@/mainnet/tx";
 import { setMainnetPubMarker } from "@/mainnet/key-markers";
 import { WalletModeSwitch } from "../ModeSwitch";
@@ -82,10 +82,10 @@ function TopBar({ ctx }: { ctx: MwContext | null }) {
 function MwNav() {
   const t = useT();
   const ref = useRef<HTMLElement>(null);
-  useGlide(ref, undefined, "mw-nav");
+  useLight(ref, undefined, "mw-nav");
   return (
     <nav className="mw-nav" aria-label={t("mw.nav.aria")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {NAV.map(([to, k, icon]) => (
         <NavLink key={to} to={to} end={to === "/wallet/mainnet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
           <Icon name={icon} size={15} />

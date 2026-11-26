@@ -2,8 +2,9 @@
  * 1. A switch cross-fades the view in place (View Transitions, the root only: a fade, never a slide, 180 ms).
  * 2. The fixed chrome and the bars that stay between views are live above the fade: shown as themselves, never faded
  *    or moved. A live bar that only one of the two views has comes or goes with the fade.
- * 3. The lit plate of a bar glides to the new item (200 ms); the lit look moves from the item to the plate once the
- *    plate stands (the bar gets .glides), so a page without JS, or before the first layout, looks exactly as before. */
+ * 3. The «фишка»: a bar's light (its soft lit tag) goes out where it was while it lights up at the new item, in place
+ *    (180 ms, a fade, nothing slides). The lit look moves from the item to the light once the light stands (the bar gets
+ *    .lights), so a page without JS, or before the first layout, looks exactly as before. */
 
 /* ============ the cross-fade ============ */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; animation-timing-function: cubic-bezier(.2, 0, .2, 1); }
@@ -46,35 +47,30 @@
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
-/* ============ the gliding plate ============ */
+/* ============ the light of a bar ============ */
 .nav-links, .place-tabs, .mw-nav, .wl-bar-n, .wl-bar-m, .wl-mode, .trk-subnav, .trk-mode, .tabs, .seg { position: relative; isolation: isolate; }
 .tabbar { isolation: isolate; }
-.glide { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; will-change: transform; }
-.glides > .glide { opacity: 1; }
-/* the items' own colours change softly while the plate travels */
+.light { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; }
+.lights > .light { opacity: 1; }
+/* the items' own colours change softly while the light moves */
 .nav-links > a, .place-tabs > a, .mw-nav > a, .wl-bar-n > a, .wl-bar-m > a, .wl-mode > a, .trk-subnav > a, .trk-mode > a, .tabs > button, .seg > button, .tabbar > a {
   transition: color var(--t-fast) var(--ease-out);
 }
 
-/* each bar's lit look, moved onto its plate (the same values as the bar's own `.on` rule) */
-.nav-links > .glide { border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2); }
-.tabs > .glide { border-radius: 9px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
-.seg > .glide { border-radius: 8px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
-.mw-nav > .glide, .wl-bar-n > .glide { border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
-.wl-bar-m > .glide { border-radius: 11px; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
-.place-tabs > .glide, .trk-subnav > .glide { border-radius: 8px; background: var(--surface); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
-.wl-mode > .glide, .trk-mode > .glide { border-radius: 9px; background: var(--surface); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
-/* the phone tab bar: the plate is the lamp over the lit place (a street lamp that walks to the next door) */
-.tabbar > .glide::before { content: ''; position: absolute; top: -8px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--lamp); box-shadow: var(--glow-metal); }
-.tabbar.glides > a.on::before { display: none; }
+/* each bar's lit look, moved onto its light (the same values as the bar's own `.on` rule) */
+.nav-links > .light { border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.tabs > .light { border-radius: 9px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
+.seg > .light { border-radius: 8px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
+.mw-nav > .light, .wl-bar-n > .light { border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), inset 0 1px 0 var(--pane-hi); }
+.wl-bar-m > .light { border-radius: 11px; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.place-tabs > .light, .trk-subnav > .light { border-radius: 8px; background: var(--surface); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
+.wl-mode > .light, .trk-mode > .light { border-radius: 9px; background: var(--surface); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
+/* the phone tab bar: the light is the lamp over the lit place (it goes out over one door as it lights over the next) */
+.tabbar > .light::before { content: ''; position: absolute; top: -8px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--lamp); box-shadow: var(--glow-metal); }
+.tabbar.lights > a.on::before { display: none; }
 
-/* the lit item hands its look to the plate (a focused item keeps its focus ring) */
-:is(.nav-links, .tabs, .seg, .mw-nav, .wl-bar-n, .wl-bar-m, .place-tabs, .trk-subnav, .wl-mode, .trk-mode).glides > .on:not(:focus-visible) { background: transparent; box-shadow: none; }
-:is(.nav-links, .tabs, .seg, .mw-nav, .wl-bar-n, .wl-bar-m, .place-tabs, .trk-subnav, .wl-mode, .trk-mode).glides > .on:focus-visible { background: transparent; }
+/* the lit item hands its look to the light (a focused item keeps its focus ring) */
+:is(.nav-links, .tabs, .seg, .mw-nav, .wl-bar-n, .wl-bar-m, .place-tabs, .trk-subnav, .wl-mode, .trk-mode).lights > .on:not(:focus-visible) { background: transparent; box-shadow: none; }
+:is(.nav-links, .tabs, .seg, .mw-nav, .wl-bar-n, .wl-bar-m, .place-tabs, .trk-subnav, .wl-mode, .trk-mode).lights > .on:focus-visible { background: transparent; }
 
-:root.rm .glide, :root.still .glide { transition: none; }
-
-/* TRIAL (motion round): «фишка» C — the light follows the plate: the new item lights as the plate arrives */
-:root[data-fishka="c"] :is(.nav-links, .place-tabs, .mw-nav, .wl-bar-n, .wl-bar-m, .wl-mode, .trk-subnav, .trk-mode, .tabs, .seg, .tabbar).glides > .on {
-  transition: color 120ms var(--ease-out) 110ms;
-}
+:root.rm .light, :root.still .light { transition: none; }

@@ -1,6 +1,6 @@
 // The Network place's bar (src/app/chrome.tsx NetPlaceBar) is one bar on /network and on /tracker: the same tag slot
 // (mainnet or the practice sandbox, both kept so the sections never move), a slot for every count from the first
-// frame (empty until the snapshot is here), and the gliding plate's span.
+// frame (empty until the snapshot is here), and the span of the bar's light.
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
@@ -31,9 +31,9 @@ describe("the Network place's bar", () => {
     expect(full.match(/<span class="n"><\/span>/g)).toBeNull();
   });
 
-  it("lights the page's section and carries the plate", () => {
+  it("lights the page's section and carries the light", () => {
     const html = render("/tracker/run", <NetPlaceBar />);
     expect(html).toMatch(/<a class="on" aria-current="page" href="\/tracker\/mainnet">/);
-    expect(html).toContain('<span class="glide" aria-hidden="true"></span>');
+    expect(html).toContain('<span class="light" aria-hidden="true"></span>');
   });
 });

@@ -3,16 +3,15 @@
 //      slide). The fixed chrome (top bar, phone tab bar) and the bars that stay between views (sub-navs, the wallet mode
 //      switch, the tab row that was pressed) are named in motion.css and stay live above the fade, so they never fade,
 //      flicker or move. Without the View Transitions API, or with reduced motion, the switch is instant.
-//   2. useGlide(): the lit plate of a bar glides from the old item to the new one (the «фишка»): the header places, the
-//      lamp of the phone tab bar, sub-navs, tabs and segmented controls. One plate per bar, moved with the Web Animations
-//      API from where it was to where the lit item is now.
+//   2. useLight(): the «фишка» — the light moves the way lights move in the night town: the soft lit tag goes out where
+//      it was and lights up at the new item at the same time, in place (a cross-fade of two lights, nothing slides). The
+//      header places, the lamp over the phone tab bar, sub-navs, tabs and segmented controls: one light per bar.
 import { useLayoutEffect, useRef, type RefObject } from "react";
 import { prefersReducedMotion } from "./settings";
 
-/** The glide and the fade (VISUAL §10: motion is a hint; every duration ≤ 250 ms). */
-export const GLIDE_MS = 200;
+/** The fade of a view and of a light (VISUAL §10: motion is a hint; every duration ≤ 250 ms). */
 export const FADE_MS = 180;
-const EASE = "cubic-bezier(.2,.7,.2,1)";
+const EASE = "cubic-bezier(.2,0,.2,1)";
 
 interface ViewTransitionLike { finished: Promise<void>; ready: Promise<void>; updateCallbackDone: Promise<void>; skipTransition(): void }
 type StartVT = (update: () => Promise<void> | void) => ViewTransitionLike;
@@ -60,7 +59,7 @@ export function crossFade(update: () => void | Promise<void>, live: (Element | n
   vt.finished.finally(() => { done(); if (running === vt) running = null; });
 }
 
-/* ------------------------------------------------------------------ the gliding plate */
+/* ------------------------------------------------------------------ the light of a bar */
 
 interface Box { x: number; y: number; w: number; h: number }
 const boxOf = (bar: HTMLElement, el: HTMLElement): Box => {
@@ -70,14 +69,15 @@ const boxOf = (bar: HTMLElement, el: HTMLElement): Box => {
 const same = (a: Box, b: Box) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
 const frame = (b: Box) => ({ transform: `translate(${b.x}px, ${b.y}px)`, width: `${b.w}px`, height: `${b.h}px` });
 
-/** The bar's lit plate glides to the new lit item. The bar renders one `<span className="glide" aria-hidden="true" />`
- *  child and marks its lit item with `.on` (or `lit`, a selector relative to the bar). The bar gets the class `glides`
- *  once the plate stands under the lit item (motion.css then moves the lit look from the item to the plate); before
- *  that, and without JS, the item keeps its own lit look, so nothing flashes. Size changes (fonts, the window, a count
- *  that arrives) move the plate at once; only a change of the lit item glides.
+/** The bar's light (its soft lit tag) moves to the new lit item: it goes out where it was while it lights up there, in
+ *  place. The bar renders one `<span className="light" aria-hidden="true" />` child and marks its lit item with `.on` (or
+ *  `lit`, a selector relative to the bar). The bar gets the class `lights` once the light stands under the lit item
+ *  (motion.css then moves the lit look from the item to the light); before that, and without JS, the item keeps its own
+ *  lit look, so nothing flashes. Size changes (fonts, the window, a count that arrives) move the light at once; only a
+ *  change of the lit item cross-fades. The light going out is a copy of it, removed when it is dark.
  *  `memo` names the bar across pages: a page that draws the same bar again (the next section with the same sub-nav)
- *  takes over the old bar's plate, so the plate glides on, and its sideways scroll, so a row that scrolls (phone)
- *  stays where it was. A row that scrolls keeps its lit item in view, moving only as far as needed. */
+ *  takes over the old bar's light, so it goes out where it stood on the last page, and its sideways scroll, so a row
+ *  that scrolls (phone) stays where it was. A row that scrolls keeps its lit item in view, moving only as far as needed. */
 interface Memo { box: Box; scroll: number; t: number }
 const memos = new Map<string, Memo>();
 const MEMO_MS = 1500;
@@ -91,10 +91,10 @@ function scrollToShow(bar: HTMLElement, el: HTMLElement): number | null {
   if (rt > bar.clientWidth - EDGE) return Math.min(bar.scrollWidth - bar.clientWidth, bar.scrollLeft + rt - bar.clientWidth + EDGE);
   return null;
 }
-export function useGlide(ref: RefObject<HTMLElement | null>, lit = ":scope > .on", memo?: string): void {
+export function useLight(ref: RefObject<HTMLElement | null>, lit = ":scope > .on", memo?: string): void {
   useLayoutEffect(() => {
     const bar = ref.current;
-    const plate = bar?.querySelector<HTMLElement>(":scope > .glide");
+    const plate = bar?.querySelector<HTMLElement>(":scope > .light");
     if (!bar || !plate) return;
     const m = memo ? memos.get(memo) : undefined;
     const fresh = m && performance.now() - m.t < MEMO_MS ? m : null;
@@ -103,11 +103,11 @@ export function useGlide(ref: RefObject<HTMLElement | null>, lit = ":scope > .on
     let litEl: HTMLElement | null = null;
     let anim: Animation | null = null;
     // only a real change touches the class (the observer below watches the bar's class too: React may reset it)
-    const lit_ = (on: boolean) => { if (bar.classList.contains("glides") !== on) bar.classList.toggle("glides", on); };
-    const place = (glide: boolean) => {
+    const lit_ = (on: boolean) => { if (bar.classList.contains("lights") !== on) bar.classList.toggle("lights", on); };
+    const place = (fade: boolean) => {
       const el = bar.querySelector<HTMLElement>(lit);
       if (!el || !el.getClientRects().length) {
-        // nothing lit (or the bar is hidden): no plate; the next lit item appears in place
+        // nothing lit (or the bar is hidden): no light; the next lit item lights in place
         lit_(false);
         at = null; litEl = null;
         return;
@@ -117,7 +117,7 @@ export function useGlide(ref: RefObject<HTMLElement | null>, lit = ":scope > .on
         const x = scrollToShow(bar, el);
         if (x != null) {
           // a row that scrolls: the lit item comes into view (gently when it was pressed, at once when the row is new)
-          if (glide && litEl && !prefersReducedMotion() && typeof bar.scrollTo === "function") bar.scrollTo({ left: x, behavior: "smooth" });
+          if (fade && litEl && !prefersReducedMotion() && typeof bar.scrollTo === "function") bar.scrollTo({ left: x, behavior: "smooth" });
           else bar.scrollLeft = x;
         }
       }
@@ -128,15 +128,19 @@ export function useGlide(ref: RefObject<HTMLElement | null>, lit = ":scope > .on
       lit_(true);
       anim?.cancel();
       anim = null;
-      if (glide && moved && from && !same(from, to) && !prefersReducedMotion() && typeof plate.animate === "function") {
-        // TRIAL (motion round): «фишка» candidates side by side; html[data-fishka] picks B or C, A is the default
-        if (document.documentElement.dataset.fishka === "b") anim = plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: "cubic-bezier(.2,0,.2,1)" });
-        else anim = plate.animate([frame(from), frame(to)], { duration: GLIDE_MS, easing: EASE });
+      if (fade && moved && from && !same(from, to) && !prefersReducedMotion() && typeof plate.animate === "function") {
+        // the light that goes out: a copy where the light stood (after it, so the bar's own query finds the light first)
+        const out = plate.cloneNode(false) as HTMLElement;
+        Object.assign(out.style, frame(from));
+        plate.after(out);
+        const drop = () => out.remove();
+        out.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: EASE, fill: "forwards" }).finished.then(drop, drop);
+        anim = plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: EASE });
       }
       at = to; litEl = el;
     };
     place(!!at);
-    // the lit item changed (a class or aria attribute on a child, a child added or removed): glide
+    // the lit item changed (a class or aria attribute on a child, a child added or removed): the light moves
     const mo = new MutationObserver(() => place(true));
     mo.observe(bar, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "aria-current", "aria-selected", "aria-pressed"] });
     // a size changed (fonts, the window, a count that arrived): follow at once

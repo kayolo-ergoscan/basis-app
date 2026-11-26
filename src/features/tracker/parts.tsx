@@ -3,7 +3,7 @@ import { Fragment, useCallback, useRef, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { copy, pick, type Text } from "@/content";
-import { humanTime, Tag, useGlide } from "@/ui";
+import { humanTime, Tag, useLight } from "@/ui";
 
 /** Inline marks for our strings and for content texts: `code`, **bold**, *serif italic*. */
 export function md(s: string): ReactNode {
@@ -52,10 +52,10 @@ export function SubNav() {
     ["/tracker/api", "tracker.nav.api", p === "/tracker/api"],
   ];
   const ref = useRef<HTMLElement>(null);
-  useGlide(ref, undefined, "trk-subnav");
+  useLight(ref, undefined, "trk-subnav");
   return (
     <nav className="trk-subnav" aria-label={t("tracker.nav.aria")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {items.map(([to, k, on]) => (
         <Link key={to} to={to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}>
           {t(k)}
@@ -73,10 +73,10 @@ export function ModeSwitch({ mode }: { mode: "sim" | "main" }) {
     { id: "sim", to: TRACKER_PRACTICE, label: t("tracker.mode.sim"), sub: t("tracker.mode.simSub"), glyph: "◌" },
   ] as const;
   const ref = useRef<HTMLElement>(null);
-  useGlide(ref, undefined, "trk-mode");
+  useLight(ref, undefined, "trk-mode");
   return (
     <nav className="trk-mode" aria-label={t("tracker.mode.aria")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {items.map((x) => (
         <Link key={x.id} to={x.to} className={x.id === mode ? "on" : undefined} aria-current={x.id === mode ? "page" : undefined}>
           <span className="trk-mode-l"><span className="g" aria-hidden="true">{x.glyph}</span>{x.label}</span>

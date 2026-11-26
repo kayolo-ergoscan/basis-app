@@ -2,7 +2,7 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { Honest, Icon, Key, KeySeal, Lamp, Popover, Tag, TrackerTile, useGlide, type LampState } from "@/ui";
+import { Honest, Icon, Key, KeySeal, Lamp, Popover, Tag, TrackerTile, useLight, type LampState } from "@/ui";
 import { town, TOWN_TRACKER, useClock, useTown, YOU } from "@/world";
 import type { Economy } from "@/protocol";
 import { useFmt, useNameOf, useNarrow, useWT } from "../lib/hooks";
@@ -140,7 +140,7 @@ export function WalletBar() {
 function WalletBarD({ label }: { label: ReactNode }) {
   const t = useT();
   const ref = useRef<HTMLElement>(null);
-  useGlide(ref, undefined, "wl-bar");
+  useLight(ref, undefined, "wl-bar");
   return (
     <div className="wl-bar">
       <div className="wl-bar-l">
@@ -148,7 +148,7 @@ function WalletBarD({ label }: { label: ReactNode }) {
         <span className="label">{label}</span>
       </div>
       <nav className="wl-bar-n" aria-label={t("wallet.bar.aria")} ref={ref}>
-        <span className="glide" aria-hidden="true" />
+        <span className="light" aria-hidden="true" />
         {BAR.map(([to, k, icon]) => (
           <NavLink key={to} to={to} end={to === "/wallet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
             <Icon name={icon} size={15} />
@@ -165,10 +165,10 @@ function WalletBarM() {
   const ref = useRef<HTMLElement>(null);
   // the current section stays in view in the row (Settings sits past the right edge on a phone): the plate keeps the
   // row's scroll from page to page and scrolls only as far as the lit section needs (it used to snap it to the left)
-  useGlide(ref, undefined, "wl-bar-m");
+  useLight(ref, undefined, "wl-bar-m");
   return (
     <nav className="wl-bar-m" aria-label={t("wallet.bar.aria")} ref={ref}>
-      <span className="glide" aria-hidden="true" />
+      <span className="light" aria-hidden="true" />
       {BAR.map(([to, k, icon]) => (
         <NavLink key={to} to={to} end={to === "/wallet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
           <Icon name={icon} size={15} />
