@@ -22,7 +22,7 @@ const ADDRESS = "9gQojEoYr8vjJyG1jQS5EAZ3Pupun6DbojoyDESvCZYi3M9VyYF";
 
 const stateOf = (backedUp: boolean): VaultState => ({
   status: "unlocked", backedUp, lockReason: null, missing: [], persisted: true, v: 1,
-  key: { pub: PUB, address: ADDRESS, createdAt: Date.UTC(2026, 10, 26), backedUpAt: backedUp ? Date.UTC(2026, 10, 26) : null, source: "new" },
+  key: { pub: PUB, address: ADDRESS, createdAt: Date.UTC(2026, 10, 26), backedUpAt: backedUp ? Date.UTC(2026, 10, 26) : null, source: "created" },
 } as unknown as VaultState);
 
 const ctxOf = (backedUp: boolean): MwContext => ({

@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { useT } from "@/app/lang";
 import { Card, Empty, Key, Lamp, Seg, short, type LampState, int } from "@/ui";
-import { RESERVE_ACTION_KINDS, type JournalEntry, type JournalState } from "@/mainnet/vault";
+import type { JournalEntry, JournalState } from "@/mainnet/vault";
 import { WALLET_DENOMS, denomSymbol, p2pkAddress, type Denomination } from "@/mainnet/tx";
 import { useMw } from "./ctx";
 import { EntryProgress } from "./send";
@@ -89,7 +89,13 @@ function Row({ e, newest }: { e: JournalEntry; newest: boolean }) {
   );
 }
 
-type Filter = "all" | "open" | "t1" | "note" | "redeem" | "withdraw";
+/** Three filters, as in any wallet (clear round 26.11): everything, what came to the key (redeemed to Ergo, a reserve
+ *  refunded), what left it (notes, withdrawals, a reserve made or added to). The refund's start moves no money: it is
+ *  under «All». */
+type Filter = "all" | "in" | "out";
+const IN_KINDS: ReadonlySet<string> = new Set(["redeem", "refund-end"]);
+const OUT_KINDS: ReadonlySet<string> = new Set(["note", "withdraw", "t1", "topup"]);
+export const inFilter = (f: Filter, e: Pick<JournalEntry, "kind">): boolean => f === "all" || (f === "in" ? IN_KINDS.has(e.kind) : OUT_KINDS.has(e.kind));
 
 export function ActivityScreen() {
   const t = useT();
@@ -99,8 +105,7 @@ export function ActivityScreen() {
   const mine = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && (d === "all" || entryDenom(e) === d)) : []), [entries, me, d]);
   const newest = useMemo(() => newestNotes(entries), [entries]);
   const anyToken = useMemo(() => !!me && entries.some((e) => e.pub === me.pub && entryDenom(e) !== "erg"), [entries, me]);
-  // "Reserve" lists everything that made or moved the reserve: T1, top-ups, the refund's two steps
-  const shown = mine.filter((e) => f === "all" || (f === "open" ? ["signed", "sent", "mempool", "confirmed"].includes(e.state) : f === "t1" ? e.kind === "t1" || RESERVE_ACTION_KINDS.includes(e.kind) : e.kind === f));
+  const shown = mine.filter((e) => inFilter(f, e));
   return (
     <div className="mw-single">
       <header className="mw-screen-h">
@@ -108,7 +113,7 @@ export function ActivityScreen() {
         <p className="t-lede">{t("mw.act.lede")}</p>
       </header>
       <Card>
-        <Seg ariaLabel={t("mw.act.filter")} value={f} onChange={setF} options={(["all", "open", "t1", "note", "redeem", "withdraw"] as Filter[]).map((v) => ({ value: v, label: t(`mw.act.f.${v}`) }))} />
+        <Seg ariaLabel={t("mw.act.filter")} value={f} onChange={setF} options={(["all", "in", "out"] as Filter[]).map((v) => ({ value: v, label: t(`mw.act.f.${v}`) }))} />
         {anyToken && <Seg ariaLabel={t("mw.dn.aria")} value={d} onChange={setD} options={[{ value: "all" as const, label: t("mw.act.f.all") }, ...WALLET_DENOMS.map((x) => ({ value: x, label: denomSymbol(x) }))]} />}
         {shown.length === 0 ? <Empty title={t("mw.act.emptyT")} text={t("mw.act.emptyB")} /> : <ul className="mw-acts">{shown.map((e) => <Row key={e.id} e={e} newest={newest.has(e.id)} />)}</ul>}
       </Card>

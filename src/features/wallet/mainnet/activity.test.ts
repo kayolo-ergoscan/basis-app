@@ -2,7 +2,7 @@
 // receipt promises a smaller total that the newer note already includes.
 import { describe, expect, it } from "vitest";
 import type { JournalEntry, JournalState } from "@/mainnet/vault";
-import { newestNotes } from "./Activity";
+import { inFilter, newestNotes } from "./Activity";
 
 const ME = `02${"4a".repeat(32)}`;
 const A = `03${"5b".repeat(32)}`;
@@ -35,5 +35,16 @@ describe("newestNotes", () => {
     const bad = { ...note(A, 500), meta: { to: A, total: "5" } } as unknown as JournalEntry;
     const unknown = note(A, 600, "final", `token:${"ee".repeat(32)}`);
     expect([...newestNotes([ok, bad, unknown])]).toEqual([ok.id]);
+  });
+});
+
+describe("the history filters: All · Received · Sent (clear round 26.11)", () => {
+  const k = (kind: string) => ({ kind } as Pick<JournalEntry, "kind">);
+  it("Received: what came to the key; Sent: what left it; the refund's start only under All", () => {
+    expect(["redeem", "refund-end"].every((x) => inFilter("in", k(x)))).toBe(true);
+    expect(["note", "withdraw", "t1", "topup"].every((x) => inFilter("out", k(x)))).toBe(true);
+    expect(["note", "withdraw", "t1", "topup", "refund-start"].some((x) => inFilter("in", k(x)))).toBe(false);
+    expect(["redeem", "refund-end", "refund-start"].some((x) => inFilter("out", k(x)))).toBe(false);
+    expect(["redeem", "note", "refund-start"].every((x) => inFilter("all", k(x)))).toBe(true);
   });
 });
