@@ -194,7 +194,7 @@ const en: Dict = {
   "mw.start.extrasT": "The file also lists {n} watched issuers",
   "mw.start.extrasB": "They came from the file: check them before you watch them again.",
   "mw.start.extrasAdd": "Watch them again",
-  "mw.start.tab.seed": "Seed phrase",
+  "mw.start.tab.seed": "Move a key from an Ergo wallet",
   "mw.start.seedB": "Bring in a key you already have in Nautilus or another Ergo wallet: type that wallet's seed phrase, choose the address, then set a Basis passphrase. The words stay in this browser: they are not saved or sent anywhere, and these fields are emptied once the key is in, when you leave this screen, or after 2 minutes in the background.",
   "mw.start.seedLabel": "Seed phrase (12, 15, 18, 21 or 24 words)",
   "mw.start.seedHelp": "Spaces, line breaks and capital letters do not matter.",
@@ -1031,6 +1031,10 @@ const en: Dict = {
   "mw.tip.qrL": "QR code of the button's link",
   "mw.tip.reserve": "Only a key with a reserve can pay through the button today: ErgoScan's tracker takes notes only from a key with an active reserve in the same currency.",
   "mw.tip.receipt": "You see a payment once the payer sends you the receipt link: say next to the button where to send it.",
+  // ─── polish: key setup with one warning line (the four stay under «More»), the key moved from an Ergo wallet ───
+  "mw.start.warnLine": "The key lives only in this browser; only the backup file and its passphrase bring it back. Small amounts only.",
+  "mw.start.warnMore": "More",
+  "mw.start.seedTip": "Better a separate wallet with a small amount.",
 };
 
 const ru: Partial<Dict> = {
@@ -1217,7 +1221,7 @@ const ru: Partial<Dict> = {
   "mw.start.extrasT": "В файле ещё {n} отслеживаемых плательщиков",
   "mw.start.extrasB": "Они взяты из файла: проверьте их, прежде чем снова отслеживать.",
   "mw.start.extrasAdd": "Снова отслеживать",
-  "mw.start.tab.seed": "Сид-\u2060фраза",
+  "mw.start.tab.seed": "Перенести ключ из кошелька Ergo",
   "mw.start.seedB": "Перенесите ключ, который уже есть у вас в Nautilus или другом кошельке Ergo: введите сид-фразу того кошелька, выберите адрес и задайте пароль Basis. Слова остаются в этом браузере: они нигде не сохраняются и никуда не отправляются, а поля очищаются, как только ключ добавлен, вы ушли с этого экрана или вкладка пробыла 2 минуты в фоне.",
   "mw.start.seedLabel": "Сид-фраза (12, 15, 18, 21 или 24 слова)",
   "mw.start.seedHelp": "Пробелы, переносы строк и заглавные буквы не важны.",
@@ -2043,6 +2047,10 @@ const ru: Partial<Dict> = {
   "mw.tip.qrL": "QR-код ссылки кнопки",
   "mw.tip.reserve": "Платить по кнопке сейчас может только ключ с резервом: трекер ErgoScan принимает расписки лишь от ключа, у которого есть действующий резерв в той же валюте.",
   "mw.tip.receipt": "Оплату вы увидите, когда плательщик пришлёт вам ссылку-квитанцию: напишите рядом с кнопкой, куда её прислать.",
+  // ─── polish: настройка ключа с одной строкой предупреждения (четыре — под «Подробнее»), ключ из кошелька Ergo ───
+  "mw.start.warnLine": "Ключ хранится только в этом браузере, вернуть его можно только файлом копии и паролем. Только небольшие суммы.",
+  "mw.start.warnMore": "Подробнее",
+  "mw.start.seedTip": "Лучше — отдельный кошелёк с небольшой суммой.",
 };
 
 export default { en, ru };
