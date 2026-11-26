@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18203F"/><stop offset="1" stop-color="#0A0E1B"/></linearGradient>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="29.6"/></filter>
+</defs>
+<rect width="1024" height="1024" fill="url(#sky)"/>
+<rect x="297.5" y="269.4" width="428.2" height="170.8" rx="71.0" fill="#252F58"/>
+<rect x="297.5" y="512.0" width="428.2" height="256.6" rx="71.0" fill="#FFD36B" opacity=".55" filter="url(#glow)"/>
+<rect x="297.5" y="512.0" width="428.2" height="256.6" rx="71.0" fill="#FCEBC3"/>
+</svg>
