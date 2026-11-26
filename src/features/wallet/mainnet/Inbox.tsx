@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLang, useT } from "@/app/lang";
 import { Card, Key, KeySeal, Lamp, short } from "@/ui";
-import { signInbox } from "@/mainnet/tx";
+import { denomSymbol, signInbox, type Denomination } from "@/mainnet/tx";
 import { watchIssuer, watchedDenoms, type WatchedIssuer } from "@/mainnet/flows";
 import { isVaultError } from "@/mainnet/vault";
 import { useMw } from "./ctx";
@@ -122,13 +122,11 @@ export function InboxCard({ me }: { me: string }) {
   );
 }
 
-function InboxList({ me, items, refused, list, onWatch }: { me: string; items: InboxItem[]; refused: number; list: WatchedIssuer[]; onWatch: (pk: string, denoms: InboxItem["denom"][]) => void }) {
+/** One row per payer (as on the watch list): each denomination it paid in, and one tap to watch them all. */
+function InboxList({ me, items, refused, list, onWatch }: { me: string; items: InboxItem[]; refused: number; list: WatchedIssuer[]; onWatch: (pk: string, denoms: Denomination[]) => void }) {
   const t = useT();
   const payers = payersOf(items);
-  const watchedIn = (pk: string) => {
-    const w = list.find((x) => x.pk === pk);
-    return w ? watchedDenoms(w) : null;
-  };
+  const lamp = (x: InboxItem) => <Lamp state={STAGE_LAMP[x.view.stage]} label={t(`mw.recv.stage.${x.view.stage}`)} />;
   return (
     <>
       {items.length === 0 ? (
@@ -137,30 +135,36 @@ function InboxList({ me, items, refused, list, onWatch }: { me: string; items: I
         <>
           <p className="t-small mw-dim">{t("mw.in.found", { n: payers.length })}</p>
           <ul className="mw-pairs">
-            {items.map((x) => {
-              const w = list.find((y) => y.pk === x.issuer) ?? null;
-              const need = payers.find((p) => p.pk === x.issuer)?.denoms ?? [x.denom];
-              const have = watchedIn(x.issuer);
-              const watched = !!have && need.every((d) => have.includes(d));
+            {payers.map(({ pk, denoms }) => {
+              const w = list.find((y) => y.pk === pk) ?? null;
+              const have = w ? watchedDenoms(w) : [];
+              const watched = denoms.every((d) => have.includes(d));
+              const rows = items.filter((x) => x.issuer === pk);
+              const many = rows.length > 1;
               return (
-                <li className="mw-pair" key={`${x.issuer}/${x.denom}`}>
+                <li className="mw-pair" key={pk}>
                   <div className="mw-pair-h">
-                    <KeySeal pk={x.issuer} size="sm" />
+                    <KeySeal pk={pk} size="sm" />
                     <div className="mw-pair-who">
-                      <b>{w?.name ?? short(x.issuer, 8, 6)}</b>
-                      <span className="mono t-small mw-dim">{short(x.issuer, 8, 6)}</span>
+                      <b>{w?.name ?? short(pk, 8, 6)}</b>
+                      <span className="mono t-small mw-dim">{short(pk, 8, 6)}</span>
                     </div>
-                    <Lamp state={STAGE_LAMP[x.view.stage]} label={t(`mw.recv.stage.${x.view.stage}`)} />
+                    {!many && lamp(rows[0])}
                   </div>
-                  <div className="mw-figs">
-                    <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Amt raw={x.view.total} denom={x.denom} /></b><span className="t-small mw-dim">{t("mw.recv.totalSigned")}</span></div>
-                    <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Amt raw={x.view.redeemableNow} denom={x.denom} tone={x.view.redeemableNow > 0n ? "up" : undefined} /></b></div>
-                  </div>
+                  {rows.map((x) => (
+                    <div className={many ? "mw-pair-d" : "mw-pair-one"} key={x.denom}>
+                      {many && <div className="mw-pair-dh"><b className="t-small">{denomSymbol(x.denom)}</b>{lamp(x)}</div>}
+                      <div className="mw-figs">
+                        <div className="mw-figure"><span className="label">{t("mw.recv.total")}</span><b><Amt raw={x.view.total} denom={x.denom} /></b><span className="t-small mw-dim">{t("mw.recv.totalSigned")}</span></div>
+                        <div className="mw-figure"><span className="label">{t("mw.recv.now")}</span><b><Amt raw={x.view.redeemableNow} denom={x.denom} tone={x.view.redeemableNow > 0n ? "up" : undefined} /></b></div>
+                      </div>
+                    </div>
+                  ))}
                   <div className="mw-actions">
                     {watched ? (
                       <span className="t-small mw-dim">{t("mw.in.watched")}</span>
                     ) : (
-                      <Key size="sm" icon="plus" onClick={() => onWatch(x.issuer, need)} disabled={x.issuer === me}>{t("mw.in.watch")}</Key>
+                      <Key size="sm" icon="plus" onClick={() => onWatch(pk, denoms)} disabled={pk === me}>{t("mw.in.watch")}</Key>
                     )}
                   </div>
                 </li>
