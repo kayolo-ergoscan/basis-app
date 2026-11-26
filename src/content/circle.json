@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "name": "ErgoScan",
+    "project": "ErgoScan",
+    "url": "https://ergoscan.me",
+    "about": "Ergo explorer: blocks, addresses, tokens, DeFi and an open API",
+    "key": "023316d27ad52bd767e5e97e2ecba3f0dbc2f92095875f918fcaa95ae6711b1207",
+    "denoms": [
+      "erg",
+      "sigusd",
+      "rsada"
+    ],
+    "readme": "https://github.com/kayolo-ergoscan/basis-app#developer-circle",
+    "checked": "2026-11-26"
+  }
+]

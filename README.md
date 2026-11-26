@@ -74,6 +74,10 @@ accept Basis notes for their work. To join:
 
 `src/content/circle.ts` lists the fields and their limits; `src/content/circle.test.ts` checks every entry.
 
+The first entry is ErgoScan itself; its button:
+
+[![Support with a Basis note](https://basis.ergoscan.me/badge.svg)](https://basis.ergoscan.me/wallet/mainnet/pay#to=023316d27ad52bd767e5e97e2ecba3f0dbc2f92095875f918fcaa95ae6711b1207&nft=f5178dc4063042bdf77cd0f4a55d0893d6dbcf0b3d14eb4de25282b2c4e3f29f&name=ErgoScan&memo=ErgoScan)
+
 ## Tracker
 
 The tracker the wallet uses is our fork of `BetterMoneyLabs/basis-tracker`, at
