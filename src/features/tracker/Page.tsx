@@ -7,7 +7,8 @@
 //   /tracker/api       the API mirror (what the reference server would answer for the town)
 // The console and the mirror need the sandbox engine, so they are their own lazy chunks; /run stays light.
 import { Suspense } from "react";
-import { lazyChunk } from "@/app/chunk";
+import { lazyChunk, loadParts } from "@/app/chunk";
+import { sandboxTown } from "@/app/warm";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
@@ -38,6 +39,12 @@ function Wait() {
     </div>
   );
 }
+
+/** A switch loads the page's own chunk (and boots the sandbox town for the practice console and the mirror) first. */
+export const warm = (pathname: string, code: boolean) => {
+  const c = C.trackerChunkOf(pathname);
+  return loadParts([...(c ? [c] : []), ...(C.usesTown(pathname) ? [sandboxTown] : [])], code);
+};
 
 /** /tracker and unknown /tracker addresses open ErgoScan's tracker (they used to open the sandbox console). */
 function ToTrackerHome() {

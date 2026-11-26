@@ -1,12 +1,10 @@
 // /learn: the book (index, ten chapters and the reference pages), lazy; each chapter is its own chunk.
 import type { FeatureRoute } from "@/app/types";
-import { learnChunkOf } from "./chunks";
 
 const route: FeatureRoute = {
   id: "learn",
   path: "/learn/*",
   load: () => import("./Page"),
-  parts: (p) => { const c = learnChunkOf(p); return c ? [c] : []; },
   nav: { order: 5, labelKey: "nav.learn" },
   titleKey: "learn.title",
   commands: [

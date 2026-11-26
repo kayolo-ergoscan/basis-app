@@ -4,8 +4,7 @@
 import { Suspense } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { chunk, lazyChunk, part } from "./chunk";
-import { loadParts } from "./routes";
+import { chunk, lazyChunk, loadParts, part } from "./chunk";
 
 const Hello = ({ who }: { who: string }) => <b>hello {who}</b>;
 

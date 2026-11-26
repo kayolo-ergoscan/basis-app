@@ -4,6 +4,8 @@ import { Route, Routes } from "react-router-dom";
 import { addI18n, useT } from "@/app";
 import { Empty, ErrorState, Page } from "@/ui";
 import { chain, useChainStatus, useObservatory } from "@/chain";
+import { loadParts } from "@/app/chunk";
+import { snapshot } from "./chunks";
 import strings from "./strings";
 import { NetBar, NetLoading } from "./parts";
 import Overview from "./Overview";
@@ -15,6 +17,9 @@ import { IncidentsPage } from "./Incidents";
 import "./network.css";
 
 addI18n(strings);
+
+/** A switch loads the observatory snapshot first, so the page shows its numbers from the first frame. */
+export const warm = (_pathname: string, code: boolean) => loadParts([snapshot], code);
 
 export default function NetworkPage() {
   const t = useT();

@@ -3,15 +3,18 @@
 // the protocol engine, and the engine-heavy labs load only when opened.
 import { Route, Routes } from "react-router-dom";
 import { addI18n } from "@/app";
-import { lazyChunk } from "@/app/chunk";
+import { lazyChunk, loadParts } from "@/app/chunk";
 import { typo } from "@/content";
 import strings from "./strings";
 import { BookLayout, NotInBook } from "./layout";
-import { LEARN_CHUNKS as C } from "./chunks";
+import { LEARN_CHUNKS as C, learnChunkOf } from "./chunks";
 import "./learn.css";
 
 const typeset = (d: Record<string, string>, lang: "en" | "ru") => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, typo(v, lang)]));
 addI18n({ en: typeset(strings.en, "en"), ru: typeset(strings.ru, "ru") });
+
+/** A switch loads the chapter's own chunk first (src/app/motion.ts). */
+export const warm = (pathname: string, code: boolean) => { const c = learnChunkOf(pathname); return loadParts(c ? [c] : [], code); };
 
 const IndexPage = lazyChunk(C[""]);
 const HowPage = lazyChunk(C.how);

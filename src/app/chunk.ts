@@ -38,6 +38,12 @@ export function part(loader: () => Promise<unknown>): Part {
   };
 }
 
+/** Loads the parts that are not ready (data parts only when `code` is false); null when there is nothing to load. */
+export function loadParts(parts: readonly Part[], code = false): Promise<unknown> | null {
+  const missing = parts.filter((p) => !p.ready() && !(code && p.data));
+  return missing.length ? Promise.all(missing.map((p) => p.load())) : null;
+}
+
 type Mod<P> = { default: ComponentType<P> };
 /** React.lazy over a chunk: renders at once when the chunk is already loaded, else suspends as React.lazy does. */
 export function lazyChunk<P = object>(c: Chunk<Mod<P>>): LazyExoticComponent<ComponentType<P>> {

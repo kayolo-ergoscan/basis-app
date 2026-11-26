@@ -1,14 +1,11 @@
 // /wallet/* — a complete Basis wallet on the sandbox town: your sandbox key, real signatures, play money.
 import type { FeatureRoute } from "@/app/types";
-import { sandboxTown } from "@/app/warm";
-import { isMainnetPath, mainnetPage, mainnetVault, sandboxPage } from "./chunks";
 
 const route: FeatureRoute = {
   id: "wallet",
   path: "/wallet/*",
   href: "/wallet/mainnet",
   load: () => import("./Entry"),
-  parts: (p) => (isMainnetPath(p) ? [mainnetPage, mainnetVault] : [sandboxPage, sandboxTown]),
   nav: { order: 2, labelKey: "nav.wallet" },
   titleKey: "wallet.title",
   commands: [

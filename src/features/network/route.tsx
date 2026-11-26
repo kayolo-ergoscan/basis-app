@@ -1,11 +1,9 @@
 import type { FeatureRoute } from "@/app/types";
-import { snapshot } from "./chunks";
 
 const route: FeatureRoute = {
   id: "network",
   path: "/network/*",
   load: () => import("./Page"),
-  parts: () => [snapshot],
   nav: { order: 3, labelKey: "nav.network" },
   titleKey: "network.title",
   commands: [
