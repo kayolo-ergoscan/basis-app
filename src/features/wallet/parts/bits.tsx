@@ -1,6 +1,6 @@
 // Small shared pieces of the wallet: amounts, seals of town people, the tracker chip, headers.
-import { useMemo, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Honest, Icon, Key, KeySeal, Lamp, Popover, Tag, TrackerTile, type LampState } from "@/ui";
 import { town, TOWN_TRACKER, useClock, useTown, YOU } from "@/world";
@@ -125,14 +125,15 @@ const BAR: Array<[string, string, string]> = [
   ["/wallet/settings", "wallet.bar.settings", "settings"],
 ];
 
-/** The wallet's own navigation (desktop and tablet): sandbox label, block clock, sections. */
+/** The wallet's own navigation: on desktop the sandbox label, block clock and sections; on narrow screens (the site's
+ *  tab bar has no wallet sections) a compact row of the same sections that scrolls sideways. */
 export function WalletBar() {
   const t = useT();
   const wt = useWT();
   const f = useFmt();
   const narrow = useNarrow();
   const { height, speed } = useClock();
-  if (narrow) return null;
+  if (narrow) return <WalletBarM />;
   return (
     <div className="wl-bar">
       <div className="wl-bar-l">
@@ -150,6 +151,28 @@ export function WalletBar() {
         ))}
       </nav>
     </div>
+  );
+}
+
+function WalletBarM() {
+  const t = useT();
+  const ref = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // the current section stays in view in the row (Settings sits past the right edge on a phone)
+  useLayoutEffect(() => {
+    const nav = ref.current;
+    const on = nav?.querySelector<HTMLElement>("a.on");
+    if (nav && on) nav.scrollLeft = Math.max(0, on.offsetLeft - nav.offsetLeft - 16);
+  }, [pathname]);
+  return (
+    <nav className="wl-bar-m" aria-label={t("wallet.bar.aria")} ref={ref}>
+      {BAR.map(([to, k, icon]) => (
+        <NavLink key={to} to={to} end={to === "/wallet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
+          <Icon name={icon} size={15} />
+          {t(k)}
+        </NavLink>
+      ))}
+    </nav>
   );
 }
 

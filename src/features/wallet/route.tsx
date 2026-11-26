@@ -11,6 +11,7 @@ const route: FeatureRoute = {
   commands: [
     { id: "wallet.mainnet", labelKey: "wallet.cmd.mainnet", to: "/wallet/mainnet", keywords: "wallet mainnet real erg beta reserve кошелёк основная сеть настоящие бета резерв" },
     { id: "wallet.open", labelKey: "wallet.cmd.open", to: "/wallet", keywords: "wallet notes balance sandbox play кошелёк расписки баланс песочница игровой" },
+    { id: "wallet.notes", labelKey: "wallet.cmd.notes", to: "/wallet/notes", keywords: "notes owed owe sandbox history расписки долги песочница" },
     { id: "wallet.pay", labelKey: "wallet.cmd.pay", to: "/wallet/pay", keywords: "pay raise note send оплатить заплатить" },
     { id: "wallet.request", labelKey: "wallet.cmd.request", to: "/wallet/request", keywords: "request qr link invoice запросить ссылка" },
     { id: "wallet.redeem", labelKey: "wallet.cmd.redeem", to: "/wallet/redeem", keywords: "redeem reserve erg погасить погашение" },
