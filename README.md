@@ -21,7 +21,13 @@ Basis is an experiment. On Ergo mainnet, use small amounts only.
   - Every signature needs a hold on the button. Large actions ask for the passphrase again.
   - The tracker builds each redemption. Before signing, the wallet checks the transaction rule by rule and runs the
     pinned reserve contract on it.
-  - Not built yet: reserve top-up and refund, token reserves.
+  - Reserves in ERG, SigUSD and rsADA: create, top up, refund, withdraw.
+  - Pay and ask for payment with a request link (`/wallet/mainnet/pay#to=…`); after paying, the payer gets a receipt
+    link to send.
+  - Receive → Inbox: the wallet signs one request with its key and lists every note paid to it, no receipt needed. It
+    checks each issuer's signature itself; «Watch» adds a payer to the list on Home in one tap.
+  - Receive → A button for your project: a README badge that opens a payment request.
+- **Developer circle, `/learn/circle`.** People and projects that accept Basis notes for their work (see below).
 
 ## Build and test
 
@@ -82,6 +88,14 @@ The first entry is ErgoScan itself; its button:
 
 The tracker the wallet uses is our fork of `BetterMoneyLabs/basis-tracker`, at
 https://github.com/kayolo-ergoscan/basis-tracker (branch `ergoscan`).
+
+Its public front is `https://basis.ergoscan.me/api/tracker`, and the routes are listed at
+https://basis.ergoscan.me/learn/api.
+- **Reads** (state, reserves, a pair's notes, key status) are open to pages on any site: CORS for GET, with per-IP
+  limits.
+- **Writes** (notes, redemptions) go through the wallet or your own server.
+- **The inbox** (`GET /notes/recipient/{key}`) answers only with that key's signature, and only to the wallet's own
+  origin.
 
 ## Security
 
