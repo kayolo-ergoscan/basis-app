@@ -159,7 +159,7 @@ export const Rail = memo(function Rail({ run, scenario, forkOf, st, t, version, 
                         {stepTitle(t, id, s)}
                       </button>
                     ) : (
-                      <span className="pl-step-t">{stepTitle(t, id, s)}</span>
+                      <span className="pl-step-t">{next && <span className="pl-step-k">{t("play.rail.nextLabel")} </span>}{stepTitle(t, id, s)}</span>
                     )}
                     <p className="pl-step-x">{stepText(t, id, s)}</p>
                     {running && st.animating && st.animating.total > 0 && (
@@ -251,7 +251,7 @@ export function StepCards({ run, scenario, st, t, version, onViewStep, onXray }:
                 {stepTitle(t, id, s)}
               </button>
             ) : (
-              <span className="pl-step-t">{stepTitle(t, id, s)}</span>
+              <span className="pl-step-t">{s.index === st.index && !running && <span className="pl-step-k">{t("play.rail.nextLabel")} </span>}{stepTitle(t, id, s)}</span>
             )}
             <p className="pl-step-x">{stepText(t, id, s)}</p>
             {running && st.animating && st.animating.total > 0 && <p className="pl-step-mine mono">{t("play.player.mining", { n: int(st.animating.mined), total: int(st.animating.total) })}</p>}

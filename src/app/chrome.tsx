@@ -9,6 +9,7 @@ import { Chip, Lamp, Seg } from "@/ui/components/primitives";
 import { Sheet } from "@/ui/components/Sheet";
 import { flash, usePulseClass } from "@/ui/hooks";
 import { int, short } from "@/ui/engine/money";
+import { REPOS } from "@/content/repos";
 import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
@@ -272,12 +273,19 @@ export function Footer() {
         <nav aria-label={t("app.footer.sources")}>
           <div className="f-col">
             <span className="label">{t("app.footer.sources")}</span>
-            <a href="https://github.com/BetterMoneyLabs/basis-tracker" target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.code")} <span className="mono">github.com/BetterMoneyLabs/basis-tracker</span></a>
+            <a href={REPOS.reference.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.code")} <span className="mono">github.com/{REPOS.reference.name}</span></a>
             <a href="https://t.me/chaincashtalks" target="_blank" rel="noreferrer"><Icon name="chat" size={15} />{t("app.footer.chat")} <span className="mono">t.me/chaincashtalks</span></a>
             <a href="https://ergoscan.me" target="_blank" rel="noreferrer"><Icon name="ext" size={15} />{t("app.footer.explorer")} <span className="mono">ergoscan.me</span></a>
           </div>
           <div className="f-col">
+            <span className="label">{t("app.footer.ours")}</span>
+            {/* short words (the address is the link's title), so the three columns still fit beside the brand at 1280 px */}
+            <a href={REPOS.app.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.app.name}`}><Icon name="github" size={15} />{t("app.footer.app")}</a>
+            <a href={REPOS.tracker.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.tracker.name}`}><Icon name="github" size={15} />{t("app.footer.tracker")}</a>
+          </div>
+          <div className="f-col">
             <span className="label">Basis</span>
+            <Link to="/learn/developers">{t("app.footer.dev")}</Link>
             <Link to="/kit">{t("app.footer.kit")}</Link>
             <button type="button" className="textlink" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", color: "var(--ink-2)" }} onClick={() => openHelp()}>{t("app.footer.keys")}</button>
           </div>

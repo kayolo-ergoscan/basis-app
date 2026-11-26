@@ -1,5 +1,5 @@
-// 03 Mainnet now (src/chain): what Basis-shaped boxes exist on Ergo today, read from the snapshot plus the live
-// layer — reserve boxes, ERG locked, redemptions, trackers by status, the last activity and the current-contract
+// 02 Mainnet now (src/chain): what Basis-shaped boxes exist on Ergo today, read from the snapshot plus the live
+// layer — reserve boxes, ERG locked, redemptions, trackers by status, the last redemption and the current-contract
 // detector. Every number carries "experimental" and "as of block N".
 import { useMemo, type CSSProperties } from "react";
 import { rich, useLang, useT } from "@/app/lang";
@@ -35,7 +35,7 @@ export function Mainnet() {
 
   if (!obs) {
     return (
-      <Section id="mainnet" className="home-mainnet" no={<>03 · {t("home.n.no")}</>} title={rich(t("home.n.title"))} lede={pick(copy.mainnetHonest, lang)}>
+      <Section id="mainnet" className="home-mainnet" no={<>02 · {t("home.n.no")}</>} title={rich(t("home.n.title"))} lede={pick(copy.mainnetHonest, lang)}>
         <div className="mn-wait"><span className="skel" aria-hidden="true"><i /><i /><i /></span><span>{t("home.n.loading")}</span></div>
       </Section>
     );
@@ -51,7 +51,8 @@ export function Mainnet() {
     ? { boxes: S.reserveBoxes, unspent: S.unspent, nano: BigInt(S.unspentNano), tokens: Object.keys(S.unspentTokens).length > 0, height: obs.asOf.height }
     : { boxes: T.reserveBoxes, unspent: T.unspent, nano: T.unspentNano, tokens: T.unspentTokens.length > 0, height: obs.detector.checkedHeight ?? obs.height };
   const checking = src === "checking";
-  const last = obs.records.lastActivity;
+  // the newest redemption (the list is newest first): what someone last took out of a reserve, in its own unit
+  const last = obs.redemptions[0] ?? null;
   // reserves = unspent boxes at the current contracts (a spent box is an earlier state of a reserve)
   const found = obs.detector.found.filter((b) => b.unspent).length;
   const totalTrackers = obs.trackers.length + (ours?.extra ?? 0);
@@ -63,10 +64,12 @@ export function Mainnet() {
     { k: t("home.n.redemptions"), v: int(T.redemptions), sub: t("home.n.redeemed", { v: units(T.redeemedNano, 9, 2) }) },
     { k: t("home.n.trackers"), v: int(totalTrackers), sub: pick(copy.trackerLine, lang), title: ours ? t("home.n.trackersOurs", { h: int(ours.mint) }) : undefined },
   ];
-  const what = last?.what === "tracker NFT burned in a sweep" ? t("home.n.what.burned") : last?.what ?? "";
+  const what = !last ? "" : last.token ? `${units(last.amount, last.token.decimals, 3)} ${last.token.label}` : `${units(last.amount, 9, 3)} ERG`;
+  // "Box unspent" is the chain's word for a tracker whose box still stands; here it reads as what it means for a holder
+  const stLabel = (s: TrackerStatus) => (s === "live" ? t("home.n.st.live") : t(`chain.tracker.${s}`));
 
   return (
-    <Section id="mainnet" className="home-mainnet" no={<>03 · {t("home.n.no")}</>} title={rich(t("home.n.title"))} lede={pick(copy.mainnetHonest, lang)}>
+    <Section id="mainnet" className="home-mainnet" no={<>02 · {t("home.n.no")}</>} title={rich(t("home.n.title"))} lede={pick(copy.mainnetHonest, lang)}>
       <div className="mn-grid">
         <div className="mn-main">
           <dl className="mn-stats">
@@ -80,12 +83,12 @@ export function Mainnet() {
           </dl>
           <div className="mn-trackers">
             <span className="label">{t("home.n.trackersBy")}</span>
-            <div className="mn-bar" role="img" aria-label={byStatus.map((x) => `${t(`chain.tracker.${x.s}`)} ${x.n}`).join(", ")}>
+            <div className="mn-bar" role="img" aria-label={byStatus.map((x) => `${stLabel(x.s)} ${x.n}`).join(", ")}>
               {byStatus.map((x) => <i key={x.s} className={`st-${x.s}`} style={{ "--w": x.n } as CSSProperties} />)}
             </div>
             <ul className="mn-legend">
               {byStatus.map((x) => (
-                <li key={x.s} title={t(`chain.tracker.${x.s}.help`)}><Lamp state={STATUS_LAMP[x.s]} size={9} /><span>{t(`chain.tracker.${x.s}`)}</span><b className="num">{x.n}</b></li>
+                <li key={x.s} title={t(`chain.tracker.${x.s}.help`)}><Lamp state={STATUS_LAMP[x.s]} size={9} /><span>{stLabel(x.s)}</span><b className="num">{x.n}</b></li>
               ))}
             </ul>
           </div>
@@ -98,10 +101,10 @@ export function Mainnet() {
           </div>
           {last && (
             <div className="mn-last">
-              <span className="label">{t("home.n.last")}</span>
+              <span className="label">{t("home.n.lastRedeem")}</span>
               <p><b>{what}</b></p>
               <span className="mono">
-                {t("home.n.lastAt", { n: int(last.height), date: fmtDate(last.at, lang) })}
+                {fmtDate(last.at, lang) ? t("home.n.lastAt", { n: int(last.height), date: fmtDate(last.at, lang) }) : t("home.n.lastAtBlock", { n: int(last.height) })}
                 {last.tx && <> · <a className="link" href={chainUrl({ kind: "tx", id: last.tx })} target="_blank" rel="noreferrer">{t("home.n.ergoscan")} <Icon name="ext" size={12} /></a></>}
               </span>
             </div>

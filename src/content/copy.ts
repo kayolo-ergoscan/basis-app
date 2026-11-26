@@ -30,7 +30,7 @@ export const copy = {
   brandTag: t("unofficial · ErgoScan", "неофициально · ErgoScan"),
   /** Pair the name with Ergo when it stands alone. */
   brandFull: t("Basis on Ergo", "Basis на Ergo"),
-  eyebrow: t("OFFCHAIN CASH · SETTLES ON ERGO", "ОФЧЕЙН-ДЕНЬГИ · РАСЧЁТ НА ERGO"),
+  eyebrow: t("OFFCHAIN CASH · SETTLES ON ERGO", "ДЕНЬГИ ВНЕ БЛОКЧЕЙНА · РАСЧЁТ НА ERGO"),
   heroHeadline: { line1: t("Pay with your word.", "Платите словом."), line2: t("Redeem on Ergo.", "Погашайте на Ergo.") },
 
   /** The tracker trust line, everywhere a tracker is shown. */

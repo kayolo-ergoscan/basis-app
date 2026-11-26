@@ -19,6 +19,8 @@ export default {
     "learn.cmd.faq": "Questions and answers",
     "learn.cmd.glossary": "Glossary, English and Russian",
     "learn.cmd.sources": "Sources",
+    // site-simple
+    "learn.cmd.developers": "For developers: accept Basis payments, examples, open code",
   },
   ru: {
     "learn.title": "Как устроен Basis",
@@ -37,5 +39,7 @@ export default {
     "learn.cmd.faq": "Вопросы и ответы",
     "learn.cmd.glossary": "Словарь: английский и русский",
     "learn.cmd.sources": "Источники",
+    // site-simple
+    "learn.cmd.developers": "Разработчикам: приём оплаты, примеры, открытый код",
   },
 } satisfies I18nBundle;

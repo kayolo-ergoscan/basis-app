@@ -11,6 +11,7 @@ import { filterRows, sortRows, type TabId } from "./lib/model";
 import { WalletBar } from "./parts/bits";
 import { ActionKeys, ChainPurse, Eclipse, FirstSteps, Identity, NetBlock, PolicySummary, ReserveSummary, Tour } from "./parts/home";
 import { NotesPanel } from "./parts/notes";
+import { TownNews } from "./parts/news";
 import { NoteDetail } from "./parts/noteDetail";
 import { Frame } from "./parts/bits";
 import { useNow } from "./parts/now";
@@ -49,13 +50,15 @@ export function HomeWide() {
         <aside className="wl-col-l" aria-label={t("wallet.col.you")}>
           <Identity m={m} phone={false} />
           <Eclipse m={m} />
-          {/* three answers: 1 what you have (the play coins), 2 owed to you and 3 you owe (the balance sheet) */}
-          <ChainPurse m={m} />
-          <NetBlock m={m} denom={p.denom} />
+          {/* the net position with the four keys right under it, so both fit the first screen (1280×720 too); then
+              the three answers in reading order: 1 owed to you, 2 you owe (the balance sheet), 3 what you have */}
+          <NetBlock m={m} denom={p.denom} nums={[1, 2]} />
           <ActionKeys hasIn={hasIn} />
+          <ChainPurse m={m} n={3} />
           <BackupNudge />
         </aside>
         <div className="wl-col-c" data-tour="notes">
+          <TownNews />
           <NotesPanel rows={m.rows} nowMs={nowMs} hrefOf={(r) => `/wallet/note/${r.key}`} tab={tab} onTab={setTab} selected={selected} />
           <FirstSteps m={m} />
           {/* reserve and policy sit under the notes, so the three columns stay balanced on a tall screen */}
@@ -110,6 +113,7 @@ export function HomeNarrow() {
           <BackupNudge />
         </div>
         <div className="wl-narrow-notes" data-tour="notes">
+          <TownNews />
           <NotesPanel rows={m.rows} nowMs={nowMs} hrefOf={(r) => `/wallet/note/${r.key}`} tab={tab} onTab={setTab} tabs={false} limit={6} more="/wallet/notes" />
           <FirstSteps m={m} />
         </div>

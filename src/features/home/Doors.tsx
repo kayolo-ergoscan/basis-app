@@ -2,6 +2,7 @@
 // a phone-sized balance of your sandbox wallet, and the mainnet strip. The town boots only when the doors come
 // near the screen (it runs the resident bots and its clock).
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Link } from "react-router-dom";
 import { rich, useLang, useT } from "@/app/lang";
 import { currentUse, totalsSource, useDetector, useHeight, useObservatory, useOursInCounts } from "@/chain";
 import { copy, pick } from "@/content";
@@ -160,7 +161,7 @@ function MainnetStrip() {
   const foot = !obs ? null : src === "live" ? pick(copy.asOfBlock(tip ?? obs.height), lang) : src === "snapshot" ? pick(copy.asOfBlock(obs.asOf.height), lang) : t("chain.checking");
   return (
     <div className="door-strip">
-      <div className="ds-head"><Lamp state="live" size={8} /><b>MAINNET</b><Tag>{pick(copy.experimental, lang)}</Tag></div>
+      <div className="ds-head"><Lamp state="live" size={8} /><b>{t("home.d.net.k").toLocaleUpperCase(lang)}</b><Tag>{pick(copy.experimental, lang)}</Tag></div>
       <dl>
         {cells.map(([k, v, title]) => <div key={k} title={title}><dt className="label">{k}</dt><dd className="num">{v}</dd></div>)}
       </dl>
@@ -205,6 +206,7 @@ export function Doors() {
           </article>
         ))}
       </div>
+      <p className="home-dev"><Icon name="code" size={16} /><span>{t("home.dev.p")}</span> <Link className="textlink" to="/learn/developers">{t("home.dev.go")} <span aria-hidden="true">→</span></Link></p>
     </Section>
   );
 }

@@ -3,7 +3,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { ERGO_AVL_WASM, setAvlBackend, useAvlBackend, type ScenarioId, type SimTx } from "@/protocol";
 import { createFreeRun, createRun, scenarioList, type RunController } from "@/world";
-import { buildStage, CHEATS, denomViews, marksOf, ONCHAIN_TYPES, rebuildRefusal, rebuildTx, REFUSAL_TYPES, runCheat, segmentsOf, seqOfX, xOfSeq, type CheatId } from "./model";
+import { buildStage, CHEATS, reserveWord, denomViews, marksOf, ONCHAIN_TYPES, rebuildRefusal, rebuildTx, REFUSAL_TYPES, runCheat, segmentsOf, seqOfX, xOfSeq, type CheatId } from "./model";
 
 beforeAll(async () => {
   setAvlBackend(await useAvlBackend(ERGO_AVL_WASM));
@@ -123,4 +123,13 @@ describe("play model on every scenario", () => {
     for (const id of CHEATS) expect(seen[id] ?? 0, id).toBeGreaterThan(0);
     run.dispose();
   }, 120_000);
+});
+
+describe("the reserve line beside a seal", () => {
+  it("prints the coverage up to 999 %, and the reserve itself past that", () => {
+    const plain = (s: string) => s.replace(/[\s\u2060]/g, "");
+    expect(plain(reserveWord(4, 2_000_000_000n, 9, "ERG"))).toBe("400%");
+    expect(plain(reserveWord(9.99, 2_000_000_000n, 9, "ERG"))).toBe("999%");
+    expect(plain(reserveWord(200, 20_000_000_000n, 9, "ERG"))).toMatch(/^20[.,]00ERG$/);
+  });
 });

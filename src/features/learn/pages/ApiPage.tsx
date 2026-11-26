@@ -2,11 +2,13 @@
 // speak it and what ErgoScan's tracker accepts from them (#clients, ApiClients.tsx), then the basics (envelope, auth,
 // codes, limits), the traps, and every endpoint grouped, searchable, deep-linkable (#ep-<id>), with examples.
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Callout, CopyButton, Icon, Key, TextInput, int } from "@/ui";
 import { apiEndpoints, apiGroups, pick, trackerApi, type ApiEndpoint } from "@/content";
 import { BookHead, Pager, Sec, SourceLinks, inline, plainTitle, useBookSections } from "../layout";
 import { ApiClients, CLIENTS_SECTION } from "./ApiClients";
+import { TrackerAddress, TrackerExamples } from "./Examples";
 
 /** A one-line JSON body longer than a panel reads better indented; anything else (GET lines, shaped text) stays as written. */
 function pretty(x: string): string {
@@ -46,6 +48,13 @@ export default function ApiPage() {
   return (
     <article>
       <BookHead id="api" lede={P(trackerApi.lede)} meta={<span className="label">{t.p("learn.ix.count.api", apiEndpoints.length)}</span>} />
+
+      {/* first the public address and calls that work against it today; the developer page has the payment recipe */}
+      <div className="api-start">
+        <TrackerAddress label={t("learn.api.start.addr")} copy={t("learn.api.cl.copy")} />
+        <TrackerExamples entry={(id) => <a className="textlink" href={`#ep-${id}`}>{t("learn.dx.entry")} ↓</a>} />
+        <Link className="textlink api-start-dev" to="/learn/developers">{t("learn.api.start.dev")} →</Link>
+      </div>
 
       <ApiClients />
 
@@ -100,7 +109,7 @@ export default function ApiPage() {
         </div>
       </Sec>
 
-      <Sec id="endpoints" title={rich(t("learn.api.s.endpoints"))}>
+      <Sec id="endpoints" title={rich(t("learn.api.s.endpoints"))} lede={P(trackerApi.catalogueLede)}>
         <div className="api-tools">
           <TextInput value={q} onChange={setQ} icon="search" placeholder={t("learn.api.search")} aria-label={t("learn.api.search")} type="search" />
           <span className="api-count" aria-live="polite">{t("learn.api.shown", { n: shown.length, total: apiEndpoints.length })}</span>

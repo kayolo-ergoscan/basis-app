@@ -13,7 +13,7 @@ const en = {
   "nav.you": "You",
   "nav.primary": "Main",
 
-  "app.title": "Basis · unofficial interface",
+  "app.title": "Basis · an independent site by ErgoScan",
   "app.brand.home": "Basis, to the start",
   "app.brand.sub": "unofficial · ErgoScan",
   "app.openWallet": "Wallet (beta)",
@@ -54,6 +54,11 @@ const en = {
   "app.footer.unofficial": "unofficial · ErgoScan",
   "app.footer.kit": "UI kit",
   "app.footer.keys": "Keyboard shortcuts",
+  // site-simple: our code in the footer (this site, ErgoScan's tracker)
+  "app.footer.ours": "Our code",
+  "app.footer.app": "Site",
+  "app.footer.tracker": "Tracker",
+  "app.footer.dev": "For developers",
 
   "app.tape.waiting": "Waiting for the next commitment",
 
@@ -123,7 +128,7 @@ const ru: Partial<typeof en> = {
   "nav.you": "Вы",
   "nav.primary": "Главное",
 
-  "app.title": "Basis · неофициальный интерфейс",
+  "app.title": "Basis · независимый сайт от ErgoScan",
   "app.brand.home": "Basis, на главную",
   "app.brand.sub": "неофициально · ErgoScan",
   "app.openWallet": "Кошелёк (бета)",
@@ -164,6 +169,11 @@ const ru: Partial<typeof en> = {
   "app.footer.unofficial": "неофициально · ErgoScan",
   "app.footer.kit": "UI\u2011кит",
   "app.footer.keys": "Горячие клавиши",
+  // site-simple: наш код в подвале
+  "app.footer.ours": "Наш код",
+  "app.footer.app": "Сайт",
+  "app.footer.tracker": "Трекер",
+  "app.footer.dev": "Разработчикам",
 
   "app.tape.waiting": "Ждём следующую фиксацию",
 

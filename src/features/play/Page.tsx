@@ -1070,21 +1070,34 @@ function TopBar(p: {
         </span>
       )}
       <span className="pl-top-gap" />
-      {!p.compact && !p.forkInfo && p.avl && (
-        <span className={`pl-avl mono${p.avl.simulated ? " sim" : ""}`} title={p.avl.simulated ? t("play.top.avl.simHelp") : p.avl.label}>
-          {p.avl.simulated ? t("play.top.avl.sim") : t("play.top.avl.wasm")}
+      {/* a simulated tree is a caveat about the digests, so it stays in sight; the rest are tools for people who dig */}
+      {!p.compact && !p.forkInfo && p.avl?.simulated && (
+        <span className="pl-avl mono sim" title={t("play.top.avl.simHelp")}>
+          {t("play.top.avl.sim")}
         </span>
       )}
       <Popover
         align="end"
         trigger={(tp) => (
-          <button type="button" className="pl-seed mono" {...tp} aria-label={`${t("play.top.seed")}: ${p.seed}`} title={t("play.top.seedHelp")}>
-            <span className="pl-seed-l">{t("play.top.seed")}</span>
-            <span className="pl-seed-v">{p.seed}</span>
+          <button type="button" className="key sm icon-only quiet pl-more" {...tp} aria-label={t("play.top.more")} title={t("play.top.more")}>
+            <Icon name="more" />
           </button>
         )}
       >
-        <div className="pl-pop pl-seedpop">
+        <div className="pl-pop pl-menu pl-tools">
+          <button type="button" className="pl-menu-i" onClick={p.onShare}>
+            <Icon name="copy" />
+            {t("play.top.share")}
+          </button>
+          <button type="button" className="pl-menu-i" onClick={p.onExport}>
+            <Icon name="down" />
+            {t("play.top.export")}
+          </button>
+          <button type="button" className="pl-menu-i" onClick={p.onImport}>
+            <Icon name="in" />
+            {t("play.top.import")}
+          </button>
+          <hr className="pl-menu-sep" />
           <label className="pl-f">
             <span className="pl-f-l">{t("play.top.seed")}</span>
             <input className="pl-txt mono" value={draft} onChange={(e) => setDraft(e.target.value.slice(0, 80))} onKeyDown={(e) => e.key === "Enter" && p.onSeed(draft.trim() || null)} />
@@ -1105,46 +1118,6 @@ function TopBar(p: {
           )}
         </div>
       </Popover>
-      {p.compact ? (
-        <Popover
-          align="end"
-          trigger={(tp) => (
-            <button type="button" className="key sm icon-only quiet" {...tp} aria-label={t("play.top.more")} title={t("play.top.more")}>
-              <Icon name="menu" />
-            </button>
-          )}
-        >
-          <div className="pl-pop pl-menu">
-            <button type="button" className="pl-menu-i" onClick={p.onShare}>
-              <Icon name="copy" />
-              {t("play.top.share")}
-            </button>
-            <button type="button" className="pl-menu-i" onClick={p.onExport}>
-              <Icon name="down" />
-              {t("play.top.export")}
-            </button>
-            <button type="button" className="pl-menu-i" onClick={p.onImport}>
-              <Icon name="in" />
-              {t("play.top.import")}
-            </button>
-          </div>
-        </Popover>
-      ) : (
-        <span className="pl-top-k">
-          <button type="button" className="key sm quiet" onClick={p.onShare} title={t("play.top.share")}>
-            <Icon name="copy" />
-            <span className="pl-k-l">{t("play.top.share")}</span>
-          </button>
-          <button type="button" className="key sm quiet" onClick={p.onExport} title={t("play.top.export")}>
-            <Icon name="down" />
-            <span className="pl-k-l">{t("play.top.export")}</span>
-          </button>
-          <button type="button" className="key sm quiet" onClick={p.onImport} title={t("play.top.import")}>
-            <Icon name="in" />
-            <span className="pl-k-l">{t("play.top.import")}</span>
-          </button>
-        </span>
-      )}
     </div>
   );
 }

@@ -16,6 +16,8 @@ export * from "./glossary";
 export * from "./history";
 export * from "./trackerApi";
 export * from "./clients";
+export * from "./trackerExamples";
 export * from "./reasons";
 export * from "./links";
+export * from "./repos";
 export { default as contentI18n } from "./i18n";

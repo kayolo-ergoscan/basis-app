@@ -51,7 +51,7 @@ export function Identity({ m, phone }: { m: WalletModel; phone: boolean }) {
 }
 
 /** The net position on the field, the two sides and the backed / trust bar. */
-export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
+export function NetBlock({ m, denom, nums = [2, 3] }: { m: WalletModel; denom: DenomId; nums?: [number, number] }) {
   const t = useT();
   const f = useFmt();
   const s = m.sheet;
@@ -88,14 +88,14 @@ export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
       </div>
       <div className="wl-sides">
         <div className="wl-side in">
-          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">2</i>{t("wallet.net.owedToYou")}</span>
+          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">{nums[0]}</i>{t("wallet.net.owedToYou")}</span>
           <span className="v">
             <Amt v={s.assets} u={unit} />
           </span>
           <span className="t-small">{t.p("wallet.net.notes", nIn, { n: nIn })}{nIn > 0 ? ` · ${t("wallet.net.inSub")}` : ""}</span>
         </div>
         <div className="wl-side out">
-          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">3</i>{t("wallet.net.youOwe")}</span>
+          <span className="label wl-q"><i className="wl-q-n" aria-hidden="true">{nums[1]}</i>{t("wallet.net.youOwe")}</span>
           <span className="v">
             <Amt v={s.liabilities} u={unit} />
           </span>
@@ -143,7 +143,7 @@ export function ActionKeys({ hasIn }: { hasIn: boolean }) {
 }
 
 /** Your play coins on the sandbox chain (what a reserve locks and a redemption pays into), with the faucet. */
-export function ChainPurse({ m }: { m: WalletModel }) {
+export function ChainPurse({ m, n = 1 }: { m: WalletModel; n?: number }) {
   const t = useT();
   const f = useFmt();
   const show = useOutcomeToast();
@@ -154,7 +154,7 @@ export function ChainPurse({ m }: { m: WalletModel }) {
     <section className="wl-purse" aria-labelledby="wl-purse-h">
       <div className="spread wl-purse-top">
         <h2 className="label wl-q" id="wl-purse-h">
-          <i className="wl-q-n" aria-hidden="true">1</i>{t("wallet.q.have")}
+          <i className="wl-q-n" aria-hidden="true">{n}</i>{t("wallet.q.have")}
         </h2>
         <Key size="sm" variant="quiet" icon="coin" disabled={faucetIn > 0} aria-describedby="wl-purse-b" onClick={() => void town.faucet().then(show)}>
           {worldText("world.faucet.button", { amount }, t.lang)}

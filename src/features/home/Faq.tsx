@@ -1,5 +1,5 @@
-// Before you start: the three questions newcomers ask first (content `faq`), each with its one-line answer from the FAQ
-// and a link to the full answer on /learn/faq; the whole FAQ is one click away.
+// 03 Before you start: the three questions newcomers ask first (content `faq`), each with its one-line answer from the
+// FAQ and a link to the full answer on /learn/faq; the whole FAQ and the whole book are one click away.
 import { Link } from "react-router-dom";
 import { rich, useLang, useT } from "@/app/lang";
 import { faq, pick } from "@/content";
@@ -16,8 +16,8 @@ export function HomeFaq() {
   const { lang } = useLang();
   const items = HOME_FAQ.flatMap((id) => faq.filter((f) => f.id === id));
   return (
-    <Section id="faq" className="home-faq" no={t("home.f.no")} title={rich(t("home.f.title"))} lede={t("home.f.lede")}
-      aside={<div className="hf-aside"><Key to={FAQ_HREF} icon="learn">{t("home.f.all")}</Key></div>}>
+    <Section id="faq" className="home-faq" no={<>03 · {t("home.f.no")}</>} title={rich(t("home.f.title"))} lede={t("home.f.lede")}
+      aside={<div className="hf-aside"><Key to={FAQ_HREF} icon="learn">{t("home.f.all")}</Key><Key to="/learn" kbd="L" variant="quiet" icon="right">{t("home.f.book")}</Key></div>}>
       <ul className="hf-list">
         {items.map((f) => (
           <li key={f.id} className="hf-item">

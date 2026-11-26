@@ -263,9 +263,11 @@ export function buildStage(eco: Economy, denom: DenomId, W: number, H: number, l
   const lws = people.map((p) => {
     const nv = net.get(p.id) ?? 0n;
     const out = [displayName(eco, p.id, lang).length * 7.8, (fmtAmt(nv < 0n ? -nv : nv, decimals).replace(/\u2060/g, "").length + (nv === 0n ? 0 : 1)) * 7.2];
-    if (eco.reservesOf(p.id, denom).some((r) => r.active)) {
+    const active = eco.reservesOf(p.id, denom).filter((r) => r.active);
+    if (active.length) {
       const ratio = eco.coverage(p.id, denom).ratio;
-      const txt = ratio === null ? (words["play.stage.noLiab"] ?? "") : (words["play.stage.reserve"] ?? "").replace("{pct}", coverPct(ratio));
+      const held = active.reduce((s, r) => s + r.collateral(), 0n);
+      const txt = ratio === null ? (words["play.stage.noLiab"] ?? "") : (words["play.stage.reserve"] ?? "").replace("{v}", reserveWord(ratio, held, decimals, symbol));
       out.push(txt.replace(/\u2060/g, "").length * 6.7);
     }
     return out;
@@ -824,10 +826,11 @@ function boxesOf(n: Pick<StageNode, "x" | "y" | "r" | "th" | "side" | "align" | 
 }
 
 /** The lighthouse figure and its two label lines. */
-/** A seal's coverage as the stage prints it: "400 %", and "> 999 %" for a tiny debt against a big reserve. */
-export function coverPct(ratio: number): string {
+/** A seal's reserve as the stage prints it: its coverage ("400 %"), and past 999 % (a tiny debt against a big reserve,
+ *  where a percentage says nothing) the reserve itself ("50.00 ERG"). */
+export function reserveWord(ratio: number, reserve: bigint, decimals: number, symbol: string): string {
   const v = Math.round(ratio * 100);
-  return v > 999 ? `> ${pct(999)}` : pct(v);
+  return v > 999 ? `${fmtAmt(reserve, decimals)} ${symbol}` : pct(v);
 }
 
 /** What the lighthouse says about its tracker: the key under play.tracker.* */

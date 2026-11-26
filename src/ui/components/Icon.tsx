@@ -59,6 +59,8 @@ const ICONS: Record<string, ReactNode> = {
   chat: P("M4.5 18.5V6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8.5z"),
   sound: <>{P("M4 9.5h3.5L12 5.5v13l-4.5-4H4z")}{P("M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11")}</>,
   motion: P("M3.5 12c2-4 4-4 6 0s4 4 6 0 3-3.5 5-2"),
+  code: P("M8.5 7.5 4 12l4.5 4.5M15.5 7.5 20 12l-4.5 4.5M13.5 5.5l-3 13"),
+  more: <><circle cx="6" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="18" cy="12" r="1.3" /></>,
 };
 
 export type IconName = keyof typeof ICONS | string;
