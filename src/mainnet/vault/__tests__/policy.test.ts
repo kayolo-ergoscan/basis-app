@@ -79,6 +79,8 @@ describe("mainnet vault: the passphrase rules", () => {
     // a redemption pays only this key (L1): no passphrase, as before
     expect(await v.withSecret("redeem", () => 2)).toBe(2);
     expect(await v.withSecret("build-request", () => 3)).toBe(3);
+    // the inbox request only reads: no passphrase
+    expect(await v.withSecret("inbox", () => 4)).toBe(4);
     v.close();
   });
 

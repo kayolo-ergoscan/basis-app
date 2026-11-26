@@ -31,8 +31,9 @@ export type VaultStatus = "loading" | "unsupported" | "none" | "locked" | "unloc
 export type LockReason = "manual" | "idle" | "hidden" | "taken-over" | "lost" | "storage-changed" | "wiped";
 export type MissingFeature = "indexeddb" | "webcrypto" | "web-locks";
 /** What the secret is used for. Journal kinds sign transactions or notes; "build-request" signs a redemption build
- *  request; "export-hex" reveals the key (D4). When the passphrase is asked again: policy.ts. */
-export type SecretPurpose = JournalKind | "build-request" | "export-hex";
+ *  request; "inbox" signs the inbox request (a read of the notes to this key, tx/messages.ts signInbox); "export-hex"
+ *  reveals the key (D4). When the passphrase is asked again: policy.ts. */
+export type SecretPurpose = JournalKind | "build-request" | "inbox" | "export-hex";
 
 export interface VaultKey {
   readonly pub: Hex;
@@ -164,7 +165,7 @@ export interface VaultInternals {
   hiddenMs: number;
 }
 
-const PURPOSES: readonly SecretPurpose[] = ["t1", "note", "redeem", "withdraw", "topup", "refund-start", "refund-end", "build-request", "export-hex"];
+const PURPOSES: readonly SecretPurpose[] = ["t1", "note", "redeem", "withdraw", "topup", "refund-start", "refund-end", "build-request", "inbox", "export-hex"];
 const INSPECT: unique symbol = Symbol.for("nodejs.util.inspect.custom");
 
 const INITIAL: VaultState = Object.freeze({ status: "loading", key: null, backedUp: false, lockReason: null, missing: Object.freeze([]), persisted: null, v: 0 });
