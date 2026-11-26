@@ -76,6 +76,7 @@ export function HomeWide() {
   return (
     <div className="wl-wide">
       <WalletBar />
+      <Tour />
       <div className="wl-grid">
         <aside className="wl-col-l" aria-label={t("wallet.col.you")}>
           <Identity m={m} phone={false} />
@@ -101,7 +102,6 @@ export function HomeWide() {
           <Outlet context={{ first }} />
         </div>
       </div>
-      <Tour />
     </div>
   );
 }
@@ -133,6 +133,7 @@ export function HomeNarrow() {
   return (
     <div className="wl-narrow">
       <WalletBar />
+      <Tour />
       <div className="wl-narrow-grid">
         <div className="wl-narrow-top">
           <Identity m={m} phone />
@@ -152,7 +153,6 @@ export function HomeNarrow() {
         <ReserveSummary m={m} />
         <PolicySummary m={m} />
       </div>
-      <Tour />
     </div>
   );
 }

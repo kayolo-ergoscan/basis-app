@@ -486,12 +486,20 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
 .wl-purse-v .u-unit { font: 500 11px/1 var(--f-mono); letter-spacing: .06em; color: var(--ink-3); }
 .wl-purse-sep { margin: 0 12px; color: var(--ink-4, var(--ink-3)); font-weight: 400; }
 .wl-purse-b { margin: 0; color: var(--ink-3); }
-.wl-tour { position: fixed; z-index: 96; right: max(24px, calc((100vw - var(--container)) / 2 - 8px)); bottom: 28px; width: min(360px, calc(100vw - 32px)); display: grid; gap: 10px; padding: 16px 18px;
-  border-radius: 14px; background: var(--surface-2); /* an opaque card: glass is only for floating bars (VISUAL §6) */
-  border: 1px solid var(--rule-2); box-shadow: 0 30px 60px -24px rgba(var(--shade), .7); animation: wl-rise var(--t-base) var(--ease-out); }
+/* the tour: a line across the top of the wallet (under its bar), sticky under the nav; a card above the tab bar on a phone */
+.wl-tour { position: sticky; z-index: 30; top: 72px; margin: calc(-1 * clamp(4px, 1vw, 12px)) 0 clamp(18px, 2vw, 24px);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px 20px; padding: 10px 12px 10px 18px;
+  border-radius: 14px; background: var(--surface-2); /* opaque: glass is only for floating bars (VISUAL §6) */
+  border: 1px solid var(--rule-2); box-shadow: 0 18px 36px -26px rgba(var(--shade), .7); animation: wl-rise var(--t-base) var(--ease-out); }
 .wl-tour:focus { outline: none; }
 .wl-tour:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.wl-tour-f { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.wl-tour-top { display: contents; }
+.wl-tour-top > .label { grid-column: 1; grid-row: 1; white-space: nowrap; }
+.wl-tour-top > .textlink { grid-column: 4; grid-row: 1; white-space: nowrap; }
+.wl-tour-t { grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+.wl-tour-t > * { margin: 0; }
+.wl-tour-t > .t-small { flex: 1 1 320px; min-width: 0; }
+.wl-tour-f { grid-column: 3; grid-row: 1; display: flex; justify-content: flex-end; gap: 8px; }
 [data-tour-on] { position: relative; z-index: 1; border-radius: 10px; box-shadow: 0 0 0 6px var(--bg), 0 0 0 7px var(--ink-2), 0 0 0 14px color-mix(in srgb, var(--ink) 8%, transparent); transition: box-shadow var(--t-base) var(--ease-out); }
 @keyframes wl-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
@@ -524,7 +532,12 @@ li:first-child > .wl-pick, .wl-pick-l > .wl-pick:first-child { border-top: 0; }
   .wl-idcard-words { font-size: 23px; }
   .wl-act > .key { flex: 1 1 auto; }
   .wl-line-ed { padding-left: 0; }
-  .wl-tour { left: 16px; right: 16px; width: auto; bottom: calc(96px + env(safe-area-inset-bottom) * .4); }
+  .wl-tour { position: fixed; z-index: 96; top: auto; left: 16px; right: 16px; width: auto; margin: 0; bottom: calc(96px + env(safe-area-inset-bottom) * .4);
+    grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px 18px; box-shadow: 0 30px 60px -24px rgba(var(--shade), .7); }
+  .wl-tour-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .wl-tour-t, .wl-tour-f { grid-column: auto; grid-row: auto; }
+  .wl-tour-t { display: grid; gap: 10px; }
+  .wl-tour-f { margin-top: 4px; }
   .wl-sub .wl-back { margin: -4px 0 2px -8px; }
   .wl-vers li { grid-template-columns: 14px minmax(0, 1fr); }
   .wl-v-state { grid-row: auto; grid-column: 2; text-align: left; max-width: none; }

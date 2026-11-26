@@ -300,26 +300,18 @@ export function SandboxNote({ compact }: { compact?: boolean }) {
 // ---------------------------------------------------------------------------------------------
 
 const TOUR = ["net", "keys", "notes"] as const;
-const CARD_W = 340;
+/** The fixed site nav (64 px) and a little air: the tour line sticks under it while the page scrolls. */
+const LINE_TOP = 72;
 
-/** Where the hint card goes: beside the highlighted part on wide screens, a bottom sheet on phones. */
-function place(el: HTMLElement | null, card: HTMLElement | null): CSSProperties | undefined {
-  if (!el || !card || window.innerWidth <= 640) return undefined;
-  const r = el.getBoundingClientRect();
-  const h = card.offsetHeight || 180;
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const top = Math.max(80, Math.min(r.top, H - h - 16));
-  if (r.right + 20 + CARD_W <= W - 16) return { left: r.right + 20, top, right: "auto", bottom: "auto" };
-  if (r.left - 20 - CARD_W >= 16) return { left: r.left - 20 - CARD_W, top, right: "auto", bottom: "auto" };
-  return { left: Math.max(16, Math.min(r.left, W - CARD_W - 16)), top: Math.min(r.bottom + 16, H - h - 16), right: "auto", bottom: "auto" };
-}
-
+/**
+ * Three hints after joining. On a wide screen the hint is a line across the top of the wallet, under its bar: it covers
+ * nothing (it is part of the page) and sticks under the nav, so it stays at hand when a hint scrolls to a lower part.
+ * On a phone it is a card above the tab bar. The part it speaks about gets a ring.
+ */
 export function Tour() {
   const t = useT();
   const p = usePrefs();
   const [i, setI] = useState(0);
-  const [pos, setPos] = useState<CSSProperties | undefined>(undefined);
   const card = useRef<HTMLDivElement>(null);
   const open = !p.tourDone;
   useEffect(() => {
@@ -329,20 +321,19 @@ export function Tour() {
     if (el) {
       el.setAttribute("data-tour-on", "");
       const r = el.getBoundingClientRect();
-      if (r.top < 72 || r.bottom > window.innerHeight - 16) el.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      const H = window.innerHeight;
+      const behavior = prefersReducedMotion() ? "auto" : "smooth";
+      if (window.innerWidth <= 640) {
+        if (r.top < 72 || r.bottom > H - 16) el.scrollIntoView({ block: "center", behavior });
+      } else {
+        // bring the part into sight below the line (which sticks under the nav once the page moves)
+        const head = LINE_TOP + (card.current?.offsetHeight ?? 0) + 16;
+        const dy = r.top < head ? r.top - head : r.bottom > H - 16 ? Math.min(r.bottom - (H - 16), r.top - head) : 0;
+        if (dy) window.scrollBy({ top: dy, behavior });
+      }
     }
-    const update = () => setPos(place(el, card.current));
-    update();
-    const timer = window.setTimeout(update, 450);
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
     card.current?.focus({ preventScroll: true });
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      el?.removeAttribute("data-tour-on");
-    };
+    return () => el?.removeAttribute("data-tour-on");
   }, [open, i]);
   useEffect(() => {
     if (!open) return;
@@ -356,8 +347,8 @@ export function Tour() {
   const id = TOUR[i];
   const last = i === TOUR.length - 1;
   return (
-    <div className="wl-tour" role="dialog" aria-modal="false" aria-labelledby="wl-tour-h" aria-describedby="wl-tour-b" tabIndex={-1} ref={card} style={pos}>
-      <div className="spread">
+    <div className="wl-tour" role="dialog" aria-modal="false" aria-labelledby="wl-tour-h" aria-describedby="wl-tour-b" tabIndex={-1} ref={card}>
+      <div className="wl-tour-top">
         <span className="label">
           {t("wallet.tour.label")} · {i + 1} / {TOUR.length}
         </span>
@@ -365,12 +356,14 @@ export function Tour() {
           {t("wallet.tour.skip")}
         </button>
       </div>
-      <h2 className="t-h4" id="wl-tour-h">
-        {t(`wallet.tour.${id}.t`)}
-      </h2>
-      <p className="t-small" id="wl-tour-b">
-        {t(`wallet.tour.${id}.b`)}
-      </p>
+      <div className="wl-tour-t">
+        <h2 className="t-h4" id="wl-tour-h">
+          {t(`wallet.tour.${id}.t`)}
+        </h2>
+        <p className="t-small" id="wl-tour-b">
+          {t(`wallet.tour.${id}.b`)}
+        </p>
+      </div>
       <div className="wl-tour-f">
         {i > 0 && (
           <Key size="sm" variant="quiet" onClick={() => setI(i - 1)}>
