@@ -1,6 +1,7 @@
 // Shared contracts between the shell (src/app) and the feature folders (src/features/<id>).
 // Owned by the orchestrator. Do not change the shapes without the orchestrator; additive optional fields are OK.
 import type { ComponentType } from "react";
+import type { Part } from "./chunk";
 
 /** Every feature folder exports one of these as the default export of `src/features/<id>/route.tsx`.
  *  The shell discovers them with import.meta.glob("/src/features/* /route.tsx", { eager: true }) — no shared file to edit. */
@@ -19,6 +20,9 @@ export interface FeatureRoute {
   commands?: { id: string; labelKey: string; to: string; keywords?: string }[];
   /** Page <title> i18n key (the shell sets document.title = t(titleKey) + " · Basis"). */
   titleKey?: string;
+  /** What a path of this feature needs besides the feature chunk (its own lazy sub-pages, a data snapshot): a page
+   *  switch loads them first, so the new view renders in full at once (src/app/motion.ts). */
+  parts?: (pathname: string) => Part[];
 }
 
 /** Flat dictionaries. Every key is prefixed by its owner: "nav.", "app.", "ui." (shell/ui), "<featureId>." (features), "content." (src/content).

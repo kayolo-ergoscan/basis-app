@@ -1,12 +1,13 @@
 // The app shell: router, nav, banner, routes discovered from src/features/*/route.tsx, live tape, footer, tab bar,
-// ⌘K, shortcuts, toasts.
+// ⌘K, shortcuts, toasts. The router runs on the history of ./motion, which switches views without jumps.
 import { useEffect } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
 import { Toaster } from "@/ui/components/Toast";
 import { Banner, Footer, LiveTape, Nav, TabBar } from "./chrome";
 import { preloadFonts } from "./fonts-preload";
 import { NotFound, RouteFrame, ScrollManager } from "./frame";
 import { useLang, useT } from "./lang";
+import { history } from "./motion";
 import { HelpSheet, Palette, Shortcuts } from "./overlays";
 import { ROUTES } from "./routes";
 
@@ -19,7 +20,7 @@ function Boot() {
 export default function App() {
   const t = useT();
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <HistoryRouter history={history} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Boot />
       <ScrollManager />
       <Shortcuts />
@@ -41,6 +42,6 @@ export default function App() {
       <Palette />
       <HelpSheet />
       <Toaster />
-    </BrowserRouter>
+    </HistoryRouter>
   );
 }

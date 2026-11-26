@@ -8,6 +8,7 @@ import { ErrorState, PageLoading } from "@/ui/components/states";
 import { MOD } from "./chrome";
 import { openCommandBar } from "./commands";
 import { translate, useT } from "./lang";
+import { routeCommitted } from "./motion";
 import { pageOf } from "./routes";
 import type { FeatureRoute } from "./types";
 
@@ -108,6 +109,8 @@ export function ScrollManager() {
   }, []);
   const lastPath = useRef<string | null>(null);
   useLayoutEffect(() => {
+    // the switch that brought this location waits for it (src/app/motion.ts): the new view is on the page now
+    routeCommitted(loc.key);
     keyRef.current = posKey(loc);
     const first = lastPath.current == null;
     const moved = lastPath.current !== loc.pathname;
