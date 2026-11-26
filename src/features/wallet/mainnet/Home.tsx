@@ -54,6 +54,8 @@ function TokenReserveCard({ token }: { token: ReserveToken }) {
         <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to={`/wallet/mainnet/reserve${q}`}>{t("mw.home.reserveOpen")}</Key></p>
       ) : gate.value === null && !gate.problem ? (
         <p className="t-small mw-dim">{t("mw.top.loading")}</p>
+      ) : gate.value === null && gate.problem ? (
+        <p className="t-small"><ProblemText p={gate.problem} what="read" /></p>
       ) : (
         <p className="t-small mw-dim">{t("mw.home.unchecked")}</p>
       )}
