@@ -718,10 +718,13 @@ const en: Dict = {
   "wallet.news.less": "Only the newest",
   "wallet.news.clear": "Clear the news",
 
-  // polish: the backup is checked with its file, as on mainnet (the words name the key and are never asked back)
+  // polish: the backup is checked with its file, as on mainnet (the words name the key and are never asked back);
+  // the pay window says the recipient's answer in one line, the policy and its check open under it
   "wallet.onb.savedFile": "Now load that file back and type its passphrase: this proves the copy opens your key.",
   "wallet.onb.pickSaved": "Choose the saved file",
   "wallet.onb.fileNo": "This file with this passphrase does not open your sandbox key.",
+  "wallet.pay.v.upTo": "{name} will accept: up to {v}",
+  "wallet.pay.polMore": "Details",
 };
 
 const ru: Partial<Dict> = {
@@ -1433,10 +1436,13 @@ const ru: Partial<Dict> = {
   "wallet.news.less": "Только последняя",
   "wallet.news.clear": "Убрать новости",
 
-  // polish: копия проверяется файлом, как в основной сети (слова — имя ключа, их не спрашивают)
+  // polish: копия проверяется файлом, как в основной сети (слова — имя ключа, их не спрашивают); окно оплаты говорит
+  // ответ получателя одной строкой, политика и проверка открываются под ней
   "wallet.onb.savedFile": "Теперь загрузите этот файл обратно и введите его пароль: так видно, что копия открывает ваш ключ.",
   "wallet.onb.pickSaved": "Выбрать сохранённый файл",
   "wallet.onb.fileNo": "Этот файл с этим паролем не открывает ваш ключ песочницы.",
+  "wallet.pay.v.upTo": "{name} примет: до {v}",
+  "wallet.pay.polMore": "Подробнее",
 };
 
 export default { en, ru };

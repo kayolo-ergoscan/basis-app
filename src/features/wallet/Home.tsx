@@ -1,7 +1,7 @@
 // The wallet home in two compositions (VISUAL §13): desktop three columns [identity + the three answers + keys |
 // notes and the start quest | the selected note or the open flow], and the phone column of the reference render. Section pages (notes,
 // reserve, policy, contacts, settings) share one frame with the wallet bar.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useMatch, useParams } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Callout, Key, Lamp, Loading } from "@/ui";
@@ -30,9 +30,39 @@ function BackupNudge() {
   );
 }
 
+/**
+ * The right column is sticky with its own scroll. Before the page is scrolled it starts lower than its sticky top, so
+ * a fixed height would end below the window and hide what is pinned to its bottom (the hold-to-sign key). This keeps
+ * --wl-col-top = where the column starts on screen (wallet.css sizes the column from it).
+ */
+function useColTop() {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!el) return;
+    let raf = 0;
+    const set = () => {
+      raf = 0;
+      el.style.setProperty("--wl-col-top", `${Math.max(0, Math.round(el.getBoundingClientRect().top))}px`);
+    };
+    const on = () => {
+      if (!raf) raf = requestAnimationFrame(set);
+    };
+    set();
+    addEventListener("scroll", on, { passive: true });
+    addEventListener("resize", on);
+    return () => {
+      cancelAnimationFrame(raf);
+      removeEventListener("scroll", on);
+      removeEventListener("resize", on);
+    };
+  }, [el]);
+  return setEl;
+}
+
 /** Desktop: three columns; the right column holds the selected note or the open flow (an <Outlet/>). */
 export function HomeWide() {
   const t = useT();
+  const colRef = useColTop();
   const p = usePrefs();
   const m = useWalletModel(p.denom);
   const [tab, setTab] = useState<TabId>("all");
@@ -67,7 +97,7 @@ export function HomeWide() {
             <PolicySummary m={m} />
           </div>
         </div>
-        <div className="wl-col-r">
+        <div className="wl-col-r" ref={colRef}>
           <Outlet context={{ first }} />
         </div>
       </div>
