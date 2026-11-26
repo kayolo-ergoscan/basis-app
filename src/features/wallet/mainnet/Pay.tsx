@@ -332,7 +332,8 @@ export function PayScreen() {
             <h1 className="t-h2">{t("mw.pay.h")}</h1>
             <p className="t-lede">{t("mw.pay.lede")}</p>
             {!req && <DenomSwitch value={denom} onChange={(x) => { setDenom(x); setPhase({ k: "edit" }); setAmountText(""); }} disabled={phase.k === "working" || phase.k === "review"} />}
-            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
+            {/* an error after signing keeps the trail at the last step: the note exists, it was not sent */}
+            <FlowSteps at={phase.k === "done" || failedEntry ? 2 : phase.k === "review" ? 1 : 0} notSent={failedEntry?.state === "signed"} />
           </header>
           {noReserve && (
             <Callout tone="alarm" title={denom === "erg" ? t("mw.pay.noReserveT") : t("mw.dn.payNoReserveT", { sym: denomSymbol(denom) })}>

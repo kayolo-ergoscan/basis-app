@@ -23,7 +23,7 @@ type Phase =
       /** a token withdrawal: the ERG in the destination box and the tokens back in the change */ denom: Denomination; ergValue: bigint; changeTokens: Token[] }
   | { k: "working" }
   | { k: "done"; id: string }
-  | { k: "error"; text?: string; problem?: Problem; rule?: string };
+  | { k: "error"; text?: string; problem?: Problem; rule?: string; /** signed, sending failed (the trail says «Not sent») */ signed?: true };
 
 export function WithdrawScreen() {
   const t = useT();
@@ -85,7 +85,7 @@ export function WithdrawScreen() {
       // ERG: the meta it always had; a token withdrawal names its denomination (Activity and the progress cards read it)
       const r = await signAndSend(vault, "withdraw", tx, inputs, { amount: sent.toString(), to, ...(phase.denom === "erg" ? {} : { denom: phase.denom }) }, tip, pass);
       setPass("");
-      setPhase(r.problem ? { k: "error", problem: r.problem } : { k: "done", id: r.entry.id });
+      setPhase(r.problem ? { k: "error", problem: r.problem, signed: true } : { k: "done", id: r.entry.id });
     } catch (e) {
       setPhase({ k: "error", text: isBroadcastLimit(e) ? t("mw.wd.tooMany") : isVaultError(e, "wrong-passphrase") ? t("mw.pay.passWrong") : verr(e) });
     }
@@ -99,7 +99,7 @@ export function WithdrawScreen() {
             <h1 className="t-h2">{t("mw.wd.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.wdLede", { sym: token.symbol }) : t("mw.wd.lede")}</p>
             <DenomSwitch send value={denom} onChange={(d) => { setDenom(d); setAmountText(""); setPhase({ k: "edit" }); }} disabled={phase.k === "working" || phase.k === "review"} />
-            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
+            <FlowSteps at={phase.k === "done" || (phase.k === "error" && phase.signed) ? 2 : phase.k === "review" ? 1 : 0} notSent={phase.k === "error" && phase.signed} />
           </header>
           <Gate vault={vault} state={state} unlocked why={t("mw.wd.unlockWhy")}>
             <Card title={token ? t("mw.dn.wdFormT", { sym: token.symbol }) : t("mw.wd.formT")}>

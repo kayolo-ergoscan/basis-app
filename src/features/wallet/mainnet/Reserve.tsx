@@ -336,7 +336,8 @@ export function ReserveScreen() {
             <h1 className="t-h2">{t("mw.res.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.lede", { sym: token.symbol }) : t("mw.res.lede")}</p>
             <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setBig(false); }} disabled={busy || phase.k === "review" || phase.k === "treview"} />
-            {!reserve && <FlowSteps at={phase.k === "review" || phase.k === "treview" || phase.k === "combine" ? 1 : 0} />}
+            {/* the T1 in this browser's journal is the creation: sent once it exists, «Not sent» while it is only signed */}
+            {!reserve && <FlowSteps at={t1 ? 2 : phase.k === "review" || phase.k === "treview" || phase.k === "combine" ? 1 : 0} notSent={t1?.state === "signed" && phase.k !== "working"} />}
           </header>
           {reserve && !t1 && <ReserveCard r={reserve} />}
           {unproven && !t1 && <UnprovenReserve rs={unproven} denom={denom} />}

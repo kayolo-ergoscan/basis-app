@@ -358,7 +358,7 @@ export function RefundScreen() {
             <h1 className="t-h2">{t("mw.ref.h")}</h1>
             <p className="t-lede">{t("mw.ref.lede")}</p>
             <DenomSwitch value={denom} onChange={(d) => { setDenom(d); setPhase({ k: "idle" }); setPass(""); setUnderstood(false); }} disabled={busy || phase.k === "review"} />
-            <FlowSteps at={phase.k === "sent" ? 2 : phase.k === "review" ? 1 : 0} />
+            <FlowSteps at={phase.k === "sent" ? 2 : phase.k === "review" ? 1 : 0} notSent={phase.k === "sent" && !!phase.problem} />
           </header>
           {open.filter((e) => e.id !== openStart?.id).map((e) => <RefundProgress key={e.id} entry={e} />)}
           {own?.ok && <OtherBoxesNote own={own} />}

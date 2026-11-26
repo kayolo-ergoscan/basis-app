@@ -251,7 +251,7 @@ function TopUpForm() {
             <h1 className="t-h2">{t("mw.top.h")}</h1>
             <p className="t-lede">{token ? t("mw.dn.topLede", { sym: token.symbol }) : t("mw.top.lede")}</p>
             {!asked && <DenomSwitch value={ownDenom} onChange={setDenom} disabled={busy || phase.k === "review"} />}
-            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} />
+            <FlowSteps at={phase.k === "done" ? 2 : phase.k === "review" ? 1 : 0} notSent={phase.k === "done" && !!phase.problem} />
           </header>
 
           <Card title={t("mw.top.targetT")} aside={info ? <Tag tone={isOwn ? "ok" : "metal"}>{isOwn ? t("mw.top.yours") : t("mw.top.theirs")}</Tag> : undefined}>

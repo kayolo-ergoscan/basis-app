@@ -310,13 +310,15 @@ export function TrackerTile({ id = "T-01", stale, size = "md", tileRef }: { id?:
 }
 
 /* ---------- FlowTrail: where you are in a short flow (fill in → check and sign → done) ---------- */
-/** One decision per screen: the trail names the steps of this action and marks the current one (aria-current="step"). */
-export function FlowTrail({ steps, at, label }: { steps: readonly string[]; at: number; label: string }) {
+/** One decision per screen: the trail names the steps of this action and marks the current one (aria-current="step").
+ *  `fail`: the current step did not go through (its label should say so, e.g. «Not sent»); it is marked in the alarm
+ *  colour with «!» in place of its number. */
+export function FlowTrail({ steps, at, label, fail }: { steps: readonly string[]; at: number; label: string; fail?: boolean }) {
   return (
     <ol className="flow-trail" aria-label={label}>
       {steps.map((s, i) => (
-        <li key={s} className={i < at ? "done" : i === at ? "now" : undefined} aria-current={i === at ? "step" : undefined}>
-          <span className="n" aria-hidden="true">{i + 1}</span>
+        <li key={s} className={i < at ? "done" : i === at ? (fail ? "now fail" : "now") : undefined} aria-current={i === at ? "step" : undefined}>
+          <span className="n" aria-hidden="true">{i === at && fail ? "!" : i + 1}</span>
           {s}
         </li>
       ))}

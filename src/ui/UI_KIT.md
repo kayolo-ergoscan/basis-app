@@ -322,7 +322,7 @@ Props marked `?` are optional; defaults are in brackets. Every specimen lives at
 | `Lamp` | `state? "signed" \| "tracked" \| "committed" \| "stale" \| "live" \| "alarm" \| "off"`, `size?`, `label?` (shape first: ○ ◐ ●, drawn as a small window; committed is lit with moonlight) |
 | `Tag` | `tone? "plain" \| "ok" \| "watch" \| "warn" \| "under" \| "metal" \| "up" \| "agent"`, `glyph?`, `title?` |
 | `CoverageTag` | `pct`, `long?`, `small?`. Bands: `coverageBand(pct)` → fine ≥ 150 · watch ≥ 120 · warn ≥ 100 · under. The tag names the reserve in words (`ui.cov.tag.*`: "Reserve fine"); the bare band words (`ui.cov.*`) are for the scale under a coverage bar |
-| `FlowTrail` | `steps: string[]`, `at`, `label`: the steps of one action (who / fill in → check and sign → done), the current one `aria-current="step"`. Put it under the flow's title |
+| `FlowTrail` | `steps: string[]`, `at`, `label`, `fail?`: the steps of one action (who / fill in → check and sign → done), the current one `aria-current="step"`. `fail`: the current step did not go through (alarm colour, «!»); its label must say so («Not sent»), never «Sent». Put it under the flow's title |
 | `AgentTag` | `small?` (the dashed "AI" tag) |
 | `Chip` | `lamp?`, `label?`, `value?`, `href? \| onClick?`, `title?`, `chipRef?` |
 | `Seg` | `options [{value,label,title?}]`, `value`, `onChange`, `ariaLabel`, `mono?` |

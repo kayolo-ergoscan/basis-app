@@ -132,10 +132,12 @@ export function Steps({ items, label, house }: { items: StepItem[]; label: strin
 }
 
 /** Where an action stands: fill in → check and sign → sent. One decision per screen: the form, then the review with
- *  every warning and the signing key, then the result. Words only; the screens themselves decide what is shown. */
-export function FlowSteps({ at }: { at: 0 | 1 | 2 }) {
+ *  every warning and the signing key, then the result. Words only; the screens themselves decide what is shown.
+ *  `notSent`: signed, but sending failed — the last step reads «Not sent» in the alarm colour, never «Sent». */
+export function FlowSteps({ at, notSent }: { at: 0 | 1 | 2; notSent?: boolean }) {
   const t = useT();
-  return <FlowTrail steps={[t("mw.flow.fill"), t("mw.flow.check"), t("mw.flow.sent")]} at={at} label={t("mw.flow.aria")} />;
+  const fail = notSent && at === 2;
+  return <FlowTrail steps={[t("mw.flow.fill"), t("mw.flow.check"), fail ? t("mw.flow.notSent") : t("mw.flow.sent")]} at={at} fail={fail} label={t("mw.flow.aria")} />;
 }
 
 // ─── unlock ─────────────────────────────────────────────────────────────────────────────────────
