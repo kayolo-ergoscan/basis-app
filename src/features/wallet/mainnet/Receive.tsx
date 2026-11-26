@@ -274,9 +274,9 @@ export function ReceiveScreen() {
               <div className="mw-ask-g" ref={askRef}>
                 <div className="mw-ask-l">
                   {kind === "note" ? (
-                    <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={204} label={t("mw.recv.askQr")} /></div>
+                    <div key="note" className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={204} label={t("mw.recv.askQr")} /></div>
                   ) : (
-                    <div className="mw-qr mw-qr-c"><QrCode text={me.address} size={204} label={t("mw.recv.ergQr")} /></div>
+                    <div key="erg" className="mw-qr mw-qr-c"><QrCode text={me.address} size={204} label={t("mw.recv.ergQr")} /></div>
                   )}
                   <p className="t-small mw-dim mono">{short(me.address, 6, 4)}</p>
                 </div>
@@ -286,8 +286,9 @@ export function ReceiveScreen() {
                     <Seg ariaLabel={t("mw.recv.kindAria")} value={kind} onChange={setKind}
                       options={[{ value: "note", label: t("mw.recv.kind.note") }, { value: "erg", label: t("mw.recv.kind.erg") }]} />
                   </div>
+                  {/* each kind is its own subtree (keyed): nothing of one is reused, moved, by the other */}
                   {kind === "note" ? (
-                    <>
+                    <div className="mw-form" key="note">
                       <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
                       <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
                         error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
@@ -306,9 +307,9 @@ export function ReceiveScreen() {
                       </div>
                       <p className="t-small">{t("mw.recv.paidHere")}</p>
                       <p className="t-small mw-dim">{t("mw.rq.askReceipt")} {t("mw.recv.askB")}</p>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="mw-form" key="erg">
                       <div className="label">{t("mw.fund.addr")}</div>
                       <div className="mono mw-break mw-addr">{me.address}</div>
                       <div className="mw-actions">
@@ -318,7 +319,7 @@ export function ReceiveScreen() {
                       </div>
                       <p className="t-small">{t("mw.recv.ergB")}</p>
                       <p className="t-small mw-dim">{t("mw.dn.fundTokens")}</p>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

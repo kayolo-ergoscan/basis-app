@@ -354,7 +354,8 @@ a.mw-hrow:focus-visible { box-shadow: var(--focus-halo); }
 
 /* ─── Receive (clear round 26.11): the request with its QR first and wide (a note, or ERG to the key), then «Notes to
    me» (the inbox and the watched payers in one card), the rarer ways folded under «More ways» ─── */
-.mw-ask-g { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 26px; align-items: start; }
+/* align-content: start: the held height (useHoldHeight) is room at the bottom, never spread between the rows */
+.mw-ask-g { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 26px; align-items: start; align-content: start; }
 .mw-ask-l { display: grid; gap: 10px; justify-items: center; }
 .mw-ask-l .mw-qr svg { width: 204px; height: 204px; }
 .mw-ask-l .mw-qr.lg svg { width: 236px; height: 236px; }
