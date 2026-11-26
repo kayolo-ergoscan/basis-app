@@ -1,6 +1,6 @@
 // /network/reserves (FEATURES O02, O05, R16, R17) and /network/reserve/:boxId (R11, R13, R14, R15, R19, X10, H06, H07,
 // V05, O12). Filters live in the URL so a filtered list can be linked.
-import { startTransition, useMemo, useState, type ReactNode } from "react";
+import { startTransition, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "./query";
 import { rich, useT, useTitle } from "@/app";
@@ -164,7 +164,13 @@ function Totals({ obs, base, onPick, active, variants }: { obs: Observatory; bas
     const a = agg((r) => unitKind(r) === k);
     return row("k", k, <b>{tokenUnit(k, lang)}</b>, a, active.k === k, k !== "erg");
   });
-  const byX = EXIT_ORDER.map((x) => ({ x, a: agg((r) => r.exit?.class === x) })).filter((y) => y.a.n > 0).map(({ x, a }) => row("x", x, <ExitTag cls={x} />, a, active.x === x));
+  // a class keeps its row once shown on this visit, at 0 when live reads move its reserves on (a class that the live
+  // checks empty, such as «checking», used to drop out and pull the rows below it up: motion round)
+  const shownX = useRef(new Set<string>());
+  const byX = EXIT_ORDER.map((x) => ({ x, a: agg((r) => r.exit?.class === x) })).filter((y) => y.a.n > 0 || shownX.current.has(y.x)).map(({ x, a }) => {
+    shownX.current.add(x);
+    return row("x", x, <ExitTag cls={x} />, a, active.x === x);
+  });
   return (
     <section className="nw-totals" aria-label={`${t("network.rs.byVariant")}, ${t("network.rs.byToken")}, ${t("network.rs.byExit")}`}>
       <div className="nw-tcard"><h2 className="label">{t("network.rs.byVariant")}</h2><ul>{byV}</ul></div>

@@ -1,9 +1,12 @@
 import type { FeatureRoute } from "@/app/types";
+import { sandboxTown } from "@/app/warm";
+import { trackerChunkOf, usesTown } from "./chunks";
 
 const route: FeatureRoute = {
   id: "tracker",
   path: "/tracker/*",
   load: () => import("./Page"),
+  parts: (p) => { const c = trackerChunkOf(p); return [...(c ? [c] : []), ...(usesTown(p) ? [sandboxTown] : [])]; },
   nav: { order: 4, labelKey: "nav.tracker" },
   titleKey: "tracker.title",
   commands: [

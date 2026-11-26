@@ -3,20 +3,16 @@
  * alarm only for an open emergency window or a burned NFT. Breakpoints follow the kit: 1280 · 1000 · 640. */
 
 .nw { --nw-gap: clamp(20px, 2.2vw, 36px); }
-.nw a { color: inherit; }
+/* links take the text colour, except the place bar's sections (they keep the bar's own grey, as on /tracker) */
+.nw a:where(:not(.place-tabs > a)) { color: inherit; }
 
-/* ---------- network bar: sections + live status ---------- */
-.nw-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: clamp(28px, 3.2vw, 48px); border-bottom: 1px solid var(--rule); }
-.nw-bar-l { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; min-width: 0; }
-.nw-bar-tag { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+/* ---------- network bar: sections + live status (.nw-bar, .nw-live: src/app/shell.css, shared with /tracker) ---------- */
 .nw-tabs { display: flex; gap: 2px; padding: 3px; background: var(--well); border-radius: 10px; flex-wrap: wrap; }
 .nw-tab { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 0 13px; border-radius: 8px; font: 500 14px/1 var(--f-ui); color: var(--ink-3); text-decoration: none; white-space: nowrap; }
 .nw-tab:hover { color: var(--ink-2); }
 .nw-tab.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
 .nw-tab .n { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
 .nw-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.nw-live { display: inline-flex; align-items: center; gap: 9px; font: 400 12.5px/1.35 var(--f-ui); color: var(--ink-3); min-width: 0; }
-.nw-live b { color: var(--ink); font-weight: 500; }
 
 /* ---------- shared bits ---------- */
 .nw-asof { display: inline-flex; align-items: center; gap: 8px; font: 600 11px/1.2 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
@@ -607,11 +603,8 @@
 
 /* ---------- phone ≤ 640 ---------- */
 @media (max-width: 640px) {
-  .nw-bar { padding-bottom: 12px; }
-  .nw-bar-l { width: 100%; }
   .nw-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
   .nw-tab { min-height: 40px; padding: 0 6px; font-size: 13px; }
-  .nw-live { font-size: 12px; }
   .nw-det { padding: 16px; gap: 14px; }
   .nw-det .nw-beacon { width: 64px; height: 64px; }
   .nw-det-n b { font-size: 48px; }

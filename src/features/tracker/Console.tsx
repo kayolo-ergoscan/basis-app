@@ -10,7 +10,7 @@ import { Controls } from "./Controls";
 import { EventsBlock, MainnetLink, ServerTruth } from "./Events";
 import { LadderCard } from "./Ladder";
 import { beatsOf, commitCount, ladderOf, timelineRows, trackerView, type TimelineRow } from "./model";
-import { HeadActions, md, ModeSwitch } from "./parts";
+import { HeadActions, md } from "./parts";
 import { ProofCard, ProofXray, useProof, type ProofTarget } from "./ProofPanel";
 import { Timeline } from "./Timeline";
 import { TownGate } from "./townParts";
@@ -23,8 +23,7 @@ export default function Console() {
   return (
     <>
       <div className="container">
-        <PageHead eyebrow={t("tracker.eyebrow")} title={md(t("tracker.h1"))} lede={t("tracker.lede")} actions={<HeadActions />} />
-        <ModeSwitch mode="sim" />
+        <PageHead eyebrow={t("tracker.eyebrow")} title={md(t("tracker.h1"))} lede={t("tracker.lede")} actions={<HeadActions mode="sim" />} />
       </div>
       <TownGate>
         <ConsoleBody />

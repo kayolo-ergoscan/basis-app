@@ -1,7 +1,7 @@
 // /network — the mainnet overview (FEATURES O02, O03, O08, O09, O10, O11, C01, T04, H08): the title with a one-line
 // status, four key figures in plain words, then the details: what mainnet is today next to the current-contract
 // detector, ErgoScan's tracker, and trackers · reserves · redemptions side by side (a segmented switch on a phone).
-import { startTransition, useMemo, useState, type ReactNode } from "react";
+import { startTransition, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Dial, Icon, Key, KeySeal, Lamp, Seg, Tag, useIsPhone } from "@/ui";
@@ -28,6 +28,7 @@ export default function Overview({ obs }: { obs: Observatory }) {
   const phone = useIsPhone();
   const [col, setCol] = useState<"trackers" | "reserves" | "redemptions">("trackers");
   const later = useAfterPaint();
+  const laterH = useLaterHeight(later, phone ? col : "");
   return (
     <>
       <header className="nw-hero nw-lead">
@@ -64,9 +65,24 @@ export default function Overview({ obs }: { obs: Observatory }) {
           <Records obs={obs} />
           <FootNotes obs={obs} />
         </>
-      ) : <div className="nw-cols-wait" aria-busy="true" />}
+      ) : <div className="nw-cols-wait" aria-busy="true" style={laterH ? { minHeight: laterH } : undefined} />}
     </>
   );
+}
+
+/* The columns' place, kept from the last visit at this width (motion round): the placeholder then holds their real
+ * height, so the page has its full length from the first frame and Back finds the place it left (100vh before). */
+const LATER_H = new Map<string, number>();
+function useLaterHeight(later: boolean, col: string): number | undefined {
+  const key = typeof window === "undefined" ? col : `${Math.round(window.innerWidth / 40)}:${col}`;
+  useLayoutEffect(() => {
+    if (!later) return;
+    const a = document.querySelector<HTMLElement>(".nw .nw-cols"), b = document.querySelector<HTMLElement>(".nw .nw-foot");
+    if (!a || !b) return;
+    const h = Math.round(b.getBoundingClientRect().bottom - a.getBoundingClientRect().top);
+    if (h > 0) LATER_H.set(key, h);
+  }, [later, key]);
+  return LATER_H.get(key);
 }
 
 /* ---------------- the one-line status under the title ---------------- */

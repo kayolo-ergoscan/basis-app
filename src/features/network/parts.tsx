@@ -3,11 +3,11 @@
 import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app";
-import { NetPlaceNav } from "@/app/chrome";
+import { NetPlaceBar } from "@/app/chrome";
 import { CopyButton, Icon, KeySeal, Lamp, Loading, Tag, TrackerTile, usePulseClass, type LampState, type TagTone } from "@/ui";
-import { copy, pick } from "@/content";
 import { explorer, oursExtra, useChainStatus, type ContractView, type ExitClass, type Hex, type Observatory, type TrackerView } from "@/chain";
 import { blocks, height as fmtH, keyOfAddress, sAddr, sid, type Lang } from "./fmt";
+import { netCounts } from "./counts";
 
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -166,26 +166,9 @@ export function KeyName({ pk, addr, label, size = "sm", to, sub, unknown }: { pk
   );
 }
 
-/* ---------- the network bar: sub-navigation + live status ---------- */
+/* ---------- the network bar: sub-navigation + live status (the shell's place bar, shared with /tracker) ---------- */
 export function NetBar({ obs }: { obs: Observatory | null }) {
-  const t = useT();
-  const counts = obs ? {
-    reserves: obs.unspent.length,
-    // ErgoScan's tracker was minted after the snapshot: counted here until the seed lists it (as on the list page)
-    trackers: obs.trackers.length + oursExtra(obs),
-    redemptions: obs.redemptions.length,
-    contracts: obs.contracts.filter((c) => c.role === "legacy" || c.role === "current").length,
-    incidents: obs.incidents.burns.length + obs.incidents.locks.length,
-  } : {};
-  return (
-    <div className="nw-bar">
-      <div className="nw-bar-l">
-        <span className="label nw-bar-tag"><Lamp state="live" size={7} /><b>{t("network.bar.mainnet")}</b> · {pick(copy.experimental, t.lang as Lang)}</span>
-        <NetPlaceNav counts={counts} />
-      </div>
-      <LiveStatus obs={obs} />
-    </div>
-  );
+  return <NetPlaceBar counts={obs ? netCounts(obs) : undefined} live={<LiveStatus obs={obs} />} />;
 }
 
 /** Live layer status, in words: watching (requests this block), paused while hidden, or offline. */

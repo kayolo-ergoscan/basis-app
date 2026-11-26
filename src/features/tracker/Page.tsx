@@ -6,13 +6,16 @@
 //   /tracker/run       running your own tracker (checklist, contracts, caveats)
 //   /tracker/api       the API mirror (what the reference server would answer for the town)
 // The console and the mirror need the sandbox engine, so they are their own lazy chunks; /run stays light.
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyChunk } from "@/app/chunk";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
 import { Loading, Page } from "@/ui";
-import { NetPlaceNav } from "@/app/chrome";
+import { NetPlaceBar } from "@/app/chrome";
+import { useSnapshotCounts } from "@/features/network/counts";
 import { trackerHomeOf } from "./parts";
+import * as C from "./chunks";
 import RunOwn from "./RunOwn";
 import strings from "./strings";
 import "./tracker.css";
@@ -22,9 +25,10 @@ import "./tracker.css";
 const typeset = (d: Record<string, string>, lang: "en" | "ru") => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, typo(v, lang, { quotes: false })]));
 addI18n({ en: typeset(strings.en, "en"), ru: typeset(strings.ru, "ru") });
 
-const Console = lazy(() => import("./Console"));
-const Mainnet = lazy(() => import("./Mainnet"));
-const ApiMirror = lazy(() => import("./ApiMirror"));
+// rendered at once when a switch has loaded them first (chunks.ts); a direct visit waits as before
+const Console = lazyChunk(C.consolePage);
+const Mainnet = lazyChunk(C.mainnetPage);
+const ApiMirror = lazyChunk(C.apiPage);
 
 function Wait() {
   const t = useT();
@@ -41,11 +45,18 @@ function ToTrackerHome() {
   return <Navigate to={trackerHomeOf(search, hash)} replace />;
 }
 
+/** The Network place's bar: the practice tracker and the API mirror are the sandbox's (play money), the rest mainnet. */
+function TrackerPlaceBar() {
+  const { pathname } = useLocation();
+  const counts = useSnapshotCounts();
+  return <NetPlaceBar counts={counts} sandbox={C.usesTown(pathname)} />;
+}
+
 export default function TrackerPage() {
   return (
     <Page wide className="trk">
-      {/* the tracker console is part of the Network place: its sub-nav, with this page lit */}
-      <div className="container"><div className="trk-place"><NetPlaceNav /></div></div>
+      {/* the tracker console is part of the Network place: the place's own bar, the same as on /network, this page lit */}
+      <div className="container"><TrackerPlaceBar /></div>
       <Suspense fallback={<Wait />}>
         <Routes>
           <Route index element={<ToTrackerHome />} />

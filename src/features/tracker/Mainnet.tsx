@@ -16,7 +16,7 @@ import {
   blk, blockWord, Card, CopyButton, CoverageTag, Dial, Digest, Empty, Field, Honest, Icon, int, Key, KeySeal, Lamp, PageHead, ratioPct, Section,
   short, Table, Tape, TextInput, TrackerTile, units, useIsPhone, usePulseClass, type Column, type LampState, type TapeEvent,
 } from "@/ui";
-import { HeadActions, htime, md, ModeSwitch } from "./parts";
+import { HeadActions, htime, md } from "./parts";
 
 const DASH = "—";
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
@@ -73,9 +73,8 @@ export default function MainnetConsole() {
   return (
     <>
       <div className="container">
-        <PageHead eyebrow={t("tracker.m.eyebrow")} title={md(t("tracker.m.h1"))} actions={<HeadActions sandbox={false} mainnet />} />
+        <PageHead eyebrow={t("tracker.m.eyebrow")} title={md(t("tracker.m.h1"))} actions={<HeadActions sandbox={false} mainnet mode="main" />} />
         <TrackerLead v={v} />
-        <ModeSwitch mode="main" />
         <div className="trk-m-top">
           <div className="trk-m-xl"><MainnetXL v={v} /></div>
           <div className="trk-m-side"><SideCard v={v} /></div>
