@@ -101,14 +101,12 @@ export function Street() {
                 <b>{t("home.stage.sandbox")}</b>
                 <span className="sep" aria-hidden="true">·</span>
                 <span>{status}</span>
-                {snap && (
-                  <span className="home-sbx-tail">
-                    <span className="avl">{snap.avl.simulated ? t("home.stage.avlSim") : t("home.stage.avlReal")}</span>
-                    {phase === "committed" && !prefersReducedMotion() && (
-                      <button type="button" className="home-replay" onClick={() => store?.replay()}>{t("home.stage.replay")}</button>
-                    )}
-                  </span>
-                )}
+                <span className={snap ? "home-sbx-tail" : "home-sbx-tail wait"}>
+                  <span className="avl">{!snap || snap.avl.simulated ? t("home.stage.avlSim") : t("home.stage.avlReal")}</span>
+                  {snap && phase === "committed" && !prefersReducedMotion() && (
+                    <button type="button" className="home-replay" onClick={() => store?.replay()}>{t("home.stage.replay")}</button>
+                  )}
+                </span>
               </span>
               <details className="how-read">
                 <summary>{t("home.list.aria")}</summary>

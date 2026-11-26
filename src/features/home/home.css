@@ -97,6 +97,8 @@
 .home-sbx b { color: var(--ink-2); font-weight: 600; }
 .home-sbx .avl { font: 600 10px/1 var(--f-ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--rule-2); border-radius: 7px; padding: 4px 7px; }
 .home-sbx-tail { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+/* the tag holds its place from the first frame; it shows once the story's first snapshot is here (motion round) */
+.home-sbx-tail.wait { visibility: hidden; }
 .home-replay { background: none; border: 0; padding: 2px 0; font: inherit; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; cursor: pointer; }
 .home-replay:hover { color: var(--ink); }
 .home-key { white-space: nowrap; font-size: .92em; }

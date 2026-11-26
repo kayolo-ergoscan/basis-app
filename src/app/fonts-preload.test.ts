@@ -16,6 +16,18 @@ describe("preloadFonts", () => {
     expect(appendChild).not.toHaveBeenCalled();
   });
 
+  it("asks for the mono Cyrillic face later, once the page is idle", () => {
+    vi.useFakeTimers();
+    try {
+      const load = vi.fn(() => Promise.resolve([]));
+      g.document = { fonts: { load } };
+      preloadFonts("ru");
+      expect(load).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(1500);
+      expect(load.mock.calls[2]).toEqual(['500 1em "Geist Mono Variable"', "Ж"]);
+    } finally { vi.useRealTimers(); }
+  });
+
   it("does nothing on an English page (index.html preloads the Latin files) or without a font set", () => {
     const load = vi.fn(() => Promise.resolve([]));
     g.document = { fonts: { load } };

@@ -27,22 +27,22 @@ function useHeroFit(hero: RefObject<HTMLElement>, head: RefObject<HTMLElement>, 
     const el = hero.current;
     if (!el) return;
     let raf = 0;
-    const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        let y = 0;
-        for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) y += n.offsetTop;
-        el.style.setProperty("--hero-top", `${Math.max(0, Math.round(y))}px`);
-        const h = head.current;
-        if (!h) return;
-        h.style.setProperty("--hero-fit", "1");
-        const col = h.clientWidth;
-        let widest = 0;
-        h.querySelectorAll<HTMLElement>(".ln").forEach((l) => { widest = Math.max(widest, l.scrollWidth); });
-        if (col > 0 && widest > col) h.style.setProperty("--hero-fit", (Math.floor((col / widest) * 1000) / 1000).toString());
-      });
+    const fit = () => {
+      let y = 0;
+      for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) y += n.offsetTop;
+      el.style.setProperty("--hero-top", `${Math.max(0, Math.round(y))}px`);
+      const h = head.current;
+      if (!h) return;
+      h.style.setProperty("--hero-fit", "1");
+      const col = h.clientWidth;
+      let widest = 0;
+      h.querySelectorAll<HTMLElement>(".ln").forEach((l) => { widest = Math.max(widest, l.scrollWidth); });
+      if (col > 0 && widest > col) h.style.setProperty("--hero-fit", (Math.floor((col / widest) * 1000) / 1000).toString());
     };
-    measure();
+    const measure = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); };
+    // the first fit before the first paint (motion round: it ran a frame later, so the hero's height and the headline's
+    // size changed under the reader on every visit, moving everything below by 3 px, or 32 px on a phone)
+    fit();
     void document.fonts?.ready.then(measure);
     addEventListener("resize", measure);
     const host = el.closest(".shell-body")?.parentElement;
