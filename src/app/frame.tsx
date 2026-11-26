@@ -127,30 +127,42 @@ export function ScrollManager() {
       evs.forEach((e) => addEventListener(e, stop, { capture: true, passive: true }));
       return stop;
     }
+    const timers: number[] = [];
+    let raf = 0;
     if (type === "POP") {
       const y = readPos()[posKey(loc)];
-      if (y == null) return;
-      const go = () => window.scrollTo(0, y);
-      go(); requestAnimationFrame(go); const tm = setTimeout(go, 350);
-      return () => clearTimeout(tm);
-    }
-    window.scrollTo(0, 0);
-    // A new page: move focus to its heading (screen readers announce it; Tab continues from the page, not the nav).
-    // Not on first load, not when only the query changed, and never out of an open dialog or sheet.
-    if (first || !moved) return;
-    let n = 0, raf = 0;
+      if (y != null) {
+        const go = () => window.scrollTo(0, y);
+        go(); raf = requestAnimationFrame(go); timers.push(window.setTimeout(go, 350));
+      }
+    } else window.scrollTo(0, 0);
+    const stop = () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
+    // A new page, Back and Forward too: move focus to its heading (screen readers announce it; Tab continues from the
+    // page, not the nav). Not on first load, not when only the query changed, and never out of an open dialog or sheet.
+    if (first || !moved) return stop;
+    let n = 0;
+    const heading = () => (document.querySelector("[aria-modal='true']") ? null : document.querySelector<HTMLElement>("#main h1"));
+    const focusOn = (h: HTMLElement) => {
+      if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+      h.focus({ preventScroll: true });
+    };
     const aim = () => {
       if (document.querySelector("[aria-modal='true']")) return;
-      const h = document.querySelector<HTMLElement>("#main h1");
+      const h = heading();
       if (!h) { if (++n < 90) raf = requestAnimationFrame(aim); return; }
       // a live control inside the page keeps focus (a closed sheet gave it back to its opener; a side nav that stays)
       const a = document.activeElement as HTMLElement | null;
       if (a && a !== document.body && a !== h && a.id !== "main" && a.isConnected && a.closest("#main")) return;
-      if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
-      h.focus({ preventScroll: true });
+      focusOn(h);
     };
     raf = requestAnimationFrame(aim);
-    return () => cancelAnimationFrame(raf);
+    // the control that kept focus can leave with the switch (the wallet's mode switch, a bar item drawn anew): focus
+    // then fell to the page body; it goes to the heading instead (motion round)
+    timers.push(window.setTimeout(() => {
+      const h = document.activeElement === document.body ? heading() : null;
+      if (h) focusOn(h);
+    }, 700));
+    return stop;
   }, [loc.key]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
