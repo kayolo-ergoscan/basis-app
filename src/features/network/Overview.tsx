@@ -79,7 +79,8 @@ function StatusLine({ obs }: { obs: Observatory }) {
     <p className="nw-status">
       <span><Lamp state={obs.heightLive ? "live" : "stale"} size={8} /> {t("network.ov.statusBlock", { h: fmtH(obs.height) })} <span className="dim">({obs.heightLive ? t("network.strip.blockLive") : t("network.strip.blockSeed", { date: date(obs.asOf.at, lang) })})</span></span>
       <span className="sep" aria-hidden="true">·</span>
-      <span>{src === "checking" ? t("chain.checking") : `${n} ${t.p("network.det.count", n)}`}</span>
+      {/* a count only once it is read live; the snapshot's count is not today's (as the Detector says) */}
+      <span>{src === "live" ? `${n} ${t.p("network.det.count", n)}` : src === "checking" ? t("chain.checking") : t("chain.live.seedOnly")}</span>
       <span className="sep" aria-hidden="true">·</span>
       <span>{t("network.ov.statusRead")}</span>
     </p>
