@@ -130,7 +130,11 @@ export default function DevPage() {
         <section className="dv-card" aria-labelledby="dv-know">
           <h2 id="dv-know">{t("learn.dev.know.h")}</h2>
           <ul>
-            {[1, 2, 3, 4].map((i) => <li key={i}>{t(`learn.dev.know.${i}`)}</li>)}
+            {[1, 2, 3, 4].map((i) => (
+              <li key={i}>
+                <span>{t(`learn.dev.know.${i}`)}{i === 2 && <> <Link className="textlink" to="/learn/signature">{t("learn.dev.know.2go")} →</Link></>}</span>
+              </li>
+            ))}
           </ul>
         </section>
 

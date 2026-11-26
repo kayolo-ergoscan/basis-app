@@ -157,6 +157,7 @@ export default {
     "home.f.book": "All chapters",
     "home.n.lastRedeem": "Last redemption",
     "home.n.st.live": "Usable",
+    "home.n.lastAtBlock": "block\u00a0{n}",
   },
   ru: {
     "home.name.alice": "Алиса",
@@ -317,5 +318,6 @@ export default {
     "home.f.book": "Все главы",
     "home.n.lastRedeem": "Последнее погашение",
     "home.n.st.live": "Действует",
+    "home.n.lastAtBlock": "блок\u00a0{n}",
   },
 } satisfies I18nBundle;

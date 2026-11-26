@@ -946,6 +946,7 @@ ul.api-cl-cards { list-style: none; margin: 20px 0 0; padding: 0; display: grid;
 .dx-addr { margin: 0; }
 .dx-list { border-top: 1px solid var(--rule-2); }
 .api-ep.dx > summary { grid-template-columns: 56px minmax(0, auto) minmax(0, 1fr) 18px; }
+.dx .api-code { align-items: start; }
 .dx-body { padding: 4px 4px 22px 70px; display: grid; gap: 12px; }
 .dx-read { margin: 0; font: 400 14px/1.55 var(--f-ui); color: var(--ink-2); max-width: 820px; }
 .api-start { display: grid; gap: 22px; margin-top: 40px; }
@@ -980,11 +981,12 @@ ol.dv-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-templ
 .dv-steps h3 { font: 600 20px/1.2 var(--f-display); letter-spacing: -.01em; margin: 2px 0 0; color: var(--ink); }
 .dv-steps p { margin: 0; font: 400 14.5px/1.55 var(--f-ui); color: var(--ink-2); }
 .dv-steps p.t-small { color: var(--ink-3); font-size: 13px; }
-.dv-pre { margin: 0; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--bg-2); font: 400 12.5px/1.6 var(--f-mono); color: var(--ink); overflow: auto; white-space: pre; scrollbar-width: thin; }
+.dv-pre { margin: 0; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--bg-2); font: 400 12.5px/1.6 var(--f-mono); color: var(--ink); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; scrollbar-width: thin; }
 .dv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 72px; }
 .dv-card { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 22px 22px 20px; border: 1px solid var(--rule); border-radius: 16px; background: var(--surface); }
 .dv-card h2 { font-size: 21px; }
 .dv-card ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.dv-card li > span { min-width: 0; }
 .dv-card li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 10px 0; border-top: 1px solid var(--rule); font: 400 14px/1.5 var(--f-ui); color: var(--ink-2); }
 .dv-card li:first-child { border-top: 0; padding-top: 2px; }
 .dv-card li code { font-size: 12.5px; }

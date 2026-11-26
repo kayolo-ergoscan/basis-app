@@ -45,8 +45,8 @@ export const trackerExamples: TrackerExample[] = [
   "error": null
 }`,
     read: t(
-      "When local_digest equals confirmed_digest, every note the tracker holds is in its last digest on Ergo.",
-      "Если local_digest равен confirmed_digest, все расписки трекера уже в его последнем дайджесте в Ergo.",
+      "When `local_digest` equals `confirmed_digest`, every note the tracker holds is in its last digest on Ergo.",
+      "Если `local_digest` равен `confirmed_digest`, все расписки трекера уже в его последнем дайджесте в Ergo.",
     ),
   },
   {
@@ -99,8 +99,8 @@ export const trackerExamples: TrackerExample[] = [
   "error": null
 }`,
     read: t(
-      "local is the note's running total. status \"confirmed\" means that total is in a digest on Ergo; redeemable_amount is what is left to redeem.",
-      "local — накопленный итог расписки. status «confirmed» значит, что этот итог уже в дайджесте в Ergo; redeemable_amount — сколько осталось погасить.",
+      "`local` is the note's running total. `status` \"confirmed\" means that total is in a digest on Ergo; `redeemable_amount` is what is left to redeem.",
+      "`local` — накопленный итог расписки. `status` «confirmed» значит, что этот итог уже в дайджесте в Ergo; `redeemable_amount` — сколько осталось погасить.",
     ),
   },
   {
@@ -127,8 +127,8 @@ export const trackerExamples: TrackerExample[] = [
   "error": null
 }`,
     read: t(
-      "A refund_initiation_height above 0 means the owner has started taking the reserve back.",
-      "refund_initiation_height больше 0 значит, что владелец начал забирать резерв.",
+      "A `refund_initiation_height` above 0 means the owner has started taking the reserve back.",
+      "`refund_initiation_height` больше 0 значит, что владелец начал забирать резерв.",
     ),
   },
 ];

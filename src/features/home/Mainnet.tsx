@@ -104,7 +104,7 @@ export function Mainnet() {
               <span className="label">{t("home.n.lastRedeem")}</span>
               <p><b>{what}</b></p>
               <span className="mono">
-                {t("home.n.lastAt", { n: int(last.height), date: fmtDate(last.at, lang) })}
+                {fmtDate(last.at, lang) ? t("home.n.lastAt", { n: int(last.height), date: fmtDate(last.at, lang) }) : t("home.n.lastAtBlock", { n: int(last.height) })}
                 {last.tx && <> · <a className="link" href={chainUrl({ kind: "tx", id: last.tx })} target="_blank" rel="noreferrer">{t("home.n.ergoscan")} <Icon name="ext" size={12} /></a></>}
               </span>
             </div>
