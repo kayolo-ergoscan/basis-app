@@ -95,7 +95,7 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-stage { position: relative; min-height: 0; min-width: 0; overflow: hidden; background: var(--bg); }
 /* the town along the bottom of the stage, behind the graph; its tower catches moonlight on each sandbox commitment,
    and it dims while a tracker is offline or when you look at the past */
-.pl-town { position: absolute; left: 0; right: 0; bottom: var(--pl-leg, 0px); width: 100%; height: 96px; pointer-events: none; opacity: .5; transition: opacity var(--t-slow); }
+.pl-town { position: absolute; left: 0; right: 0; bottom: var(--pl-town-b, var(--pl-leg, 0px)); width: 100%; height: 96px; pointer-events: none; opacity: .5; transition: opacity var(--t-slow); }
 .pl-town.dim, .pl-stage.past .pl-town { opacity: .2; }
 .pl-stage.past { background: var(--bg-2); }
 .pl-stage.sh0 .pl-graph, .pl-stage.sh1 .pl-graph { animation: pl-shudder 180ms var(--ease-io) 1; }

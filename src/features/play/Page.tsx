@@ -259,6 +259,8 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
   // a short stage (laptop) keeps one legend line under the circle; the full key opens from the cartouche
   const shortStage = !compact && (box?.h ?? 640) < 560;
   const legendH = view === "graph" && !compact ? (legendBox?.h ?? (shortStage ? 20 : 64)) + 18 : 0;
+  // the town stands where it stands in the graph view in the table view too (it rode down by the legend's height)
+  const townB = !compact ? (legendBox?.h ?? (shortStage ? 20 : 64)) + 18 : 0;
   const H = Math.max(compact ? 280 : 360, (box?.h ?? 640) - (compact ? PHONE_TOP + 120 : legendH));
   // what the circle keeps clear: each row of the cartouche (measured) and the zoom keys; a phone has its own top row
   const [cartRef, cartRows] = useRowBoxes();
@@ -719,7 +721,7 @@ function Play({ id, seed }: { id: ScenarioId | null; seed?: string }) {
   );
 
   const stage = (
-    <div className={`pl-stage${past ? " past" : ""}${shudder ? ` sh${shudder % 2}` : ""}`} ref={stageRef} style={legendH ? ({ "--pl-leg": `${legendH}px` } as React.CSSProperties) : undefined}>
+    <div className={`pl-stage${past ? " past" : ""}${shudder ? ` sh${shudder % 2}` : ""}`} ref={stageRef} style={legendH || townB ? ({ ...(legendH ? { "--pl-leg": `${legendH}px` } : {}), ...(townB ? { "--pl-town-b": `${townB}px` } : {}) } as React.CSSProperties) : undefined}>
       <Skyline className={fieldDim < 1 ? "pl-town dim" : "pl-town"} seed={31} height={120} span={1600} lit={0.18} tower={1180} towerFilter={sandboxPulse} />
       {view === "graph" ? (
         model.nodes.length === 0 ? (
