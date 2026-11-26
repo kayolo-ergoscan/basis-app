@@ -1016,6 +1016,21 @@ const en: Dict = {
   "mw.rq.memoL": "What for (optional)",
   "mw.rq.labelsHelp": "The payer sees them as written; nobody checks them. They sit after # in the link and reach no server.",
   "mw.rq.askReceipt": "Once you are paid, ask the payer for the receipt link.",
+  "mw.tip.t": "A button for your project",
+  "mw.tip.lede": "Thanks with a note: a button for a README or a site. Whoever wants to support your work presses it and pays with a note.",
+  "mw.tip.open": "Make a button",
+  "mw.tip.nameL": "Project or your name",
+  "mw.tip.amountL": "Amount (optional)",
+  "mw.tip.memoL": "What for",
+  "mw.tip.memoPh": "Support for the project",
+  "mw.tip.lang": "Button language",
+  "mw.tip.format": "Code format",
+  "mw.tip.codeL": "Code for the README or the site",
+  "mw.tip.copyCode": "Copy the code",
+  "mw.tip.copyLink": "Copy the link",
+  "mw.tip.qrL": "QR code of the button's link",
+  "mw.tip.reserve": "Only a key with a reserve can pay through the button today: ErgoScan's tracker takes notes only from a key with an active reserve in the same currency.",
+  "mw.tip.receipt": "You see a payment once the payer sends you the receipt link: say next to the button where to send it.",
 };
 
 const ru: Partial<Dict> = {
@@ -2013,6 +2028,21 @@ const ru: Partial<Dict> = {
   "mw.rq.memoL": "За что (необязательно)",
   "mw.rq.labelsHelp": "Плательщик увидит их как есть, их никто не проверяет. Они стоят в ссылке после # и не уходят на сервер.",
   "mw.rq.askReceipt": "Когда вам заплатят, попросите у плательщика ссылку-квитанцию.",
+  "mw.tip.t": "Кнопка для проекта",
+  "mw.tip.lede": "Благодарность распиской: кнопка для README или сайта. Кто хочет поддержать вашу работу, нажимает её и платит распиской.",
+  "mw.tip.open": "Сделать кнопку",
+  "mw.tip.nameL": "Проект или ваше имя",
+  "mw.tip.amountL": "Сумма (необязательно)",
+  "mw.tip.memoL": "За что",
+  "mw.tip.memoPh": "Поддержка проекта",
+  "mw.tip.lang": "Язык кнопки",
+  "mw.tip.format": "Формат кода",
+  "mw.tip.codeL": "Код для README или сайта",
+  "mw.tip.copyCode": "Скопировать код",
+  "mw.tip.copyLink": "Скопировать ссылку",
+  "mw.tip.qrL": "QR-код ссылки кнопки",
+  "mw.tip.reserve": "Платить по кнопке сейчас может только ключ с резервом: трекер ErgoScan принимает расписки лишь от ключа, у которого есть действующий резерв в той же валюте.",
+  "mw.tip.receipt": "Оплату вы увидите, когда плательщик пришлёт вам ссылку-квитанцию: напишите рядом с кнопкой, куда её прислать.",
 };
 
 export default { en, ru };

@@ -6,7 +6,8 @@
 // Token notes: an issuer is watched in a token once a receipt in it is imported, and a payer added by key is watched in
 // every denomination of the wallet (its empty pairs take no line); each denomination is its own pair at the tracker
 // (?denomination=) with its own figures, never added to another. The request link names its denomination.
-// The request link may also carry how to sign the receiver and what for (after #, plain text, unchecked: reqlink.ts).
+// The request link may also carry how to sign the receiver and what for (after #, plain text, unchecked: reqlink.ts),
+// and «A button for your project» makes the same link into a README button (Tip.tsx).
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLang, useT } from "@/app/lang";
@@ -23,6 +24,7 @@ import { R, net, useResource, useWatchList } from "./data";
 import { Gate, ProblemText, TimeHint } from "./ui";
 import { Amt, DenomSwitch, amtText, useDenom, useOnDenomChange } from "./denom";
 import { LONG_LINK, MEMO_MAX, NAME_MAX, labelledRequestLink } from "./reqlink";
+import { ProjectButton } from "./Tip";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
 function receiptFrom(text: string): ReturnType<typeof decodeReceipt> | null {
@@ -248,6 +250,7 @@ export function ReceiveScreen() {
             </Card>
             {!initial && <ImportCard me={me.pub} initial="" />}
             <AddPayerCard me={me.pub} />
+            <ProjectButton me={me.pub} />
           </div>
           <aside className="mw-side">
             <Card title={t("mw.recv.askT")}>
