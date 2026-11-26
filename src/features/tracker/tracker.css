@@ -589,7 +589,6 @@
 .trk-lead { margin: 4px 0 clamp(26px, 3vw, 40px); display: grid; gap: 18px; }
 .trk-lead-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font: 500 15px/1.4 var(--f-ui); color: var(--ink-2); }
 .trk-lead-status b { color: var(--ink); font-weight: 600; }
-.trk-lead-status .sep { color: var(--ink-3); }
 .trk-lead-g { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 16px 0 20px; }
 .trk-lead-g > div { padding: 0 22px; border-left: 1px solid var(--rule); min-width: 0; display: grid; gap: 6px; align-content: start; }
 .trk-lead-g > div:first-child { padding-left: 0; border-left: 0; }
@@ -605,7 +604,3 @@
   .trk-lead-g > div:nth-child(3) { padding-left: 0; border-left: 0; }
 }
 @media (max-width: 480px) { .trk-lead-g > div { padding: 0 12px; } .trk-lead-g > div:nth-child(odd) { padding-left: 0; } .trk-lead-g .v { font-size: 26px; overflow-wrap: anywhere; } }
-@media (max-width: 640px) {
-  .trk-lead-status .sep { display: none; }
-  .trk-lead-status > span:last-child { flex-basis: 100%; }
-}

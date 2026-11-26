@@ -107,8 +107,6 @@ function TrackerLead({ v }: { v: OurView }) {
       <p className="trk-lead-status">
         <Lamp state={st.lamp} size={9} />
         <b>{t(`chain.ours.st.${v.status}`)}</b>
-        <span className="sep" aria-hidden="true">·</span>
-        <span>{t("tracker.m.lead.since")}</span>
       </p>
       <dl className="trk-lead-g">
         <div>
@@ -129,7 +127,7 @@ function TrackerLead({ v }: { v: OurView }) {
         <div>
           <dt>{t("tracker.m.lead.exit")}</dt>
           <dd className="v">{em ? (em.open ? t("tracker.m.lead.exitOpen") : <>{int(em.blocksLeft)}<span className="u">{blockWord(em.blocksLeft, lang)}</span></>) : DASH}</dd>
-          <dd className="s">{t("tracker.m.dialLeft")}</dd>
+          <dd className="s">{em?.open ? t("tracker.m.lead.exitOpenSub", { h: int(em.opensAt) }) : t("tracker.m.dialLeft")}</dd>
         </div>
       </dl>
       <p className="t-small trk-lead-note">{t("tracker.m.lede")}</p>
