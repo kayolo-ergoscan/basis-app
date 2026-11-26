@@ -37,7 +37,8 @@ export function newestNotes(entries: readonly JournalEntry[]): Set<string> {
 
 const LAMP: Record<JournalState, LampState> = { signed: "signed", sent: "tracked", mempool: "tracked", confirmed: "tracked", final: "committed", failed: "alarm", abandoned: "off" };
 
-function amountOf(e: JournalEntry): bigint {
+/** The amount an entry moved, in its own denomination (a note: what this payment added). */
+export function amountOf(e: JournalEntry): bigint {
   const v = e.kind === "note" ? e.meta.added ?? e.meta.total : e.kind === "redeem" ? e.meta.payout : e.meta.amount;
   try { return BigInt(String(v ?? "0")); } catch { return 0n; }
 }
