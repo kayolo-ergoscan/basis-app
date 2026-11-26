@@ -269,7 +269,20 @@ const { lang, setLang, toggle } = useLang();
   - `sounds`: reserved; off.
 - `useReducedMotion()` / `prefersReducedMotion()` are true for the OS setting, the in-app switch, or `?still`.
 - `?still` (`:root.still`) freezes every animation, for screenshots.
-- **Rule:** any JS-driven motion (odometer, parallax) must check `prefersReducedMotion()`. CSS transitions and the town's keyframes already collapse to 1 ms or stand still.
+- **Rule:** any JS-driven motion (odometer, parallax) must check `prefersReducedMotion()`. CSS transitions and the town's keyframes already collapse to 1 ms (and jump straight to the end value) or stand still.
+
+**Switching without jumps** (`src/ui/motion.ts`, `src/ui/motion.css`, `src/app/motion.ts`):
+- **Pages.** Every navigation goes through the one history in `src/app/motion.ts`.
+  1. The new path's chunk loads first, plus whatever its lazy module's `warm(pathname, code)` names (see `FeatureModule` in `src/app/types.ts`). The old view stays meanwhile, and the lit place moves at once (`usePendingPath`).
+  2. The view then cross-fades in place in 180 ms (`FADE_MS`).
+
+  A new feature page with lazy sub-pages or first-screen data exports `warm`, so it never shows a loader frame on a switch.
+- **Persistent bars.** The top bar, the phone tab bar and the sub-navs are named in `motion.css`; they never fade or move.
+- `crossFade(update, live?)` runs a DOM change under the view fade; `live` elements stay out of it.
+- `useLight(ref, lit?, memo?)` moves a bar's light: the lit tag goes out where it was while it lights up at the new item. The bar renders one `<span className="light" aria-hidden="true" />` as a direct child and marks its lit item with `.on`.
+- `useHoldHeight(ref, reset, deps)` makes a panel whose content switches in place keep the tallest height it has shown.
+- **Fallbacks.** Without the View Transitions API, and under reduced motion, a switch is instant, with the same loading order.
+- **Check.** After UI changes, re-run the frame-by-frame switch probe (kept outside this repo). No chrome, bar or row may move.
 
 ## 9. The pulse
 
@@ -325,8 +338,8 @@ Props marked `?` are optional; defaults are in brackets. Every specimen lives at
 | `FlowTrail` | `steps: string[]`, `at`, `label`, `fail?`: the steps of one action (who / fill in → check and sign → done), the current one `aria-current="step"`. `fail`: the current step did not go through (alarm colour, «!»); its label must say so («Not sent»), never «Sent». Put it under the flow's title |
 | `AgentTag` | `small?` (the dashed "AI" tag) |
 | `Chip` | `lamp?`, `label?`, `value?`, `href? \| onClick?`, `title?`, `chipRef?` |
-| `Seg` | `options [{value,label,title?}]`, `value`, `onChange`, `ariaLabel`, `mono?` |
-| `Tabs` | `tabs [{id,label,count?,disabled?}]`, `value`, `onChange`, `mono?`, `block?`, `ariaLabel?`, `idBase?` (arrow keys, roving tabindex) |
+| `Seg` | `options [{value,label,title?}]`, `value`, `onChange`, `ariaLabel`, `mono?`, `fade? [true]` (false: switch at once, as the theme and language controls do) |
+| `Tabs` | `tabs [{id,label,count?,disabled?}]`, `value`, `onChange`, `mono?`, `block?`, `ariaLabel?`, `idBase?`, `fade? [true]` (arrow keys, roving tabindex; the light moves, the panel cross-fades) |
 | `Switch` | `checked`, `onChange`, `label?`, `help?`, `disabled?`, `ariaLabel?` |
 | `Callout` | `tone? "info" \| "policy" \| "sandbox" \| "metal" \| "proof" \| "alarm" \| "calm"`, `title?`, `icon? \| false` |
 | `Num` | `value (number \| bigint)`, `decimals?`, `dp? [2]`, `sign? "auto" \| "favour" \| "owe" \| "none"`, `unit?`, `tone? "up" \| "alarm" \| "metal" \| "dim"`, `reveal?` |
