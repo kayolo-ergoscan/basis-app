@@ -99,7 +99,7 @@ export function NetBlock({ m, denom }: { m: WalletModel; denom: DenomId }) {
           <span className="v">
             <Amt v={s.liabilities} u={unit} />
           </span>
-          <span className="t-small">{t.p("wallet.net.notes", nOut, { n: nOut })}{nOut > 0 ? ` · ${t(m.reserves.length ? "wallet.net.outSub" : "wallet.net.outTrust")}` : ""}</span>
+          <span className="t-small">{t.p("wallet.net.notes", nOut, { n: nOut })}{nOut > 0 ? ` · ${t(m.reserves.some((r) => r.denom === unit.id) ? "wallet.net.outSub" : "wallet.net.outTrust")}` : ""}</span>
         </div>
       </div>
       {s.assets > 0n ? (
