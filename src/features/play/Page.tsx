@@ -86,10 +86,12 @@ const PHONE_TOP = 62;
 type InsTab = "inspect" | "cheat";
 type PhoneTab = "steps" | "inspect" | "cheat" | "log";
 
-/** Height of the page under the shell's nav and banner (and above the phone tab bar). */
+/** Height of the page under the shell's nav and banner (and above the phone tab bar). Measured before the first paint
+ *  (motion round: measured a frame later, the phone's stage and sheet moved by 80 px under the reader when the switch
+ *  is instant, with reduced motion or without view transitions). */
 function useFillHeight(ref: React.RefObject<HTMLElement | null>, phone: boolean): number {
   const [h, setH] = useState(() => (typeof window === "undefined" ? 800 : window.innerHeight - 104));
-  useEffect(() => {
+  useLayoutEffect(() => {
     const measure = () => {
       const el = ref.current;
       if (!el) return;
