@@ -9,6 +9,7 @@ import { Chip, Lamp, Seg } from "@/ui/components/primitives";
 import { Sheet } from "@/ui/components/Sheet";
 import { flash, usePulseClass } from "@/ui/hooks";
 import { int, short } from "@/ui/engine/money";
+import { REPOS } from "@/content/repos";
 import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
@@ -262,9 +263,14 @@ export function Footer() {
         <nav aria-label={t("app.footer.sources")}>
           <div className="f-col">
             <span className="label">{t("app.footer.sources")}</span>
-            <a href="https://github.com/BetterMoneyLabs/basis-tracker" target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.code")} <span className="mono">github.com/BetterMoneyLabs/basis-tracker</span></a>
+            <a href={REPOS.reference.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.code")} <span className="mono">github.com/{REPOS.reference.name}</span></a>
             <a href="https://t.me/chaincashtalks" target="_blank" rel="noreferrer"><Icon name="chat" size={15} />{t("app.footer.chat")} <span className="mono">t.me/chaincashtalks</span></a>
             <a href="https://ergoscan.me" target="_blank" rel="noreferrer"><Icon name="ext" size={15} />{t("app.footer.explorer")} <span className="mono">ergoscan.me</span></a>
+          </div>
+          <div className="f-col">
+            <span className="label">{t("app.footer.ours")}</span>
+            <a href={REPOS.app.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.app")} <span className="mono">github.com/{REPOS.app.name}</span></a>
+            <a href={REPOS.tracker.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.tracker")} <span className="mono">github.com/{REPOS.tracker.name}</span></a>
           </div>
           <div className="f-col">
             <span className="label">Basis</span>

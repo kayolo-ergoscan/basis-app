@@ -54,6 +54,10 @@ const en = {
   "app.footer.unofficial": "unofficial · ErgoScan",
   "app.footer.kit": "UI kit",
   "app.footer.keys": "Keyboard shortcuts",
+  // site-simple: our code in the footer
+  "app.footer.ours": "Our code",
+  "app.footer.app": "This site: wallet and protocol engine",
+  "app.footer.tracker": "ErgoScan's tracker",
 
   "app.tape.waiting": "Waiting for the next commitment",
 
@@ -164,6 +168,10 @@ const ru: Partial<typeof en> = {
   "app.footer.unofficial": "неофициально · ErgoScan",
   "app.footer.kit": "UI\u2011кит",
   "app.footer.keys": "Горячие клавиши",
+  // site-simple: наш код в подвале
+  "app.footer.ours": "Наш код",
+  "app.footer.app": "Этот сайт: кошелёк и движок протокола",
+  "app.footer.tracker": "Трекер ErgoScan",
 
   "app.tape.waiting": "Ждём следующую фиксацию",
 
