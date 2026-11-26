@@ -22,6 +22,11 @@
 .lrn-toc-page > a .n { font: 500 11px/1 var(--f-mono); letter-spacing: .04em; color: var(--ink-3); }
 .lrn-toc-page > a:hover { color: var(--ink); }
 .lrn-toc-page.on > a { color: var(--ink); font-weight: 600; }
+/* every chapter's line holds the room its bold (current) form needs, so lighting another chapter never re-wraps a line
+   and moves the rows below (motion round): a hidden bold copy shares the cell with the text */
+.lrn-toc-page > a > .tl { display: grid; }
+.lrn-toc-page > a > .tl > span:first-child, .lrn-toc-page > a > .tl::after { grid-area: 1 / 1; }
+.lrn-toc-page > a > .tl::after { content: attr(data-t); font-weight: 600; visibility: hidden; pointer-events: none; }
 .lrn-toc-page.on > a .n { color: var(--ink); }
 .lrn-toc .lrn-toc-secs { position: relative; margin: 2px 0 8px 40px; padding-left: 14px; }
 .lrn-toc-secs::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 1px; background: var(--rule-2); }
@@ -29,6 +34,8 @@
 .lrn-toc-secs a { display: block; padding: 4px 0; font: 400 13px/1.4 var(--f-ui); color: var(--ink-3); }
 .lrn-toc-secs a:hover { color: var(--ink-2); }
 .lrn-toc-secs a.on { color: var(--ink); }
+/* the rail's own «On this page» list, after the chapters (they stay put from chapter to chapter) */
+.lrn-toc .lrn-toc-here .lrn-toc-secs { margin: 0; }
 
 /* phone and tablet: the contents fold into a disclosure above the article */
 .lrn-toc-m { display: none; }

@@ -126,6 +126,17 @@ export function BookLayout() {
     return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
   }, [secs, current]);
 
+  // the rail's «On this page» list sits after the chapters: on a short screen the rail scrolls just enough to keep the
+  // section you are reading in view
+  useEffect(() => {
+    const rail = railRef.current;
+    const el = rail?.querySelector<HTMLElement>(".lrn-toc-here a.on");
+    if (!rail || !el || rail.scrollHeight <= rail.clientHeight + 1) return;
+    const r = rail.getBoundingClientRect(), e = el.getBoundingClientRect();
+    if (e.bottom > r.bottom - 8) rail.scrollTop += e.bottom - r.bottom + 8;
+    else if (e.top < r.top + 8) rail.scrollTop -= r.top + 8 - e.top;
+  }, [active]);
+
   const closeMobile = () => { if (mRef.current) mRef.current.open = false; };
   const curPage = current ? pageOf(current) : null;
   const curSec = secs.find((s) => s.id === active);
@@ -135,7 +146,7 @@ export function BookLayout() {
       <Page className="lrn-page">
         <div className="lrn">
           <aside className="lrn-toc" ref={railRef} aria-label={t("learn.toc.label")}>
-            <Toc current={current} secs={secs} active={active} />
+            <Toc current={current} secs={secs} active={active} here="end" />
           </aside>
           <div className="lrn-flow" ref={flowRef}>
             <details className="lrn-toc-m" ref={mRef}>
@@ -170,7 +181,10 @@ export function ReadWindows({ read, className }: { read: Set<string>; className?
   );
 }
 
-function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; secs: TocSection[]; active: string | null; onNav?: () => void }) {
+/** The contents. `here`: where this page's sections go. In the drawer (phone) they open under the current chapter; in
+ *  the rail they are their own list at the end («On this page»), so the chapters stay where they are when you switch
+ *  chapter: nested, the list closed above the chapter you clicked and moved it up by its height (motion round). */
+function Toc({ current, secs, active, onNav, here = "inline" }: { current: LearnPageId | null; secs: TocSection[]; active: string | null; onNav?: () => void; here?: "inline" | "end" }) {
   const t = useT();
   const read = useReadChapters();
   const nRead = LEARN_PAGES.filter((p) => read.has(p.id)).length;
@@ -180,6 +194,17 @@ function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; se
     onNav?.();
     navigate({ hash: "#" + id }, { replace: true });
   };
+  const secList = secs.length > 0 && (
+    <ol className="lrn-toc-secs" aria-label={t("learn.toc.here")}>
+      {secs.map((s) => (
+        <li key={s.id}>
+          <a href={`#${s.id}`} className={s.id === active ? "on" : undefined} aria-current={s.id === active ? "location" : undefined} onClick={go(s.id)}>
+            {s.label}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
   return (
     <nav>
       <div className="lrn-toc-top">
@@ -200,25 +225,21 @@ function Toc({ current, secs, active, onNav }: { current: LearnPageId | null; se
                 <li key={p.id} className={cx("lrn-toc-page", on && "on", read.has(p.id) && "read")}>
                   <Link to={p.path} aria-current={on ? "page" : undefined} onClick={onNav}>
                     <span className="n">{p.numeral}</span>
-                    <span>{t(`learn.page.${p.id}.toc`)}{read.has(p.id) && <span className="sr-only"> · {t("learn.progress.read")}</span>}</span>
+                    <span className="tl" data-t={t(`learn.page.${p.id}.toc`)}><span>{t(`learn.page.${p.id}.toc`)}</span>{read.has(p.id) && <span className="sr-only"> · {t("learn.progress.read")}</span>}</span>
                   </Link>
-                  {on && secs.length > 0 && (
-                    <ol className="lrn-toc-secs" aria-label={t("learn.toc.here")}>
-                      {secs.map((s) => (
-                        <li key={s.id}>
-                          <a href={`#${s.id}`} className={s.id === active ? "on" : undefined} aria-current={s.id === active ? "location" : undefined} onClick={go(s.id)}>
-                            {s.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
+                  {on && here === "inline" && secList}
                 </li>
               );
             })}
           </ol>
         </div>
       ))}
+      {here === "end" && secList && (
+        <div className="lrn-toc-part lrn-toc-here" key={current ?? ""}>
+          <span className="label" aria-hidden="true">{t("learn.toc.here")}</span>
+          {secList}
+        </div>
+      )}
     </nav>
   );
 }
