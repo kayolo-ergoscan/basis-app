@@ -713,6 +713,12 @@ const en: Dict = {
   "wallet.err.no-crypto": "This browser has no Web Crypto: open the page in a recent browser over https.",
   "wallet.err.weak-passphrase": "At least 8 characters.",
   "wallet.err.unknown": "Something went wrong. Try again.",
+
+  // site-simple: the town's notices as a line in the page (parts/news.tsx)
+  "wallet.news.label": "Town news",
+  "wallet.news.more": "+{n} earlier",
+  "wallet.news.less": "Only the newest",
+  "wallet.news.clear": "Clear the news",
 };
 
 const ru: Partial<Dict> = {
@@ -1419,6 +1425,12 @@ const ru: Partial<Dict> = {
   "wallet.err.no-crypto": "В этом браузере нет Web Crypto: откройте страницу в современном браузере по https.",
   "wallet.err.weak-passphrase": "Не меньше 8 символов.",
   "wallet.err.unknown": "Что-то пошло не так. Попробуйте ещё раз.",
+
+  // site-simple: новости города строкой на странице (parts/news.tsx)
+  "wallet.news.label": "Новости города",
+  "wallet.news.more": "ещё {n}",
+  "wallet.news.less": "Только последняя",
+  "wallet.news.clear": "Убрать новости",
 };
 
 export default { en, ru };

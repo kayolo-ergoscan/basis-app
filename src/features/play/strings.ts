@@ -120,7 +120,7 @@ const S: Record<string, Pair> = {
   "play.stage.edgeAria": ["{a} owes {b} {v}, {status}", "{a} → {b}: {v}, {status}"],
   "play.stage.nodeAria": ["{name}, net {v}", "{name}, нетто {v}"],
   "play.stage.reserveAria": ["{name}'s reserve, {v} locked", "Резерв: {name}, заперто {v}"],
-  "play.stage.reserve": ["reserve {pct}", "резерв {pct}"],
+  "play.stage.reserve": ["reserve {v}", "резерв {v}"],
   "play.stage.noLiab": ["reserve · owes nothing", "резерв · долгов нет"],
   "play.stage.pan": ["Drag to pan, pinch or use the keys to zoom.", "Перетаскивайте, чтобы сдвинуть; щипок или кнопки — масштаб."],
   "play.stage.reset": ["Fit the whole circle", "Показать весь круг"],
@@ -672,6 +672,9 @@ const S: Record<string, Pair> = {
   "play.sc.currency-exchange.cancelled.x": ["Phase 2 sees a different reserve box and cancels. Bob's ERG claim stays lowered at 4, and the USE increase never happens.", "Фаза 2 видит другой бокс резерва и отменяет обмен. Требование Боба в ERG остаётся сниженным до 4, а рост в USE так и не происходит."],
   "play.sc.free.title": ["A small world", "Маленький мир"],
   "play.sc.free.tag": ["A small world and every tool. Nothing here is real money.", "Маленький мир и все инструменты. Здесь нет настоящих денег."],
+
+  // ---------------- site-simple: the step that comes next is marked as such ----------------
+  "play.rail.nextLabel": ["Next:", "Дальше:"],
 };
 
 /** Display names of the scenario casts in Russian (the engine's log keeps the English names). */

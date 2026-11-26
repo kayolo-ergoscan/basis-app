@@ -1,13 +1,13 @@
 // /wallet/* — a complete Basis wallet on the sandbox town (src/world): your sandbox key, real signatures, play
-// money. The lazy chunk registers its strings, toasts the town's notices about You and routes the sub-pages.
+// money. The lazy chunk registers its strings, collects the town's notices about You (parts/news.tsx: a line in the
+// home columns, a toast elsewhere) and routes the sub-pages.
 import { Navigate, Route, Routes } from "react-router-dom";
 import { addI18n, getLang, useT } from "@/app/lang";
 import { useTitle } from "@/app/frame";
-import { ErrorState, Loading, Page, toast, useMedia } from "@/ui";
-import { useNotices, useTown, useTownReady, useWallet } from "@/world";
+import { ErrorState, Loading, Page, useMedia } from "@/ui";
+import { useTown, useTownReady, useWallet } from "@/world";
 import { typo } from "@/content";
 import strings from "./strings";
-import { useWT } from "./lib/hooks";
 import { DefaultFocus, HomeNarrow, HomeWide, NoteRoute, NotesPage, Sub } from "./Home";
 import { Onboarding } from "./flows/Onboarding";
 import { PayFlow } from "./flows/Pay";
@@ -18,6 +18,7 @@ import { PolicyPage } from "./flows/Policy";
 import { ContactsPage } from "./flows/Contacts";
 import { SettingsPage } from "./flows/Settings";
 import { WalletModeSwitch } from "./ModeSwitch";
+import { TownNewsFeed } from "./parts/news";
 import "./wallet.css";
 
 const typeset = (d: Partial<Record<string, string>>, lang: "en" | "ru"): Record<string, string> =>
@@ -40,17 +41,6 @@ const typeset = (d: Partial<Record<string, string>>, lang: "en" | "ru"): Record<
     if (at < keys.length) idle(slice);
   };
   if (typeof window !== "undefined") idle(slice);
-}
-
-/** The town's notices about You (a note in, a redemption from your reserve, a request answered) as toasts. */
-function NoticeToasts() {
-  const wt = useWT();
-  const t = useT();
-  useNotices((n) => {
-    const ru = (s: string) => (t.lang === "ru" ? s.replace(/(\d)\.(\d)/g, "$1,$2") : s);
-    toast({ kind: n.kind, title: ru(wt(n.titleKey, n.params)), detail: n.detailKey ? ru(wt(n.detailKey, n.params)) : undefined, ttl: n.sticky ? 0 : undefined });
-  });
-  return null;
 }
 
 function WalletRoutes() {
@@ -108,7 +98,7 @@ export default function WalletPage() {
   return (
     <Page className="wl-page">
       <div className="wl-mode-row"><WalletModeSwitch mode="sandbox" /></div>
-      <NoticeToasts />
+      <TownNewsFeed />
       {body}
     </Page>
   );

@@ -7,7 +7,7 @@ import type { TFn } from "@/app";
 import type { DenomId } from "@/protocol";
 import { blk, Icon, int, pct, signed, Table, type Column } from "@/ui";
 import { keySeed, sealUrl } from "@/ui/engine/raster";
-import { coverPct, fmtAmt, labelShift, splitMid, trackerStateOf, type StageEdge, type StageModel, type StageNode, type StageTracker } from "./model";
+import { fmtAmt, reserveWord, labelShift, splitMid, trackerStateOf, type StageEdge, type StageModel, type StageNode, type StageTracker } from "./model";
 
 export type Sel =
   | { kind: "participant"; id: string }
@@ -440,7 +440,7 @@ const NodeShape = memo(function NodeShape({
   // a bare seal in a dense swarm keeps its name for hover and selection (the aria-label always carries it)
   const lines: Array<[string, string]> = n.bare && !sel && !hover ? [] : [[n.name, "pl-name"]];
   if (full) lines.push([netTxt, `pl-net${n.net > 0n ? " pos" : ""}`]);
-  if (full && n.reserveIds.length) lines.push([n.ratio === null ? t("play.stage.noLiab") : t("play.stage.reserve", { pct: coverPct(n.ratio) }), "pl-res"]);
+  if (full && n.reserveIds.length) lines.push([n.ratio === null ? t("play.stage.noLiab") : t("play.stage.reserve", { v: reserveWord(n.ratio, n.reserve, decimals, symbol) }), "pl-res"]);
   const gap = 15;
   const ax = n.align === "start" ? -(R - 2) : n.align === "end" ? R - 2 : 0;
   // words above or below a seal keep off its reserve coin when the coin sits on that side

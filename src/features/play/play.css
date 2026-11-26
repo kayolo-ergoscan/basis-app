@@ -21,20 +21,12 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-pick:hover { background: var(--surface-2); }
 .pl-pick svg { width: 16px; height: 16px; color: var(--ink-3); flex: none; }
 .pl-pick-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-seed { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--well); color: var(--ink-2); font-size: 12px; cursor: pointer; max-width: 260px; }
-.pl-seed:hover { color: var(--ink); }
-.pl-seed-l { font: 600 10.5px/1 var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-.pl-seed-v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pl-avl { font-size: 11px; letter-spacing: .04em; color: var(--ink-3); white-space: nowrap; }
 .pl-avl.sim { color: var(--alarm); }
-.pl-top-k { display: inline-flex; gap: 2px; }
-.pl-top-k .key svg { width: 16px; height: 16px; }
-@media (max-width: 1500px) { .pl-top-k .pl-k-l { display: none; } .pl-top-k .key { width: 34px; padding: 0; } }
 .pl-forkinfo { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .pl-forkinfo .t-small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
 .pl-top .pop { max-width: min(460px, calc(100vw - 32px)); }
 .pl-pop { display: grid; gap: 10px; width: min(420px, calc(100vw - 64px)); max-height: min(70vh, 640px); overflow-y: auto; }
-.pl-seedpop { width: min(320px, calc(100vw - 64px)); }
 .pl-menu { width: 220px; gap: 2px; }
 .pl-menu-i { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); font: 500 14px/1.2 var(--f-ui); cursor: pointer; text-align: left; }
 .pl-menu-i:hover { background: var(--surface); color: var(--ink); }
@@ -398,7 +390,6 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-root.compact .pl-top { gap: 8px; padding: 0 12px; }
 .pl-root.compact .pl-sandbox { padding: 5px 9px 5px 8px; font-size: 10px; letter-spacing: .04em; }
 .pl-root.compact .pl-pick { font-size: 14px; padding: 0 6px 0 8px; max-width: 46vw; }
-.pl-root.compact .pl-seed { max-width: 130px; padding: 0 8px; }
 .pl-phone { position: relative; min-height: 0; }
 .pl-phone .pl-stage { position: absolute; inset: 0; }
 .pl-root.compact .pl-graph { top: 62px; bottom: 120px; }
@@ -441,7 +432,6 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-time.compact .pl-readout-k .key { padding: 0 10px; }
 .pl-root.compact .pl-sheet .pl-cheats, .pl-root.compact .pl-sheet .pl-ins-body { padding-bottom: 32px; }
 @media (max-width: 640px) {
-  .pl-root.compact .pl-seed { display: none; }
   .pl-time.compact .pl-player .key.icon-only:first-child { display: none; }
   .pl-root.compact .pl-cart-sub { display: none; }
 }
@@ -472,3 +462,11 @@ body:has(.pl-root.compact) .toasts { bottom: 76px; }
 .pl-pad > .key.icon-only { width: 36px; height: 36px; border-radius: 50%; padding: 0; }
 .pl-pad > .pl-next { height: 40px; border-radius: 999px; padding: 0 14px 0 12px; gap: 8px; font-weight: 650; }
 .pl-pad > .pl-speed { height: 36px; border-radius: 999px; }
+
+/* the run's tools in one «⋯» menu: share, save and load the log, the seed, which tree computes the digests */
+.pl-menu.pl-tools { width: min(300px, calc(100vw - 32px)); }
+.pl-menu-sep { border: 0; border-top: 1px solid var(--rule); margin: 6px 0 8px; }
+.pl-tools .pl-f, .pl-tools > p, .pl-tools .pl-acts { padding: 0 8px; }
+.pl-tools > p { margin: 4px 0 0; }
+/* the step that comes next says so («Дальше:»), so it does not read as what has already happened */
+.pl-step-k { font-weight: 600; color: var(--ink-3); }
