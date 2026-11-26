@@ -81,7 +81,7 @@ progress. The design expects 0.5–1.5 s on phones.
 
 `withSecret(purpose, fn, { passphrase? })` is the only way to the secret.
 
-- **Purposes:** `t1`, `note`, `redeem`, `withdraw`, `topup`, `refund-start`, `refund-end`, `build-request`, `export-hex`.
+- **Purposes:** `t1`, `note`, `redeem`, `withdraw`, `topup`, `refund-start`, `refund-end`, `build-request`, `inbox`, `export-hex`.
 - **What it needs:** an unlocked session in this tab, and a verified backup (`export-hex` excepted).
 - **The callback:** `fn(secret, pub)` is called synchronously. `secret` is a 32-byte copy, wiped when `fn` returns, and
   `pub` holds the 33 bytes of the compressed public key.
@@ -120,6 +120,8 @@ progress. The design expects 0.5–1.5 s on phones.
     or that are not a redemption: one input whose #0 is action 0, and an output 0 that is not this key's own reserve
     (a refund start or a top-up with change has the same output layout); that one input is a reserve-contract box
     (`redeemsReserveBox`: `opts.inputBoxes` = the reviewed box, required, bound to the input by its id).
+  - `inbox`: never. It signs only the inbox request (`signInbox`: a read of the notes to this key on our tracker,
+    valid at most 24 h), which moves nothing.
 
   A direct `withSecret` for `t1`, `withdraw`, `note`, `topup`, `refund-start` or `refund-end` always needs `passphrase` (the vault cannot see what such a
   callback signs). `notePolicy(intent)` tells the review screen the same answer `signToJournal` will give. The rule

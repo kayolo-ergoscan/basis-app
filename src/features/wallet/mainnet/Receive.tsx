@@ -7,7 +7,8 @@
 // every denomination of the wallet (its empty pairs take no line); each denomination is its own pair at the tracker
 // (?denomination=) with its own figures, never added to another. The request link names its denomination.
 // The request link may also carry how to sign the receiver and what for (after #, plain text, unchecked: reqlink.ts),
-// and «A button for your project» makes the same link into a README button (Tip.tsx).
+// and «A button for your project» makes the same link into a README button (Tip.tsx). «Inbox» lists every note to this
+// key, read with the key's own signature, where the tracker has that route (Inbox.tsx); elsewhere the receipt link stays.
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLang, useT } from "@/app/lang";
@@ -25,6 +26,7 @@ import { Gate, ProblemText, TimeHint } from "./ui";
 import { Amt, DenomSwitch, amtText, useDenom, useOnDenomChange } from "./denom";
 import { LONG_LINK, MEMO_MAX, NAME_MAX, labelledRequestLink } from "./reqlink";
 import { ProjectButton } from "./Tip";
+import { InboxCard } from "./Inbox";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
 function receiptFrom(text: string): ReturnType<typeof decodeReceipt> | null {
@@ -240,6 +242,7 @@ export function ReceiveScreen() {
               <p className="t-lede">{t("mw.recv.lede")}</p>
             </header>
             {initial && <ImportCard me={me.pub} initial={initial} key={initial} />}
+            <InboxCard me={me.pub} />
             <Card title={t("mw.recv.watchT", { n: list.length })}>
               {list.length === 0 ? (
                 <p className="t-small mw-dim">{t("mw.recv.watchEmpty")}</p>

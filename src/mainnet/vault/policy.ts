@@ -8,6 +8,7 @@
 //     minus the pair's previous total, which must be a note of this key (its signature is checked here);
 //   • redeem and build-request: never (a redemption pays only this key: its signed outputs are checked, below, and it
 //     must be a redemption: one input, action 0, another key's reserve);
+//   • inbox: never (it signs only a read of the notes to this key, valid at most 24 h, and moves nothing);
 //   • topup, refund-start, refund-end (the reserve's own actions): always, and the signed outputs must be exactly the
 //     action's layout (reserveActionPaysRight, below): a top-up can send money to another key's reserve for good.
 // Token reserves: a note's budget is counted per denomination, in its own raw units, against the key's own reserve

@@ -162,6 +162,16 @@ export const apiEndpoints: ApiEndpoint[] = [
     purpose: t("What one key is owed.", "Что должны одному ключу."),
     request: `GET /notes/recipient/${B}`,
     response: `{ "success": true, "data": [ { "issuer_pubkey": "${A}", "recipient_pubkey": "${B}", "…": "…" } ], "error": null }`,
+    ergoscan: [
+      t(
+        "Every note to one key in one call, only for the key's holder: the request carries X-Basis-Inbox-Until (unix seconds, at most 24 h ahead) and X-Basis-Inbox-Sig, the key's signature over `basis-inbox-v1` ‖ tracker NFT ‖ key ‖ valid_until (87 bytes). The wallet signs it on Receive → Inbox. It stops bulk listing and hides nothing: a pair's note stays readable by whoever knows both keys.",
+        "Все расписки одному ключу одним запросом — только владельцу ключа: в запросе заголовки X-Basis-Inbox-Until (секунды Unix, не дальше 24 ч вперёд) и X-Basis-Inbox-Sig — подпись ключа над `basis-inbox-v1` ‖ NFT трекера ‖ ключ ‖ valid_until (87 байт). Кошелёк подписывает его в «Получить» → «Входящие». Это мешает выгружать списки чужих ключей и ничего не скрывает: расписку пары может прочитать тот, кто знает оба ключа.",
+      ),
+      t(
+        "401 without both headers, with a time already past or more than 24 h ahead, or a signature not by this key for this tracker; 429 after 30 signed reads of one key in 10 minutes. Without both well-formed headers the front answers 404.",
+        "401 — без обоих заголовков, с прошедшим временем или дальше 24 ч вперёд, с подписью не этого ключа или не для этого трекера; 429 — после 30 подписанных чтений одного ключа за 10 минут. Без обоих правильных заголовков фронт отвечает 404.",
+      ),
+    ],
   },
   {
     n: 6, id: "note-pair", method: "GET", path: "/notes/issuer/{issuer}/recipient/{recipient}", query: ["denomination"], role: "read", group: "notes",
