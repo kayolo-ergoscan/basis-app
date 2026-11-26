@@ -361,7 +361,7 @@ export function PayScreen() {
                   {d.denom !== "erg" && <Callout tone="info">{t("mw.dn.payNote", { sym: denomSymbol(d.denom) })}</Callout>}
                   <p className="t-small">{t("mw.pay.cumulative")}</p>
                   {d.onChain > 0n ? (
-                    <p className="t-small">{t("mw.pay.cov", { reserve: amtText(d.onChain, d.denom), debt: amtText(debtAfter!, d.denom), pct: cov !== null ? int(cov) : "—" })}</p>
+                    <p className="t-small">{t("mw.pay.cov", { reserve: amtText(d.onChain, d.denom), debt: amtText(debtAfter!, d.denom), pct: cov !== null ? int(Math.floor(cov)) : "—" })}</p>
                   ) : null}
                   {debtAfter! > d.onChain && <Callout tone="alarm" title={t("mw.pay.overT")}>{t("mw.pay.overB")}</Callout>}
                   <Callout tone="policy">{t("mw.warn.notes")}</Callout>

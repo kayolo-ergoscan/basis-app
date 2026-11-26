@@ -53,7 +53,7 @@ export function ReserveCard({ r }: { r: TrackedReserve }) {
     <Card title={d === "erg" ? t("mw.res.cardT") : t("mw.dn.cardT", { sym: denomSymbol(d) })} aside={<ReserveTag r={r} />}>
       <div className="mw-figs">
         <div className="mw-figure"><span className="label">{t("mw.res.collateral")}</span><b><Amt raw={r.collateral} denom={d} /></b></div>
-        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Amt raw={r.debt} denom={d} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(cov) }) : t("mw.res.noDebt")}</span>
+        <div className="mw-figure"><span className="label">{t("mw.res.debt")}</span><b><Amt raw={r.debt} denom={d} /></b><span className="t-small mw-dim">{cov !== null ? t("mw.res.coverage", { pct: int(Math.floor(cov)) }) : t("mw.res.noDebt")}</span>
           {r.pendingRedemption > 0n && <span className="t-small mw-dim">{t("mw.res.pendingRed", { amount: amtText(r.pendingRedemption, d) })}</span>}</div>
       </div>
       <p className="t-small">{t("mw.res.box")} <ChainLink kind="box" id={r.box} /> · {t("mw.res.updated", { h: int(r.updatedHeight) })}</p>
