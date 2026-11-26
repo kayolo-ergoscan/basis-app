@@ -129,7 +129,9 @@ export function useGlide(ref: RefObject<HTMLElement | null>, lit = ":scope > .on
       anim?.cancel();
       anim = null;
       if (glide && moved && from && !same(from, to) && !prefersReducedMotion() && typeof plate.animate === "function") {
-        anim = plate.animate([frame(from), frame(to)], { duration: GLIDE_MS, easing: EASE });
+        // TRIAL (motion round): «фишка» candidates side by side; html[data-fishka] picks B or C, A is the default
+        if (document.documentElement.dataset.fishka === "b") anim = plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: "cubic-bezier(.2,0,.2,1)" });
+        else anim = plate.animate([frame(from), frame(to)], { duration: GLIDE_MS, easing: EASE });
       }
       at = to; litEl = el;
     };

@@ -74,3 +74,7 @@
 
 :root.rm .glide, :root.still .glide { transition: none; }
 
+/* TRIAL (motion round): «фишка» C — the light follows the plate: the new item lights as the plate arrives */
+:root[data-fishka="c"] :is(.nav-links, .place-tabs, .mw-nav, .wl-bar-n, .wl-bar-m, .wl-mode, .trk-subnav, .trk-mode, .tabs, .seg, .tabbar).glides > .on {
+  transition: color 120ms var(--ease-out) 110ms;
+}
