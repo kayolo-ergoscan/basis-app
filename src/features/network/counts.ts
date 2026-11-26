@@ -1,8 +1,8 @@
-// The place bar's counts (src/app/chrome.tsx NetPlaceBar), shared by /network and the tracker console, which shows the
+// The place bar's counts (src/app/netbar.tsx NetPlaceBar), shared by /network and the tracker console, which shows the
 // same bar with the same numbers once the snapshot is in this tab.
 import { useEffect, useSyncExternalStore } from "react";
 import { chain, oursExtra, type Observatory } from "@/chain";
-import type { NetCounts } from "@/app/chrome";
+import type { NetCounts } from "@/app/netbar";
 
 export function netCounts(obs: Observatory): NetCounts {
   return {

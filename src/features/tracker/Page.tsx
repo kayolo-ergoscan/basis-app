@@ -13,7 +13,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
 import { Loading, Page } from "@/ui";
-import { NetPlaceBar } from "@/app/chrome";
+import { NetPlaceBar } from "@/app/netbar";
 import { useSnapshotCounts } from "@/features/network/counts";
 import { trackerHomeOf } from "./parts";
 import * as C from "./chunks";

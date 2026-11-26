@@ -1,10 +1,10 @@
-// The Network place's bar (src/app/chrome.tsx NetPlaceBar) is one bar on /network and on /tracker: the same tag slot
+// The Network place's bar (src/app/netbar.tsx NetPlaceBar) is one bar on /network and on /tracker: the same tag slot
 // (mainnet or the practice sandbox, both kept so the sections never move), a slot for every count from the first
 // frame (empty until the snapshot is here), and the span of the bar's light.
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { NetPlaceBar } from "./chrome";
+import { NetPlaceBar } from "./netbar";
 
 function render(at: string, node: JSX.Element): string {
   const error = console.error;

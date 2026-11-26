@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app";
-import { NetPlaceBar } from "@/app/chrome";
+import { NetPlaceBar } from "@/app/netbar";
 import { CopyButton, Icon, KeySeal, Lamp, Loading, Tag, TrackerTile, usePulseClass, type LampState, type TagTone } from "@/ui";
 import { explorer, oursExtra, useChainStatus, type ContractView, type ExitClass, type Hex, type Observatory, type TrackerView } from "@/chain";
 import { blocks, height as fmtH, keyOfAddress, sAddr, sid, type Lang } from "./fmt";
