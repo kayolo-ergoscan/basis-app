@@ -1,5 +1,5 @@
 // Shared pieces of the mainnet wallet screens: amounts, problems in plain words, the unlock card,
-// the gates (key, backup, unlocked), step ladders and the transaction review (TxLens over the real transaction).
+// step ladders and the transaction review (TxLens over the real transaction).
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "@/app/lang";
@@ -177,29 +177,6 @@ export function UnlockCard({ vault, state, why }: { vault: MainnetVault; state: 
       </form>
     </Card>
   );
-}
-
-/** Shows `children` only when the key exists, is backed up and (when asked) unlocked; otherwise the next step. */
-export function Gate({ vault, state, backup = true, unlocked = false, children, why }: { vault: MainnetVault; state: VaultState; backup?: boolean; unlocked?: boolean; children: ReactNode; why?: ReactNode }) {
-  const t = useT();
-  if (state.status === "none" || state.status === "damaged") {
-    return (
-      <Callout tone="info" title={t("mw.gate.noKeyT")}>
-        <p>{t("mw.gate.noKeyB")}</p>
-        <Key variant="primary" to="/wallet/mainnet/setup">{t("mw.gate.setup")}</Key>
-      </Callout>
-    );
-  }
-  if (backup && !state.backedUp) {
-    return (
-      <Callout tone="alarm" title={t("mw.gate.backupT")}>
-        <p>{t("mw.gate.backupB")}</p>
-        <Key variant="primary" to="/wallet/mainnet/setup">{t("mw.gate.backupGo")}</Key>
-      </Callout>
-    );
-  }
-  if (unlocked && state.status !== "unlocked") return <UnlockCard vault={vault} state={state} why={why} />;
-  return <>{children}</>;
 }
 
 // ─── review ─────────────────────────────────────────────────────────────────────────────────────

@@ -14,7 +14,8 @@ import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
-import { Erg, FlowSteps, Gate, ProblemText, TxReview, ergText, useVaultError } from "./ui";
+import { Erg, FlowSteps, ProblemText, TxReview, ergText, useVaultError } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, TokensAfter, amtText, entryAmtText, entryDenom, useDenom, useDenomPhase } from "./denom";
 
 type Phase =

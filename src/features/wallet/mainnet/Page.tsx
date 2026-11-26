@@ -3,7 +3,7 @@
 // Every screen carries the mode switch with mainnet lit («Real ERG · beta»); the sandbox wallet and its key are never
 // touched from here.
 import { useEffect, useMemo, useRef } from "react";
-import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { addI18n, getLang, useT } from "@/app/lang";
 import { useTitle } from "@/app/frame";
 import { useHeight } from "@/app/height";
@@ -45,16 +45,57 @@ const typeset = (d: Partial<Record<string, string>>, lang: "en" | "ru"): Record<
   if (typeof window !== "undefined") idle(() => { const done = typeset(strings[later], later); addI18n(later === "en" ? { en: done, ru: {} } : { en: {}, ru: done }); });
 }
 
-const NAV: [string, string, string][] = [
+/** The wallet menu: what any wallet has, one row of four (on a phone too). The reserve and the settings are the key's
+ *  own: they open from the key menu (and the reserve from its row on Home). */
+export const NAV: [string, string, string][] = [
   ["/wallet/mainnet", "mw.nav.home", "home"],
   ["/wallet/mainnet/pay", "mw.nav.pay", "pay"],
   ["/wallet/mainnet/receive", "mw.nav.receive", "request"],
-  ["/wallet/mainnet/reserve", "mw.nav.reserve", "coin"],
   ["/wallet/mainnet/activity", "mw.nav.activity", "table"],
+];
+/** The key menu: the key's reserve and its settings, next to «Lock». */
+export const KEY_MENU: [string, string, string][] = [
+  ["/wallet/mainnet/reserve", "mw.nav.reserve", "coin"],
   ["/wallet/mainnet/settings", "mw.nav.settings", "settings"],
 ];
 
-function TopBar({ ctx }: { ctx: MwContext | null }) {
+/** The key chip opens the key menu (a disclosure: it closes on a pick, a click outside, Escape or another page). Until
+ *  the backup is checked the chip shows the key short only: its full address is not offered anywhere before that. */
+function KeyMenu({ ctx }: { ctx: MwContext }) {
+  const t = useT();
+  const key = ctx.state.key!;
+  const ref = useRef<HTMLDetailsElement>(null);
+  const { pathname } = useLocation();
+  useEffect(() => { if (ref.current) ref.current.open = false; }, [pathname]);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    const out = (e: PointerEvent) => { if (d.open && !d.contains(e.target as Node)) d.open = false; };
+    const esc = (e: KeyboardEvent) => { if (d.open && e.key === "Escape") { d.open = false; d.querySelector("summary")?.focus(); } };
+    document.addEventListener("pointerdown", out);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", out); document.removeEventListener("keydown", esc); };
+  }, []);
+  return (
+    <details className="mw-keymenu" ref={ref}>
+      <summary className="mw-keychip" title={ctx.state.backedUp ? key.address : undefined} aria-label={t("mw.top.keyMenu", { key: short(key.address, 6, 4) })}>
+        <KeySeal pk={key.pub} size="sm" />
+        <span className="mono">{short(key.address, 6, 4)}</span>
+        <Icon name="down" size={14} className="mw-keychip-v" />
+      </summary>
+      <nav className="mw-keymenu-p" aria-label={t("mw.top.keyMenuAria")}>
+        {KEY_MENU.map(([to, k, icon]) => (
+          <NavLink key={to} to={to} className={({ isActive }) => (isActive ? "on" : undefined)}>
+            <Icon name={icon} size={15} />
+            {t(k)}
+          </NavLink>
+        ))}
+      </nav>
+    </details>
+  );
+}
+
+export function TopBar({ ctx }: { ctx: MwContext | null }) {
   const t = useT();
   const key = ctx?.state.key ?? null;
   return (
@@ -64,10 +105,7 @@ function TopBar({ ctx }: { ctx: MwContext | null }) {
       </div>
       {ctx && key && (
         <div className="mw-top-r">
-          <span className="mw-keychip" title={key.address}>
-            <KeySeal pk={key.pub} size="sm" />
-            <span className="mono">{short(key.address, 6, 4)}</span>
-          </span>
+          <KeyMenu ctx={ctx} />
           {ctx.state.status === "unlocked" ? (
             <Key size="sm" icon="lock" onClick={() => ctx.vault.lock("manual")}>{t("mw.top.lock")}</Key>
           ) : (
@@ -134,13 +172,14 @@ export default function MainnetWallet() {
     const hasKey = state.status === "locked" || state.status === "unlocked";
     body = (
       <MwCtx.Provider value={ctx}>
-        {hasKey && state.backedUp && <MwNav />}
+        {/* a key made here goes straight to Home: the menu is there from the start (the backup comes before value) */}
+        {hasKey && <MwNav />}
         <PendingRequestBar />
         {/* rendered under the feature's "/wallet/*": these paths are relative to /wallet */}
         <DenomGuard>
         <Routes>
           <Route path="mainnet">
-            <Route index element={hasKey && state.backedUp ? <HomeScreen /> : <StartScreen />} />
+            <Route index element={hasKey ? <HomeScreen /> : <StartScreen />} />
             <Route path="setup" element={<StartScreen />} />
             <Route path="fund" element={<FundScreen />} />
             <Route path="reserve" element={<ReserveScreen />} />

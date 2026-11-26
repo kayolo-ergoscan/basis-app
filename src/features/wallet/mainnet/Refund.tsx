@@ -22,7 +22,8 @@ import { freshHeight, refreshHeight } from "@/app/height";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, useResource } from "./data";
 import { EntryProgress, send, signReserve, stuckCompletion } from "./send";
-import { BackLink, ChainLink, Erg, FlowSteps, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, FlowSteps, OtherBoxesNote, OwnReserveRefusal, ProblemText, TimeHint, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, amtText, denomQuery, entryDenom, tokenOf, useDenom, useDenomPhase } from "./denom";
 
 /** A refund start is signed only while its R7 (tip + 10 at the review) is ahead: at most 5 blocks after the review,

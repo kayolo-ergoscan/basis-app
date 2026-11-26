@@ -26,7 +26,8 @@ import type { Problem } from "@/mainnet/net";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, ownReserveNow, t1NftOf, trackedOf, useResource, useUnspent } from "./data";
 import { EntryProgress, send, signReserve } from "./send";
-import { BackLink, ChainLink, Erg, FlowSteps, Gate, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { BackLink, ChainLink, Erg, FlowSteps, OtherBoxesNote, OwnReserveRefusal, ProblemText, TxReview, ergText, trustText, useVaultError } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, entryAmtText, entryDenom, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =

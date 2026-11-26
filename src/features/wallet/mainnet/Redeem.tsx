@@ -23,7 +23,8 @@ import { ContractXray } from "@/viz";
 import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { EntryProgress } from "./send";
-import { ChainLink, CopyReport, Erg, FlowSteps, Gate, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
+import { ChainLink, CopyReport, Erg, FlowSteps, ProblemText, Steps, TimeHint, TxReview, ergText, useVaultError, type StepItem } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, entryAmtText, entryDenom, useDenom } from "./denom";
 
 /** The most inputs a token redemption's build may spend (the reserve and the tracker's fee boxes): each is read from /v1. */

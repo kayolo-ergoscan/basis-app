@@ -4,25 +4,17 @@
 // Ergo wallet (EIP-3, one chosen address), or (for experts) as hex. The wallet itself makes no seed words and keeps none.
 // One key per browser: a key already here is never replaced (the vault refuses, and the screen says where a second
 // key goes).
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type ReactNode } from "react";
+import { Link, Navigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short, HouseLights, useHoldHeight } from "@/ui";
 import { SEED_MAX_INDEX, VAULT, checkPassphrase, normalizeMnemonic, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
-import { watchExtras, watchIssuer } from "@/mainnet/flows";
-import { saveText } from "../lib/download";
+import { watchIssuer } from "@/mainnet/flows";
 import { useMw } from "./ctx";
 import { useWatchList } from "./data";
 import { findExpected, importSeedKey, listSeedKeys, type SeedFields } from "./seedflow";
-import { Steps, UnlockCard, cx, useVaultError } from "./ui";
-
-const MAX_FILE = 256 * 1024;
-
-async function readFile(e: ChangeEvent<HTMLInputElement>): Promise<string | null> {
-  const f = e.target.files?.[0];
-  e.target.value = "";
-  if (!f || f.size > MAX_FILE) return null;
-  try { return await f.text(); } catch { return null; }
-}
+import { cx, useVaultError } from "./ui";
+import { BackupSteps, readFile } from "./gate";
 
 /** The four warnings of a mainnet key: small amounts, the key only here, browsers that forget, an experiment. */
 function WarnList() {
@@ -37,13 +29,22 @@ function WarnList() {
   );
 }
 
-/** The title and the lede; the four warnings under them once a key exists (its backup step, the done screen). */
+/** Where «why not my Ergo wallet?» is answered (the sandbox start links the same FAQ answer). */
+export const WHY_NOT_ERGO_WALLET = "/learn/faq#q-nautilus";
+
+/** The title and the lede; before a key exists, why an ordinary Ergo wallet is not enough (and what it is still good
+ *  for); the four warnings under them once a key exists (its backup step, the done screen). */
 function Hero({ warnings }: { warnings: boolean }) {
   const t = useT();
   return (
     <div className="mw-hero">
       <h1 className="t-h1 mw-hero-h">{t("mw.start.h1a")} <em>{t("mw.start.h1b")}</em></h1>
       <p className="t-lede mw-hero-lede">{t("mw.start.lede")}</p>
+      {!warnings && (
+        <p className="mw-why">
+          {t("mw.start.why")} <Link className="textlink" to={WHY_NOT_ERGO_WALLET}>{t("mw.start.whyLink")}</Link> {t("mw.start.whyFund")}
+        </p>
+      )}
       {warnings && <WarnList />}
     </div>
   );
@@ -452,87 +453,6 @@ export function OneKeyNote({ address }: { address: string }) {
   return <Callout tone="info" title={t("mw.start.oneKeyT")}>{t("mw.start.oneKeyB", { addr: short(address, 8, 6) })}</Callout>;
 }
 
-/** Key made, not yet backed up: download the file, then load it back with the passphrase. */
-function BackupSteps() {
-  const t = useT();
-  const { vault, state, me } = useMw();
-  const verr = useVaultError();
-  const [watch] = useWatchList(me?.pub ?? null);
-  const [downloaded, setDownloaded] = useState(false);
-  const [text, setText] = useState<string | null>(null);
-  const [pass, setPass] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  const download = async () => {
-    setErr(null);
-    try {
-      const b = await vault.exportBackup({ extras: watchExtras(watch) });
-      saveText(b.json, b.filename);
-      setDownloaded(true);
-    } catch (e) { setErr(verr(e)); }
-  };
-  const verify = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!text || !pass || busy) return;
-    setBusy(true);
-    setErr(null);
-    try { await vault.verifyBackup(text, pass); setPass(""); } catch (x) { setErr(verr(x)); } finally { setBusy(false); }
-  };
-  const key = state.key!;
-  return (
-    <div className="mw-form">
-      <div className="mw-filecard">
-        <KeySeal pk={key.pub} size="sm" />
-        <div>
-          <div className="label">{t("mw.start.yourKey")}</div>
-          <div className="mono t-small mw-break">{key.address}</div>
-        </div>
-      </div>
-      <Steps house label={t("mw.start.stepsAria")} items={[
-        { id: "key", label: t("mw.start.s1"), state: "done" },
-        { id: "dl", label: t("mw.start.s2"), sub: t("mw.start.s2b"), state: downloaded ? "done" : "now" },
-        { id: "verify", label: t("mw.start.s3"), sub: t("mw.start.s3b"), state: downloaded ? "now" : "todo" },
-      ]} />
-      {state.status !== "unlocked" && !downloaded ? (
-        <UnlockCard vault={vault} state={state} why={t("mw.start.unlockForBackup")} />
-      ) : (
-        <Key variant={downloaded ? "default" : "primary"} icon="down" block onClick={() => void download()}>{downloaded ? t("mw.start.downloadAgain") : t("mw.start.download")}</Key>
-      )}
-      {downloaded && (
-        <form className="mw-form" onSubmit={verify}>
-          <p className="t-small">{t("mw.start.verifyB")}</p>
-          <input ref={input} type="file" accept="application/json,.json" className="sr-only" onChange={async (e) => { setErr(null); setText(await readFile(e)); }} />
-          <Key icon="down" onClick={() => input.current?.click()}>{text ? t("mw.start.fileLoaded") : t("mw.start.fileLoad")}</Key>
-          {text && (
-            <>
-              <Field label={t("mw.pass.label")}>
-                <TextInput type="password" autoComplete="current-password" value={pass} onChange={setPass} />
-              </Field>
-              <Key variant="primary" type="submit" block disabled={!pass || busy}>{busy ? t("mw.start.deriving") : t("mw.start.verify")}</Key>
-            </>
-          )}
-        </form>
-      )}
-      {err && <Callout tone="alarm">{err}</Callout>}
-      <Persistence />
-    </div>
-  );
-}
-
-/** navigator.storage.persist(): granted, refused, unknown; ask again from a click. */
-export function Persistence() {
-  const t = useT();
-  const { vault, state } = useMw();
-  const p = state.persisted;
-  return (
-    <p className={cx("t-small", p !== true && "mw-dim")}>
-      {p === true ? t("mw.persist.yes") : p === false ? t("mw.persist.no") : t("mw.persist.unknown")}{" "}
-      {p !== true && <button type="button" className="textlink" onClick={() => void vault.requestPersistence()}>{t("mw.persist.ask")}</button>}
-    </p>
-  );
-}
-
 function Damaged() {
   const t = useT();
   const { vault, state } = useMw();
@@ -573,18 +493,30 @@ function Done() {
   );
 }
 
-type Mode = "create" | "restore" | "seed" | "hex";
+/** Two choices, as in any wallet: a new key, or one you already have; the second holds the three ways in. */
+type Mode = "create" | "have";
+type Way = "restore" | "seed" | "hex";
 
 export function StartScreen() {
   const t = useT();
   const { state, me } = useMw();
   const [mode, setMode] = useState<Mode>("create");
+  const [way, setWay] = useState<Way>("restore");
   const [extras, setExtras] = useState<BackupExtras | null>(null);
   const [, updateWatch] = useWatchList(me?.pub ?? null);
-  // the four ways to add a key are four forms of different heights: the card keeps the tallest one it has shown, so
-  // switching back never moves what is below it (motion round; the forms themselves are as they were)
+  // the ways to add a key are forms of different heights: the card keeps the tallest one it has shown, so switching
+  // back never moves what is below it (motion round; the forms themselves are as they were)
   const formRef = useRef<HTMLDivElement>(null);
-  useHoldHeight(formRef, state.status, [mode]);
+  useHoldHeight(formRef, state.status, [mode, way]);
+  // a key made or brought in here without its backup goes straight to Home (on /setup too): the backup comes before
+  // anything can bring value to it, not now (gate.tsx). A key restored from its backup file stays here for its extras.
+  const was = useRef(state.status);
+  const [toHome, setToHome] = useState(false);
+  useEffect(() => {
+    const before = was.current;
+    was.current = state.status;
+    if (before === "none" && (state.status === "unlocked" || state.status === "locked") && !state.backedUp) setToHome(true);
+  }, [state.status, state.backedUp]);
   let body: ReactNode;
   if (state.status === "damaged") body = <Damaged />;
   else if (state.status === "none") {
@@ -592,14 +524,26 @@ export function StartScreen() {
       <>
         <WarnLine />
         <Seg ariaLabel={t("mw.start.modeAria")} value={mode} onChange={setMode}
-          options={[{ value: "create", label: t("mw.start.tab.create") }, { value: "restore", label: t("mw.start.tab.restore") }, { value: "seed", label: t("mw.start.tab.seed") }, { value: "hex", label: t("mw.start.tab.hex") }]} />
-        {mode === "create" ? <CreateKey /> : mode === "restore" ? <RestoreFile onExtras={setExtras} /> : mode === "seed" ? <ImportSeed /> : <ImportHex />}
+          options={[{ value: "create", label: t("mw.start.tab.new") }, { value: "have", label: t("mw.start.tab.have") }]} />
+        {mode === "create" ? (
+          <>
+            <p className="t-small mw-dim mw-have-hint">{t("mw.start.haveHint")}</p>
+            <CreateKey />
+          </>
+        ) : (
+          <>
+            <Seg className="mw-ways" ariaLabel={t("mw.start.wayAria")} value={way} onChange={setWay}
+              options={[{ value: "restore", label: t("mw.start.tab.restore") }, { value: "seed", label: t("mw.start.tab.seed") }, { value: "hex", label: t("mw.start.tab.hex") }]} />
+            {way === "restore" ? <RestoreFile onExtras={setExtras} /> : way === "seed" ? <ImportSeed /> : <ImportHex />}
+          </>
+        )}
       </>
     );
   } else if (!state.backedUp) body = <BackupSteps />;
   else body = <Done />;
   const oneKey = (state.status === "locked" || state.status === "unlocked") && state.key ? <OneKeyNote address={state.key.address} /> : null;
   const shownExtras = extras && me && (extras.watchedIssuers?.length ?? 0) > 0 ? extras : null;
+  if (toHome) return <Navigate to="/wallet/mainnet" replace />;
   return (
     <div className="mw-start">
       <Hero warnings={state.status !== "none" && state.status !== "loading"} />

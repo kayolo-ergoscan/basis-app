@@ -29,7 +29,8 @@ import type { TrackedReserve } from "@/chain/ours";
 import { useMw } from "./ctx";
 import { R, inFlightOf, net, t1GateOf, useResource, useUnspent } from "./data";
 import { EntryProgress, signAndSend } from "./send";
-import { ChainLink, Erg, FlowSteps, Gate, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
+import { ChainLink, Erg, FlowSteps, ProblemText, ReserveTag, TimeHint, TxReview, ergText, useVaultError } from "./ui";
+import { Gate } from "./gate";
 import { Amt, DenomSwitch, NotServed, TokensAfter, amtText, backToKey, denomQuery, tokenOf, useDenom, useDenomPhase, useServed } from "./denom";
 
 type Phase =

@@ -10,7 +10,8 @@ import { mempoolInflow } from "@/mainnet/net";
 import { QrCode } from "../lib/qr";
 import { useMw } from "./ctx";
 import { R, inFlightOf, useResource, useUnspent } from "./data";
-import { ChainLink, Erg, Gate, ProblemText, Steps, TimeHint, ergText } from "./ui";
+import { ChainLink, Erg, ProblemText, Steps, TimeHint, ergText } from "./ui";
+import { Gate } from "./gate";
 
 /** The fee allowance the Fund screen asks for on top of the reserve (design §6.7: "T1: 0.0011 ERG"). */
 export const T1_FEE_ALLOWANCE = 1_100_000n;

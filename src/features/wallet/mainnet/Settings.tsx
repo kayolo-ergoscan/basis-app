@@ -3,15 +3,16 @@
 // and wiping the key from this browser (with a confirmation; without a verified backup the key is gone for good).
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, Field, Hex, Key, KeySeal, Switch, TextInput } from "@/ui";
+import { Callout, Card, Field, Hex, Key, KeySeal, Switch, TextInput, short } from "@/ui";
 import { bytesToHex } from "@/protocol/bytes";
 import { VAULT, isVaultError } from "@/mainnet/vault";
 import { watchExtras } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
 import { useMw } from "./ctx";
 import { forgetWatchList, useWatchList } from "./data";
-import { OneKeyNote, Persistence } from "./Start";
-import { Gate, useVaultError } from "./ui";
+import { OneKeyNote } from "./Start";
+import { useVaultError } from "./ui";
+import { BackupSteps, Gate, Persistence } from "./gate";
 
 const HEX_SHOWN_MS = 60_000;
 
@@ -155,10 +156,11 @@ export function SettingsScreen() {
                 <div className="mw-filecard">
                   <KeySeal pk={key.pub} size="md" />
                   <div>
+                    {/* before its backup is checked the key is shown short, nothing to copy (gate.tsx) */}
                     <div className="label">{t("mw.fund.addr")}</div>
-                    <Hex value={key.address} head={12} tail={8} copy />
-                    <div className="label">{t("mw.set.pub")}</div>
-                    <Hex value={key.pub} head={12} tail={8} copy />
+                    {state.backedUp ? <Hex value={key.address} head={12} tail={8} copy /> : <div className="mono t-small">{short(key.address, 6, 4)}</div>}
+                    {state.backedUp && <div className="label">{t("mw.set.pub")}</div>}
+                    {state.backedUp && <Hex value={key.pub} head={12} tail={8} copy />}
                   </div>
                 </div>
                 <p className="t-small mw-dim">{t("mw.set.made", { at: new Date(key.createdAt).toISOString().slice(0, 10), how: t(`mw.set.src.${key.source}`) })} · {key.backedUpAt ? t("mw.set.backedUp", { at: new Date(key.backedUpAt).toISOString().slice(0, 10) }) : t("mw.set.notBackedUp")}</p>
@@ -173,12 +175,19 @@ export function SettingsScreen() {
           </Card>
           <Card title={t("mw.set.backupT")}>
             <div className="mw-form">
-              <p className="t-small">{t("mw.set.backupB")}</p>
-              <Gate vault={vault} state={state} backup={false} unlocked why={t("mw.start.unlockForBackup")}>
-                <Key icon="down" onClick={() => void backupAgain()}>{t("mw.set.backupGo")}</Key>
-              </Gate>
-              {msg && <p className="t-small">{msg}</p>}
-              <Persistence />
+              {state.backedUp ? (
+                <>
+                  <p className="t-small">{t("mw.set.backupB")}</p>
+                  <Gate vault={vault} state={state} backup={false} unlocked why={t("mw.start.unlockForBackup")}>
+                    <Key icon="down" onClick={() => void backupAgain()}>{t("mw.set.backupGo")}</Key>
+                  </Gate>
+                  {msg && <p className="t-small">{msg}</p>}
+                  <Persistence />
+                </>
+              ) : (
+                // not checked yet: the backup step itself (download, load back, passphrase), as on the start
+                <BackupSteps />
+              )}
             </div>
           </Card>
           <Gate vault={vault} state={state} backup={false} unlocked why={t("mw.set.hexUnlock")}>
