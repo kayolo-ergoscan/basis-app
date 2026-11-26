@@ -5,11 +5,14 @@
 // since it was typed promise more than 25 % of the reserve on chain: the vault decides, vault/policy.ts), journal,
 // POST /notes, and the receipt (link and QR, data in the URL fragment). Then the tracker commits it: about 5–15
 // minutes until the receiver can redeem.
+// A request link (#to=…&amount=…&nft=…[&name=…&memo=…]) shows who asks first (request.tsx); without a backed-up key,
+// the ways on instead of the form, and the request waits in this tab while the key is set up. After paying, the last
+// step is the receipt, which the receiver needs to see the payment.
 // Token notes (?d=sigusd|rsada, or a request link's d=): the same flow per denomination. The note promises raw units of
 // the token, is signed over the token's message, and needs this key's active reserve in that token (the tracker's rule);
 // the pair's note is read for that denomination only, and nothing is ever added across denominations.
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Ledger, Switch, TextInput, int, short } from "@/ui";
 import { parseKeyInput, type TrackedReserve } from "@/chain/ours";
@@ -25,6 +28,8 @@ import { useMw } from "./ctx";
 import { R, net, ownReserveNow, useResource } from "./data";
 import { FlowSteps, Gate, ProblemText, Steps, TimeHint, useVaultError } from "./ui";
 import { Amt, DenomSwitch, UNKNOWN_DENOM, amtText, denomQuery, entryDenom, useDenom, useDenomPhase } from "./denom";
+import { ReceiptHandoff, RequestCard, RequestWelcome, useKeepRequest } from "./request";
+import { clearPending, openRequest, pendingNow } from "./reqlink";
 
 /** The receipt of a recorded note, rebuilt from its journal entry. */
 export function receiptOf(e: JournalEntry): NoteReceipt | null {
@@ -80,7 +85,8 @@ export function ReceiptCard({ r }: { r: NoteReceipt }) {
   );
 }
 
-function NoteStatus({ e }: { e: JournalEntry }) {
+/** `name`: the receiver's name from the request link this note paid (unchecked, plain text), for the receipt step. */
+function NoteStatus({ e, name }: { e: JournalEntry; name: string | null }) {
   const t = useT();
   const { vault } = useMw();
   useNoteTracking(vault, e);
@@ -94,9 +100,9 @@ function NoteStatus({ e }: { e: JournalEntry }) {
   if (e.state === "failed") steps.push({ id: "failed", label: t("mw.pay.s.failed"), sub: e.error ?? undefined, state: "fail" as never });
   return (
     <div className="mw-form">
+      {r && e.state !== "failed" && e.state !== "signed" && <ReceiptHandoff r={r} name={name} />}
       <Steps label={t("mw.pay.statusAria")} items={steps} />
       {e.state !== "final" && e.state !== "failed" && <TimeHint k="note" />}
-      {r && e.state !== "failed" && e.state !== "signed" && <ReceiptCard r={r} />}
     </div>
   );
 }
@@ -132,7 +138,11 @@ export function PayScreen() {
   const { vault, state, me, entries } = useMw();
   const verr = useVaultError();
   const loc = useLocation();
+  const nav = useNavigate();
   const req = useMemo(() => parseRequest(loc.hash), [loc.hash]);
+  // the same request with the link's name and memo (plain text, unchecked), kept in this tab until paid or dropped
+  const open = useMemo(() => openRequest(loc.hash), [loc.hash]);
+  useKeepRequest(open);
   // a request link names its denomination (absent: ERG); otherwise the switch
   const [denomParam, setDenom] = useDenom();
   const denom: Denomination = req ? req.denom ?? "erg" : denomParam;
@@ -164,6 +174,12 @@ export function PayScreen() {
   const noReserve = inDenom !== null && (inDenom.length !== 1 || inDenom[0].refundHeight > 0);
   const notes = useMemo(() => (me ? entries.filter((e) => e.pub === me.pub && e.kind === "note" && noteDenomOf(e) === denom).slice(0, 8) : []), [entries, me, denom]);
   const current = phase.k === "done" ? entries.find((e) => e.id === phase.id) ?? null : null;
+  // paid: the request waiting in this tab for this receiver (and denomination) is done
+  useEffect(() => {
+    const p = pendingNow();
+    if (current && p && current.meta.to === p.req.to && entryDenom(current) === (p.req.denom ?? "erg")) clearPending();
+  }, [current]);
+  const dropRequest = () => { clearPending(); nav("/wallet/mainnet"); };
 
   const prevText = (rule: PrevNoteRule) => t(`mw.pay.prev.${rule}`);
 
@@ -324,13 +340,19 @@ export function PayScreen() {
   }
   const failedEntry = phase.k === "error" && phase.id ? entries.find((e) => e.id === phase.id) ?? null : null;
 
+  // a request link without a backed-up key here: who asks and the ways on, instead of "no key"
+  if (open && !((state.status === "locked" || state.status === "unlocked") && state.backedUp)) return <RequestWelcome o={open} state={state} />;
+  const paidName = open && current && current.meta.to === open.req.to ? open.labels.name : null;
+
   return (
     <Gate vault={vault} state={state}>
       <div className="mw-grid">
         <div className="mw-main">
+          {open && phase.k !== "done" && <RequestCard o={open} onDrop={dropRequest} compact />}
           <header className="mw-screen-h">
             <h1 className="t-h2">{t("mw.pay.h")}</h1>
-            <p className="t-lede">{t("mw.pay.lede")}</p>
+            {/* under a request card the card says what this is; the side card «Notes» keeps the explanation */}
+            {!(open && phase.k !== "done") && <p className="t-lede">{t("mw.pay.lede")}</p>}
             {!req && <DenomSwitch value={denom} onChange={(x) => { setDenom(x); setPhase({ k: "edit" }); setAmountText(""); }} disabled={phase.k === "working" || phase.k === "review"} />}
             {/* an error after signing keeps the trail at the last step: the note exists, it was not sent */}
             <FlowSteps at={phase.k === "done" || failedEntry ? 2 : phase.k === "review" ? 1 : 0} notSent={failedEntry?.state === "signed"} />
@@ -345,7 +367,7 @@ export function PayScreen() {
             <Card title={phase.k === "done" ? t("mw.pay.doneT") : t("mw.pay.formT")}>
               {phase.k === "done" && current ? (
                 <div className="mw-form">
-                  <NoteStatus e={current} />
+                  <NoteStatus e={current} name={paidName} />
                   <Key onClick={() => { setPhase({ k: "edit" }); setAmountText(""); }}>{t("mw.pay.another")}</Key>
                 </div>
               ) : d ? (

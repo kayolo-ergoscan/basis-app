@@ -28,6 +28,7 @@ import { RedeemScreen } from "./Redeem";
 import { WithdrawScreen } from "./Withdraw";
 import { ActivityScreen } from "./Activity";
 import { SettingsScreen } from "./Settings";
+import { PendingRequestBar, useReturnToRequest } from "./request";
 import "./mainnet.css";
 
 const typeset = (d: Partial<Record<string, string>>, lang: "en" | "ru"): Record<string, string> =>
@@ -106,6 +107,8 @@ export default function MainnetWallet() {
     else if (state.status === "none") setMainnetPubMarker(null);
   }, [pubNow, state.status]);
   const ctx: MwContext | null = vault && state.status !== "loading" ? { vault, state, entries, me, height } : null;
+  // a payment request waiting in this tab: back to it once the key set up in this visit is backed up
+  useReturnToRequest((state.status === "locked" || state.status === "unlocked") && state.backedUp, !ctx);
 
   let body;
   if (failed) body = <ErrorState title={t("mw.boot.errT")} text={t("mw.boot.errB")} onRetry={() => window.location.reload()} retryLabel={t("mw.boot.retry")} />;
@@ -121,6 +124,7 @@ export default function MainnetWallet() {
     body = (
       <MwCtx.Provider value={ctx}>
         {hasKey && state.backedUp && <MwNav />}
+        <PendingRequestBar />
         {/* rendered under the feature's "/wallet/*": these paths are relative to /wallet */}
         <DenomGuard>
         <Routes>
