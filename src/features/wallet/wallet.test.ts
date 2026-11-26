@@ -215,3 +215,13 @@ describe("wallet helpers", () => {
     expect(share(9n, 4n)).toBe(1);
   });
 });
+
+describe("the sandbox backup step", () => {
+  it("is checked with the downloaded file and its passphrase, as on mainnet; the words are never asked back", () => {
+    expect(onboardingSrc).toContain("town.wallet.verifyBackup(file, vPass)");
+    expect(onboardingSrc).toContain('type="file"');
+    expect(onboardingSrc).not.toMatch(/wallet\.onb\.word["']|wl-words2|words\[1\]|words\[2\]/);
+    expect(EN["wallet.onb.wordsAre"]).toMatch(/not a recovery phrase/);
+    for (const k of ["savedFile", "pickSaved", "fileNo"]) expect([k, !!EN[`wallet.onb.${k}`], !!RU[`wallet.onb.${k}`]]).toEqual([k, true, true]);
+  });
+});

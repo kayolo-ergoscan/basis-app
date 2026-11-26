@@ -684,8 +684,6 @@ const en: Dict = {
   "wallet.onb.mismatch": "The passphrases differ.",
   "wallet.onb.download": "Download the encrypted backup",
   "wallet.onb.saved": "Backup downloaded",
-  "wallet.onb.savedB": "Now type the 2nd and 3rd words of your key to finish.",
-  "wallet.onb.word": "Word {n}",
   "wallet.onb.check": "Check and continue",
   "wallet.onb.again": "Download again",
   "wallet.onb.skip": "Skip the backup",
@@ -719,6 +717,11 @@ const en: Dict = {
   "wallet.news.more": "+{n} earlier",
   "wallet.news.less": "Only the newest",
   "wallet.news.clear": "Clear the news",
+
+  // polish: the backup is checked with its file, as on mainnet (the words name the key and are never asked back)
+  "wallet.onb.savedFile": "Now load that file back and type its passphrase: this proves the copy opens your key.",
+  "wallet.onb.pickSaved": "Choose the saved file",
+  "wallet.onb.fileNo": "This file with this passphrase does not open your sandbox key.",
 };
 
 const ru: Partial<Dict> = {
@@ -1397,8 +1400,6 @@ const ru: Partial<Dict> = {
   "wallet.onb.mismatch": "Пароли не совпадают.",
   "wallet.onb.download": "Скачать зашифрованную копию",
   "wallet.onb.saved": "Копия скачана",
-  "wallet.onb.savedB": "Теперь введите 2-е и 3-е слово ключа, чтобы закончить.",
-  "wallet.onb.word": "Слово {n}",
   "wallet.onb.check": "Проверить и продолжить",
   "wallet.onb.again": "Скачать заново",
   "wallet.onb.skip": "Пропустить копию",
@@ -1431,6 +1432,11 @@ const ru: Partial<Dict> = {
   "wallet.news.more": "ещё {n}",
   "wallet.news.less": "Только последняя",
   "wallet.news.clear": "Убрать новости",
+
+  // polish: копия проверяется файлом, как в основной сети (слова — имя ключа, их не спрашивают)
+  "wallet.onb.savedFile": "Теперь загрузите этот файл обратно и введите его пароль: так видно, что копия открывает ваш ключ.",
+  "wallet.onb.pickSaved": "Выбрать сохранённый файл",
+  "wallet.onb.fileNo": "Этот файл с этим паролем не открывает ваш ключ песочницы.",
 };
 
 export default { en, ru };

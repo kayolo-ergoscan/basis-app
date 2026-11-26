@@ -1,6 +1,7 @@
-// Onboarding (K01–K03, K05, K06, K09, W01): create or import a sandbox key → three words + fingerprint + seal →
-// encrypted backup (passphrase ≥ 8, words 2 and 3 typed back, or a skip with a warning) → join the town (50 play
-// ERG) → the home with a three-hint tour. Says plainly: sandbox key, play money, do not send real ERG to it.
+// Onboarding (K01–K03, K05, K06, K09, W01): create or import a sandbox key → three words (its name) + fingerprint +
+// seal → encrypted backup (passphrase ≥ 8, then the downloaded file loaded back with its passphrase, as on mainnet; or
+// a skip with a warning) → join the town (50 play ERG) → the home with a three-hint tour. Says plainly: sandbox key,
+// play money, do not send real ERG to it. The words are never asked back: they name the key, they restore nothing.
 import { useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useT } from "@/app/lang";
@@ -197,24 +198,25 @@ function StepBackup() {
   const { identity } = useWallet();
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
-  const [json, setJson] = useState<string | null>(null);
-  const [w2, setW2] = useState("");
-  const [w3, setW3] = useState("");
+  const [saved, setSaved] = useState(false);
+  // the check: the file the browser saved, picked again, and its passphrase typed again
+  const [file, setFile] = useState<string | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [vPass, setVPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [skip, setSkip] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   if (!identity) return null;
   const weak = pass.length > 0 && pass.length < 8;
   const mismatch = pass2.length > 0 && pass2 !== pass;
-  const norm = (s: string) => s.trim().toLowerCase();
-  const wordsOk = norm(w2) === identity.words[1].toLowerCase() && norm(w3) === identity.words[2].toLowerCase();
   const download = async () => {
     setBusy(true);
     setErr(null);
     try {
       const b = await town.wallet.exportBackup(pass);
       saveText(b.json, b.filename);
-      setJson(b.json);
+      setSaved(true);
     } catch (e) {
       setErr(t(`wallet.err.${errCode(e)}`));
     } finally {
@@ -222,11 +224,13 @@ function StepBackup() {
     }
   };
   const confirm = async () => {
-    if (!json) return;
+    if (!file) return;
     setBusy(true);
+    setErr(null);
     try {
-      const ok = await town.wallet.verifyBackup(json, pass);
-      if (!ok) setErr(t("wallet.err.wrong-passphrase"));
+      // passes only when this file, with this passphrase, opens this very key (the identity is then backed up)
+      const ok = await town.wallet.verifyBackup(file, vPass);
+      if (!ok) setErr(t("wallet.onb.fileNo"));
     } catch (e) {
       setErr(t(`wallet.err.${errCode(e)}`));
     } finally {
@@ -236,7 +240,7 @@ function StepBackup() {
   return (
     <div className="wl-form">
       <IdentityCard />
-      {!json ? (
+      {!saved ? (
         <>
           <Field label={t("wallet.onb.pass")} help={t("wallet.onb.passHelp")} error={weak ? t("wallet.err.weak-passphrase") : undefined}>
             <TextInput value={pass} onChange={setPass} type="password" autoComplete="new-password" />
@@ -251,20 +255,35 @@ function StepBackup() {
       ) : (
         <>
           <Callout tone="proof" title={t("wallet.onb.saved")}>
-            {t("wallet.onb.savedB")}
+            {t("wallet.onb.savedFile")}
           </Callout>
-          <div className="wl-words2">
-            <Field label={t("wallet.onb.word", { n: 2 })}>
-              <TextInput value={w2} onChange={setW2} autoComplete="off" />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            aria-label={t("wallet.onb.pickSaved")}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              setErr(null);
+              setFileName(f.name);
+              void f.text().then(setFile, () => setFile(null));
+            }}
+          />
+          <Key variant="default" icon="note" onClick={() => fileRef.current?.click()}>
+            {fileName || t("wallet.onb.pickSaved")}
+          </Key>
+          {file && (
+            <Field label={t("wallet.onb.pass")}>
+              <TextInput value={vPass} onChange={setVPass} type="password" autoComplete="current-password" />
             </Field>
-            <Field label={t("wallet.onb.word", { n: 3 })}>
-              <TextInput value={w3} onChange={setW3} autoComplete="off" />
-            </Field>
-          </div>
-          <Key variant="primary" size="lg" disabled={busy || !wordsOk} onClick={() => void confirm()}>
+          )}
+          <Key variant="primary" size="lg" disabled={busy || !file || vPass.length < 8} onClick={() => void confirm()}>
             {t("wallet.onb.check")}
           </Key>
-          <button type="button" className="textlink t-small" onClick={() => setJson(null)}>
+          <button type="button" className="textlink t-small" onClick={() => { setSaved(false); setFile(null); setFileName(""); setVPass(""); setErr(null); }}>
             {t("wallet.onb.again")}
           </button>
         </>
