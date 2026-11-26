@@ -1028,7 +1028,10 @@ ul.lx-who-row { list-style: none; margin: 0; padding: 0; display: grid; grid-tem
 @media (max-width: 1000px) { ul.lx-who-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { ul.lx-who-row { grid-template-columns: minmax(0, 1fr); } }
 
-/* ---------- circle: the developer circle (/learn/circle) ---------- */
+/* ---------- circle: the developer circle (/learn/circle), and its lines from the Learn index and the developer page ---------- */
+nav.lx-devs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 40px; }
+nav.lx-devs .lx-dev { margin-top: 0; }
+.dv-circle { margin-top: 16px; }
 .cc-hero.solo { grid-template-columns: minmax(0, 1fr); }
 .cc-hero .t-lede { margin-bottom: 0; }
 .cc-empty { margin: 18px 0 0; font: 500 15px/1.5 var(--f-ui); color: var(--ink); }
@@ -1066,6 +1069,6 @@ details.cc-tpl { border: 1px solid var(--rule); border-radius: 10px; background:
 .cc-tpl-b > :last-child { position: absolute; top: 8px; right: 8px; }
 .cc-tpl > p.t-small { margin: 0; padding: 0 14px 12px; }
 .dv-cards.cc-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 1180px) { .dv-cards.cc-cards { grid-template-columns: minmax(0, 1fr); } .cc-hero .cc-card.ghost { max-width: 520px; } }
-@media (max-width: 640px) { .cc-card { padding: 18px 16px 16px; } }
+@media (max-width: 1180px) { nav.lx-devs { grid-template-columns: minmax(0, 1fr); } .dv-cards.cc-cards { grid-template-columns: minmax(0, 1fr); } .cc-hero .cc-card.ghost { max-width: 520px; } }
+@media (max-width: 640px) { .cc-card { padding: 18px 16px 16px; } nav.lx-devs { margin-top: 32px; } }
 .cc-units .textlink { font: inherit; }

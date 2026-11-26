@@ -63,6 +63,17 @@ plain build you only need the npm commands above.
 | `src/content/` | Long-form EN/RU texts, FAQ, glossary, history |
 | `src/ui/` | The design system ("Intaglio"); live at `/kit` |
 
+## Developer circle
+
+`src/content/circle.json` is this site's list at https://basis.ergoscan.me/learn/circle: people and projects that
+accept Basis notes for their work. To join:
+1. make your button in the mainnet wallet: Receive → "A button for your project";
+2. put it in your project's README;
+3. open a pull request that adds your entry at the end of the file. Leave out `checked`: it is set at review, once the
+   key in your entry matches the key in your README's button.
+
+`src/content/circle.ts` lists the fields and their limits; `src/content/circle.test.ts` checks every entry.
+
 ## Tracker
 
 The tracker the wallet uses is our fork of `BetterMoneyLabs/basis-tracker`, at

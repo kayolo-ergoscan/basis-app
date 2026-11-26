@@ -1,6 +1,7 @@
 // The developer circle (/learn/circle): empty, it invites (a dashed "your entry here", «Be the first», the three steps
 // with the wallet's button and the pull request) and links no payment; with entries, each card's key opens that
 // entry's request link, the other currencies sit beside it, and the reviewer's check names its day and the README.
+// The Learn index, the developer page and the footer link the page.
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -8,6 +9,10 @@ import { getLang, setLang, translate } from "@/app/lang";
 import { CIRCLE_GITHUB, circleLink, readCircle, type CircleEntry } from "@/content/circle";
 import "./Page"; // the page module merges the lazy strings, typeset as on the site
 import CirclePage from "./pages/CirclePage";
+import DevPage from "./pages/DevPage";
+import indexSrc from "./pages/IndexPage.tsx?raw";
+import chromeSrc from "@/app/chrome.tsx?raw";
+import route from "./route";
 
 // the list the page renders: empty (as shipped) or the sample entries below (test data, never shipped)
 const list = vi.hoisted(() => ({ now: [] as CircleEntry[] }));
@@ -122,4 +127,22 @@ for (const lang of ["en", "ru"] as const) {
       expect(html).toContain("Sam &amp; Co");
     });
   });
+
+  describe(`links to the circle, ${lang.toUpperCase()}`, () => {
+    it("the developer page links it", () => {
+      list.now = [];
+      expect(render(lang, <DevPage />, "/learn/developers")).toContain('href="/learn/circle"');
+    });
+  });
 }
+
+describe("links to the circle", () => {
+  it("the Learn index and the footer's «Our code» column link it; ⌘K finds it", () => {
+    expect(indexSrc).toContain('to="/learn/circle"');
+    const ours = chromeSrc.slice(chromeSrc.indexOf('t("app.footer.ours")'));
+    expect(ours.slice(0, ours.indexOf("</div>"))).toContain('to="/learn/circle"');
+    const cmd = route.commands?.find((c) => c.id === "learn.circle");
+    expect(cmd?.to).toBe("/learn/circle");
+    expect(cmd?.keywords).toMatch(/круг/);
+  });
+});

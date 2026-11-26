@@ -59,6 +59,9 @@ const en = {
   "app.footer.app": "Site",
   "app.footer.tracker": "Tracker",
   "app.footer.dev": "For developers",
+  // circle: the developer circle in the «Our code» column (a short word, its full name in the link's title)
+  "app.footer.circle": "Circle",
+  "app.footer.circleTitle": "Developer circle: who accepts notes for their work",
 
   "app.tape.waiting": "Waiting for the next commitment",
 
@@ -174,6 +177,9 @@ const ru: Partial<typeof en> = {
   "app.footer.app": "Сайт",
   "app.footer.tracker": "Трекер",
   "app.footer.dev": "Разработчикам",
+  // circle: круг разработчиков в колонке «Наш код» (короткое слово, полное название в подсказке ссылки)
+  "app.footer.circle": "Круг",
+  "app.footer.circleTitle": "Круг разработчиков: кто принимает расписки за свою работу",
 
   "app.tape.waiting": "Ждём следующую фиксацию",
 

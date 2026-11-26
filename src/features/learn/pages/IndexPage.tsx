@@ -66,11 +66,18 @@ export default function IndexPage() {
         </nav>
       </section>
 
-      <Link className="lx-dev" to="/learn/developers">
-        <Icon name="code" size={18} />
-        <span>{t("learn.ix.dev")}</span>
-        <Icon name="right" size={16} />
-      </Link>
+      <nav className="lx-devs" aria-label={t("learn.dev.title")}>
+        <Link className="lx-dev" to="/learn/developers">
+          <Icon name="code" size={18} />
+          <span>{t("learn.ix.dev")}</span>
+          <Icon name="right" size={16} />
+        </Link>
+        <Link className="lx-dev" to="/learn/circle">
+          <Icon name="you" size={18} />
+          <span>{t("learn.ix.circle")}</span>
+          <Icon name="right" size={16} />
+        </Link>
+      </nav>
 
       <section className="lx-moments" id="moments" aria-label={t("learn.ix.moments")}>
         {moments.map((m) => {

@@ -94,6 +94,11 @@ export default function DevPage() {
             {step3 && <pre className="dv-pre">{step3.curl}</pre>}
           </li>
         </ol>
+        <Link className="lx-dev dv-circle" to="/learn/circle">
+          <Icon name="you" size={18} />
+          <span>{t("learn.cc.fromDev")}</span>
+          <Icon name="right" size={16} />
+        </Link>
       </section>
 
       <section className="dv-sec" aria-labelledby="dv-ex">

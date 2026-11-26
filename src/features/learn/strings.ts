@@ -584,6 +584,8 @@ const en: Record<string, string> = {
   "learn.cc.know.1": "Only a key with a reserve can pay through the button today: ErgoScan's tracker takes notes only from a key with an active reserve in the same currency.",
   "learn.cc.know.2": "After paying, send the receiver the receipt link: without it they do not see the payment.",
   "learn.cc.know.3": "This list belongs to this site and is kept by ErgoScan, not by Better Money Labs.",
+  "learn.cc.fromDev": "Accept notes for your work? Join the developer circle",
+  "learn.ix.circle": "Developer circle: who accepts notes for their work, and how to join",
 };
 
 const ru: Record<string, string> = {
@@ -1182,6 +1184,8 @@ const ru: Record<string, string> = {
   "learn.cc.know.1": "Платить по кнопке сейчас может только ключ с резервом: трекер ErgoScan принимает расписки лишь от ключа, у которого есть действующий резерв в той же валюте.",
   "learn.cc.know.2": "После оплаты отправьте получателю ссылку-квитанцию: без неё он не увидит оплату.",
   "learn.cc.know.3": "Это список этого сайта, его ведёт ErgoScan, а не Better Money Labs.",
+  "learn.cc.fromDev": "Принимаете расписки за свою работу? Круг разработчиков",
+  "learn.ix.circle": "Круг разработчиков: кто принимает расписки за свою работу и как туда попасть",
 };
 
 export default { en, ru } satisfies I18nBundle;

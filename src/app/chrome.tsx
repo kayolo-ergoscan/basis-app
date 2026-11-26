@@ -282,6 +282,7 @@ export function Footer() {
             {/* short words (the address is the link's title), so the three columns still fit beside the brand at 1280 px */}
             <a href={REPOS.app.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.app.name}`}><Icon name="github" size={15} />{t("app.footer.app")}</a>
             <a href={REPOS.tracker.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.tracker.name}`}><Icon name="github" size={15} />{t("app.footer.tracker")}</a>
+            <Link to="/learn/circle" title={t("app.footer.circleTitle")}><Icon name="you" size={15} />{t("app.footer.circle")}</Link>
           </div>
           <div className="f-col">
             <span className="label">Basis</span>
