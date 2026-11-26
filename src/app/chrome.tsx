@@ -119,7 +119,8 @@ export function Nav() {
             const on = x.match(loc.pathname);
             return (
               <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined} onMouseEnter={() => warm(x.id)} onFocus={() => warm(x.id)}>
-                {t(x.key)}
+                {/* the wallet opens the mainnet key: the header says it is in beta («Wallet (beta)») */}
+                {x.id === "wallet" ? t("app.openWallet") : t(x.key)}
               </Link>
             );
           })}
