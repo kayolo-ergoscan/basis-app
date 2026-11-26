@@ -142,8 +142,6 @@
 .mw-seedrow input { margin: 0; accent-color: var(--ink); }
 .mw-seedrow-i { font-size: 12.5px; color: var(--ink-3); text-align: right; }
 @media (max-width: 480px) { .mw-seedrow { grid-template-columns: auto 22px auto minmax(0, 1fr); } .mw-seedrow .tag { grid-column: 4; justify-self: start; } }
-/* phone: the four ways to bring a key in sit two by two, so no label breaks into four lines */
-@media (max-width: 480px) { .mw-start-card .mw-form > .seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-self: stretch; } .mw-start-card .mw-form > .seg button { padding-inline: 8px; } }
 
 /* the sandbox/mainnet switch sits in the top bar here */
 .mw-top .wl-mode { margin: 0; }
@@ -162,8 +160,9 @@
   .mw-top { align-items: stretch; }
   .mw-top-l { width: 100%; }
   .mw-top-l .wl-mode { width: 100%; }
-  .mw-nav { width: 100%; }
-  .mw-nav a { padding: 8px 10px; flex: 1 1 auto; justify-content: center; }
+  /* the wallet menu: one row of four, icon over label (clear round 26.11) */
+  .mw-nav { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
+  .mw-nav a { flex-direction: column; gap: 5px; padding: 9px 2px 8px; font-size: 12.5px; justify-content: center; min-width: 0; }
   .mw-sheet { grid-template-columns: minmax(0, 1fr); }
   .mw-qr-wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; }
   .mw-qr svg { width: min(220px, 62vw); height: min(220px, 62vw); }
@@ -187,55 +186,6 @@
 .mw-steps-house { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; }
 .mw-steps-house .house-lights { margin-top: 2px; }
 
-/* ─── home: the setup quest, then three answers ─────────────────────────────────────────────── */
-.mw-home { display: grid; gap: 22px; min-width: 0; }
-.mw-home > * { min-width: 0; }
-.mw-quest { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "house body go" "house steps go"; gap: 8px clamp(20px, 3vw, 40px); align-items: center; padding: 22px clamp(20px, 2.4vw, 32px);
-  background: radial-gradient(120% 140% at 0% 100%, color-mix(in srgb, var(--lamp) 10%, transparent), transparent 60%), var(--surface); }
-.mw-quest-house { grid-area: house; display: grid; place-items: center; padding: 4px 6px; }
-.mw-quest-b { grid-area: body; align-self: end; display: grid; gap: 8px; min-width: 0; }
-.mw-quest-steps { grid-area: steps; align-self: start; min-width: 0; }
-.mw-quest-b h2 { margin: 0; }
-.mw-quest-b p { margin: 0; }
-.mw-quest-steps .mw-steps { margin-top: 2px; display: flex; flex-wrap: wrap; gap: 0 22px; }
-.mw-quest-steps .mw-step::after { display: none; }
-.mw-quest-go { grid-area: go; align-self: center; }
-.mw-answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.mw-answers > .card { display: grid; gap: 14px; align-content: start; grid-template-rows: auto 1fr; }
-.mw-answers > .card > .card-b { display: grid; gap: 14px; align-content: start; }
-.mw-answers > .card > .card-b > .mw-actions { align-self: end; }
-.mw-q { margin: 0; display: flex; align-items: center; gap: 10px; font: 650 17px/1.2 var(--f-display); letter-spacing: -.015em; color: var(--ink); text-transform: none; }
-.mw-q-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; font: 700 11.5px/1 var(--f-ui); color: var(--ink-2); background: var(--town-win); box-shadow: inset 0 0 0 1px var(--rule-2); flex: none; }
-.mw-ans.have .mw-q-n { background: color-mix(in srgb, var(--lamp) 30%, var(--town-win)); color: var(--ink); }
-.mw-ans.owed .mw-q-n { background: color-mix(in srgb, var(--metal) 40%, var(--town-win)); color: var(--ink); }
-.mw-ans.owe .mw-q-n { background: color-mix(in srgb, var(--moon) 30%, var(--town-win)); color: var(--ink); }
-.mw-backing { margin: -4px 0 0; color: var(--ink-2); }
-.mw-home-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.mw-home-foot > :only-child { grid-column: 1 / -1; }
-.mw-quest-done { padding: 0; }
-.mw-quest-done summary { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 12px 18px; cursor: pointer; list-style: none; font: 600 14px/1.3 var(--f-ui); color: var(--ink-2); border-radius: inherit; }
-.mw-quest-done summary::-webkit-details-marker { display: none; }
-.mw-quest-done summary::after { content: '+'; margin-left: auto; font: 600 16px/1 var(--f-ui); color: var(--ink-3); }
-.mw-quest-done[open] summary::after { content: '−'; }
-.mw-quest-done summary:hover { color: var(--ink); }
-.mw-quest-done summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.mw-quest-done-b { padding: 0 18px 18px; }
-@media (max-width: 1200px) {
-  .mw-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mw-answers > .mw-ans.owe { grid-column: 1 / -1; }
-}
-@media (max-width: 760px) {
-  /* phones: the next action right under the title (clear of the tab bar on the first screen), the steps after it */
-  .mw-quest { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "house body" "go go" "steps steps"; gap: 12px 16px; padding: 18px 16px; }
-  .mw-quest-house .house-lights { width: 60px; height: auto; }
-  .mw-quest-b { align-self: center; }
-  .mw-quest-go .key { width: 100%; justify-content: center; }
-  .mw-quest-steps .mw-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
-  .mw-quest-steps .mw-step { padding: 4px 0; }
-  .mw-answers, .mw-home-foot { grid-template-columns: minmax(0, 1fr); }
-  .mw-answers > .mw-ans.owe { grid-column: auto; }
-}
-
 /* ─── where an action stands: fill in → check and sign → sent ─────────────────────────────── */
 
 /* the start screen: the whole setup as a quest */
@@ -247,7 +197,6 @@
 .mw-questmap-l li.done { color: var(--ink-2); background: color-mix(in srgb, var(--lamp) 14%, transparent); box-shadow: none; }
 .mw-questmap-l li.now { color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--lamp); }
 @media (max-width: 480px) { .mw-questmap { grid-template-columns: minmax(0, 1fr); padding: 14px; } .mw-questmap .house-lights { width: 52px; height: auto; } }
-.mw-figure b .mw-count-u { font: 500 .56em/1 var(--f-ui); letter-spacing: 0; color: var(--ink-2); }
 
 /* ─── a payment request opened from a link (request.tsx) ─── */
 .mw-rq { display: grid; gap: 12px; padding: clamp(20px, 2.2vw, 28px); overflow: hidden; }
@@ -320,25 +269,114 @@
 .mw-warn-more summary:hover { color: var(--ink); }
 .mw-warn-more .mw-warn-list { margin: 10px 0 2px -28px; gap: 8px; }
 .mw-warn-more .mw-warn-list li { font-size: 14px; }
+/* two choices as in any wallet (a new key, one you have); the three ways in under the second, quieter */
 .mw-start-card .mw-form > .seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-self: stretch; }
 .mw-start-card .mw-form > .seg button { line-height: 1.25; padding-inline: 10px; }
+.mw-start-card .mw-form > .seg.mw-ways { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mw-start-card .mw-form > .seg.mw-ways button { font-size: 13px; padding-inline: 6px; }
+.mw-have-hint { margin: -4px 0 0; }
+.mw-why { margin: 2px 0 0; max-width: 56ch; font: 500 15px/1.5 var(--f-ui); color: var(--ink-2); }
+.mw-why .textlink { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
 .mw-seedtip { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 14.5px/1.4 var(--f-ui); color: var(--ink); }
 .mw-seedtip svg { flex: none; color: var(--ink-2); }
 
-/* ─── polish: Receive in one column (phone, tablet). The two columns melt into one list so the order can change:
-   a receipt opened from a link first of all, then «Ask for a payment» (the amount, then the QR), the project button
-   right after it, then what was paid to you; the times last. On a phone the title, which only repeats the lit tab,
-   is left to screen readers, and the lede moves down to the notes it describes. ─── */
-@media (max-width: 1100px) {
-  .mw-recv { gap: 20px; }
-  .mw-recv > :is(.mw-main, .mw-side), .mw-recv .mw-screen-h { display: contents; }
-  .mw-recv .mw-screen-h > h1 { order: -5; }
-  .mw-recv .mw-screen-h + .mw-recv-import { order: -4; } /* only the one opened from a link sits right under the title */
-  .mw-recv .mw-ask { order: -3; }
-  .mw-recv .mw-tip { order: -2; }
-  .mw-recv .mw-screen-h > .t-lede { order: -1; }
-  .mw-ask .mw-form > :is(.mw-denoms, .mw-qr + .field-l) { order: -1; }
+
+/* ─── home (clear round 26.11): the balance first, three actions, who owes whom as rows, the last steps of the
+   history, the setup as one thin strip, the beta note last. Every row is one line high whatever it holds, and the
+   summary figures keep their width, so what arrives later never moves what is below it. ─── */
+.mw-home { display: grid; gap: 20px; min-width: 0; }
+.mw-home > * { min-width: 0; }
+.mw-nudge .key { margin-top: 12px; }
+.mw-bal { display: grid; gap: 12px; padding: 2px 0 4px; }
+.mw-bal-top { display: flex; align-items: center; gap: 12px; min-height: 20px; }
+.mw-bal-top h1 { margin: 0; color: var(--ink-3); }
+.mw-bal-v { font: 650 clamp(52px, 9vw, 76px)/1 var(--f-display); letter-spacing: -.035em; font-feature-settings: "tnum" 1, "lnum" 1; color: var(--ink); min-height: 1em; }
+.mw-bal-v .u-unit { font: 600 .36em/1 var(--f-ui); letter-spacing: .04em; color: var(--ink-3); }
+.mw-bal-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font: 500 15.5px/1.4 var(--f-ui); color: var(--ink-2); }
+.mw-bal-line b { display: inline-block; min-width: 5.5em; color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.mw-home-keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 640px; margin-top: 4px; }
+.mw-home-keys .key.tall { --h: 64px; font: 600 15px/1.1 var(--f-ui); padding: 0 6px; }
+.mw-home-keys .key.tall svg { width: 20px; height: 20px; }
+.mw-home-keys .key .lbl { max-width: 100%; white-space: normal; text-align: center; line-height: 1.1; }
+.mw-bal-more { display: flex; flex-wrap: wrap; gap: 8px; }
+.mw-strip { display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 8px 10px 8px 14px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule); font: 500 15px/1.3 var(--f-ui); color: var(--ink-2); }
+.mw-strip .house-lights { width: 34px; height: auto; flex: none; }
+.mw-strip-go { margin-left: auto; color: var(--metal-ink); }
+.mw-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.mw-answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.mw-answers > .card > .card-b { display: grid; gap: 14px; align-content: start; }
+.mw-backing { margin: -4px 0 0; color: var(--ink-2); }
+:is(.mw-debts, .mw-hist) > .card-b { display: grid; gap: 10px; align-content: start; }
+:is(.mw-debts, .mw-hist) > .card-b > .key { justify-self: start; }
+.mw-debts-empty { display: grid; gap: 12px; justify-items: start; }
+.mw-debts-empty p { margin: 0; }
+.mw-hrows { list-style: none; margin: 0; padding: 0; display: grid; }
+.mw-hrow-li { border-bottom: 1px solid var(--rule); }
+.mw-hrow-li:last-child { border-bottom: 0; }
+.mw-hrow { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; grid-auto-flow: column; gap: 12px; align-items: center; min-height: 60px; padding: 8px 0; color: inherit; text-decoration: none; }
+a.mw-hrow { margin: 0 -10px; padding-inline: 10px; border-radius: 12px; }
+a.mw-hrow:hover { background: var(--well); }
+a.mw-hrow:focus-visible { box-shadow: var(--focus-halo); }
+.mw-hrow-m { display: grid; place-items: center; width: 30px; height: 30px; }
+.mw-hrow-w { display: grid; gap: 3px; min-width: 0; }
+.mw-hrow-w > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-hrow-w b { font: 600 15.5px/1.3 var(--f-ui); color: var(--ink); }
+.mw-hrow-w span { font: 400 13px/1.35 var(--f-ui); color: var(--ink-3); }
+.mw-hrow-v { font: 600 15.5px/1.2 var(--f-ui); color: var(--ink); white-space: nowrap; text-align: right; }
+.mw-hrow-dot { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.mw-hrow-go { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--f-ui); color: var(--ink-2); white-space: nowrap; }
+@media (max-width: 640px) { .mw-hrow-go-t { display: none; } }
+@media (max-width: 760px) {
+  .mw-cols { grid-template-columns: minmax(0, 1fr); }
+  .mw-home { gap: 16px; }
+  .mw-home-keys { gap: 8px; }
+  .mw-home-keys .key.tall { --h: 62px; font-size: 14px; }
+  .mw-strip { font-size: 14px; gap: 10px; padding: 6px 8px 6px 12px; }
 }
+
+/* the key menu: the key chip opens the key's reserve and settings (next to «Lock») */
+.mw-keymenu { position: relative; }
+.mw-keymenu > summary { list-style: none; cursor: pointer; }
+.mw-keymenu > summary::-webkit-details-marker { display: none; }
+.mw-keymenu > summary:hover { color: var(--ink); }
+.mw-keymenu > summary:focus-visible { outline: none; box-shadow: var(--focus-halo); }
+.mw-keychip-v { color: var(--ink-3); margin-left: -2px; }
+.mw-keymenu[open] .mw-keychip-v { transform: rotate(180deg); }
+.mw-keymenu-p { position: absolute; z-index: 40; top: calc(100% + 8px); right: 0; min-width: 210px; display: grid; gap: 2px; padding: 6px; border-radius: 14px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--rule-2), 0 18px 40px -18px rgba(var(--shade), .7); }
+.mw-keymenu-p a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; font: 600 14px/1 var(--f-ui); color: var(--ink-2); text-decoration: none; }
+.mw-keymenu-p a:hover, .mw-keymenu-p a.on { background: var(--well); color: var(--ink); }
+.mw-keymenu-p a.on svg { color: var(--metal-ink); }
+.mw-keymenu-p a:focus-visible { box-shadow: var(--focus-halo); }
+@media (max-width: 640px) { .mw-keymenu-p { left: 0; right: auto; } }
+
+/* the backup step in place of a screen that would bring value to the key (gate.tsx) */
+.mw-backup-first { max-width: 680px; }
+
+/* ─── Receive (clear round 26.11): the request with its QR first and wide (a note, or ERG to the key), then «Notes to
+   me» (the inbox and the watched payers in one card), the rarer ways folded under «More ways» ─── */
+.mw-ask-g { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 26px; align-items: start; }
+.mw-ask-l { display: grid; gap: 10px; justify-items: center; }
+.mw-ask-l .mw-qr svg { width: 204px; height: 204px; }
+.mw-ask-l .mw-qr.lg svg { width: 236px; height: 236px; }
+.mw-ask-l p { margin: 0; }
+.mw-ask-r .mw-actions .key.primary { --h: 44px; padding-inline: 18px; font-size: 15px; }
+.mw-ask-r p { margin: 0; }
+.mw-mine-h { margin: 6px 0 0; color: var(--ink-3); }
+.mw-more > .card-b { padding-block: 6px; }
+.mw-fold { border-bottom: 1px solid var(--rule); }
+.mw-fold:last-child { border-bottom: 0; }
+.mw-fold > summary { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 14px 0; cursor: pointer; list-style: none; border-radius: 6px; }
+.mw-fold > summary::-webkit-details-marker { display: none; }
+.mw-fold > summary b { font: 600 15px/1.3 var(--f-ui); color: var(--ink); }
+.mw-fold > summary:focus-visible { box-shadow: var(--focus-halo); }
+.mw-fold-i { color: var(--ink-3); }
+.mw-fold[open] .mw-fold-i { transform: rotate(45deg); }
+.mw-fold-b { padding: 2px 0 18px; }
 @media (max-width: 640px) {
   .mw-recv .mw-screen-h > h1 { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .mw-ask-g { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .mw-ask-l .mw-qr svg, .mw-ask-l .mw-qr.lg svg { width: min(230px, 64vw); height: min(230px, 64vw); }
+  .mw-fold > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .mw-fold > summary > span { grid-column: 1; grid-row: 2; }
+  .mw-fold > summary > .mw-fold-i { grid-column: 2; grid-row: 1 / 3; }
 }
