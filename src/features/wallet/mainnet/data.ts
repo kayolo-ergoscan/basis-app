@@ -12,12 +12,14 @@ import { RESERVE_TREE_HEX, TOKEN_RESERVE_TREE_HEX, boxIdHolds, isWalletDenom, re
 // ─── the vault ──────────────────────────────────────────────────────────────────────────────────
 
 let vaultP: Promise<MainnetVault> | null = null;
+let vaultNow: MainnetVault | null = null;
 let stopAutoLock: (() => void) | null = null;
 
 function loadVault(): Promise<MainnetVault> {
   if (!vaultP) {
     vaultP = getMainnetVault().then((v) => {
       if (!stopAutoLock && typeof window !== "undefined") stopAutoLock = attachAutoLock(v);
+      vaultNow = v;
       return v;
     });
     vaultP.catch(() => { vaultP = null; });
@@ -26,9 +28,15 @@ function loadVault(): Promise<MainnetVault> {
 }
 
 /** The page's one vault (null while it opens). */
+/** Opens the vault ahead of a switch to the wallet (src/app/motion.ts waits for it with the page's chunk), so the page
+ *  shows its screen at once instead of a loading frame. The same one vault the page then uses. */
+export const warmVault = (): Promise<unknown> => loadVault();
+
 export function useVault(): { vault: MainnetVault | null; failed: boolean } {
-  const [s, setS] = useState<{ vault: MainnetVault | null; failed: boolean }>({ vault: null, failed: false });
+  // an open vault (an earlier visit, or a switch that opened it first) is there from the first render
+  const [s, setS] = useState<{ vault: MainnetVault | null; failed: boolean }>(() => ({ vault: vaultNow, failed: false }));
   useEffect(() => {
+    if (vaultNow && s.vault === vaultNow) return;
     let live = true;
     loadVault().then((vault) => { if (live) setS({ vault, failed: false }); }, () => { if (live) setS({ vault: null, failed: true }); });
     return () => { live = false; };

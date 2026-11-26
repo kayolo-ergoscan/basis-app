@@ -1,8 +1,8 @@
 // Small shared pieces of the wallet: amounts, seals of town people, the tracker chip, headers.
-import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useMemo, useRef, type ReactNode } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { Honest, Icon, Key, KeySeal, Lamp, Popover, Tag, TrackerTile, type LampState } from "@/ui";
+import { Honest, Icon, Key, KeySeal, Lamp, Popover, Tag, TrackerTile, useGlide, type LampState } from "@/ui";
 import { town, TOWN_TRACKER, useClock, useTown, YOU } from "@/world";
 import type { Economy } from "@/protocol";
 import { useFmt, useNameOf, useNarrow, useWT } from "../lib/hooks";
@@ -134,15 +134,21 @@ export function WalletBar() {
   const narrow = useNarrow();
   const { height, speed } = useClock();
   if (narrow) return <WalletBarM />;
+  return <WalletBarD label={<>{TOWN_TRACKER} · {t("wallet.bar.block")} <b>{f.height(height)}</b> · {wt(`world.speed.${speed}`)}</>} />;
+}
+
+function WalletBarD({ label }: { label: ReactNode }) {
+  const t = useT();
+  const ref = useRef<HTMLElement>(null);
+  useGlide(ref, undefined, "wl-bar");
   return (
     <div className="wl-bar">
       <div className="wl-bar-l">
         <SandboxTag />
-        <span className="label">
-          {TOWN_TRACKER} · {t("wallet.bar.block")} <b>{f.height(height)}</b> · {wt(`world.speed.${speed}`)}
-        </span>
+        <span className="label">{label}</span>
       </div>
-      <nav className="wl-bar-n" aria-label={t("wallet.bar.aria")}>
+      <nav className="wl-bar-n" aria-label={t("wallet.bar.aria")} ref={ref}>
+        <span className="glide" aria-hidden="true" />
         {BAR.map(([to, k, icon]) => (
           <NavLink key={to} to={to} end={to === "/wallet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
             <Icon name={icon} size={15} />
@@ -157,15 +163,12 @@ export function WalletBar() {
 function WalletBarM() {
   const t = useT();
   const ref = useRef<HTMLElement>(null);
-  const { pathname } = useLocation();
-  // the current section stays in view in the row (Settings sits past the right edge on a phone)
-  useLayoutEffect(() => {
-    const nav = ref.current;
-    const on = nav?.querySelector<HTMLElement>("a.on");
-    if (nav && on) nav.scrollLeft = Math.max(0, on.offsetLeft - nav.offsetLeft - 16);
-  }, [pathname]);
+  // the current section stays in view in the row (Settings sits past the right edge on a phone): the plate keeps the
+  // row's scroll from page to page and scrolls only as far as the lit section needs (it used to snap it to the left)
+  useGlide(ref, undefined, "wl-bar-m");
   return (
     <nav className="wl-bar-m" aria-label={t("wallet.bar.aria")} ref={ref}>
+      <span className="glide" aria-hidden="true" />
       {BAR.map(([to, k, icon]) => (
         <NavLink key={to} to={to} end={to === "/wallet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
           <Icon name={icon} size={15} />

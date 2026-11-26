@@ -6,7 +6,7 @@
 // key goes).
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from "react";
 import { useT } from "@/app/lang";
-import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short, HouseLights } from "@/ui";
+import { Callout, Card, Field, Hex, Icon, Key, KeySeal, Seg, Switch, Tag, TextInput, short, HouseLights, useHoldHeight } from "@/ui";
 import { SEED_MAX_INDEX, VAULT, checkPassphrase, normalizeMnemonic, parseBackup, type BackupExtras, type SeedKey, type SeedProblem } from "@/mainnet/vault";
 import { watchExtras, watchIssuer } from "@/mainnet/flows";
 import { saveText } from "../lib/download";
@@ -581,6 +581,10 @@ export function StartScreen() {
   const [mode, setMode] = useState<Mode>("create");
   const [extras, setExtras] = useState<BackupExtras | null>(null);
   const [, updateWatch] = useWatchList(me?.pub ?? null);
+  // the four ways to add a key are four forms of different heights: the card keeps the tallest one it has shown, so
+  // switching back never moves what is below it (motion round; the forms themselves are as they were)
+  const formRef = useRef<HTMLDivElement>(null);
+  useHoldHeight(formRef, state.status, [mode]);
   let body: ReactNode;
   if (state.status === "damaged") body = <Damaged />;
   else if (state.status === "none") {
@@ -601,7 +605,7 @@ export function StartScreen() {
       <Hero warnings={state.status !== "none" && state.status !== "loading"} />
       <QuestMap lit={state.status === "locked" || state.status === "unlocked" ? (state.backedUp ? 2 : 1) : 0} />
       <Card className="mw-start-card">
-        <div className="mw-form">
+        <div className="mw-form" ref={formRef}>
           {body}
           {oneKey}
           {shownExtras && me && (

@@ -1,9 +1,9 @@
 // The notes list (VISUAL §13 /wallet): seal with a lamp badge, name, the direction in words, the mini-cap of the
 // credit line, the amount and today's change. Tabs All / Owed to you / You owe / Agents.
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useRef, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/app/lang";
-import { AgentTag, Empty, Lamp, MiniCap, Tabs } from "@/ui";
+import { AgentTag, Empty, Lamp, MiniCap, Tabs, useHoldHeight } from "@/ui";
 import { useFmt, useNameOf, usePrefs, setPrefs, useTg } from "../lib/hooks";
 import { filterRows, GENDER, POSSESSIVE_EN, rowAmount, sortRows, type Row, type TabId } from "../lib/model";
 import { Amt, PartySeal } from "./bits";
@@ -110,8 +110,17 @@ export function NotesPanel({ rows, nowMs, hrefOf, tabs = true, limit, tab, onTab
   const list = sortRows(filterRows(rows, tab), p.sort);
   const shown = limit ? list.slice(0, limit) : list;
   const count = (x: TabId) => filterRows(rows, x).length;
+  // switching tabs never moves what is below the list: the panel keeps the height of its longest tab (motion round)
+  const ref = useRef<HTMLElement>(null);
+  const most = Math.min(limit ?? Infinity, count("all"));
+  useHoldHeight(ref, rows.length, [tab, shown.length, most, tabs], () => {
+    const list = ref.current?.querySelector(".wl-rows"), panel = ref.current;
+    if (!tabs || !list || !panel || !shown.length) return 0;
+    const per = list.getBoundingClientRect().height / shown.length;
+    return panel.getBoundingClientRect().height + per * Math.max(0, most - shown.length);
+  });
   return (
-    <section className="wl-notes" aria-labelledby="wl-notes-h">
+    <section className="wl-notes" aria-labelledby="wl-notes-h" ref={ref}>
       {title && (
         <div className="spread wl-notes-h">
           <h2 className="label" id="wl-notes-h">

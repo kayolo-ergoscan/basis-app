@@ -2,19 +2,21 @@
 // the vault (src/mainnet/vault), the transaction core (src/mainnet/tx), the network (src/mainnet/net) and these screens.
 // Every screen carries the mode switch with mainnet lit («Real ERG · beta»); the sandbox wallet and its key are never
 // touched from here.
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { addI18n, getLang, useT } from "@/app/lang";
 import { useTitle } from "@/app/frame";
 import { useHeight } from "@/app/height";
 import { typo } from "@/content";
-import { Callout, ErrorState, Icon, Key, KeySeal, Loading, Page, short } from "@/ui";
+import { Callout, ErrorState, Icon, Key, KeySeal, Loading, Page, short, useGlide } from "@/ui";
 import { p2pkTree } from "@/mainnet/tx";
 import { setMainnetPubMarker } from "@/mainnet/key-markers";
 import { WalletModeSwitch } from "../ModeSwitch";
 import strings from "./strings";
 import { MwCtx, type MwContext } from "./ctx";
 import { useJournal, useJournalWatcher, useVault, useVaultState } from "./data";
+
+export { warmVault as warm } from "./data";
 import { dropTokensExcept } from "./inbox";
 import { HomeScreen } from "./Home";
 import { DenomGuard } from "./denom";
@@ -79,8 +81,11 @@ function TopBar({ ctx }: { ctx: MwContext | null }) {
 
 function MwNav() {
   const t = useT();
+  const ref = useRef<HTMLElement>(null);
+  useGlide(ref, undefined, "mw-nav");
   return (
-    <nav className="mw-nav" aria-label={t("mw.nav.aria")}>
+    <nav className="mw-nav" aria-label={t("mw.nav.aria")} ref={ref}>
+      <span className="glide" aria-hidden="true" />
       {NAV.map(([to, k, icon]) => (
         <NavLink key={to} to={to} end={to === "/wallet/mainnet"} className={({ isActive }) => (isActive ? "on" : undefined)}>
           <Icon name={icon} size={15} />

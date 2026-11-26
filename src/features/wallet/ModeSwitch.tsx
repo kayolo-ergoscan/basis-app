@@ -2,9 +2,11 @@
 // real ERG). Switching never moves a key: each mode has its own key and storage. Shared by both lazy pages. On the
 // mainnet wallet the lit mainnet tab is the one sign that the screen moves real ERG: its «Real ERG · beta» line is
 // in gold (value on Ergo), on every mainnet screen.
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { addI18n, useT } from "@/app/lang";
 import { typo } from "@/content";
+import { useGlide } from "@/ui";
 import "./mode.css";
 
 /** The switch's own strings (both lazy pages use it, so it registers them itself). */
@@ -35,8 +37,11 @@ export function WalletModeSwitch({ mode }: { mode: "sandbox" | "mainnet" }) {
     { id: "sandbox", to: "/wallet", label: t("wallet.mode.sandbox"), sub: t("wallet.mode.sandboxSub"), glyph: "◌" },
     { id: "mainnet", to: "/wallet/mainnet", label: t("wallet.mode.mainnet"), sub: t("wallet.mode.mainnetSub"), glyph: "◆" },
   ] as const;
+  const ref = useRef<HTMLElement>(null);
+  useGlide(ref, undefined, "wl-mode");
   return (
-    <nav className="wl-mode" aria-label={t("wallet.mode.aria")}>
+    <nav className="wl-mode" aria-label={t("wallet.mode.aria")} ref={ref}>
+      <span className="glide" aria-hidden="true" />
       {items.map((x) => (
         <Link key={x.id} to={x.to} data-mode={x.id} className={x.id === mode ? "on" : undefined} aria-current={x.id === mode ? "page" : undefined}>
           <span className="wl-mode-l"><span className="g" aria-hidden="true">{x.glyph}</span>{x.label}</span>
