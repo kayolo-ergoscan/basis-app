@@ -69,7 +69,8 @@ function Backing({ collateral, r }: { collateral: string; r: { collateral: bigin
   return (
     <p className="t-small mw-backing">
       {t("mw.home.backedBy", { reserve: collateral })}
-      {tag.kind === "band" ? ` ${t("mw.home.cover", { pct: int(tag.pct) })}` : ""}
+      {/* floor, not round: 149.6 % must not read «150 %» next to a «watch» band */}
+      {tag.kind === "band" ? ` ${t("mw.home.cover", { pct: int(Math.floor(tag.pct)) })}` : ""}
     </p>
   );
 }
@@ -126,8 +127,8 @@ export function HomeScreen() {
           <div className="mw-quest-b">
             <h2 className="t-h3" id="mw-quest-h">{t("mw.home.quest.t")}</h2>
             <p className="t-small mw-dim">{t("mw.home.quest.b", { n: lit, total: quest.length })}</p>
-            <Steps label={t("mw.home.checkT")} items={quest} />
           </div>
+          <div className="mw-quest-steps"><Steps label={t("mw.home.checkT")} items={quest} /></div>
           <div className="mw-quest-go">
             <Key variant="primary" size="lg" to={`/wallet/mainnet/${step === "note" ? "pay" : step}`}>{t(`mw.home.next.${step}`)}</Key>
           </div>
@@ -147,7 +148,7 @@ export function HomeScreen() {
           </div>
         </Card>
         <Card title={<h2 className="mw-q"><span className="mw-q-n" aria-hidden="true">2</span>{t("mw.home.q.owed")}</h2>} className="mw-ans owed">
-          <div className="mw-figure big"><b>{watch.length}</b><span className="t-small mw-dim">{t("mw.home.recvB")}</span></div>
+          <div className="mw-figure big"><b>{int(watch.length)} <span className="mw-count-u">{t.p("mw.home.payers", watch.length)}</span></b><span className="t-small mw-dim">{t("mw.home.recvB")}</span></div>
           <div className="mw-actions">
             <Key size="sm" icon="request" to="/wallet/mainnet/receive">{t("mw.nav.receive")}</Key>
             <Key size="sm" icon="redeem" variant={lead === "redeem" ? "metal" : undefined} to={watch.length ? "/wallet/mainnet/redeem" : undefined} disabled={watch.length === 0}>{t("mw.home.redeem")}</Key>
@@ -179,13 +180,18 @@ export function HomeScreen() {
             <p className="t-small">{t("mw.home.unproven")} <Key size="sm" to="/wallet/mainnet/reserve">{t("mw.home.reserveOpen")}</Key></p>
           ) : unchecked ? (
             <p className="t-small mw-dim">{t("mw.home.unchecked")}</p>
-          ) : gate.value === null && !gate.problem ? (
-            <p className="t-small mw-dim">{t("mw.top.loading")}</p>
-          ) : (
+          ) : gate.value?.k === "none" ? (
             <>
               <div className="mw-figure big"><b><Erg nano={0n} /></b><span className="t-small mw-dim">{t("mw.home.noReserve")}</span></div>
               {step !== "reserve" && <div className="mw-actions"><Key size="sm" icon="coin" to="/wallet/mainnet/reserve">{t("mw.home.next.reserve")}</Key></div>}
             </>
+          ) : gate.problem ? (
+            <>
+              <div className="mw-figure big"><b>—</b><span className="t-small mw-dim">{t("mw.home.oweUnknown")}</span></div>
+              <p className="t-small"><ProblemText p={gate.problem} what="read" /></p>
+            </>
+          ) : (
+            <p className="t-small mw-dim">{t("mw.top.loading")}</p>
           )}
         </Card>
       </div>
@@ -205,7 +211,7 @@ export function HomeScreen() {
           <Key size="sm" variant="quiet" to="/wallet/mainnet/activity">{t("mw.nav.activity")}</Key>
         </Card>
       )}
-      {(un.problem || gate.problem) && <p className="t-small"><ProblemText p={(un.problem ?? gate.problem)!} what="read" /></p>}
+      {(un.problem || (gate.problem && gate.value)) && <p className="t-small"><ProblemText p={(un.problem ?? gate.problem)!} what="read" /></p>}
       <div className="mw-home-foot">
         {!step && (
           <details className="card mw-quest-done">
