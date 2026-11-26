@@ -173,6 +173,19 @@ export interface TraceFacts {
   issuer: string;
 }
 
+/**
+ * The trace as a payer reads it: a «one of» that passes keeps only the alternatives that passed. The evaluator checks
+ * every alternative (rightly), but «✕ You: not on this list» under a «yes» reads as a refusal when another list takes
+ * you. A failing «one of» keeps all of its alternatives: each is a reason. Nothing else changes.
+ */
+export function passingPath(trace: PredicateTrace | null): PredicateTrace | null {
+  if (!trace) return trace;
+  const kids = trace.children;
+  if (!kids?.length) return trace;
+  const keep = trace.type === "any_of" && trace.result ? kids.filter((k) => k.result) : kids;
+  return { ...trace, children: keep.map((k) => passingPath(k)!) };
+}
+
 export function traceLines(trace: PredicateTrace | null, f: TraceFacts, t: TFn, depth = 0, out: TraceLine[] = []): TraceLine[] {
   if (!trace) return out;
   let text: string;

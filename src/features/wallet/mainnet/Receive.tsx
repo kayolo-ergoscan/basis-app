@@ -148,7 +148,7 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
     setName("");
   };
   return (
-    <Card title={t("mw.recv.importT")}>
+    <Card title={t("mw.recv.importT")} className="mw-recv-import">
       <div className="mw-form">
         <Field label={t("mw.recv.importL")} help={t("mw.recv.importHelp")}>
           <TextInput mono value={text} onChange={setText} placeholder={t("mw.recv.importPh")} autoComplete="off" />
@@ -233,7 +233,7 @@ export function ReceiveScreen() {
   return (
     <Gate vault={vault} state={state}>
       {me && (
-        <div className="mw-grid">
+        <div className="mw-grid mw-recv">
           <div className="mw-main">
             <header className="mw-screen-h">
               <h1 className="t-h2">{t("mw.recv.h")}</h1>
@@ -253,7 +253,7 @@ export function ReceiveScreen() {
             <ProjectButton me={me.pub} />
           </div>
           <aside className="mw-side">
-            <Card title={t("mw.recv.askT")}>
+            <Card title={t("mw.recv.askT")} className="mw-ask">
               <div className="mw-form">
                 <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
                 <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>

@@ -11,6 +11,10 @@ import { makePayLink, parsePayLink, plainAmount, policyCapFor, share } from "./l
 import { faq } from "@/content";
 import onboardingSrc from "./flows/Onboarding.tsx?raw";
 import { whereKey, WHY_NO_WALLET_HREF } from "./flows/Onboarding";
+import { passingPath } from "./lib/policyText";
+import paySrc from "./flows/Pay.tsx?raw";
+import { evaluateAcceptance } from "@/protocol";
+import { cafePolicy } from "@/world/town/genesis";
 
 const BANNED_EN = [
   /trustless/i,
@@ -213,5 +217,48 @@ describe("wallet helpers", () => {
     expect(share(1n, 0n)).toBe(0);
     expect(share(1n, 4n)).toBe(0.25);
     expect(share(9n, 4n)).toBe(1);
+  });
+});
+
+describe("the sandbox backup step", () => {
+  it("is checked with the downloaded file and its passphrase, as on mainnet; the words are never asked back", () => {
+    expect(onboardingSrc).toContain("town.wallet.verifyBackup(file, vPass)");
+    expect(onboardingSrc).toContain('type="file"');
+    expect(onboardingSrc).not.toMatch(/wallet\.onb\.word["']|wl-words2|words\[1\]|words\[2\]/);
+    expect(EN["wallet.onb.wordsAre"]).toMatch(/not a recovery phrase/);
+    for (const k of ["savedFile", "pickSaved", "fileNo"]) expect([k, !!EN[`wallet.onb.${k}`], !!RU[`wallet.onb.${k}`]]).toEqual([k, true, true]);
+  });
+});
+
+describe("the pay window's policy check", () => {
+  const you = "02" + "aa".repeat(32);
+  const dan = "02" + "dd".repeat(32);
+  const ctx = { issuer: you, recipient: "03" + "cc".repeat(32), totalDebt: 400_000_000n, denom: "erg" as const, reserve: null, issuerGrossDebt: 400_000_000n };
+
+  it("a passing «one of» shows only the alternative that passed: no «✕ not on this list» under a yes", () => {
+    const acc = evaluateAcceptance(cafePolicy({ regulars: [dan], newcomers: [you] }), ctx, "per-recipient");
+    expect(acc.acceptable).toBe(true);
+    // the evaluator checks every alternative (the regulars list and the reserve fail, the newcomers list passes) …
+    expect(acc.trace!.children!.map((c) => [c.name, c.result])).toEqual([["regulars", false], ["backed", false], ["newcomers", true]]);
+    // … the payer is shown the one that takes them
+    const shown = passingPath(acc.trace)!;
+    expect(shown.result).toBe(true);
+    expect(shown.children!.map((c) => [c.name, c.result])).toEqual([["newcomers", true]]);
+    expect(acc.trace!.children!.length).toBe(3); // the evaluator's trace itself is left as it was
+  });
+
+  it("a failing «one of» keeps every alternative: each is a reason", () => {
+    const acc = evaluateAcceptance(cafePolicy({ regulars: [dan], newcomers: [] }), ctx, "per-recipient");
+    expect(acc.acceptable).toBe(false);
+    const shown = passingPath(acc.trace)!;
+    expect(shown.children!.map((c) => [c.name, c.result])).toEqual([["regulars", false], ["backed", false]]);
+    expect(passingPath(null)).toBeNull();
+  });
+
+  it("the pay window uses it, says the answer in one line and keeps the policy, its check and the advisory note under «Details»", () => {
+    expect(paySrc).toContain("traceLines(passingPath(v.acc.trace)");
+    expect(paySrc).toMatch(/<details className="wl-pol-d"[^>]*>[\s\S]*<PolicySentence[\s\S]*wl-trace[\s\S]*wallet\.pay\.advisoryNote[\s\S]*<\/details>/);
+    expect(paySrc).toContain('className="wl-act wl-act-pin"');
+    expect([EN["wallet.pay.v.upTo"], RU["wallet.pay.v.upTo"]]).toEqual(["{name} will accept: up to {v}", "{name} примет: до {v}"]);
   });
 });

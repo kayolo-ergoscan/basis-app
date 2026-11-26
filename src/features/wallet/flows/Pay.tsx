@@ -1,5 +1,6 @@
 // Pay = raise your note (P01–P03, P06, P07, A06, H01, C08): pick who, add an increment, see the new total, the
-// recipient's policy with an advisory pre-check, your coverage, the consent sentence, then hold to sign. The town
+// recipient's answer in one line (an advisory pre-check; the policy and its check open under it), your coverage, the
+// consent sentence, then hold to sign: the hold key stays at the bottom of the window while the form scrolls. The town
 // signs with your sandbox key, T-01 witnesses, and the status ladder follows the note to Ergo.
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -10,7 +11,7 @@ import { parseAmount, previewPay, RESIDENTS, town, TOWN_TRACKER, useTown, useTow
 import { StatusLadder, ladderFromEconomy } from "@/viz";
 import { useFmt, useNameOf, useOutcomeToast, useRevealOnMount, useWT } from "../lib/hooks";
 import { acceptanceCtx, plainAmount, policyCapFor, resolveParty, toNum, unitOf, type Unit } from "../lib/model";
-import { policyText, traceLines } from "../lib/policyText";
+import { passingPath, policyText, traceLines } from "../lib/policyText";
 import { Frame, PartySeal } from "../parts/bits";
 import { copy, pick } from "@/content";
 
@@ -194,7 +195,8 @@ function PayForm({ to, initial, onDone }: { to: string; initial: { amount: strin
     const x = p.recipientPolicy?.predicates.find((q) => q.name === pred);
     return x && x.type === "whitelist" && x.max_debt != null ? f.amt(x.max_debt, unit, { unit: true }) : null;
   };
-  const lines = v.acc ? traceLines(v.acc.trace, { total: f.amt(p.totalAfter, unit, { unit: true }), capOf, coverage: v.ctxCoverage === null ? null : f.pct(v.ctxCoverage), ratioOf, issuer: nameOf(YOU) }, t) : [];
+  // a passing «one of» shows the alternative that passed, not the ones it did not need (a false «✕ You: not listed»)
+  const lines = v.acc ? traceLines(passingPath(v.acc.trace), { total: f.amt(p.totalAfter, unit, { unit: true }), capOf, coverage: v.ctxCoverage === null ? null : f.pct(v.ctxCoverage), ratioOf, issuer: nameOf(YOU) }, t) : [];
   const policyOk = !v.acc || v.acc.acceptable;
   const line = p.creditLine;
   const outstandingAfter = p.outstanding + (value ?? 0n);
@@ -220,12 +222,20 @@ function PayForm({ to, initial, onDone }: { to: string; initial: { amount: strin
     }
   };
 
+  // one line: what the recipient's wallet would say. Before an amount it says the most it takes, when it would take
+  // your current total; with an amount, yes (and up to what) or why not.
+  const accepts = policyOk && lineOk;
   const verdict = blocked ? (
     <div className="wl-verdict no">
       <Lamp state="alarm" size={8} />
       {!p.trackerOnline ? t("wallet.pay.v.offline", { id: TOWN_TRACKER }) : t("wallet.pay.v.censored", { id: TOWN_TRACKER })}
     </div>
-  ) : !value ? null : policyOk && lineOk ? (
+  ) : accepts && headroom !== null && headroom > 0n ? (
+    <div className="wl-verdict ok">
+      <Lamp state="live" size={8} />
+      {f.prose(t("wallet.pay.v.upTo", { name, v: f.amt(headroom, unit, { unit: true }) }))}
+    </div>
+  ) : !value ? null : accepts ? (
     <div className="wl-verdict ok">
       <Lamp state="live" size={8} />
       {t("wallet.pay.v.ok", { name })}
@@ -278,24 +288,31 @@ function PayForm({ to, initial, onDone }: { to: string; initial: { amount: strin
       </div>
 
       <section className="wl-pol" aria-labelledby={`${uid}-pol`}>
-        <div className="spread">
-          <h3 className="label" id={`${uid}-pol`}>
+        <div className="spread wl-pol-h">
+          <h3 className={verdict ? "sr-only" : "label"} id={`${uid}-pol`}>
             <b>{t("wallet.pay.policy", { name })}</b>
           </h3>
+          {verdict}
           <Tag>{t("wallet.pay.advisory")}</Tag>
         </div>
-        <PolicySentence parts={pol.parts} />
-        {verdict}
-        {!!value && lines.length > 0 && (
-          <ul className="wl-trace">
-            {lines.map((l, i) => (
-              <li key={i} className={l.ok ? "ok" : "no"} style={{ paddingLeft: `${l.depth * 14}px` }}>
-                <span aria-hidden="true">{l.ok ? "✓" : "✕"}</span> {f.prose(l.text)}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="t-small">{t("wallet.pay.advisoryNote", { id: TOWN_TRACKER })}</p>
+        {/* a refusal opens it: the reasons are in the check */}
+        <details className="wl-pol-d" open={!!value && !accepts && !blocked}>
+          <summary>{t("wallet.pay.polMore")}</summary>
+          <div className="wl-pol-b">
+            <span className="label">{t("wallet.pay.policy", { name })}</span>
+            <PolicySentence parts={pol.parts} />
+            {!!value && lines.length > 0 && (
+              <ul className="wl-trace">
+                {lines.map((l, i) => (
+                  <li key={i} className={l.ok ? "ok" : "no"} style={{ paddingLeft: `${l.depth * 14}px` }}>
+                    <span aria-hidden="true">{l.ok ? "✓" : "✕"}</span> {f.prose(l.text)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="t-small">{t("wallet.pay.advisoryNote", { id: TOWN_TRACKER })}</p>
+          </div>
+        </details>
       </section>
 
       <section className="wl-cov" aria-label={t("wallet.pay.coverage")}>
@@ -331,7 +348,7 @@ function PayForm({ to, initial, onDone }: { to: string; initial: { amount: strin
         </Callout>
       )}
 
-      <div className="wl-act">
+      <div className="wl-act wl-act-pin">
         <Key variant="primary" size="lg" block hold="sign" onAct={() => void sign()} disabled={!canSign} aria-label={value ? t("wallet.pay.holdAria", { v: f.amt(p.totalAfter, unit, { unit: true }) }) : t("wallet.pay.enter")}>
           {busy ? t("wallet.pay.signing") : value ? t("wallet.pay.hold", { v: f.amt(p.totalAfter, unit) }) : t("wallet.pay.enter")}
         </Key>

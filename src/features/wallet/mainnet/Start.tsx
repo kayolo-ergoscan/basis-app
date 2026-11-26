@@ -24,19 +24,41 @@ async function readFile(e: ChangeEvent<HTMLInputElement>): Promise<string | null
   try { return await f.text(); } catch { return null; }
 }
 
-function Hero({ children }: { children?: ReactNode }) {
+/** The four warnings of a mainnet key: small amounts, the key only here, browsers that forget, an experiment. */
+function WarnList() {
+  const t = useT();
+  return (
+    <ul className="mw-warn-list">
+      <li><Icon name="warn" size={16} />{t("mw.warn.small")}</li>
+      <li><Icon name="lock" size={16} />{t("mw.warn.key")}</li>
+      <li><Icon name="info" size={16} />{t("mw.warn.storage")}</li>
+      <li><Icon name="info" size={16} />{t("mw.warn.experimental")}</li>
+    </ul>
+  );
+}
+
+/** The title and the lede; the four warnings under them once a key exists (its backup step, the done screen). */
+function Hero({ warnings }: { warnings: boolean }) {
   const t = useT();
   return (
     <div className="mw-hero">
       <h1 className="t-h1 mw-hero-h">{t("mw.start.h1a")} <em>{t("mw.start.h1b")}</em></h1>
       <p className="t-lede mw-hero-lede">{t("mw.start.lede")}</p>
-      <ul className="mw-warn-list">
-        <li><Icon name="warn" size={16} />{t("mw.warn.small")}</li>
-        <li><Icon name="lock" size={16} />{t("mw.warn.key")}</li>
-        <li><Icon name="info" size={16} />{t("mw.warn.storage")}</li>
-        <li><Icon name="info" size={16} />{t("mw.warn.experimental")}</li>
-      </ul>
-      {children}
+      {warnings && <WarnList />}
+    </div>
+  );
+}
+
+/** Before a key exists the form comes first: one line says what matters, and the four warnings open under it. */
+function WarnLine() {
+  const t = useT();
+  return (
+    <div className="mw-warn-one">
+      <p className="mw-warn-line"><Icon name="warn" size={16} />{t("mw.start.warnLine")}</p>
+      <details className="mw-warn-more">
+        <summary>{t("mw.start.warnMore")}</summary>
+        <WarnList />
+      </details>
     </div>
   );
 }
@@ -349,6 +371,7 @@ function ImportSeed() {
   );
   return (
     <>
+      <p className="mw-seedtip"><Icon name="info" size={15} />{t("mw.start.seedTip")}</p>
       <p className="t-body">{t("mw.start.seedB")}</p>
       <Field label={t("mw.start.seedLabel")} help={count > 0 ? `${t("mw.start.seedCount", { n: count })} ${t("mw.start.seedHelp")}` : t("mw.start.seedHelp")} error={problemText}>
         <SecretField ref={wordsEl} name="basis-seed-import" flat shown={shown} onInput={typed} trailing={toggle(shown, setShown)} />
@@ -563,6 +586,7 @@ export function StartScreen() {
   else if (state.status === "none") {
     body = (
       <>
+        <WarnLine />
         <Seg ariaLabel={t("mw.start.modeAria")} value={mode} onChange={setMode}
           options={[{ value: "create", label: t("mw.start.tab.create") }, { value: "restore", label: t("mw.start.tab.restore") }, { value: "seed", label: t("mw.start.tab.seed") }, { value: "hex", label: t("mw.start.tab.hex") }]} />
         {mode === "create" ? <CreateKey /> : mode === "restore" ? <RestoreFile onExtras={setExtras} /> : mode === "seed" ? <ImportSeed /> : <ImportHex />}
@@ -574,7 +598,8 @@ export function StartScreen() {
   const shownExtras = extras && me && (extras.watchedIssuers?.length ?? 0) > 0 ? extras : null;
   return (
     <div className="mw-start">
-      <Hero><QuestMap lit={state.status === "locked" || state.status === "unlocked" ? (state.backedUp ? 2 : 1) : 0} /></Hero>
+      <Hero warnings={state.status !== "none" && state.status !== "loading"} />
+      <QuestMap lit={state.status === "locked" || state.status === "unlocked" ? (state.backedUp ? 2 : 1) : 0} />
       <Card className="mw-start-card">
         <div className="mw-form">
           {body}

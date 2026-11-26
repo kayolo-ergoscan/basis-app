@@ -3,8 +3,8 @@
 // "Code" card and the ⌘K bar link here (CLIENTS_HREF), so the section id below is that anchor.
 import type { ReactNode } from "react";
 import { rich, useT } from "@/app";
-import { Callout, CopyButton, Icon, Tag } from "@/ui";
-import { apiEndpoints, clientPrograms, clients, ERGOSCAN_TRACKER_URL, GIT_REF_SHORT, pick, type ClientRouteGroup, type Text } from "@/content";
+import { Callout, Icon, Tag } from "@/ui";
+import { apiEndpoints, clientPrograms, clients, GIT_REF_SHORT, pick, type ClientRouteGroup, type Text } from "@/content";
 import { Sec, inline } from "../layout";
 
 export const CLIENTS_SECTION = "clients";
@@ -50,12 +50,6 @@ export function ApiClients() {
   const P = (x: Text) => pick(x, t.lang);
   return (
     <Sec id={CLIENTS_SECTION} first title={rich(t("learn.api.s.clients"))} lede={P(clients.lede)}>
-      <div className="api-cl-addr">
-        <span className="label">{t("learn.api.cl.addr")}</span>
-        <code>{ERGOSCAN_TRACKER_URL}</code>
-        <CopyButton value={ERGOSCAN_TRACKER_URL} label={t("learn.api.cl.copy")} small />
-      </div>
-
       <ul className="api-cl-cards">
         {clientPrograms.map((c) => (
           <li className="api-cl-card" key={c.id}>
