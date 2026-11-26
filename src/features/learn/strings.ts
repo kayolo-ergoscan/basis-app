@@ -424,7 +424,6 @@ const en: Record<string, string> = {
   "learn.api.limits": "Limits",
   "learn.api.clear": "Clear the filter",
   "learn.api.s.clients": "Ready-made *programs.*",
-  "learn.api.cl.addr": "ErgoScan's tracker address for them",
   "learn.api.cl.copy": "Copy the address",
   "learn.api.cl.with": "With ErgoScan's tracker",
   "learn.api.cl.yes": "Accepted",
@@ -537,6 +536,13 @@ const en: Record<string, string> = {
   "learn.ix.who.faq": "Questions and answers",
   "learn.f.sp.chain": "On chain",
   "learn.f.sp.example": "Example",
+  // ---------- polish: «Basis in one minute» at the top of /learn/how (#minute) ----------
+  "learn.how.min.toc": "In one minute",
+  "learn.how.min.t": "Basis in *one minute.*",
+  "learn.how.min.p1": "Basis is notes instead of transfers: you pay with a signature, not by sending coins. Each note is one running total between two keys; to pay again, you sign a bigger total.",
+  "learn.how.min.p2": "A tracker witnesses the notes and every few minutes writes a fingerprint of all of them to Ergo. If the payer has an ERG reserve, the receiver can take the money on Ergo; without one, the note rests on trust.",
+  "learn.how.min.p3": "Only the payer's key can sign a total, so the tracker alone cannot create a debt. Try it with play money in the sandbox; on Ergo mainnet, use small amounts only.",
+  "learn.how.min.try": "Try it in the sandbox",
 };
 
 const ru: Record<string, string> = {
@@ -971,7 +977,6 @@ const ru: Record<string, string> = {
   "learn.api.limits": "Лимиты",
   "learn.api.clear": "Сбросить фильтр",
   "learn.api.s.clients": "Готовые *программы.*",
-  "learn.api.cl.addr": "Адрес трекера ErgoScan для них",
   "learn.api.cl.copy": "Скопировать адрес",
   "learn.api.cl.with": "С трекером ErgoScan",
   "learn.api.cl.yes": "Принимается",
@@ -1086,6 +1091,13 @@ const ru: Record<string, string> = {
   "learn.ix.who.faq": "Вопросы и ответы",
   "learn.f.sp.chain": "В блокчейне",
   "learn.f.sp.example": "Пример",
+  // ---------- polish: «Basis за минуту» в начале /learn/how (#minute) ----------
+  "learn.how.min.toc": "За минуту",
+  "learn.how.min.t": "Basis *за минуту.*",
+  "learn.how.min.p1": "Basis — это расписки вместо переводов: вы платите подписью, а не отправкой монет. Каждая расписка — одна растущая сумма между двумя ключами; чтобы заплатить ещё, вы подписываете сумму побольше.",
+  "learn.how.min.p2": "Трекер заверяет расписки и раз в несколько минут записывает в Ergo отпечаток их всех. Если у плательщика есть резерв в ERG, получатель может забрать деньги в Ergo; без резерва расписка держится на доверии.",
+  "learn.how.min.p3": "Подписать сумму может только ключ плательщика, поэтому трекер сам по себе долг не создаст. Попробуйте на игровых деньгах в песочнице; в основной сети Ergo — только небольшие суммы.",
+  "learn.how.min.try": "Попробовать в песочнице",
 };
 
 export default { en, ru } satisfies I18nBundle;

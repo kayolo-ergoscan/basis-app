@@ -75,7 +75,7 @@ export function RequestWelcome({ o, state }: { o: OpenRequest; state: VaultState
         <div className="mw-rq-paths">
           <Key variant="primary" size="lg" block onClick={start}>{t("mw.rq.pay")}</Key>
           <p className="t-small mw-dim mw-rq-sub">{t(noKey ? "mw.rq.payNoKey" : "mw.rq.payBackup")}</p>
-          <Key size="lg" block to="/learn/how">{t("mw.rq.learn")}</Key>
+          <Key size="lg" block to="/learn/how#minute">{t("mw.rq.learn")}</Key>
           <Key size="lg" block to="/play" className="mw-rq-try">{t("mw.rq.try")}</Key>
         </div>
         <section className="mw-rq-needs" aria-labelledby="mw-rq-needs-h">

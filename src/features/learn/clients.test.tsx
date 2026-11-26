@@ -1,5 +1,5 @@
 // Ready-made programs (/learn/api#clients): the block renders in EN and RU as the page's first section, with the
-// three programs, ErgoScan's tracker address, the code links at the pinned commit, the redemption caveat and every
+// three programs, the code links at the pinned commit, the redemption caveat and every
 // route linked to its catalogue entry; the ⌘K bar finds it by the words people type. The tracker's Code card link is
 // checked in tracker.test.ts; the copy rules cover these texts in content.test.ts and in learn.test.ts.
 import { renderToStaticMarkup } from "react-dom/server";
@@ -59,10 +59,11 @@ for (const lang of ["en", "ru"] as const) {
       expect(s).toContain(T("learn.api.s.clients").replace(/\*/g, ""));
     });
 
-    it("says whose programs they are, then gives ErgoScan's tracker address", () => {
+    it("says whose programs they are; ErgoScan's tracker address is given once, at the top of the page", () => {
       expect(s).toContain(pick(clients.lede, lang));
-      expect(s.indexOf(pick(clients.lede, lang))).toBeLessThan(s.indexOf(T("learn.api.cl.addr")));
-      expect(html).toContain(`<code>${ERGOSCAN_TRACKER_URL}</code>`);
+      expect(html.split(`<code>${ERGOSCAN_TRACKER_URL}</code>`).length - 1).toBe(1);
+      expect(s.indexOf(T("learn.api.start.addr"))).toBeGreaterThan(-1);
+      expect(s.indexOf(T("learn.api.start.addr"))).toBeLessThan(s.indexOf(pick(clients.lede, lang)));
     });
 
     it("has a card for each program: name, one line, its points, ErgoScan's tracker, the code at the pinned commit", () => {
