@@ -1,7 +1,7 @@
 // The book frame: sticky contents with scroll-spy, the article head, sections, prose helpers, figures, side
 // notes, fact lines, try-it keys, terms, sources and the prev/next pager. Every Learn page except the index
 // renders inside <BookLayout> and registers its sections with useBookSections().
-import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Suspense, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Icon, Key, Page, PageLoading, Tag } from "@/ui";
@@ -55,13 +55,14 @@ const BookCtx = createContext<{ setSecs: (s: TocSection[]) => void; ready: () =>
 export function useBookSections(secs: TocSection[]) {
   const ctx = useContext(BookCtx);
   const key = secs.map((s) => s.id + "\u0001" + s.label).join("\u0002");
-  useEffect(() => {
+  // layout effects: the frame re-renders with this page's list before the first paint of the page (with a passive
+  // effect the phone's contents line showed the new chapter with the old chapter's section for a few frames)
+  useLayoutEffect(() => {
     ctx?.setSecs(secs);
     ctx?.ready();
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  // cleared when the page goes, not between two versions of its list (the phone's contents line showed the chapter
-  // without its section for a frame: motion round)
-  useEffect(() => () => ctx?.setSecs([]), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // cleared when the page goes, not between two versions of its list (motion round)
+  useLayoutEffect(() => () => ctx?.setSecs([]), []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function pageIdOf(pathname: string): LearnPageId | null {
@@ -140,6 +141,9 @@ export function BookLayout() {
   }, [active]);
 
   const closeMobile = () => { if (mRef.current) mRef.current.open = false; };
+  // the phone's drawer closes with the switch to another chapter, in the same update (closed on the tap, the old page
+  // jumped up by the drawer's height before the new one came)
+  useLayoutEffect(closeMobile, [loc.pathname]);
   const curPage = current ? pageOf(current) : null;
   // a new chapter's list arrives before the scroll spy has looked at it: its first section until then (where the spy
   // lands at the top of a page), so the contents line never shows the chapter without a section in between
@@ -214,7 +218,7 @@ function Toc({ current, secs, active, onNav, here = "inline" }: { current: Learn
     <nav>
       <div className="lrn-toc-top">
         <span className="label">{t("learn.toc.label")}</span>
-        <Link to="/learn" onClick={onNav}>{t("learn.toc.all")}<Icon name="right" size={14} /></Link>
+        <Link to="/learn" onClick={current == null ? onNav : undefined}>{t("learn.toc.all")}<Icon name="right" size={14} /></Link>
       </div>
       <div className="lrn-toc-prog">
         <ReadWindows read={read} />
@@ -228,7 +232,7 @@ function Toc({ current, secs, active, onNav, here = "inline" }: { current: Learn
               const on = p.id === current;
               return (
                 <li key={p.id} className={cx("lrn-toc-page", on && "on", read.has(p.id) && "read")}>
-                  <Link to={p.path} aria-current={on ? "page" : undefined} onClick={onNav}>
+                  <Link to={p.path} aria-current={on ? "page" : undefined} onClick={on ? onNav : undefined}>
                     <span className="n">{p.numeral}</span>
                     <span className="tl" data-t={t(`learn.page.${p.id}.toc`)}><span>{t(`learn.page.${p.id}.toc`)}</span>{read.has(p.id) && <span className="sr-only"> · {t("learn.progress.read")}</span>}</span>
                   </Link>
