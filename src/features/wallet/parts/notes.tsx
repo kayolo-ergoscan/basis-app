@@ -89,6 +89,8 @@ export function NoteRow({ r, to, nowMs, selected }: { r: Row; to: string; nowMs:
   );
 }
 
+const TAB_IDS: TabId[] = ["all", "in", "out", "agents"];
+
 export interface NotesPanelProps {
   rows: Row[];
   nowMs: number;
@@ -113,12 +115,26 @@ export function NotesPanel({ rows, nowMs, hrefOf, tabs = true, limit, tab, onTab
   // switching tabs never moves what is below the list: the panel keeps the height of its longest tab (motion round)
   const ref = useRef<HTMLElement>(null);
   const most = Math.min(limit ?? Infinity, count("all"));
-  useHoldHeight(ref, rows.length, [tab, shown.length, most, tabs], () => {
-    const list = ref.current?.querySelector(".wl-rows"), panel = ref.current;
-    if (!tabs || !list || !panel || !shown.length) return 0;
-    const per = list.getBoundingClientRect().height / shown.length;
-    return panel.getBoundingClientRect().height + per * Math.max(0, most - shown.length);
+  // the other tabs that would show the empty state: drawn once, hidden, so their height is known before they open
+  const emptyTabs = tabs ? TAB_IDS.filter((x) => x !== tab && count(x) === 0) : [];
+  useHoldHeight(ref, rows.length, [tab, shown.length, most, tabs, emptyTabs.join()], () => {
+    const panel = ref.current;
+    if (!tabs || !panel) return 0;
+    const body = panel.querySelector<HTMLElement>(":scope > .wl-rows, :scope > .empty");
+    if (!body) return 0;
+    const bodyH = body.getBoundingClientRect().height;
+    const rowsH = shown.length ? (bodyH / shown.length) * most : 0;
+    const emptyH = Math.max(0, ...[...panel.querySelectorAll<HTMLElement>(":scope > .wl-notes-sizer > .empty")].map((e) => e.getBoundingClientRect().height));
+    return panel.getBoundingClientRect().height - bodyH + Math.max(bodyH, rowsH, emptyH);
   });
+  const emptyOf = (x: TabId, sizer = false) => (
+    <Empty
+      key={sizer ? x : `e-${x}`}
+      title={t(`wallet.empty.${x}.t`)}
+      text={t(`wallet.empty.${x}.b`)}
+      action={x === "in" ? { label: t("wallet.keys.request"), to: "/wallet/request" } : { label: t("wallet.keys.pay"), to: "/wallet/pay" }}
+    />
+  );
   return (
     <section className="wl-notes" aria-labelledby="wl-notes-h" ref={ref}>
       {title && (
@@ -147,16 +163,17 @@ export function NotesPanel({ rows, nowMs, hrefOf, tabs = true, limit, tab, onTab
         />
       )}
       {shown.length === 0 ? (
-        <Empty
-          title={t(`wallet.empty.${tab}.t`)}
-          text={t(`wallet.empty.${tab}.b`)}
-          action={tab === "in" ? { label: t("wallet.keys.request"), to: "/wallet/request" } : { label: t("wallet.keys.pay"), to: "/wallet/pay" }}
-        />
+        emptyOf(tab)
       ) : (
         <div className="rows wl-rows">
           {shown.map((r) => (
             <NoteRow key={r.key} r={r} to={hrefOf(r)} nowMs={nowMs} selected={selected === r.key} />
           ))}
+        </div>
+      )}
+      {emptyTabs.length > 0 && (
+        <div className="wl-notes-sizer" aria-hidden="true" ref={(el) => el?.setAttribute("inert", "")}>
+          {emptyTabs.map((x) => emptyOf(x, true))}
         </div>
       )}
       {more && limit && list.length > limit && (

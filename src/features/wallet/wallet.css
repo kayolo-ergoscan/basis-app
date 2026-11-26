@@ -139,6 +139,10 @@
 .wl-more { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 14px; margin-top: 6px; border-top: 1px solid var(--rule); font: 500 14px/1 var(--f-ui); color: var(--ink-2); }
 .wl-more:hover { color: var(--ink); }
 .wl-notes .empty { padding: 36px 16px 28px; }
+/* the empty states of the other tabs, hidden: measured so the panel holds the tallest tab (motion round) */
+.wl-notes { position: relative; }
+.wl-notes-sizer { position: absolute; inset: 0 0 auto 0; visibility: hidden; pointer-events: none; overflow: hidden; height: 0; }
+.wl-notes-sizer > .empty { position: absolute; left: 0; right: 0; top: 0; }
 
 /* first steps (no notes yet) */
 .wl-first { display: grid; gap: 14px; margin-top: 8px; }

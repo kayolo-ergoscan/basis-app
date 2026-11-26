@@ -157,6 +157,8 @@
   .mw-start-card { max-width: 640px; }
 }
 @media (max-width: 640px) {
+  /* the sandbox wallet's phone top (wallet.css): the mode switch stands at one height in both modes */
+  .mw-page { padding-top: 14px; }
   .mw-top { align-items: stretch; }
   .mw-top-l { width: 100%; }
   .mw-top-l .wl-mode { width: 100%; }
