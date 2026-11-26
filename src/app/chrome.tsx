@@ -1,18 +1,20 @@
 // Shell chrome: the top bar (the mark, four places, a small block pill and one compact control for search, theme and
 // language), the menu sheet (every page, on narrow screens), the phone tab bar (the same four places), the banner, the
 // live tape and the footer.
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { BrandMark, Skyline } from "@/ui/components/Town";
 import { Icon, type IconName } from "@/ui/components/Icon";
 import { Chip, Lamp, Seg } from "@/ui/components/primitives";
 import { Sheet } from "@/ui/components/Sheet";
 import { flash, usePulseClass } from "@/ui/hooks";
+import { useGlide } from "@/ui/motion";
 import { int, short } from "@/ui/engine/money";
 import { REPOS } from "@/content/repos";
 import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
+import { usePendingPath } from "./motion";
 import { pulse, usePulse, type Pulse } from "./pulse";
 import { linkOf, NAV, preload, ROUTES } from "./routes";
 import type { FeatureRoute } from "./types";
@@ -28,8 +30,9 @@ function Wordmark() {
   return <span className="wordmark" aria-hidden="true">Basis</span>;
 }
 
-/** Live Ergo height: lamp pings once per new block; the chip is part of the pulse. */
-export function HeightChip() {
+/** Live Ergo height: lamp pings once per new block; the chip is part of the pulse. `away`: the chip keeps its place but
+ *  fades out (the top bar on a sandbox page), so nothing beside it moves and it never pops. */
+export function HeightChip({ away = false }: { away?: boolean }) {
   const t = useT();
   const h = useHeight();
   const lamp = useRef<HTMLSpanElement>(null);
@@ -47,7 +50,9 @@ export function HeightChip() {
   // «Блок 1 922 434» / "Block 1,922,434"; offline it is the network that is gone: «Ergo нет связи»
   const word = offline ? "Ergo" : t("app.height.label");
   return (
-    <Link to="/network" className="chip height" title={title} ref={chip as React.Ref<HTMLAnchorElement>} aria-label={`${word} ${h.height != null ? int(h.height) : offline ? t("app.height.offline") : "…"}. ${title}`}>
+    <Link to="/network" className={away ? "chip height away" : "chip height"} title={away ? undefined : title} ref={chip as React.Ref<HTMLAnchorElement>}
+      aria-hidden={away || undefined} tabIndex={away ? -1 : undefined}
+      aria-label={`${word} ${h.height != null ? int(h.height) : offline ? t("app.height.offline") : "…"}. ${title}`}>
       <span ref={lamp} style={{ display: "inline-flex" }}><Lamp state={offline ? "stale" : h.height == null ? "signed" : h.error ? "stale" : "live"} /></span>
       <span className="lbl-l">{word}</span> {offline ? <span className="off">{t("app.height.offline")}</span> : <b className="num">{h.height != null ? int(h.height) : "· · ·"}</b>}
     </Link>
@@ -57,12 +62,12 @@ export function HeightChip() {
 export function ThemeSeg() {
   const t = useT();
   const { theme, setTheme } = useTheme();
-  return <Seg ariaLabel={t("app.theme.aria")} value={theme} onChange={setTheme} options={[{ value: "night", label: t("app.theme.night") }, { value: "cotton", label: t("app.theme.cotton") }]} />;
+  return <Seg fade={false} ariaLabel={t("app.theme.aria")} value={theme} onChange={setTheme} options={[{ value: "night", label: t("app.theme.night") }, { value: "cotton", label: t("app.theme.cotton") }]} />;
 }
 export function LangSeg({ className }: { className?: string }) {
   const t = useT();
   const { lang, setLang } = useLang();
-  return <Seg ariaLabel={t("app.lang.aria")} className={className} value={lang} onChange={setLang} options={[{ value: "en", label: "EN", title: "English" }, { value: "ru", label: "RU", title: "Русский" }]} />;
+  return <Seg fade={false} ariaLabel={t("app.lang.aria")} className={className} value={lang} onChange={setLang} options={[{ value: "en", label: "EN", title: "English" }, { value: "ru", label: "RU", title: "Русский" }]} />;
 }
 
 /** The mainnet wallet (real ERG): /wallet/mainnet and below. Every other /wallet page is the sandbox's play-money
@@ -116,10 +121,19 @@ const menuOn = (r: FeatureRoute, pathname: string, isActive: boolean): boolean =
   return isActive;
 };
 
+/** The lit place: the page shown, or the one a switch is loading (the plate moves at once, src/app/motion.ts). */
+function useLitPath(): string {
+  const { pathname } = useLocation();
+  return usePendingPath() ?? pathname;
+}
+
 export function Nav() {
   const t = useT();
   const [menu, setMenu] = useState(false);
   const loc = useLocation();
+  const lit = useLitPath();
+  const links = useRef<HTMLElement>(null);
+  useGlide(links);
   useEffect(() => setMenu(false), [loc.pathname]);
   return (
     <header className="nav">
@@ -129,11 +143,12 @@ export function Nav() {
           <Wordmark />
           <span className="brand-sub">{t("app.brand.sub")}</span>
         </Link>
-        <nav className="nav-links" aria-label={t("nav.primary")}>
+        <nav className="nav-links" aria-label={t("nav.primary")} ref={links}>
+          <span className="glide" aria-hidden="true" />
           {PLACES.map((x) => {
             const on = x.match(loc.pathname);
             return (
-              <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined} onMouseEnter={() => warm(x.id)} onFocus={() => warm(x.id)}>
+              <Link key={x.id} to={x.to} className={x.match(lit) ? "on" : undefined} aria-current={on ? "page" : undefined} onMouseEnter={() => warm(x.id)} onFocus={() => warm(x.id)}>
                 {/* the wallet opens the mainnet key: the header says it is in beta («Wallet (beta)») */}
                 {x.id === "wallet" ? t("app.openWallet") : t(x.key)}
               </Link>
@@ -141,7 +156,7 @@ export function Nav() {
           })}
         </nav>
         <div className="nav-right">
-          {heightShown(loc.pathname) && <HeightChip />}
+          <HeightChip away={!heightShown(lit)} />
           <QuickControls />
           <button type="button" className="key sm quiet icon-only menu-k" onClick={() => setMenu(true)} aria-label={t("app.menu")} aria-expanded={menu}><Icon name="menu" /></button>
         </div>
@@ -171,6 +186,7 @@ export function Nav() {
 /** Network is one place with the tracker console in it: the same sub-nav on /network/* and /tracker/*. */
 const NET_TABS = ["overview", "reserves", "trackers", "redemptions", "contracts", "incidents", "ours"] as const;
 type NetTab = (typeof NET_TABS)[number];
+export type NetCounts = Partial<Record<NetTab, number>>;
 const netHref = (id: NetTab) => (id === "overview" ? "/network" : id === "ours" ? "/tracker/mainnet" : `/network/${id}`);
 function netOn(pathname: string): NetTab {
   if (pathname.startsWith("/tracker")) return "ours";
@@ -182,18 +198,44 @@ function netOn(pathname: string): NetTab {
   if (p.startsWith("incident")) return "incidents";
   return "overview";
 }
-export function NetPlaceNav({ counts = {}, className }: { counts?: Partial<Record<NetTab, number>>; className?: string }) {
+/** The sections with a count keep a slot for it from the first frame (filled once the snapshot is here), so no tab
+ *  widens and nothing beside it moves when the numbers arrive. */
+const COUNTED: readonly NetTab[] = ["reserves", "trackers", "redemptions", "contracts", "incidents"];
+export function NetPlaceNav({ counts = {}, className }: { counts?: NetCounts; className?: string }) {
   const t = useT();
   const { pathname } = useLocation();
   const on = netOn(pathname);
+  const ref = useRef<HTMLElement>(null);
+  // the network pages and the tracker console draw the same bar in the same place: the plate glides on between them
+  useGlide(ref, undefined, "net-place");
   return (
-    <nav className={className ? `place-tabs ${className}` : "place-tabs"} aria-label={t("nav.net.aria")}>
+    <nav className={className ? `place-tabs ${className}` : "place-tabs"} aria-label={t("nav.net.aria")} ref={ref}>
+      <span className="glide" aria-hidden="true" />
       {NET_TABS.map((id) => (
         <Link key={id} to={netHref(id)} className={on === id ? "on" : undefined} aria-current={on === id ? "page" : undefined}>
-          {id === "ours" && <Lamp state="live" size={7} />}{t(`nav.net.${id}`)}{counts[id] != null && <span className="n">{counts[id]}</span>}
+          {id === "ours" && <Lamp state="live" size={7} />}{t(`nav.net.${id}`)}{COUNTED.includes(id) && <span className="n">{counts[id] ?? ""}</span>}
         </Link>
       ))}
     </nav>
+  );
+}
+
+/** The Network place's bar, the same on /network/* and /tracker/*: the place tag, the sections, and the page's own live
+ *  line at the right (the observatory's, on /network). `sandbox`: the practice tracker's tag (play money). Both tags
+ *  share one slot as wide as the wider of the two, so the sections never move between pages. */
+export function NetPlaceBar({ counts, live, sandbox = false }: { counts?: NetCounts; live?: ReactNode; sandbox?: boolean }) {
+  const t = useT();
+  return (
+    <div className="nw-bar">
+      <div className="nw-bar-l">
+        <span className="label nw-bar-tag" data-tag={sandbox ? "sandbox" : "mainnet"}>
+          <span className="tg tg-main" aria-hidden={sandbox || undefined}><Lamp state="live" size={7} /><b>{t("nav.net.tag.mainnet")}</b> · {t("nav.net.tag.experimental")}</span>
+          <span className="tg tg-play" aria-hidden={!sandbox || undefined}><Lamp state="signed" size={7} /><b>{t("nav.net.tag.sandbox")}</b> · {t("nav.net.tag.play")}</span>
+        </span>
+        <NetPlaceNav counts={counts} />
+      </div>
+      {live}
+    </div>
   );
 }
 
@@ -201,11 +243,15 @@ export function NetPlaceNav({ counts = {}, className }: { counts?: Partial<Recor
 export function TabBar() {
   const t = useT();
   const { pathname } = useLocation();
+  const lit = useLitPath();
+  const ref = useRef<HTMLElement>(null);
+  useGlide(ref);
   return (
-    <nav className="tabbar" aria-label={t("nav.primary")}>
+    <nav className="tabbar" aria-label={t("nav.primary")} ref={ref}>
+      <span className="glide" aria-hidden="true" />
       {PLACES.map((x) => {
         const on = x.match(pathname);
-        return <Link key={x.id} to={x.to} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key)}</span></Link>;
+        return <Link key={x.id} to={x.to} className={x.match(lit) ? "on" : undefined} aria-current={on ? "page" : undefined}><Icon name={x.icon} size={24} /><span>{t(x.key)}</span></Link>;
       })}
     </nav>
   );

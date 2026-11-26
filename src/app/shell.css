@@ -41,8 +41,15 @@
    that is still loading does not pull the footer up */
 .shell-body { min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px); display: flex; flex-direction: column; }
 .shell-main { flex: 1 0 auto; outline: none; }
-.route-in { animation: route-in var(--t-base) var(--ease-out); }
-@keyframes route-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* the first view of a visit fades in (opacity only: nothing rises or slides); later switches cross-fade in place
+   (src/app/motion.ts, src/ui/motion.css) */
+.route-in { animation: route-in var(--t-fast) var(--ease-out); }
+@keyframes route-in { from { opacity: 0; } to { opacity: 1; } }
+/* the page width never changes when a view is shorter than the window (no scrollbar coming and going) */
+html { scrollbar-gutter: stable; }
+/* a switch that waits for its chunks on a slow network: after a moment the old view dims a little, as a hint */
+.shell-main { transition: opacity var(--t-fast) var(--ease-out); }
+html.switching .shell-main { opacity: .72; transition: opacity var(--t-base) var(--ease-out) 160ms; }
 .skip { position: absolute; left: 12px; top: -60px; z-index: 200; padding: 10px 14px; border-radius: 10px; background: var(--surface-2); color: var(--ink); border: 1px solid var(--rule-2); font: 600 14px var(--f-ui); }
 .skip:focus { top: 12px; }
 
@@ -133,6 +140,9 @@ footer.foot .f-col a, footer.foot .f-col button { white-space: nowrap; }
 /* ⌘K on touch: no key legend and no keyboard footer (they mean nothing without a keyboard; the query gets the width) */
 @media (pointer: coarse) { .cmdk .cmdk-mod, .cmdk .foot { display: none; } }
 .chip.height .off { color: var(--ink-3); font: 500 12px/1 var(--f-ui); }
+/* the block pill keeps its place on the sandbox pages and fades out there (nothing beside it moves, it never pops) */
+.nav .chip.height { transition: opacity var(--t-fast) var(--ease-out), visibility 0s; }
+.nav .chip.height.away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--t-fast) var(--ease-out), visibility 0s linear var(--t-fast); }
 
 /* ============ the Network place sub-nav (network sections + the ErgoScan tracker console) ============ */
 .place-tabs { display: flex; gap: 2px; padding: 3px; background: var(--well); border-radius: 11px; flex-wrap: wrap; max-width: 100%; }
@@ -140,9 +150,22 @@ footer.foot .f-col a, footer.foot .f-col button { white-space: nowrap; }
   font: 500 14px/1 var(--f-ui); color: var(--ink-3); text-decoration: none; white-space: nowrap; }
 .place-tabs a:hover { color: var(--ink-2); }
 .place-tabs a.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--key2-hi) inset, 0 1px 3px rgba(var(--shade), .3); }
-.place-tabs a .n { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
+.place-tabs a .n { font: 500 11px/1 var(--f-mono); color: var(--ink-3); display: inline-block; min-width: 2ch; }
 .place-tabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.trk-place { padding-bottom: 16px; margin-bottom: clamp(28px, 3.2vw, 48px); border-bottom: 1px solid var(--rule); }
+/* the place bar (tag + sections + the page's live line), the same on /network/* and /tracker/* (motion round: it was the
+   network page's own, and the tracker pages drew the sections alone, wider and further left) */
+.nw-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: clamp(28px, 3.2vw, 48px); border-bottom: 1px solid var(--rule); }
+.nw-bar-l { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; min-width: 0; }
+.nw-bar-tag { display: inline-grid; white-space: nowrap; }
+.nw-bar-tag > .tg { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 8px; }
+.nw-bar-tag[data-tag="mainnet"] > .tg-play, .nw-bar-tag[data-tag="sandbox"] > .tg-main { visibility: hidden; }
+.nw-live { display: inline-flex; align-items: center; gap: 9px; font: 400 12.5px/1.35 var(--f-ui); color: var(--ink-3); min-width: 0; }
+.nw-live b { color: var(--ink); font-weight: 500; }
+@media (max-width: 640px) {
+  .nw-bar { padding-bottom: 12px; }
+  .nw-bar-l { width: 100%; }
+  .nw-live { font-size: 12px; }
+}
 @media (max-width: 640px) {
   /* phone: the sections scroll sideways in one row instead of stacking four rows high */
   .place-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }

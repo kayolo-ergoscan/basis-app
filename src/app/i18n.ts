@@ -31,6 +31,12 @@ const en = {
   "nav.net.contracts": "Contracts",
   "nav.net.incidents": "Incidents",
   "nav.net.ours": "ErgoScan tracker",
+  // ---- motion round 26.11: the place bar's tag, the same on /network and /tracker (mainnet, or the practice sandbox) ----
+  "nav.net.tag.mainnet": "Mainnet",
+  "nav.net.tag.experimental": "experimental",
+  "nav.net.tag.sandbox": "Sandbox",
+  "nav.net.tag.play": "play money",
+  // ---- end motion round ----
   "app.theme.aria": "Theme",
   "app.theme.night": "Dark",
   "app.theme.cotton": "Light",
@@ -149,6 +155,12 @@ const ru: Partial<typeof en> = {
   "nav.net.contracts": "Контракты",
   "nav.net.incidents": "Инциденты",
   "nav.net.ours": "Трекер ErgoScan",
+  // ---- motion round 26.11: the place bar's tag, the same on /network and /tracker (mainnet, or the practice sandbox) ----
+  "nav.net.tag.mainnet": "Основная сеть",
+  "nav.net.tag.experimental": "экспериментально",
+  "nav.net.tag.sandbox": "Песочница",
+  "nav.net.tag.play": "игровые деньги",
+  // ---- end motion round ----
   "app.theme.aria": "Тема",
   "app.theme.night": "Тёмная",
   "app.theme.cotton": "Светлая",
