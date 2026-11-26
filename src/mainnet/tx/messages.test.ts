@@ -82,39 +82,45 @@ describe("mainnet signatures over the note message", () => {
 });
 
 // The inbox request (GET /notes/recipient/{key}), byte for byte against basis_core `worked_example_of_the_inbox_message`
-// (crates/basis_core/src/types.rs, branch inbox): recipient 2G, valid until 2026-11-23T00:00:00Z.
+// (crates/basis_core/src/types.rs, branch inbox): tracker NFT 0x5a × 32, recipient 2G, valid until 2026-11-23T00:00:00Z.
 describe("the inbox request", () => {
   const UNTIL = 1_795_392_000n;
 
-  it("is the 55-byte message of basis_core", () => {
-    const m = inboxMessage(G2, UNTIL);
+  it("is the 87-byte message of basis_core", () => {
+    const m = inboxMessage(NFT, G2, UNTIL);
     expect(m.length).toBe(INBOX_MESSAGE_BYTES);
-    expect(bytesToHex(m)).toBe("62617369732d696e626f782d7631" + G2 + "000000006b038200");
+    expect(INBOX_MESSAGE_BYTES).toBe(87);
+    expect(bytesToHex(m)).toBe("62617369732d696e626f782d7631" + NFT + G2 + "000000006b038200");
     expect(new TextDecoder().decode(m.subarray(0, 14))).toBe(INBOX_DOMAIN);
   });
 
-  it("can never be a note or a build request", () => {
-    // the tags have the same length and differ at byte 6 ("i" against "b"); the lengths never meet: 55 against 80
+  it("can never be a note, a build request or another tracker's inbox request", () => {
+    // the tags have the same length and differ at byte 6 ("i" against "b"); the lengths never meet: 87 against 80
     // (every note) and 131 or 198 (every build request)
     expect(INBOX_DOMAIN.length).toBe(BUILD_REQUEST_DOMAIN.length);
     expect(INBOX_DOMAIN.slice(0, 6)).toBe(BUILD_REQUEST_DOMAIN.slice(0, 6));
     expect(INBOX_DOMAIN[6]).not.toBe(BUILD_REQUEST_DOMAIN[6]);
+    expect([NOTE_MESSAGE_BYTES, 131, 198]).not.toContain(INBOX_MESSAGE_BYTES);
     const keys = [G, G2, "03" + "ff".repeat(31) + "fe"];
+    const nfts = [NFT, "00".repeat(32), TRACKER_NFT];
     const numbers = [0n, 1n, UNTIL, TS, (1n << 63n) - 1n];
     const tokens = ["erg", `token:${"7c".repeat(32)}`] as const;
-    for (const k of keys) {
-      for (const until of [1n, UNTIL, (1n << 64n) - 1n]) {
-        const inbox = bytesToHex(inboxMessage(k, until));
-        expect(inbox.length).toBe(2 * INBOX_MESSAGE_BYTES);
-        for (const other of keys) {
-          for (const n of numbers) {
-            for (const d of tokens) {
-              const note = noteMessage({ issuer: other, recipient: k, totalDebt: n, timestamp: n, trackerNft: NFT, denomination: d });
-              const build = buildRequestMessage({ trackerNft: NFT, issuer: other, recipient: k, denomination: d, amount: n, requestTimestamp: n });
-              expect(note.length).toBe(NOTE_MESSAGE_BYTES);
-              expect([131, 198]).toContain(build.length);
-              expect(bytesToHex(note)).not.toBe(inbox);
-              expect(bytesToHex(build)).not.toBe(inbox);
+    for (const nft of nfts) {
+      for (const k of keys) {
+        for (const until of [1n, UNTIL, (1n << 64n) - 1n]) {
+          const inbox = bytesToHex(inboxMessage(nft, k, until));
+          expect(inbox.length).toBe(2 * INBOX_MESSAGE_BYTES);
+          for (const other of nfts) if (other !== nft) expect(bytesToHex(inboxMessage(other, k, until))).not.toBe(inbox);
+          for (const other of keys) {
+            for (const n of numbers) {
+              for (const d of tokens) {
+                const note = noteMessage({ issuer: other, recipient: k, totalDebt: n, timestamp: n, trackerNft: nft, denomination: d });
+                const build = buildRequestMessage({ trackerNft: nft, issuer: other, recipient: k, denomination: d, amount: n, requestTimestamp: n });
+                expect(note.length).toBe(NOTE_MESSAGE_BYTES);
+                expect([131, 198]).toContain(build.length);
+                expect(bytesToHex(note)).not.toBe(inbox);
+                expect(bytesToHex(build)).not.toBe(inbox);
+              }
             }
           }
         }
@@ -124,26 +130,29 @@ describe("the inbox request", () => {
 
   it("signInbox gives only until and the signature, which covers the inbox message alone", () => {
     const secret = bigToBytes(2n, 32);
-    const token = signInbox(secret, G2, UNTIL);
+    const token = signInbox(secret, G2, NFT, UNTIL);
     expect(Object.keys(token).sort()).toEqual(["sig", "until"]);
     expect(token.until).toBe("1795392000");
     expect(token.sig).toMatch(/^[0-9a-f]{130}$/);
-    expect(verifyBasis(G2, inboxMessage(G2, UNTIL), token.sig)).toBe(true);
-    // not valid for another time, another key, a note or a build request over the same fields
-    expect(verifyBasis(G2, inboxMessage(G2, UNTIL + 1n), token.sig)).toBe(false);
-    expect(verifyBasis(G, inboxMessage(G, UNTIL), token.sig)).toBe(false);
+    expect(verifyBasis(G2, inboxMessage(NFT, G2, UNTIL), token.sig)).toBe(true);
+    // not valid for another tracker, another time, another key, a note or a build request over the same fields
+    expect(verifyBasis(G2, inboxMessage(TRACKER_NFT, G2, UNTIL), token.sig)).toBe(false);
+    expect(verifyBasis(G2, inboxMessage(NFT, G2, UNTIL + 1n), token.sig)).toBe(false);
+    expect(verifyBasis(G, inboxMessage(NFT, G, UNTIL), token.sig)).toBe(false);
     expect(verifyBasis(G2, noteMessage({ issuer: G, recipient: G2, totalDebt: UNTIL, timestamp: UNTIL, trackerNft: NFT }), token.sig)).toBe(false);
     expect(verifyBasis(G2, buildRequestMessage({ trackerNft: NFT, issuer: G, recipient: G2, amount: UNTIL, requestTimestamp: UNTIL }), token.sig)).toBe(false);
     // the secret is in no field
     expect(JSON.stringify(token)).not.toContain(bytesToHex(secret));
   });
 
-  it("refuses a key that does not match, a bad key and a time out of range", () => {
+  it("refuses a key that does not match, a bad key or NFT and a time out of range", () => {
     const secret = bigToBytes(2n, 32);
-    expect(() => signInbox(secret, G, UNTIL)).toThrow();
-    expect(() => signInbox(secret, G2.toUpperCase(), UNTIL)).toThrow();
-    expect(() => signInbox(secret, G2, 0n)).toThrow();
-    expect(() => signInbox(secret, G2, 1n << 64n)).toThrow();
-    expect(() => inboxMessage(G2, -1n)).toThrow();
+    expect(() => signInbox(secret, G, NFT, UNTIL)).toThrow();
+    expect(() => signInbox(secret, G2.toUpperCase(), NFT, UNTIL)).toThrow();
+    expect(() => signInbox(secret, G2, NFT.toUpperCase(), UNTIL)).toThrow();
+    expect(() => signInbox(secret, G2, "5a".repeat(31), UNTIL)).toThrow();
+    expect(() => signInbox(secret, G2, NFT, 0n)).toThrow();
+    expect(() => signInbox(secret, G2, NFT, 1n << 64n)).toThrow();
+    expect(() => inboxMessage(NFT, G2, -1n)).toThrow();
   });
 });

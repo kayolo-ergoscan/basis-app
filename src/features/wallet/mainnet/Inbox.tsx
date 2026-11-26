@@ -1,19 +1,20 @@
-// «Inbox» on Receive: every note paid to this key, without a receipt link (inbox.ts). One press signs the inbox request
-// with the wallet key (the vault's withSecret, like the redemption build request: a read, no coins move); a locked key
-// is unlocked the way Pay does it (UnlockCard). The signed token stays in this tab until it expires, so the list opens
-// again without the key. Each payer found can be watched in one tap. A tracker without the inbox (401/404): one quiet
-// line pointing at the receipt link and the payer's key, as before.
+// «Inbox» on Receive: every note paid to this key in one list, without a receipt link (inbox.ts). One press signs the
+// inbox request with the wallet key (the vault's withSecret("inbox"): a read for our tracker only, no coins move); a
+// locked key is unlocked the way Pay does it (UnlockCard), after a probe shows the tracker has the route. The token is
+// valid at the tracker until it expires; this tab keeps its copy, so the list opens again without the key. Each payer
+// found can be watched in one tap. A fresh signature refused (401): the tracker's reason, and the button to try again.
+// A front without the inbox (404): one quiet line pointing at the receipt link and the payer's key, as before.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLang, useT } from "@/app/lang";
 import { Card, Key, KeySeal, Lamp, short } from "@/ui";
-import { denomSymbol, signInbox, type Denomination } from "@/mainnet/tx";
+import { TRACKER_NFT, denomSymbol, signInbox, type Denomination } from "@/mainnet/tx";
 import { watchIssuer, watchedDenoms, type WatchedIssuer } from "@/mainnet/flows";
 import { isVaultError } from "@/mainnet/vault";
 import { useMw } from "./ctx";
 import { net, useWatchList } from "./data";
 import { UnlockCard, useVaultError } from "./ui";
 import { Amt } from "./denom";
-import { INBOX_VALID_S, dropToken, payersOf, probeInbox, readInbox, readToken, saveToken, untilFrom, type InboxItem } from "./inbox";
+import { INBOX_VALID_S, dropToken, inboxUntil, payersOf, probeInbox, readInbox, readToken, saveToken, type InboxItem } from "./inbox";
 
 const STAGE_LAMP = { local: "signed", pending: "tracked", committed: "committed" } as const;
 
@@ -39,33 +40,40 @@ export function InboxCard({ me }: { me: string }) {
   const autoSigned = useRef(0);
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
 
-  // `kept`: a token from earlier in this tab; refused (401), it is dropped and the button signs a new one
+  // `kept`: a token from earlier in this tab; refused (401), it is dropped and the button signs a new one. A fresh one
+  // refused: the tracker's reason, the button stays. 404: this front has no inbox, the quiet fallback.
   const read = useCallback(async (token: { until: string; sig: string }, kept = false) => {
     setPhase({ k: "working" });
     const a = await readInbox(me, token, nowMs());
     if (!live.current) return;
     if (a.kind === "list") return setPhase({ k: "list", items: a.items, refused: a.refused, until: token.until });
-    if (a.kind === "closed") { dropToken(me); return setPhase(kept && a.status === 401 ? { k: "idle" } : { k: "closed" }); }
+    if (a.kind === "closed") {
+      dropToken(me);
+      if (a.status === 404) return setPhase({ k: "closed" });
+      return setPhase(kept ? { k: "idle" } : { k: "failed", text: t("mw.in.notTaken", { why: a.reason ?? "401" }) });
+    }
     if (a.kind === "busy") return setPhase({ k: "busy" });
     setPhase({ k: "failed", text: null });
-  }, [me]);
+  }, [me, t]);
 
   const sign = useCallback(async () => {
+    const until = inboxUntil(nowMs(), Date.now());
+    if (until === null) return setPhase({ k: "failed", text: t("mw.in.clock") });
     setPhase({ k: "working" });
     let token;
     try {
-      const until = untilFrom(nowMs());
-      // the vault's signing path for a request the recipient signs and that moves nothing (as the build request)
-      token = await vault.withSecret("build-request", (sk) => signInbox(sk, me, until));
+      // the vault's own purpose for it: a read of the notes to this key on our tracker, no passphrase, moves nothing
+      token = await vault.withSecret("inbox", (sk) => signInbox(sk, me, TRACKER_NFT, until));
     } catch (e) {
       if (!live.current) return;
       return setPhase(isVaultError(e, "locked") ? { k: "unlock" } : { k: "failed", text: verr(e) });
     }
     saveToken(me, token);
     await read(token);
-  }, [vault, me, read, verr]);
+  }, [vault, me, read, verr, t]);
 
   const show = useCallback(async () => {
+    autoSigned.current = 0;
     const kept = readToken(me, Math.floor(nowMs() / 1000));
     if (kept) return read(kept, true);
     if (state.status === "unlocked") return sign();
@@ -73,7 +81,7 @@ export function InboxCard({ me }: { me: string }) {
     setPhase({ k: "working" });
     const p = await probeInbox(me, nowMs());
     if (!live.current) return;
-    setPhase(p === "closed" ? { k: "closed" } : p === "failed" ? { k: "failed", text: null } : { k: "unlock" });
+    setPhase(p === "open" ? { k: "unlock" } : p === "closed" ? { k: "closed" } : p === "busy" ? { k: "busy" } : { k: "failed", text: null });
   }, [me, state.status, read, sign]);
 
   // a token kept in this tab opens the list at once; the key is not needed for it

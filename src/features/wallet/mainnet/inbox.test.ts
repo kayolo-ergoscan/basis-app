@@ -5,7 +5,7 @@ import { bigToBytes } from "@/protocol/bytes";
 import { keyPairFromSecret } from "@/protocol/keys";
 import { TRACKER_NFT, WALLET_DENOMS, inboxMessage, noteMessage, signBasis, signInbox, verifyBasis, type Denomination } from "@/mainnet/tx";
 import { bytesToHex } from "@/protocol/bytes";
-import { INBOX_TOKEN_KEY, dropToken, parseInbox, payersOf, probeInbox, readInbox, readToken, saveToken, untilFrom } from "./inbox";
+import { INBOX_TOKEN_KEY, dropToken, dropTokensExcept, inboxUntil, parseInbox, payersOf, probeInbox, readInbox, readToken, saveToken } from "./inbox";
 
 const key = (s: bigint) => ({ secret: bigToBytes(s, 32), pub: keyPairFromSecret(s).pubHex });
 const ME = key(3n);
@@ -39,7 +39,7 @@ const answer = (notes: string[]) => `{"success":true,"data":[${notes.join(",")}]
 describe("the inbox token", () => {
   it("keeps only until and the signature, per key, while it is valid", () => {
     const s = new MemStore();
-    const token = signInbox(ME.secret, ME.pub, untilFrom(NOW_MS));
+    const token = signInbox(ME.secret, ME.pub, TRACKER_NFT, inboxUntil(NOW_MS, NOW_MS)!);
     expect(token.until).toBe(String(NOW_S + 12 * 3600));
     saveToken(ME.pub, token, s);
     expect([...s.m.keys()]).toEqual([`${INBOX_TOKEN_KEY}.${ME.pub}`]);
@@ -67,9 +67,38 @@ describe("the inbox token", () => {
     expect(() => saveToken(ME.pub, { until: "1", sig: "a" }, null)).not.toThrow();
   });
 
-  it("is this key's signature over the inbox message", () => {
-    const token = signInbox(ME.secret, ME.pub, untilFrom(NOW_MS));
-    expect(verifyBasis(ME.pub, inboxMessage(ME.pub, BigInt(token.until)), token.sig)).toBe(true);
+  it("is this key's signature over the inbox message for our tracker", () => {
+    const token = signInbox(ME.secret, ME.pub, TRACKER_NFT, inboxUntil(NOW_MS, NOW_MS)!);
+    expect(verifyBasis(ME.pub, inboxMessage(TRACKER_NFT, ME.pub, BigInt(token.until)), token.sig)).toBe(true);
+    expect(verifyBasis(ME.pub, inboxMessage("5a".repeat(32), ME.pub, BigInt(token.until)), token.sig)).toBe(false);
+  });
+
+  it("valid_until: the earlier of the two clocks (the server's at most 5 minutes ahead), none past an hour apart", () => {
+    const at = (serverMs: number, localMs: number) => inboxUntil(serverMs, localMs);
+    expect(at(NOW_MS, NOW_MS)).toBe(BigInt(NOW_S + 12 * 3600));
+    // the server behind the device: the server's time
+    expect(at(NOW_MS - 600_000, NOW_MS)).toBe(BigInt(NOW_S - 600 + 12 * 3600));
+    // the server ahead of the device: at most 5 minutes of it
+    expect(at(NOW_MS + 120_000, NOW_MS)).toBe(BigInt(NOW_S + 120 + 12 * 3600));
+    expect(at(NOW_MS + 1_800_000, NOW_MS)).toBe(BigInt(NOW_S + 300 + 12 * 3600));
+    expect(at(NOW_MS + 3_600_000, NOW_MS)).toBe(BigInt(NOW_S + 300 + 12 * 3600));
+    // more than an hour apart, either way: nothing is signed
+    expect(at(NOW_MS + 3_600_001, NOW_MS)).toBeNull();
+    expect(at(NOW_MS - 3_600_001, NOW_MS)).toBeNull();
+    expect(at(Number.NaN, NOW_MS)).toBeNull();
+  });
+
+  it("all tokens but the key's own go when the key changes, every one when it is wiped", () => {
+    const s = new MemStore();
+    const t = { until: String(NOW_S + 3600), sig: "a".repeat(130) };
+    saveToken(ME.pub, t, s);
+    saveToken(A.pub, t, s);
+    s.setItem("basis.theme", "cotton");
+    dropTokensExcept(ME.pub, s);
+    expect([...s.m.keys()].sort()).toEqual([`${INBOX_TOKEN_KEY}.${ME.pub}`, "basis.theme"].sort());
+    dropTokensExcept(null, s);
+    expect([...s.m.keys()]).toEqual(["basis.theme"]);
+    expect(() => dropTokensExcept(null, null)).not.toThrow();
   });
 });
 
@@ -128,8 +157,9 @@ describe("the request", () => {
   });
 
   it("401 and 404 close it quietly; 429 is busy; others fail", async () => {
-    expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(401, `{"success":false,"data":null,"error":"the inbox signature has expired"}`), queue })).toEqual({ kind: "closed", status: 401 });
-    expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(404, `{"success":false,"data":null,"error":"not found"}`), queue })).toEqual({ kind: "closed", status: 404 });
+    expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(401, `{"success":false,"data":null,"error":"the inbox signature has expired"}`), queue })).toEqual({ kind: "closed", status: 401, reason: "the inbox signature has expired" });
+    expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(401, "<html>"), queue })).toEqual({ kind: "closed", status: 401, reason: null });
+    expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(404, `{"success":false,"data":null,"error":"not found"}`), queue })).toEqual({ kind: "closed", status: 404, reason: null });
     expect(await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(429, "{}"), queue })).toEqual({ kind: "busy" });
     expect((await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(503, "{}"), queue })).kind).toBe("failed");
     expect((await readInbox(ME.pub, token, NOW_MS, { fetchImpl: fake(200, "<html>"), queue })).kind).toBe("failed");
@@ -138,12 +168,14 @@ describe("the request", () => {
     expect((await readInbox("nope", token, NOW_MS, { fetchImpl: fake(200, answer([])), queue })).kind).toBe("failed");
   });
 
-  it("the probe sends a signature no key makes, and tells an inbox tracker from one without it", async () => {
+  it("the probe sends a signature no key makes: only 401 is an inbox, 404 none, the rest busy or failed", async () => {
     const seen: Seen[] = [];
     expect(await probeInbox(ME.pub, NOW_MS, { fetchImpl: fake(401, "{}", seen), queue })).toBe("open");
     expect(seen[0].headers["X-Basis-Inbox-Sig"]).toBe("0".repeat(130));
     expect(seen[0].headers["X-Basis-Inbox-Until"]).toBe(String(NOW_S + 60));
     expect(await probeInbox(ME.pub, NOW_MS, { fetchImpl: fake(404, "{}"), queue })).toBe("closed");
+    expect(await probeInbox(ME.pub, NOW_MS, { fetchImpl: fake(429, "{}"), queue })).toBe("busy");
+    for (const status of [200, 403, 500, 502, 503]) expect(await probeInbox(ME.pub, NOW_MS, { fetchImpl: fake(status, "{}"), queue })).toBe("failed");
     const down = (async () => { throw new TypeError("network"); }) as unknown as typeof fetch;
     expect(await probeInbox(ME.pub, NOW_MS, { fetchImpl: down, queue })).toBe("failed");
   });

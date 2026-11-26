@@ -15,6 +15,7 @@ import { WalletModeSwitch } from "../ModeSwitch";
 import strings from "./strings";
 import { MwCtx, type MwContext } from "./ctx";
 import { useJournal, useJournalWatcher, useVault, useVaultState } from "./data";
+import { dropTokensExcept } from "./inbox";
 import { HomeScreen } from "./Home";
 import { DenomGuard } from "./denom";
 import { StartScreen } from "./Start";
@@ -105,6 +106,11 @@ export default function MainnetWallet() {
   useEffect(() => {
     if (pubNow) setMainnetPubMarker(pubNow);
     else if (state.status === "none") setMainnetPubMarker(null);
+  }, [pubNow, state.status]);
+  // the inbox signatures kept in this tab belong to the key here: none is left once it is wiped or replaced
+  useEffect(() => {
+    if (pubNow) dropTokensExcept(pubNow);
+    else if (state.status === "none") dropTokensExcept(null);
   }, [pubNow, state.status]);
   const ctx: MwContext | null = vault && state.status !== "loading" ? { vault, state, entries, me, height } : null;
   // a payment request waiting in this tab: back to it once the key set up in this visit is backed up

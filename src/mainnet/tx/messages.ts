@@ -6,12 +6,13 @@
 //   build request (131, ERG):  "basis-build-v1" ‖ tracker NFT(32) ‖ issuer(33) ‖ recipient(33) ‖ "erg" ‖ amount u64 BE
 //                              ‖ request_timestamp ms u64 BE        ("token:<64 hex>" instead of "erg": 198 bytes)
 //
-//   inbox (55 bytes):          "basis-inbox-v1" ‖ recipient(33) ‖ valid_until unix seconds u64 BE
-//                              (basis_core `inbox_request_message`: GET /notes/recipient/{key} for its holder only)
+//   inbox (87 bytes):          "basis-inbox-v1" ‖ tracker NFT(32) ‖ recipient(33) ‖ valid_until unix seconds u64 BE
+//                              (basis_core `inbox_request_message`: GET /notes/recipient/{key} in one call, for the
+//                              key's holder, on the tracker of that NFT only)
 //
 // The issuer signs the note; the tracker signs the same 80 bytes (context var #6); the recipient signs the build
 // request and the inbox request. Signatures use the protocol engine's signer (deterministic nonces, retried until the
-// contract can read them). The three never coincide: 80, 131/198 and 55 bytes, and the two tagged ones differ at byte 6.
+// contract can read them). The three never coincide: 80, 131/198 and 87 bytes, and the two tagged ones differ at byte 6.
 import { bytesToBig, bytesToHex, concatBytes, hexToBytes, I64_MAX, u64be, utf8 } from "../../protocol/bytes";
 import { debtKey } from "../../protocol/note";
 import { sign, verify } from "../../protocol/schnorr";
@@ -82,25 +83,27 @@ export function buildRequestMessage(r: BuildRequestFields): Uint8Array {
 }
 
 export const INBOX_DOMAIN = "basis-inbox-v1";
-export const INBOX_MESSAGE_BYTES = 55;
+export const INBOX_MESSAGE_BYTES = 87;
 /** The tracker refuses a valid_until more than this far ahead (crates/basis_server/src/inbox.rs). */
 export const INBOX_MAX_AHEAD_S = 86_400;
 
-/** The inbox request message: always 55 bytes. `validUntil` is unix seconds. */
-export function inboxMessage(recipient: Hex, validUntil: bigint): Uint8Array {
-  return concatBytes(utf8(INBOX_DOMAIN), key33(recipient, "recipient"), u64(validUntil, "valid_until"));
+/** The inbox request message: always 87 bytes. `validUntil` is unix seconds; `trackerNft` names the one tracker that
+ *  takes it. */
+export function inboxMessage(trackerNft: Hex, recipient: Hex, validUntil: bigint): Uint8Array {
+  return concatBytes(utf8(INBOX_DOMAIN), id32(trackerNft, "tracker NFT"), key33(recipient, "recipient"), u64(validUntil, "valid_until"));
 }
 
 /** What the inbox headers carry: X-Basis-Inbox-Until (decimal seconds) and X-Basis-Inbox-Sig (130 hex). */
 export interface InboxToken { until: string; sig: Hex }
 
 /**
- * Signs the inbox request of `pub` (the key that owns `secret`) valid until `validUntil` (unix seconds, later than 0).
- * Call it inside the vault's withSecret callback; it returns only the token, never the secret.
+ * Signs the inbox request of `pub` (the key that owns `secret`) for the tracker of `trackerNft`, valid until
+ * `validUntil` (unix seconds, later than 0). Call it inside the vault's withSecret("inbox") callback; it returns only
+ * the token, never the secret.
  */
-export function signInbox(secret: Uint8Array, pub: Hex, validUntil: bigint): InboxToken {
+export function signInbox(secret: Uint8Array, pub: Hex, trackerNft: Hex, validUntil: bigint): InboxToken {
   if (validUntil <= 0n) throw new RangeError("valid_until must be later than 0");
-  return { until: validUntil.toString(), sig: bytesToHex(signBasis(inboxMessage(pub, validUntil), secret, pub)) };
+  return { until: validUntil.toString(), sig: bytesToHex(signBasis(inboxMessage(trackerNft, pub, validUntil), secret, pub)) };
 }
 
 /** A Basis Schnorr signature a(33) ‖ z(32) with the 32-byte secret; verified before it is returned. */
