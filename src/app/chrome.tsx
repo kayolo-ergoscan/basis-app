@@ -81,6 +81,10 @@ export const PLACES: { id: string; to: string; key: string; icon: IconName; matc
 
 /** The place a page belongs to (the lit entry of the top bar, the tab bar and the menu), or null (home, the kit). */
 export const placeOf = (pathname: string): string | null => PLACES.find((x) => x.match(pathname))?.id ?? null;
+
+/** The Ergo block pill shows everywhere but the sandbox (/play and the play-money wallet): there the town counts its own
+ *  blocks («T-01 · block 60»), and a second, unrelated block number on the same screen reads as a contradiction. */
+export const heightShown = (pathname: string): boolean => placeOf(pathname) !== "play";
 const warm = (id: string) => { const r = ROUTES.find((x) => x.id === id); if (r) preload(r); };
 
 /** One compact control: search (⌘K), the theme (one press switches) and the language. */
@@ -137,7 +141,7 @@ export function Nav() {
           })}
         </nav>
         <div className="nav-right">
-          <HeightChip />
+          {heightShown(loc.pathname) && <HeightChip />}
           <QuickControls />
           <button type="button" className="key sm quiet icon-only menu-k" onClick={() => setMenu(true)} aria-label={t("app.menu")} aria-expanded={menu}><Icon name="menu" /></button>
         </div>
@@ -151,7 +155,7 @@ export function Nav() {
           ))}
         </nav>
         <div className="menu-row">
-          <HeightChip />
+          {heightShown(loc.pathname) && <HeightChip />}
           <ThemeSeg />
           <LangSeg />
         </div>
@@ -253,7 +257,7 @@ export function LiveTape() {
             </span>
           ))}
         </div>
-        <HeightChip />
+        {heightShown(pathname) && <HeightChip />}
       </div>
     </div>
   );
