@@ -1,9 +1,10 @@
-// /learn — the book's landing page: what it is, where to start, the five moments, and every chapter as a card
-// with a small plate. No engine here: the plates are drawn with CSS, so this chunk stays light.
+// /learn — the book's landing page: what it is, where to start, the five moments, every chapter as a card with a
+// small plate, and who Basis is for (the six roles). No engine here: the plates are drawn with CSS, so this chunk
+// stays light.
 import { Link } from "react-router-dom";
 import { rich, useT } from "@/app";
 import { Icon, Note, Page } from "@/ui";
-import { GIT_REF_SHORT, apiEndpoints, chapters, copy, faq, glossary, historyEvents, moments, pick, sources, sourcesIntro } from "@/content";
+import { GIT_REF_SHORT, apiEndpoints, chapters, copy, faq, glossary, historyEvents, moments, personas, personasLede, personasTitle, pick, sources, sourcesIntro } from "@/content";
 import { LEARN_PAGES, PARTS, type LearnPage, type LearnPageId } from "../pages";
 import { ReadWindows, useLearnTitle } from "../layout";
 import { useReadChapters } from "../progress";
@@ -71,7 +72,7 @@ export default function IndexPage() {
         <Icon name="right" size={16} />
       </Link>
 
-      <section className="lx-moments" aria-label={t("learn.ix.moments")}>
+      <section className="lx-moments" id="moments" aria-label={t("learn.ix.moments")}>
         {moments.map((m) => {
           const ch = LEARN_PAGES[0];
           return (
@@ -79,6 +80,7 @@ export default function IndexPage() {
               <span className="nm" aria-hidden="true">{m.numeral}</span>
               <span className="t">{pick(m.title, t.lang)}</span>
               <span className="d">{pick(m.text, t.lang)}</span>
+              <span className="f">{pick(m.fact, t.lang)}</span>
               <span className="go">{t("learn.ix.toChapter", { n: String(chapterNo(m.chapter)).padStart(2, "0") })}<Icon name="right" size={14} /></span>
             </Link>
           );
@@ -102,6 +104,23 @@ export default function IndexPage() {
           </section>
         );
       })}
+
+      <section className="lx-part lx-who" id="who" aria-labelledby="lx-who-h">
+        <div className="lx-part-h">
+          <h2 id="lx-who-h">{pick(personasTitle, t.lang)}</h2>
+          <p className="t-lede">{pick(personasLede, t.lang)} <Link className="textlink" to="/learn/faq">{t("learn.ix.who.faq")} <span aria-hidden="true">→</span></Link></p>
+        </div>
+        <ul className="lx-who-row">
+          {personas.map((p) => (
+            <li key={p.id} className="lx-who-card">
+              <span className="label">{pick(p.title, t.lang)}</span>
+              <p className="one">{pick(p.oneLiner, t.lang)}</p>
+              <p className="who">{pick(p.who, t.lang)}</p>
+              <Link className="textlink go" to={p.start.to}>{pick(p.start.label, t.lang)} <span aria-hidden="true">→</span></Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <footer className="lx-foot">
         <span style={{ maxWidth: 760 }}>{pick(sourcesIntro, t.lang)}</span>

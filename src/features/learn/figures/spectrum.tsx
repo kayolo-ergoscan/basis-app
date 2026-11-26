@@ -21,10 +21,13 @@ export function SpectrumFig({ n, caption = true }: { n?: string; caption?: boole
             <div className="hw-tier" key={tier.id}>
               <span className="n">0{tier.n}</span>
               <b>{pick(tier.title, L)}</b>
+              <p className="s">{pick(tier.short, L)}</p>
               <p>{pick(tier.explanation, L)}</p>
               <p><code>{pick(tier.policy, L)}</code></p>
+              <p><span className="label">{t("learn.f.sp.chain")}</span><br />{pick(tier.chain, L)}</p>
               <p><span className="label">{t("learn.f.sp.protection")}</span><br />{pick(tier.protection, L)}</p>
               <p><span className="label">{t("learn.f.sp.risk")}</span><br />{pick(tier.risk, L)}</p>
+              <p><span className="label">{t("learn.f.sp.example")}</span><br />{pick(tier.example, L)}</p>
             </div>
           ))}
         </div>

@@ -9,7 +9,7 @@ const route: FeatureRoute = {
   titleKey: "home.title",
   commands: [
     { id: "home.open", labelKey: "home.cmd.story", to: "/", keywords: "home story landing hero note главная история расписка" },
-    { id: "home.moments", labelKey: "home.cmd.moments", to: "/#moments", keywords: "promise stamp trust back redeem moments обещание печать доверие обеспечение погашение" },
+    { id: "home.moments", labelKey: "home.cmd.moments", to: "/learn#moments", keywords: "promise stamp trust back redeem moments обещание печать доверие обеспечение погашение" },
     { id: "home.mainnet", labelKey: "home.cmd.mainnet", to: "/#mainnet", keywords: "mainnet reserves trackers today test use сеть резервы трекеры" },
   ],
 };

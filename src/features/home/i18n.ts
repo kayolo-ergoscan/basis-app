@@ -9,9 +9,9 @@ export default {
     "home.cmd.mainnet": "Mainnet now: Basis on Ergo today",
   },
   ru: {
-    "home.title": "Офчейн-деньги на Ergo",
-    "home.cmd.story": "Главная: офчейн-деньги на Ergo",
+    "home.title": "Деньги вне блокчейна, расчёт на Ergo",
+    "home.cmd.story": "Главная: деньги вне блокчейна, расчёт на Ergo",
     "home.cmd.moments": "Пять моментов одной расписки",
-    "home.cmd.mainnet": "Mainnet сейчас: Basis в Ergo сегодня",
+    "home.cmd.mainnet": "Основная сеть сейчас: Basis в Ergo сегодня",
   },
 } satisfies I18nBundle;

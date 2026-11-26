@@ -533,6 +533,9 @@ const en: Record<string, string> = {
   "learn.ix.dev": "For developers: the tracker's address, a payment accepted in three steps, open code",
   "learn.api.start.addr": "ErgoScan's tracker, public address",
   "learn.api.start.dev": "Accept a payment in three steps",
+  "learn.ix.who.faq": "Questions and answers",
+  "learn.f.sp.chain": "On chain",
+  "learn.f.sp.example": "Example",
 };
 
 const ru: Record<string, string> = {
@@ -1078,6 +1081,9 @@ const ru: Record<string, string> = {
   "learn.ix.dev": "Разработчикам: адрес трекера, приём оплаты в три шага, открытый код",
   "learn.api.start.addr": "Трекер ErgoScan, публичный адрес",
   "learn.api.start.dev": "Принять оплату в три шага",
+  "learn.ix.who.faq": "Вопросы и ответы",
+  "learn.f.sp.chain": "В блокчейне",
+  "learn.f.sp.example": "Пример",
 };
 
 export default { en, ru } satisfies I18nBundle;

@@ -3,10 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { CLIENTS_HREF, faq, moments } from "@/content";
 import { FAQ_HREF, faqHref, HOME_FAQ } from "./Faq";
+import learnIndexSrc from "@/features/learn/pages/IndexPage.tsx?raw";
 import heroSrc from "./Hero.tsx?raw";
-import momentsSrc from "./Moments.tsx?raw";
 import pageSrc from "./Page.tsx?raw";
-import spectrumSrc from "./Spectrum.tsx?raw";
 import i18n from "./i18n";
 import strings from "./strings";
 
@@ -65,15 +64,15 @@ describe("home first screen", () => {
 });
 
 describe("questions forward", () => {
-  it("the first screen links the FAQ next to the main buttons, and so does «Для кого это»", () => {
+  it("the first screen links the FAQ next to the main buttons, and so does «Для кого это» (in Learn)", () => {
     expect(FAQ_HREF).toBe("/learn/faq");
     expect(heroSrc).toContain('<Link className="textlink home-how" to={FAQ_HREF}>{t("home.cta.faq")}');
-    expect(spectrumSrc).toContain('to={FAQ_HREF}>{t("home.cta.faq")}');
+    expect(learnIndexSrc).toContain('<Link className="textlink" to="/learn/faq">{t("learn.ix.who.faq")}');
     expect([EN["home.cta.faq"], RU["home.cta.faq"]]).toEqual(["Questions and answers", "Вопросы и ответы"]);
   });
 
   it("Home answers three questions with the FAQ's own short answers and links each full answer", () => {
-    expect(pageSrc).toMatch(/<Spectrum \/>\s*<HomeFaq \/>/);
+    expect(pageSrc).toMatch(/<Mainnet \/>\s*<HomeFaq \/>/);
     expect([...HOME_FAQ]).toEqual(["lose-money", "tracker-disappears", "launched"]);
     const qs = HOME_FAQ.map((id) => faq.find((f) => f.id === id));
     expect(qs.map((f) => plain(f?.q.ru))).toEqual(["Могу ли я потерять деньги?", "Что, если трекер исчезнет?", "Можно ли уже с настоящими ERG?"]);
@@ -92,10 +91,10 @@ describe("questions forward", () => {
 });
 
 describe("five moments", () => {
-  it("the protocol formulas sit under «Подробнее для разработчиков»/For developers, folded (М8)", () => {
-    expect(momentsSrc).toMatch(/<details className="fact-d">\s*<summary>\{t\("home\.m\.dev"\)\}<\/summary>\s*<div className="fact">/);
-    expect(momentsSrc).not.toMatch(/<details className="fact-d" open/);
-    expect([EN["home.m.dev"], RU["home.m.dev"]]).toEqual(["For developers", "Подробнее для разработчиков"]);
+  it("live in Learn now, each with its protocol fact; Home tells the story once and keeps no copy", () => {
+    expect(pageSrc).not.toMatch(/<Moments \/>|<Spectrum \/>|<Learn \/>/);
+    expect(learnIndexSrc).toContain('id="moments"');
+    expect(learnIndexSrc).toContain("{pick(m.fact, t.lang)}");
   });
 
   it("each moment is two sentences, and «Доверие» says what the digest proves and what it does not", () => {
