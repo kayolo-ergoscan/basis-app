@@ -1,9 +1,11 @@
 // Small primitives (VISUAL §12.2–12.4): Lamp, Tag, CoverageTag, Chip, Seg, Tabs, Switch, Callout, Num, Hex, CopyButton,
 // Kbd, Digest, Honest, Checks, TrackerTile. Tokens only.
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { useT } from "@/app/lang";
 import { groupHex, money, MINUS, NBSP, short, signed, units, type SignMode } from "../engine/money";
 import { useUiSettings } from "../settings";
+import { crossFade, useGlide } from "../motion";
 import { Icon, type IconName } from "./Icon";
 import { toast } from "./Toast";
 
@@ -81,14 +83,24 @@ export function Chip({ lamp, label, value, href, onClick, title, className, chip
 }
 
 /* ---------- Seg / Tabs ---------- */
+// Both switch without a jump: the lit plate glides to the new option and the view cross-fades in place (src/ui/motion.ts;
+// instant under reduced motion or without the View Transitions API). `fade={false}` keeps a switch instant (the theme
+// and language controls change the whole page at once, chrome included).
 export interface SegOption<V extends string> { value: V; label: ReactNode; title?: string }
-export interface SegProps<V extends string> { options: SegOption<V>[]; value: V; onChange: (v: V) => void; mono?: boolean; ariaLabel: string; className?: string }
+export interface SegProps<V extends string> { options: SegOption<V>[]; value: V; onChange: (v: V) => void; mono?: boolean; ariaLabel: string; className?: string; fade?: boolean }
 /** Small segmented control (Night/Cotton, EN/RU). Each option is a toggle button. */
-export function Seg<V extends string>({ options, value, onChange, mono, ariaLabel, className }: SegProps<V>) {
+export function Seg<V extends string>({ options, value, onChange, mono, ariaLabel, className, fade = true }: SegProps<V>) {
+  const ref = useRef<HTMLDivElement>(null);
+  useGlide(ref);
+  const pick = (v: V) => {
+    if (v === value || !fade) { onChange(v); return; }
+    crossFade(() => flushSync(() => onChange(v)), [ref.current]);
+  };
   return (
-    <div className={cx("seg", mono && "mono", className)} role="group" aria-label={ariaLabel}>
+    <div ref={ref} className={cx("seg", mono && "mono", className)} role="group" aria-label={ariaLabel}>
+      <span className="glide" aria-hidden="true" />
       {options.map((o) => (
-        <button key={o.value} type="button" className={o.value === value ? "on" : undefined} aria-pressed={o.value === value} title={o.title} onClick={() => onChange(o.value)}>
+        <button key={o.value} type="button" className={o.value === value ? "on" : undefined} aria-pressed={o.value === value} title={o.title} onClick={() => pick(o.value)}>
           {o.label}
         </button>
       ))}
@@ -109,10 +121,18 @@ export interface TabsProps<V extends string> {
   /** id prefix: tab i gets id `${idBase}-tab-${id}` and controls `${idBase}-panel-${id}`. */
   idBase?: string;
   className?: string;
+  /** false: switch at once, without the cross-fade (the plate still glides). */
+  fade?: boolean;
 }
 /** Segmented tabs in a well (role tablist; arrows move, Home/End jump). */
-export function Tabs<V extends string>({ tabs, value, onChange, mono, block, ariaLabel, idBase, className }: TabsProps<V>) {
+export function Tabs<V extends string>({ tabs, value, onChange, mono, block, ariaLabel, idBase, className, fade = true }: TabsProps<V>) {
   const ref = useRef<HTMLDivElement>(null);
+  useGlide(ref);
+  const focusLit = () => ref.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus();
+  const pick = (id: V, focus: boolean) => {
+    if (id === value || !fade) { onChange(id); if (focus) requestAnimationFrame(focusLit); return; }
+    crossFade(() => { flushSync(() => onChange(id)); if (focus) focusLit(); }, [ref.current]);
+  };
   const onKey = (e: KeyboardEvent) => {
     const en = tabs.filter((x) => !x.disabled);
     const i = en.findIndex((x) => x.id === value);
@@ -123,11 +143,11 @@ export function Tabs<V extends string>({ tabs, value, onChange, mono, block, ari
     else if (e.key === "End") n = en.length - 1;
     if (n < 0) return;
     e.preventDefault();
-    onChange(en[n].id);
-    requestAnimationFrame(() => ref.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus());
+    pick(en[n].id, true);
   };
   return (
     <div ref={ref} className={cx("tabs", mono && "mono", block && "block", className)} role="tablist" aria-label={ariaLabel} onKeyDown={onKey}>
+      <span className="glide" aria-hidden="true" />
       {tabs.map((x) => (
         <button
           key={x.id}
@@ -139,7 +159,7 @@ export function Tabs<V extends string>({ tabs, value, onChange, mono, block, ari
           tabIndex={x.id === value ? 0 : -1}
           disabled={x.disabled}
           className={x.id === value ? "on" : undefined}
-          onClick={() => onChange(x.id)}
+          onClick={() => pick(x.id, false)}
         >
           {x.label}{x.count != null && <span className="n">{x.count}</span>}
         </button>

@@ -22,6 +22,7 @@ export * from "./components/Toast";
 export * from "./layout";
 export * from "./hooks";
 export * from "./settings";
+export { crossFade, canFade, useGlide, useHoldHeight, GLIDE_MS, FADE_MS } from "./motion";
 export {
   money, int, units, erg, signed, pct, ratioPct, withUnit, blk, blockWord, humanTime, blocksAndTime, short, groupHex, parseMoney,
   plainNumber, glyphCount, groupDigits, decimalMark, numberLang, setNumberLang, THIN, NBSP, MINUS, ELLIPSIS, MIN_PER_BLOCK,
