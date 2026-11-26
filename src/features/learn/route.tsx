@@ -19,6 +19,7 @@ const route: FeatureRoute = {
     // the ready-made programs block (content clients.ts): CLIENTS_HREF, written out so the shell's eager chunk stays small
     { id: "learn.clients", labelKey: "learn.cmd.clients", to: "/learn/api#clients", keywords: "cli tui mcp basis-cli basis-ui basis-mcp terminal wallet ai agents programs clients rust терминал кошелёк ии агенты программы клиенты" },
     { id: "learn.developers", labelKey: "learn.cmd.developers", to: "/learn/developers", keywords: "developers integrate accept payment request link receipt curl examples github code разработчикам интеграция принять оплату ссылка квитанция примеры код" },
+    { id: "learn.circle", labelKey: "learn.cmd.circle", to: "/learn/circle", keywords: "developer circle tips bounties support note button readme pull request круг разработчиков чаевые награды поддержать расписка кнопка" },
     { id: "learn.history", labelKey: "learn.cmd.history", to: "/learn/history", keywords: "history chaincash timeline история" },
     { id: "learn.faq", labelKey: "learn.cmd.faq", to: "/learn/faq", keywords: "faq questions answers вопросы ответы" },
     { id: "learn.glossary", labelKey: "learn.cmd.glossary", to: "/learn/glossary", keywords: "glossary terms words словарь термины" },

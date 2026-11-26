@@ -25,6 +25,7 @@ const FaqPage = lazy(() => import("./pages/FaqPage"));
 const GlossaryPage = lazy(() => import("./pages/GlossaryPage"));
 const SourcesPage = lazy(() => import("./pages/SourcesPage"));
 const DevPage = lazy(() => import("./pages/DevPage"));
+const CirclePage = lazy(() => import("./pages/CirclePage"));
 
 export default function LearnPage() {
   return (
@@ -32,6 +33,7 @@ export default function LearnPage() {
       <Route index element={<IndexPage />} />
       {/* beside the book, not a chapter: no contents rail, no pager, not in the reading progress */}
       <Route path="developers" element={<DevPage />} />
+      <Route path="circle" element={<CirclePage />} />
       <Route element={<BookLayout />}>
         <Route path="how" element={<HowPage />} />
         <Route path="signature" element={<SignaturePage />} />

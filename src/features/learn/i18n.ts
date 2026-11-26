@@ -21,6 +21,8 @@ export default {
     "learn.cmd.sources": "Sources",
     // site-simple
     "learn.cmd.developers": "For developers: accept Basis payments, examples, open code",
+    // circle
+    "learn.cmd.circle": "Developer circle: who accepts notes for their work, how to join",
   },
   ru: {
     "learn.title": "Как устроен Basis",
@@ -41,5 +43,7 @@ export default {
     "learn.cmd.sources": "Источники",
     // site-simple
     "learn.cmd.developers": "Разработчикам: приём оплаты, примеры, открытый код",
+    // circle
+    "learn.cmd.circle": "Круг разработчиков: кто принимает расписки за работу, как попасть",
   },
 } satisfies I18nBundle;
