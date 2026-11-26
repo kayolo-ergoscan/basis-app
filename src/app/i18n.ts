@@ -13,7 +13,7 @@ const en = {
   "nav.you": "You",
   "nav.primary": "Main",
 
-  "app.title": "Basis · unofficial interface",
+  "app.title": "Basis · an independent site by ErgoScan",
   "app.brand.home": "Basis, to the start",
   "app.brand.sub": "unofficial · ErgoScan",
   "app.openWallet": "Wallet (beta)",
@@ -128,7 +128,7 @@ const ru: Partial<typeof en> = {
   "nav.you": "Вы",
   "nav.primary": "Главное",
 
-  "app.title": "Basis · неофициальный интерфейс",
+  "app.title": "Basis · независимый сайт от ErgoScan",
   "app.brand.home": "Basis, на главную",
   "app.brand.sub": "неофициально · ErgoScan",
   "app.openWallet": "Кошелёк (бета)",
