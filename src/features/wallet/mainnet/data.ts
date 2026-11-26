@@ -32,6 +32,27 @@ function loadVault(): Promise<MainnetVault> {
  *  shows its screen at once instead of a loading frame. The same one vault the page then uses. */
 export const warmVault = (): Promise<unknown> => loadVault();
 
+/** The first answer a mainnet screen waits for on a switch (UI_KIT §8, «warm»): the reserve's gate, so the Reserve
+ *  screen opens with its card or its form, never with «Loading…» that the card then pushes down (clear round 26.11:
+ *  Home's reserve row leads there). The ERG gate only (a switch knows the path, not ?d=); none while a T1 of this
+ *  browser is open (the screen follows that one and does not read the gate). */
+function screenRes(pathname: string): Resource<unknown> | null {
+  const v = vaultNow;
+  if (pathname !== "/wallet/mainnet/reserve" || !v) return null;
+  const s = v.getState();
+  const pub = s.key?.pub;
+  if (!pub || !s.backedUp) return null;
+  if (v.journal.getSnapshot().some((e) => e.pub === pub && e.kind === "t1" && blocksNewT1In(e, "erg"))) return null;
+  return R.t1Gate(pub);
+}
+export function screenReady(pathname: string): boolean {
+  const s = screenRes(pathname)?.getSnapshot();
+  return !s || s.at !== null || s.problem !== null;
+}
+/** `priority`: "user" for a switch that waits for it, "poll" for the shell's read ahead (after the screen's own reads). */
+export const warmScreen = (pathname: string, priority: Priority = "user"): Promise<unknown> =>
+  loadVault().then(() => (screenReady(pathname) ? undefined : screenRes(pathname)?.load({ priority })));
+
 export function useVault(): { vault: MainnetVault | null; failed: boolean } {
   // an open vault (an earlier visit, or a switch that opened it first) is there from the first render
   const [s, setS] = useState<{ vault: MainnetVault | null; failed: boolean }>(() => ({ vault: vaultNow, failed: false }));

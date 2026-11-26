@@ -6,11 +6,12 @@ import { useLocation } from "react-router-dom";
 import { lazyChunk, loadParts } from "@/app/chunk";
 import { sandboxTown } from "@/app/warm";
 import { PageLoading } from "@/ui";
-import { isMainnetPath, mainnetPage, mainnetVault, sandboxPage } from "./chunks";
+import { isMainnetPath, mainnetPage, mainnetScreen, mainnetVault, sandboxPage } from "./chunks";
 
-/** A switch loads the mode's page and opens what it reads (the mainnet vault, or boots the sandbox town) first. */
+/** A switch loads the mode's page and opens what it reads (the mainnet vault and the screen's first answer, or boots
+ *  the sandbox town) first. */
 export const warm = (pathname: string, code: boolean) =>
-  loadParts(isMainnetPath(pathname) ? [mainnetPage, mainnetVault] : [sandboxPage, sandboxTown], code);
+  loadParts(isMainnetPath(pathname) ? [mainnetPage, mainnetVault, mainnetScreen(pathname)] : [sandboxPage, sandboxTown], code);
 
 const Sandbox = lazyChunk(sandboxPage);
 const Mainnet = lazyChunk(mainnetPage);

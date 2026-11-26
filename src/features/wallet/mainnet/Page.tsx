@@ -14,9 +14,9 @@ import { setMainnetPubMarker } from "@/mainnet/key-markers";
 import { WalletModeSwitch } from "../ModeSwitch";
 import strings from "./strings";
 import { MwCtx, type MwContext } from "./ctx";
-import { useJournal, useJournalWatcher, useVault, useVaultState } from "./data";
+import { useJournal, useJournalWatcher, useVault, useVaultState, warmScreen } from "./data";
 
-export { warmVault as warm } from "./data";
+export { warmVault as warm, screenReady, warmScreen } from "./data";
 import { dropTokensExcept } from "./inbox";
 import { HomeScreen } from "./Home";
 import { DenomGuard } from "./denom";
@@ -158,6 +158,10 @@ export default function MainnetWallet() {
   const ctx: MwContext | null = vault && state.status !== "loading" ? { vault, state, entries, me, height } : null;
   // a payment request waiting in this tab: back to it once the key set up in this visit is backed up
   useReturnToRequest((state.status === "locked" || state.status === "unlocked") && state.backedUp, !ctx);
+  // the Reserve screen's first answer (its T1 gate), read once ahead at the poll priority, after the screen's own reads:
+  // Home's reserve row and the key menu then open it at once, the switch does not wait for it (data.ts warmScreen)
+  const open = !!ctx;
+  useEffect(() => { if (open && pubNow && state.backedUp) void warmScreen("/wallet/mainnet/reserve", "poll").catch(() => {}); }, [open, pubNow, state.backedUp]);
 
   let body;
   if (failed) body = <ErrorState title={t("mw.boot.errT")} text={t("mw.boot.errB")} onRetry={() => window.location.reload()} retryLabel={t("mw.boot.retry")} />;
