@@ -11,7 +11,7 @@ export default {
 
     // hero
     "home.hero.aria": "Basis: offchain cash that settles on Ergo",
-    "home.lede": "Basis is **notes instead of transfers**: you pay with a signature, and an ERG reserve lets the receiver take the money on Ergo.",
+    "home.lede": "Basis is **notes instead of transfers**: you pay with a signature, and an ERG reserve can let the receiver take the money on Ergo.",
     "home.how.eyebrow": "How it works",
     "home.how.title": "Three stops on one street.",
     "home.how.s1.t": "Pay with a signed note",
@@ -222,7 +222,7 @@ export default {
     "home.name.bobOnNote": "Боба",
 
     "home.hero.aria": "Basis: офчейн-деньги с расчётом на Ergo",
-    "home.lede": "Basis\u00a0— это **расписки вместо переводов**: вы платите подписью, а резерв в ERG позволяет получателю забрать деньги в Ergo.",
+    "home.lede": "Basis\u00a0— это **расписки вместо переводов**: вы платите подписью, а резерв в ERG может позволить получателю забрать деньги в Ergo.",
     "home.how.eyebrow": "Как это устроено",
     "home.how.title": "Три остановки на одной улице.",
     "home.how.s1.t": "Платите подписанной распиской",
