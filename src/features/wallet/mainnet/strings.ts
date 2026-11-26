@@ -970,6 +970,12 @@ const en: Dict = {
   "mw.dn.otherTokens": "other tokens: {n}",
   "mw.dn.lede": "The reserve backs your notes. A {sym} reserve is a box on Ergo under the Basis token contract that holds {sym}, bound to ErgoScan's tracker. One key, one reserve in each currency.",
   "mw.dn.fundTokens": "For a SigUSD or rsADA reserve, send those tokens to this same address, with ERG for the box and the fees (the Reserve screen says how much). The wallet cannot send tokens away from this address yet.",
+
+  // ─── req-link: a request link a payer without a wallet understands, the receipt step, the project button ───
+  "mw.rq.nameL": "How to sign you (optional)",
+  "mw.rq.memoL": "What for (optional)",
+  "mw.rq.labelsHelp": "The payer sees them as written; nobody checks them. They sit after # in the link and reach no server.",
+  "mw.rq.askReceipt": "Once you are paid, ask the payer for the receipt link.",
 };
 
 const ru: Partial<Dict> = {
@@ -1921,6 +1927,12 @@ const ru: Partial<Dict> = {
   "mw.dn.otherTokens": "другие токены: {n}",
   "mw.dn.lede": "Резерв обеспечивает ваши расписки. Резерв в {sym} — это бокс в Ergo под токенным контрактом Basis, в нём лежат {sym}; он привязан к трекеру ErgoScan. Один ключ — один резерв в каждой валюте.",
   "mw.dn.fundTokens": "Для резерва в SigUSD или rsADA отправьте эти токены на этот же адрес, вместе с ERG на бокс и комиссии (сколько — скажет экран «Резерв»). Отправлять токены с этого адреса кошелёк пока не умеет.",
+
+  // ─── req-link: a request link a payer without a wallet understands, the receipt step, the project button ───
+  "mw.rq.nameL": "Как вас подписать (необязательно)",
+  "mw.rq.memoL": "За что (необязательно)",
+  "mw.rq.labelsHelp": "Плательщик увидит их как есть, их никто не проверяет. Они стоят в ссылке после # и не уходят на сервер.",
+  "mw.rq.askReceipt": "Когда вам заплатят, попросите у плательщика ссылку-квитанцию.",
 };
 
 export default { en, ru };

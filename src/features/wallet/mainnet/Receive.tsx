@@ -6,13 +6,14 @@
 // Token notes: an issuer is watched in a token once a receipt in it is imported, and a payer added by key is watched in
 // every denomination of the wallet (its empty pairs take no line); each denomination is its own pair at the tracker
 // (?denomination=) with its own figures, never added to another. The request link names its denomination.
+// The request link may also carry how to sign the receiver and what for (after #, plain text, unchecked: reqlink.ts).
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLang, useT } from "@/app/lang";
 import { AmountInput, Callout, Card, CopyButton, Field, Key, KeySeal, Lamp, TextInput, short, int } from "@/ui";
 import { TRACKER_NFT, WALLET_DENOMS, denomDecimals, denomSlug, denomSymbol, parseStoredNote, type Denomination } from "@/mainnet/tx";
 import {
-  WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, requestLink, unwatchIssuer, watchIssuer, watchedDenoms,
+  WATCH_POLLED, checkPreviousNote, decodeReceipt, fragmentOf, noteView, parseUnits, unwatchIssuer, watchIssuer, watchedDenoms,
   type NoteReceipt, type NoteView, type WatchedIssuer,
 } from "@/mainnet/flows";
 import { parseKeyInput } from "@/chain/ours";
@@ -21,6 +22,7 @@ import { useMw } from "./ctx";
 import { R, net, useResource, useWatchList } from "./data";
 import { Gate, ProblemText, TimeHint } from "./ui";
 import { Amt, DenomSwitch, amtText, useDenom, useOnDenomChange } from "./denom";
+import { LONG_LINK, MEMO_MAX, NAME_MAX, labelledRequestLink } from "./reqlink";
 
 /** A receipt from a pasted link, a bare code or the page's own fragment. */
 function receiptFrom(text: string): ReturnType<typeof decodeReceipt> | null {
@@ -219,11 +221,13 @@ export function ReceiveScreen() {
   const [list] = useWatchList(me?.pub ?? null);
   const [denom, setDenom] = useDenom();
   const [amountText, setAmountText] = useState("");
+  const [nameText, setNameText] = useState("");
+  const [memoText, setMemoText] = useState("");
   // an amount typed in one denomination is never kept under another (second review LOW-5)
   useOnDenomChange(denom, () => setAmountText(""));
   const amount = parseUnits(amountText, denomDecimals(denom));
   const initial = useMemo(() => (fragmentOf(loc.hash).note ? loc.hash : ""), [loc.hash]);
-  const link = me ? requestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT, ...(denom === "erg" ? {} : { denom }) }) : "";
+  const link = me ? labelledRequestLink(location.origin, { to: me.pub, amount: amount && amount > 0n ? amount : null, nft: TRACKER_NFT, ...(denom === "erg" ? {} : { denom }) }, { name: nameText, memo: memoText }) : "";
   return (
     <Gate vault={vault} state={state}>
       {me && (
@@ -249,15 +253,22 @@ export function ReceiveScreen() {
             <Card title={t("mw.recv.askT")}>
               <div className="mw-form">
                 <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
-                <div className="mw-qr mw-qr-c"><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
+                <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
                 <Field label={denom === "erg" ? t("mw.recv.askAmount") : t("mw.dn.askAmount", { sym: denomSymbol(denom) })} help={t("mw.recv.askAmountHelp")}
                   error={amountText && amount === null ? (denom === "erg" ? t("mw.amount.bad") : t("mw.dn.amountBad", { sym: denomSymbol(denom) })) : undefined}>
                   <AmountInput value={amountText} onChange={setAmountText} unit={denomSymbol(denom)} />
+                </Field>
+                <Field label={t("mw.rq.nameL")}>
+                  <TextInput value={nameText} onChange={setNameText} maxLength={NAME_MAX} autoComplete="off" />
+                </Field>
+                <Field label={t("mw.rq.memoL")} help={t("mw.rq.labelsHelp")}>
+                  <TextInput value={memoText} onChange={setMemoText} maxLength={MEMO_MAX} autoComplete="off" />
                 </Field>
                 <div className="mw-actions">
                   <CopyButton value={link} label={t("mw.recv.copyLink")} />
                   <CopyButton value={me.pub} label={t("mw.recv.copyPk")} />
                 </div>
+                <p className="t-small">{t("mw.rq.askReceipt")}</p>
                 <p className="t-small mw-dim">{t("mw.recv.askB")}</p>
               </div>
             </Card>
