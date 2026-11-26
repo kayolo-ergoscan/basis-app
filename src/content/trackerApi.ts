@@ -588,8 +588,13 @@ export const apiEndpoints: ApiEndpoint[] = [
 export const trackerApi = {
   title: t("Tracker API", "API трекера"),
   lede: t(
-    "The reference tracker speaks HTTP and JSON on port 3048. These are all 35 endpoints at commit 43e2173.",
-    "Эталонный трекер общается по HTTP и JSON на порту 3048. Здесь все 35 эндпоинтов на коммите 43e2173.",
+    "ErgoScan's tracker answers at a public address, and working examples come first. Then the ready-made programs, and every one of the reference server's 35 endpoints.",
+    "Трекер ErgoScan отвечает по публичному адресу, и сначала идут рабочие примеры. Дальше — готовые программы и все 35 эндпоинтов эталонного сервера.",
+  ),
+  /** Above the catalogue: what the 35 endpoints are, and where the reference server listens by default. */
+  catalogueLede: t(
+    "The reference server at commit 43e2173 speaks HTTP and JSON, on port 3048 by default. ErgoScan's tracker opens only some of these routes at its public address: see the ready-made programs above.",
+    "Эталонный сервер на коммите 43e2173 общается по HTTP и JSON, по умолчанию на порту 3048. Трекер ErgoScan открывает на публичном адресе только часть этих маршрутов — см. готовые программы выше.",
   ),
   illustrative: t(
     "Examples are illustrative: hex values are shortened, and amounts are raw units (nanoERG for ERG).",

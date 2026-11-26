@@ -65,6 +65,12 @@ export default function IndexPage() {
         </nav>
       </section>
 
+      <Link className="lx-dev" to="/learn/developers">
+        <Icon name="code" size={18} />
+        <span>{t("learn.ix.dev")}</span>
+        <Icon name="right" size={16} />
+      </Link>
+
       <section className="lx-moments" aria-label={t("learn.ix.moments")}>
         {moments.map((m) => {
           const ch = LEARN_PAGES[0];

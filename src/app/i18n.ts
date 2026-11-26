@@ -58,6 +58,7 @@ const en = {
   "app.footer.ours": "Our code",
   "app.footer.app": "This site: wallet and protocol engine",
   "app.footer.tracker": "ErgoScan's tracker",
+  "app.footer.dev": "For developers",
 
   "app.tape.waiting": "Waiting for the next commitment",
 
@@ -172,6 +173,7 @@ const ru: Partial<typeof en> = {
   "app.footer.ours": "Наш код",
   "app.footer.app": "Этот сайт: кошелёк и движок протокола",
   "app.footer.tracker": "Трекер ErgoScan",
+  "app.footer.dev": "Разработчикам",
 
   "app.tape.waiting": "Ждём следующую фиксацию",
 

@@ -274,6 +274,7 @@ export function Footer() {
           </div>
           <div className="f-col">
             <span className="label">Basis</span>
+            <Link to="/learn/developers">{t("app.footer.dev")}</Link>
             <Link to="/kit">{t("app.footer.kit")}</Link>
             <button type="button" className="textlink" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", color: "var(--ink-2)" }} onClick={() => openHelp()}>{t("app.footer.keys")}</button>
           </div>
