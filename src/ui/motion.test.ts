@@ -1,8 +1,8 @@
 // The page and tab switch (src/ui/motion.ts): a cross-fade only where the View Transitions API is there, motion is
-// allowed and the tab is visible; anything else switches at once. The bars that stay live during the fade are named for
-// that one switch and unnamed after it.
+// allowed and the tab is visible; anything else switches at once (a page switch under reduced motion still waits behind
+// the API, without a fade). The bars that stay live during the fade are named for that one switch and unnamed after it.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canFade, crossFade, FADE_MS } from "./motion";
+import { canFade, canHold, crossFade, FADE_MS } from "./motion";
 import { setUiSettings } from "./settings";
 
 const g = globalThis as unknown as Record<string, unknown>;
@@ -18,6 +18,7 @@ class FakeEl {
 function fakeDom(opts: { vt?: boolean; hidden?: boolean } = {}) {
   let finish: () => void = () => {};
   const calls: string[] = [];
+  const classes = new Set<string>();
   const start = vi.fn((update: () => Promise<void>) => {
     calls.push("start");
     const done = update();
@@ -32,10 +33,10 @@ function fakeDom(opts: { vt?: boolean; hidden?: boolean } = {}) {
   g.getComputedStyle = (el: FakeEl) => ({ viewTransitionName: el.props.get("view-transition-name") ?? "none" });
   g.document = {
     visibilityState: opts.hidden ? "hidden" : "visible",
-    documentElement: { classList: { toggle: () => {} } },
+    documentElement: { classList: { toggle: (c: string, on: boolean) => { if (on) classes.add(c); else classes.delete(c); } } },
     ...(opts.vt === false ? {} : { startViewTransition: start }),
   };
-  return { start, calls, finish: () => finish() };
+  return { start, calls, classes, finish: () => finish() };
 }
 
 describe("motion budget", () => {
@@ -90,6 +91,25 @@ describe("crossFade", () => {
     bar.props.set("view-transition-name", "bar-place");
     crossFade(() => {}, [bar as unknown as Element]);
     expect(bar.props.get("view-transition-name")).toBe("bar-place");
+  });
+
+  it("a page switch under reduced motion still waits behind the API, then shows at once (no fade)", async () => {
+    const dom = fakeDom();
+    setUiSettings({ motion: "reduce" });
+    expect(canFade()).toBe(false);
+    expect(canHold()).toBe(true);
+    const update = vi.fn();
+    crossFade(update, [], true);
+    expect(dom.start).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(dom.classes.has("vt-still")).toBe(true);
+    dom.finish();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(dom.classes.has("vt-still")).toBe(false);
+    const hidden = fakeDom({ hidden: true });
+    crossFade(update, [], true);
+    expect(hidden.start).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(2);
   });
 
   it("a switch during a fade finishes the older one at once", () => {

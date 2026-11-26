@@ -46,6 +46,8 @@
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+/* reduced motion (the system's or the site's setting): a page switch waits for its new view, then shows it at once */
+:root.vt-still::view-transition-group(*), :root.vt-still::view-transition-old(*), :root.vt-still::view-transition-new(*) { animation: none !important; }
 
 /* ============ the light of a bar ============ */
 .nav-links, .place-tabs, .mw-nav, .wl-bar-n, .wl-bar-m, .wl-mode, .trk-subnav, .trk-mode, .tabs, .seg { position: relative; isolation: isolate; }

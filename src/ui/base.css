@@ -116,8 +116,11 @@ section.sec { padding: clamp(64px, 7vw, 108px) 0; position: relative; }
 }
 
 /* ============ motion switches (VISUAL §10) ============ */
+/* Reduced motion: 1 ms (the end events still fire), and step-start, so the first frame already shows the end value (with
+   the initial transition-property `all`, a 1 ms transition on every element showed the old value of any changed property
+   for one frame: the play stage, the home hero and the phone sheet jumped a frame after a switch; motion round) */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; animation-timing-function: step-start !important; transition-duration: 1ms !important; transition-timing-function: step-start !important; scroll-behavior: auto !important; }
 }
-:root.rm *, :root.rm *::before, :root.rm *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+:root.rm *, :root.rm *::before, :root.rm *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; animation-timing-function: step-start !important; transition-duration: 1ms !important; transition-timing-function: step-start !important; scroll-behavior: auto !important; }
 :root.still *, :root.still *::before, :root.still *::after { animation: none !important; transition: none !important; }

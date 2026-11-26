@@ -6,10 +6,11 @@
 //   2. the router then applies the new location under a cross-fade (src/ui/motion.ts) that waits until the new view has
 //      rendered and settled (the route frame reports its commit), so the view is shown at its final size from the first
 //      frame. A change inside the same page (a #hash, a query) applies at once, without a fade.
-// Reduced motion or no View Transitions API: the same order, without the fade.
+// Reduced motion: the same order, the new view shown at once (still held until it has settled). No View Transitions
+// API: the same order, the new view applied at once.
 import { useSyncExternalStore } from "react";
 import { createBrowserHistory, createMemoryHistory, type BrowserHistory, type History } from "@remix-run/router";
-import { canFade, crossFade } from "@/ui/motion";
+import { canHold, crossFade } from "@/ui/motion";
 import { warmPath } from "./routes";
 
 type Update = Parameters<Parameters<History["listen"]>[0]>[0];
@@ -69,8 +70,9 @@ history.listen = (fn) => listen((u: Update) => {
     // the pending place hands over to the router's own in the same update (cleared before it, the old place lit up
     // again for the one frame the fade takes to capture the old view)
     const apply = () => { fn(u); setPending(null); };
-    if (same || !canFade()) { apply(); return; }
-    crossFade(() => { apply(); return settled(u.location.key); });
+    if (same || !canHold()) { apply(); return; }
+    // held behind the API until the new view has settled: cross-faded, or at once with reduced motion
+    crossFade(() => { apply(); return settled(u.location.key); }, [], true);
   };
   const w = same ? null : warmPath(path);
   if (!w) { go(); return; }

@@ -2,7 +2,8 @@
 //   1. crossFade(): the view cross-fades in place (document.startViewTransition, the root only: a fade, never a
 //      slide). The fixed chrome (top bar, phone tab bar) and the bars that stay between views (sub-navs, the wallet mode
 //      switch, the tab row that was pressed) are named in motion.css and stay live above the fade, so they never fade,
-//      flicker or move. Without the View Transitions API, or with reduced motion, the switch is instant.
+//      flicker or move. With reduced motion a page switch still waits behind the API for its new view, then shows it at
+//      once (no fade: the late layout of a view is never seen); without the API the switch is instant.
 //   2. useLight(): the «фишка» — the light moves the way lights move in the night town: the soft lit tag goes out where
 //      it was and lights up at the new item at the same time, in place (a cross-fade of two lights, nothing slides). The
 //      header places, the lamp over the phone tab bar, sub-navs, tabs and segmented controls: one light per bar.
@@ -26,6 +27,12 @@ export function canFade(): boolean {
   return !!startVT() && !prefersReducedMotion() && document.visibilityState === "visible";
 }
 
+/** A page switch can wait behind the API until its new view is ready: the API is there and the tab is visible. With
+ *  reduced motion it is shown at once, without a fade (motion.css: html.vt-still). */
+export function canHold(): boolean {
+  return !!startVT() && document.visibilityState === "visible";
+}
+
 let running: ViewTransitionLike | null = null;
 /** Two slots for bars that are live only during their own switch (a tab row, a segmented control); motion.css names
  *  their pseudo-elements. The always-live bars are named in motion.css itself. */
@@ -33,11 +40,14 @@ const SLOTS = ["vt-live-a", "vt-live-b"];
 
 /** Run `update` (it changes the DOM; a promise is awaited) under a cross-fade of the view; `live` elements stay out of
  *  the fade (they show as themselves, so a plate gliding inside them is seen once, not twice). Instant without the API,
- *  under reduced motion or in a hidden tab. A switch that starts while another runs finishes the older one at once. */
-export function crossFade(update: () => void | Promise<void>, live: (Element | null | undefined)[] = []): void {
-  const start = canFade() ? startVT() : null;
+ *  under reduced motion or in a hidden tab; `hold` (a page switch): with reduced motion the old view still stays until
+ *  the update is done, then the new one shows at once. A switch that starts while another runs finishes the older one. */
+export function crossFade(update: () => void | Promise<void>, live: (Element | null | undefined)[] = [], hold = false): void {
+  const start = (hold ? canHold() : canFade()) ? startVT() : null;
   if (!start) { void update(); return; }
   running?.skipTransition();
+  const root = document.documentElement;
+  root.classList.toggle("vt-still", prefersReducedMotion());
   const named: HTMLElement[] = [];
   for (const el of live) {
     if (!(el instanceof HTMLElement) || named.length >= SLOTS.length || getComputedStyle(el).viewTransitionName !== "none") continue;
@@ -56,7 +66,7 @@ export function crossFade(update: () => void | Promise<void>, live: (Element | n
   running = vt;
   vt.ready.catch(() => { /* skipped: the DOM is already updated */ });
   vt.updateCallbackDone.catch(() => { /* the update threw: it is reported where it ran */ });
-  vt.finished.finally(() => { done(); if (running === vt) running = null; });
+  vt.finished.finally(() => { done(); if (running === vt) { running = null; root.classList.toggle("vt-still", false); } });
 }
 
 /* ------------------------------------------------------------------ the light of a bar */
