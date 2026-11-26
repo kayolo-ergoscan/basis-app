@@ -134,7 +134,7 @@ function PairDenom({ w, me, denom, polled, titled, header, onQuiet }: { w: Watch
   );
 }
 
-function ImportCard({ me, initial }: { me: string; initial: string }) {
+function ImportCard({ me, initial, className }: { me: string; initial: string; className?: string }) {
   const t = useT();
   const [text, setText] = useState(initial);
   const [list, update] = useWatchList(me);
@@ -148,7 +148,7 @@ function ImportCard({ me, initial }: { me: string; initial: string }) {
     setName("");
   };
   return (
-    <Card title={t("mw.recv.importT")}>
+    <Card title={t("mw.recv.importT")} className={className}>
       <div className="mw-form">
         <Field label={t("mw.recv.importL")} help={t("mw.recv.importHelp")}>
           <TextInput mono value={text} onChange={setText} placeholder={t("mw.recv.importPh")} autoComplete="off" />
@@ -233,13 +233,13 @@ export function ReceiveScreen() {
   return (
     <Gate vault={vault} state={state}>
       {me && (
-        <div className="mw-grid">
+        <div className="mw-grid mw-recv">
           <div className="mw-main">
             <header className="mw-screen-h">
               <h1 className="t-h2">{t("mw.recv.h")}</h1>
               <p className="t-lede">{t("mw.recv.lede")}</p>
             </header>
-            {initial && <ImportCard me={me.pub} initial={initial} key={initial} />}
+            {initial && <ImportCard me={me.pub} initial={initial} key={initial} className="mw-recv-link" />}
             <Card title={t("mw.recv.watchT", { n: list.length })}>
               {list.length === 0 ? (
                 <p className="t-small mw-dim">{t("mw.recv.watchEmpty")}</p>
@@ -253,7 +253,7 @@ export function ReceiveScreen() {
             <ProjectButton me={me.pub} />
           </div>
           <aside className="mw-side">
-            <Card title={t("mw.recv.askT")}>
+            <Card title={t("mw.recv.askT")} className="mw-ask">
               <div className="mw-form">
                 <DenomSwitch note value={denom} onChange={(d) => { setDenom(d); setAmountText(""); }} />
                 <div className={`mw-qr mw-qr-c${link.length > LONG_LINK ? " lg" : ""}`}><QrCode text={link} size={180} label={t("mw.recv.askQr")} /></div>
