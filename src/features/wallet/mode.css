@@ -8,6 +8,9 @@
 .wl-mode-l .g { font: 500 11px/1 var(--f-mono); color: var(--ink-3); }
 .wl-mode a.on .wl-mode-l .g { color: var(--ink-2); }
 .wl-mode-s { font: 400 12px/1.3 var(--f-ui); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* on the mainnet wallet: real ERG, said once, in gold (value on Ergo) */
+.wl-mode a.on[data-mode="mainnet"] .wl-mode-l .g, .wl-mode a.on[data-mode="mainnet"] .wl-mode-s { color: var(--metal-ink); }
+.wl-mode a.on[data-mode="mainnet"] .wl-mode-s { font-weight: 600; }
 .wl-mode-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: clamp(16px, 2vw, 24px); }
 @media (max-width: 640px) {
   .wl-mode { display: grid; width: 100%; }

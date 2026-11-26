@@ -28,7 +28,6 @@ function Hero({ children }: { children?: ReactNode }) {
   const t = useT();
   return (
     <div className="mw-hero">
-      <div className="label mw-eyebrow">{t("mw.start.eyebrow")}</div>
       <h1 className="t-h1 mw-hero-h">{t("mw.start.h1a")} <em>{t("mw.start.h1b")}</em></h1>
       <p className="t-lede mw-hero-lede">{t("mw.start.lede")}</p>
       <ul className="mw-warn-list">

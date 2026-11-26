@@ -1,4 +1,4 @@
-// Shared pieces of the mainnet wallet screens: the MAINNET seal, amounts, problems in plain words, the unlock card,
+// Shared pieces of the mainnet wallet screens: amounts, problems in plain words, the unlock card,
 // the gates (key, backup, unlocked), step ladders and the transaction review (TxLens over the real transaction).
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -13,12 +13,6 @@ import type { Problem } from "@/mainnet/net";
 import { simTxOf, type ErgoBox, type UnsignedTx } from "@/mainnet/tx";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
-
-/** "MAINNET · real ERG": on every mainnet screen (design §4.4). */
-export function MainnetSeal({ small }: { small?: boolean }) {
-  const t = useT();
-  return <Tag tone="metal" glyph="◆" className={cx("mw-seal", small && "sm")} title={t("mw.seal.title")}>{t("mw.seal")}</Tag>;
-}
 
 /** nanoERG with as many decimals as it needs (at least 2). */
 export function Erg({ nano, sign, tone, unit = true }: { nano: bigint; sign?: "favour" | "owe" | "none"; tone?: "up" | "alarm" | "metal" | "dim"; unit?: boolean }) {

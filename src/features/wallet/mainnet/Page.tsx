@@ -1,6 +1,7 @@
 // /wallet/mainnet/* — the Basis wallet on Ergo mainnet (beta, real ERG), against ErgoScan's tracker. Its own lazy chunk:
 // the vault (src/mainnet/vault), the transaction core (src/mainnet/tx), the network (src/mainnet/net) and these screens.
-// Every screen carries the MAINNET seal; the sandbox wallet and its key are never touched from here.
+// Every screen carries the mode switch with mainnet lit («Real ERG · beta»); the sandbox wallet and its key are never
+// touched from here.
 import { useEffect, useMemo } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { addI18n, getLang, useT } from "@/app/lang";
@@ -14,7 +15,6 @@ import { WalletModeSwitch } from "../ModeSwitch";
 import strings from "./strings";
 import { MwCtx, type MwContext } from "./ctx";
 import { useJournal, useJournalWatcher, useVault, useVaultState } from "./data";
-import { MainnetSeal } from "./ui";
 import { HomeScreen } from "./Home";
 import { DenomGuard } from "./denom";
 import { StartScreen } from "./Start";
@@ -57,7 +57,6 @@ function TopBar({ ctx }: { ctx: MwContext | null }) {
     <div className="mw-top">
       <div className="mw-top-l">
         <WalletModeSwitch mode="mainnet" />
-        <MainnetSeal />
       </div>
       {ctx && key && (
         <div className="mw-top-r">

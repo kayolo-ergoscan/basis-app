@@ -5,8 +5,6 @@ import type { Dict } from "@/app/types";
 
 const en: Dict = {
   "mw.title": "Mainnet",
-  "mw.seal": "MAINNET · real ERG",
-  "mw.seal.title": "This screen moves real ERG on Ergo mainnet",
   "mw.cancel": "Cancel",
   "mw.rule": "Check:",
   "mw.nothingSigned": "Nothing was signed.",
@@ -147,7 +145,6 @@ const en: Dict = {
   "mw.gate.backupGo": "Back up now",
 
   // Start
-  "mw.start.eyebrow": "Mainnet · beta",
   "mw.start.h1a": "A Basis key",
   "mw.start.h1b": "on mainnet",
   "mw.start.lede": "This wallet holds one key for Ergo mainnet in this browser. With it you create a reserve, issue notes against it, and redeem notes paid to you. Real ERG, small amounts.",
@@ -977,8 +974,6 @@ const en: Dict = {
 
 const ru: Partial<Dict> = {
   "mw.title": "Основная сеть",
-  "mw.seal": "ОСНОВНАЯ СЕТЬ · настоящие ERG",
-  "mw.seal.title": "На этом экране движутся настоящие ERG в основной сети Ergo",
   "mw.cancel": "Отмена",
   "mw.rule": "Проверка:",
   "mw.nothingSigned": "Ничего не подписано.",
@@ -1112,7 +1107,6 @@ const ru: Partial<Dict> = {
   "mw.gate.backupB": "Скачайте файл копии и один раз загрузите его обратно. До этого нельзя пополнять и подписывать.",
   "mw.gate.backupGo": "Сделать копию",
 
-  "mw.start.eyebrow": "Основная сеть · бета",
   "mw.start.h1a": "Ключ Basis",
   "mw.start.h1b": "для основной сети",
   "mw.start.lede": "Этот кошелёк хранит в браузере один ключ для основной сети Ergo. С ним вы создаёте резерв, выдаёте под него расписки и гасите расписки, выданные вам. Настоящие ERG, небольшие суммы.",

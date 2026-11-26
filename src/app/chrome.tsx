@@ -13,7 +13,7 @@ import { openCommandBar, openHelp } from "./commands";
 import { useHeight } from "./height";
 import { useLang, useT } from "./lang";
 import { pulse, usePulse, type Pulse } from "./pulse";
-import { hrefOf, linkOf, NAV, preload, ROUTES } from "./routes";
+import { linkOf, NAV, preload, ROUTES } from "./routes";
 import type { FeatureRoute } from "./types";
 import { useTheme } from "./theme";
 
@@ -64,13 +64,22 @@ export function LangSeg({ className }: { className?: string }) {
   return <Seg ariaLabel={t("app.lang.aria")} className={className} value={lang} onChange={setLang} options={[{ value: "en", label: "EN", title: "English" }, { value: "ru", label: "RU", title: "Русский" }]} />;
 }
 
-/** The four places of the site. Home is the mark; the tracker pages belong to Network (they share its sub-nav). */
+/** The mainnet wallet (real ERG): /wallet/mainnet and below. Every other /wallet page is the sandbox's play-money
+ *  wallet, so it belongs to the Sandbox place, not to «Wallet (beta)», which opens the mainnet key. */
+const isMainnetWallet = (p: string) => /^\/wallet\/mainnet(\/|$)/.test(p);
+const isSandboxWallet = (p: string) => (p === "/wallet" || p.startsWith("/wallet/")) && !isMainnetWallet(p);
+
+/** The four places of the site. Home is the mark; the tracker pages belong to Network (they share its sub-nav); the
+ *  sandbox wallet belongs to Sandbox. */
 export const PLACES: { id: string; to: string; key: string; icon: IconName; match: (p: string) => boolean }[] = [
-  { id: "play", to: "/play", key: "nav.play", icon: "play", match: (p) => p === "/play" || p.startsWith("/play/") },
-  { id: "wallet", to: "/wallet/mainnet", key: "nav.wallet", icon: "wallet", match: (p) => p === "/wallet" || p.startsWith("/wallet/") },
+  { id: "play", to: "/play", key: "nav.play", icon: "play", match: (p) => p === "/play" || p.startsWith("/play/") || isSandboxWallet(p) },
+  { id: "wallet", to: "/wallet/mainnet", key: "nav.wallet", icon: "wallet", match: isMainnetWallet },
   { id: "network", to: "/network", key: "nav.network", icon: "network", match: (p) => /^\/(network|tracker)(\/|$)/.test(p) },
   { id: "learn", to: "/learn", key: "nav.learn", icon: "learn", match: (p) => p === "/learn" || p.startsWith("/learn/") },
 ];
+
+/** The place a page belongs to (the lit entry of the top bar, the tab bar and the menu), or null (home, the kit). */
+export const placeOf = (pathname: string): string | null => PLACES.find((x) => x.match(pathname))?.id ?? null;
 const warm = (id: string) => { const r = ROUTES.find((x) => x.id === id); if (r) preload(r); };
 
 /** One compact control: search (⌘K), the theme (one press switches) and the language. */
@@ -94,11 +103,12 @@ export function QuickControls() {
   );
 }
 
-/** A menu entry whose link is not its base (the wallet) stays lit on every page under the base. */
-const inRoute = (r: FeatureRoute, pathname: string): boolean => {
-  if (!r.href || r.path === "/") return false;
-  const base = hrefOf(r);
-  return pathname === base || pathname.startsWith(base + "/");
+/** A menu entry is lit on its own pages, as the top bar: the wallet (its link opens the mainnet key) only on the
+ *  mainnet wallet, and the sandbox wallet lights Sandbox. */
+const menuOn = (r: FeatureRoute, pathname: string, isActive: boolean): boolean => {
+  if (r.id === "wallet") return isMainnetWallet(pathname);
+  if (r.id === "play") return isActive || isSandboxWallet(pathname);
+  return isActive;
 };
 
 export function Nav() {
@@ -134,7 +144,7 @@ export function Nav() {
       <Sheet open={menu} onClose={() => setMenu(false)} title={<span className="cluster menu-brand" style={{ "--gap": "10px" } as CSSProperties}><BrandMark pulse={false} size={26} />Basis</span>} ariaLabel={t("app.menu")} width={380}>
         <nav className="menu-links" aria-label={t("nav.primary")}>
           {NAV.map((r) => (
-            <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (isActive || inRoute(r, loc.pathname) ? "on" : undefined)}>
+            <NavLink key={r.id} to={linkOf(r)} end={r.path === "/"} className={({ isActive }) => (menuOn(r, loc.pathname, isActive) ? "on" : undefined)}>
               <Icon name={iconOf(r.id, r.nav?.icon)} />{t(r.nav!.labelKey)}
             </NavLink>
           ))}
