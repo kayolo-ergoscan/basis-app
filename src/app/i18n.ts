@@ -49,7 +49,7 @@ const en = {
   "app.height.offline.title": "The mainnet API does not answer right now; the sandbox works without it. Retrying every 30 s.",
 
   "app.banner": "Unofficial site by ErgoScan, not by Better Money Labs. Basis is an experiment: small amounts only on Ergo mainnet.",
-  "app.banner.close": "Hide this notice for this visit",
+  "app.banner.close": "Hide this notice",
 
   "app.footer.line": "An independent interface to the Basis protocol.",
   "app.footer.prelaunch": "ErgoScan's Basis tracker runs on mainnet (beta); the sandbox uses play money.",
@@ -173,7 +173,7 @@ const ru: Partial<typeof en> = {
   "app.height.offline.title": "API основной сети сейчас не отвечает; песочница работает и без него. Повторяем каждые 30 с.",
 
   "app.banner": "Неофициальный сайт от ErgoScan, не от Better Money Labs. Basis — эксперимент: в основной сети Ergo только небольшие суммы.",
-  "app.banner.close": "Скрыть до следующего визита",
+  "app.banner.close": "Скрыть это уведомление",
 
   "app.footer.line": "Независимый интерфейс к протоколу Basis.",
   "app.footer.prelaunch": "Трекер ErgoScan для Basis работает в основной сети (бета); в песочнице игровые деньги.",

@@ -202,17 +202,29 @@ export function TabBar() {
 }
 
 const BANNER_KEY = "basis.banner.mainnet"; // a new text: a notice hidden before is shown once more
-/** Thin notice: our tracker on mainnet (beta), unofficial, small amounts only. Once per session, dismissible (PRODUCT §1). */
+/** Was the notice closed: for good in this browser (localStorage), or for this visit (sessionStorage, as before, and
+ *  where localStorage is refused). Every access may throw (private mode, blocked site data): then it shows. */
+function bannerClosed(): boolean {
+  try { if (localStorage.getItem(BANNER_KEY) === "1") return true; } catch { /* shown */ }
+  try { return sessionStorage.getItem(BANNER_KEY) === "1"; } catch { return false; }
+}
+function closeBanner(): void {
+  try { localStorage.setItem(BANNER_KEY, "1"); } catch { /* this visit only, below */ }
+  try { sessionStorage.setItem(BANNER_KEY, "1"); } catch { /* ignore */ }
+}
+/** Thin notice: our tracker on mainnet (beta), unofficial, small amounts only (PRODUCT §1). × hides it for good in this
+ *  browser (clear round 26.11): the footer of every page still says «unofficial · ErgoScan», and the mainnet wallet
+ *  keeps its own warnings before anything is signed. */
 export function Banner() {
   const t = useT();
-  const [hidden, setHidden] = useState(() => { try { return sessionStorage.getItem(BANNER_KEY) === "1"; } catch { return false; } });
+  const [hidden, setHidden] = useState(bannerClosed);
   if (hidden) return null;
   return (
     <div className="banner" role="note">
       <div className="container">
         <Icon name="info" className="ic" />
         <p>{t("app.banner")}</p>
-        <button type="button" className="key sm quiet icon-only x" aria-label={t("app.banner.close")} onClick={() => { setHidden(true); try { sessionStorage.setItem(BANNER_KEY, "1"); } catch { /* ignore */ } }}>
+        <button type="button" className="key sm quiet icon-only x" aria-label={t("app.banner.close")} onClick={() => { setHidden(true); closeBanner(); }}>
           <Icon name="close" size={16} />
         </button>
       </div>
