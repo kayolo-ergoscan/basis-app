@@ -5,7 +5,7 @@ import { addI18n, useT } from "@/app";
 import { Empty, ErrorState, Page } from "@/ui";
 import { chain, useChainStatus, useObservatory } from "@/chain";
 import { loadParts } from "@/app/chunk";
-import { snapshot } from "./chunks";
+import { snapshot } from "@/app/warm";
 import strings from "./strings";
 import { NetBar, NetLoading } from "./parts";
 import Overview from "./Overview";

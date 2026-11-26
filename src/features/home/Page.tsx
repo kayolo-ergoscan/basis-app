@@ -5,6 +5,8 @@ import "./home.css";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { addI18n } from "@/app/lang";
+import { loadParts } from "@/app/chunk";
+import { snapshot } from "@/app/warm";
 import { Doors } from "./Doors";
 import { HomeFaq } from "./Faq";
 import { Hero } from "./Hero";
@@ -15,6 +17,9 @@ import { createStoryStore, StoryContext } from "./useStory";
 
 // the page's string table arrives with this lazy chunk; register it before the page renders
 addI18n(strings);
+
+/** A switch loads the observatory snapshot first: the mainnet section shows its figures from the first frame. */
+export const warm = (_pathname: string, code: boolean) => loadParts([snapshot], code);
 
 export default function HomePage() {
   const [store] = useState(createStoryStore);

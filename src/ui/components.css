@@ -665,6 +665,8 @@ kbd, .kbd-k { display: inline-grid; place-items: center; min-width: 20px; height
   .board .container > :last-child { display: none; }
   .tape .board-in { grid-template-columns: 1fr; gap: 8px; padding: 12px 16px; }
   .tape .board-in > :last-child { display: none; }
+  /* one column: the rows' line keeps its height before the first row arrives (it pushed the page down by 22 px) */
+  .board-rows { min-height: 22px; }
   .note-stage { min-height: 0; padding: 40px 0 10px; }
   /* the back notes sit up and to the right: leave them room inside the 16 px gutter */
   .note-stage-inner { width: 92%; justify-self: start; }
