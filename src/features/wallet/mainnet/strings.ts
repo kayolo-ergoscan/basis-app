@@ -1031,6 +1031,24 @@ const en: Dict = {
   "mw.tip.qrL": "QR code of the button's link",
   "mw.tip.reserve": "Only a key with a reserve can pay through the button today: ErgoScan's tracker takes notes only from a key with an active reserve in the same currency.",
   "mw.tip.receipt": "You see a payment once the payer sends you the receipt link: say next to the button where to send it.",
+  // ─── inbox: every note paid to this key, read with this key's own signature, no receipt link (Inbox.tsx) ───
+  "mw.in.t": "Inbox",
+  "mw.in.lede": "Every note paid to your key, without a receipt link. The wallet signs a request with your key: the tracker shows this list only to the key's holder.",
+  "mw.in.show": "Show all notes to me",
+  "mw.in.reading": "Reading…",
+  "mw.in.signNote": "The signature only opens this list, for {h} hours in this tab; it moves no coins.",
+  "mw.in.unlockWhy": "Unlock the key to sign the inbox request. It only opens the list of notes to you; no coins move.",
+  "mw.in.found": "Payers found: {n}. Watch one to follow its notes here and on the home screen.",
+  "mw.in.empty": "No notes to your key yet.",
+  "mw.in.watch": "Watch",
+  "mw.in.watched": "Watched",
+  "mw.in.refresh": "Check again",
+  "mw.in.forget": "Forget the signature",
+  "mw.in.until": "open until {at}",
+  "mw.in.refused": "Records of the tracker that are not notes signed to you: {n}. They are not shown.",
+  "mw.in.closed": "This tracker does not show the inbox yet. Ask the payer for the receipt link, or add the payer by key on this screen.",
+  "mw.in.busy": "Too many requests for now: try again in a few minutes.",
+  "mw.in.failed": "The tracker did not answer. Try again in a minute.",
 };
 
 const ru: Partial<Dict> = {
@@ -2043,6 +2061,24 @@ const ru: Partial<Dict> = {
   "mw.tip.qrL": "QR-код ссылки кнопки",
   "mw.tip.reserve": "Платить по кнопке сейчас может только ключ с резервом: трекер ErgoScan принимает расписки лишь от ключа, у которого есть действующий резерв в той же валюте.",
   "mw.tip.receipt": "Оплату вы увидите, когда плательщик пришлёт вам ссылку-квитанцию: напишите рядом с кнопкой, куда её прислать.",
+  // ─── inbox: every note paid to this key, read with this key's own signature, no receipt link (Inbox.tsx) ───
+  "mw.in.t": "Входящие",
+  "mw.in.lede": "Все расписки вашему ключу — без ссылки-квитанции. Кошелёк подписывает запрос вашим ключом: этот список трекер показывает только владельцу ключа.",
+  "mw.in.show": "Показать все расписки мне",
+  "mw.in.reading": "Читаем…",
+  "mw.in.signNote": "Подпись только открывает этот список — на {h} ч в этой вкладке; монеты она не двигает.",
+  "mw.in.unlockWhy": "Откройте ключ, чтобы подписать запрос входящих. Он только открывает список расписок вам; монеты не двигаются.",
+  "mw.in.found": "Найдено плательщиков: {n}. Добавьте плательщика в отслеживаемые — его расписки будут видны здесь и на главной.",
+  "mw.in.empty": "Вашему ключу пока никто не выдал расписок.",
+  "mw.in.watch": "Следить",
+  "mw.in.watched": "Отслеживается",
+  "mw.in.refresh": "Проверить снова",
+  "mw.in.forget": "Забыть подпись",
+  "mw.in.until": "открыто до {at}",
+  "mw.in.refused": "Записей трекера, которые не подписаны вам как расписки: {n}. Они не показаны.",
+  "mw.in.closed": "Этот трекер пока не показывает входящие. Попросите у плательщика ссылку-квитанцию или добавьте плательщика по ключу на этой странице.",
+  "mw.in.busy": "Слишком много запросов: попробуйте через несколько минут.",
+  "mw.in.failed": "Трекер не ответил. Попробуйте через минуту.",
 };
 
 export default { en, ru };
