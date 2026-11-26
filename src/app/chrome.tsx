@@ -269,8 +269,9 @@ export function Footer() {
           </div>
           <div className="f-col">
             <span className="label">{t("app.footer.ours")}</span>
-            <a href={REPOS.app.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.app")} <span className="mono">github.com/{REPOS.app.name}</span></a>
-            <a href={REPOS.tracker.url} target="_blank" rel="noreferrer"><Icon name="github" size={15} />{t("app.footer.tracker")} <span className="mono">github.com/{REPOS.tracker.name}</span></a>
+            {/* short words (the address is the link's title), so the three columns still fit beside the brand at 1280 px */}
+            <a href={REPOS.app.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.app.name}`}><Icon name="github" size={15} />{t("app.footer.app")}</a>
+            <a href={REPOS.tracker.url} target="_blank" rel="noreferrer" title={`github.com/${REPOS.tracker.name}`}><Icon name="github" size={15} />{t("app.footer.tracker")}</a>
           </div>
           <div className="f-col">
             <span className="label">Basis</span>
